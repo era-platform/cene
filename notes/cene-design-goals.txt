@@ -1,0 +1,108 @@
+We have only a few main use cases for a Cene npm-installable command-line utility right now:
+
+- Write some code as a family of Cene files, and use it to generate JS for the Web.
+- Write some code as a family of Cene files, and use it to generate JS for an npm-installable command-line utility, such as a bootstrapped implementation of Cene itself.
+- Write some code as a single Cene file, and execute it on its own as a command-line utility using a shebang line.
+
+So how about this:
+
+$ cene -h
+Usage: cene [options] build.cene [arguments]
+
+Options:
+  -h, --help             Show this help message and exit.
+  -v, --version          Show Cene's version number and exit.
+  -i, --in dir           A directory to use as input.
+  -b, --build dir        A directory to hold internal results.
+  -o, --out dir          A directory where files will be overwritten.
+  -c, --command command  A command run whenever the build is complete.
+  -w, --watch            Keep running builds whenever inputs change.
+
+(TODO: Support --help. Then support --version, then --out. Then do concurrent development on --in and (--command, then --out). Then support --build, then --watch. The --build and --watch options are neither as essential nor as easy as the others, so supporting them too early could be a premature optimization.)
+
+To interact with the outside world, the Cene code has access to a few things in the form of nonstandard definitions:
+
+(def-type encapsulated-string val)
+(def-type assoc key value)
+(def-type file-type-directory)
+(def-type file-type-blob)
+(def-type file-type-missing)
+
+(defn cli-arguments mode ...)
+Gets the command-line arguments that were provided after the file name to execute. The given mode must be a current one, and it must permit CLI-time operations.
+
+(defn cli-input-environment-variables mode ...)
+Gets the environment variables as a list of (assoc ...) string pairs, sorted by key. The given mode must be a current one, and it must permit CLI-time operations.
+
+(defn cli-input-directory mode ...)
+Gets an input path that corresponds to the input directory provided at the command line. The given mode must be a current one, and it must permit CLI-time operations.
+
+(defn cli-output-directory mode ...)
+Gets an output path that corresponds to the output directory provided at the command line. The given mode must be a current one, and it must permit CLI-time operations.
+
+(defn input-path-get input-path name ...)
+Gets an input path that is a child of the given one.
+
+(defn input-path-type mode input-path ...)
+Gets (file-type-directory), (file-type-blob), or (file-type-missing) depending on what exists at the given input path. The given mode must be a current one, and it must permit CLI-time operations.
+
+(defn input-path-directory-list mode input-path ...)
+Lists the filenames in a directory. The given mode must be a current one, and it must permit CLI-time operations.
+
+(defn input-path-utf-8 mode input-path ...)
+Reads a blob as a string in utf-8 encoding, replacing invalid sequences with the Unicode replacement character if necessary. The given mode must be a current one, and it must permit CLI-time operations.
+
+(defn output-path-get output-path name ...)
+Gets an output path that is a child of the given one.
+
+(defn output-path-directory output-path ...)
+Monadically creates the given output path and its ancestors as directories. If a single path is written as a blob and as a directory, at least one of those writes is an error. The current mode must permit CLI-time operations.
+
+(defn output-path-blob-utf-8 output-path output-string ...)
+Monadically creates the given output path's ancestors as directories, creates the path itself as a blob, and overwrites its content with the given string in utf-8 format. The string may be a (string ...) or an (encapsulated-string ...). If a single path is written as a blob and as a directory, or as a blob twice, at least one of those writes is an error. The current mode must permit CLI-time operations.
+
+(defn output-path-blob-quine output-path constructor-name ...)
+Monadically creates the given output path's ancestors as directories, creates the path itself as a blob, and overwrites its content with a self-contained JavaScript file that will invoke a function corresponding to the given constructor name, using the definitions currently existing in this runtime. If this involves data that can't be serialized, this is an error. If a single path is written as a blob and as a directory, or as a blob twice, at least one of those writes is an error. The current mode must permit CLI-time operations.
+
+(defn cli-output-environment-variable-shadow key value ...)
+Monadically sets up the given key-value pair of strings so that it's part of the environment variables during the execution of the CLI interface's --command option. The value string may be a (string ...) or an (encapsulated-string ...). This does not modify the environment variables that are observed by (cli-input-environment-variables), but those variables will be implicitly inherited unless they're shadowed here. If the same key is shadowed twice, at least one of those shadow operations is an error. The current mode must permit CLI-time operations.
+
+(defn sloppy-javascript-quine mode constructor-name ...)
+Creates an (encapsulated-string ...) with self-contained JavaScript that will invoke a function corresponding to the given constructor name, using the definitions currently existing in this runtime, passing it a fresh mode that permits JavaScript-time operations. This will make no attempt to serialize first-class values; it will only put all Cene code and dependency data into a single massive JavaScript file together with a Cene interpreter that can re-run the build (including re-running the (sloppy-javascript-quine ...) operation itself!). The given mode must be a current one, and it must permit CLI-time operations.
+
+(defn string-to-javascript-utf-16 string ...)
+Translates a Cene string into a JavaScript string.
+
+(defn javascript-utf-16-to-string string ...)
+Translates a JavaScript string into a Cene string, reading it according to the utf-16 encoding, replacing invalid sequences with the Unicode replacement character if necessary.
+
+(defn trampoline-javascript mode mode-var client-var env body ...)
+Monadically executes a given body of JavaScript code under an environment dictated by a given list of (assoc ...) entries mapping JavaScript identifiers to unwrapped Cene values (which will be wrapped on the JavaScript side) and other JavaScript identifiers referring to a fresh mode which follows the original (as a wrapped Cene value) and a Cene client object. The given mode must be a current one, and it must permit JavaScript-time operations. On the same JavaScript tick, the JavaScript code is executed, and then the mode is finished, and its built-up effects are executed as well. If there are multiple pending calls to (trampoline-javascript ...) and client.trampolineIntoTrampoline( ... ) in a single monad value, the first one to execute is chosen arbitrarily by the language runtime on the spot. If it throws an exception, the others will not execute at all, nor will any other effect of the same monad value.
+
+JavaScript client object operations:
+
+client.wrap( jsVal )
+Wraps the given JavaScript value as a wrapped Cene value. If the JavaScript value is itself a wrapped Cene value, this wraps it again anyway.
+
+client.maybeUnwrap( wrappedVal )
+Returns null or { val: jsVal } depending on whether the given value is a wrapped Cene value that was obtained by wrapping a JavaScript value.
+
+client.noEffects( result )
+Returns wrapped Cene monadic side effects that, when executed, do nothing but return the given wrapped Cene value.
+
+client.bindEffects( arg, funcReturningEffects )
+Returns wrapped Cene monadic side effects that, when executed, call the given wrapped Cene function with the given wrapped Cene argument and execute the resulting monadic side effects.
+
+client.fork( jsMode )
+Returns a wrapped Cene value representing a fresh mode that follows the given mode. The given mode must be a current one, and it must have been created for running JavaScript code. The resulting mode must eventually be finished with client.sync( ... ) or its side effects will never occur.
+
+client.sync( forkedMode )
+Returns wrapped Cene monadic side effects that, when executed, finish the given mode, executes all its built-up effects, and results in (nil). The given mode must be a current one, it must have been created by client.fork( ... ), and it must be unfinished at the time these side effects execute.
+
+client.deferIntoTrampoline( jsMode, then )
+where then( trampolinedMode )
+Executes the given JavaScript callback in a future tick, with access to fresh mode which follows the given one, then finishes the fresh node and executes its built-up effects as well. The given mode must be a current one, it must have been created for running JavaScript code, and it must not have been finished yet. This deferral action is considered one of the effects of the monad value that corresponds to the original mode, so if that monad encounters a synchronous error due to (trampoline-javascript ...) or client.trampolineIntoTrampoline( ... ), this callback will not execute.
+
+client.trampolineIntoTrampoline( jsMode, effects, thenSync )
+where thenSync( trampolinedMode, effectsResult )
+Sets up the given wrapped Cene monadic side effects and JavaScript callback to occur when the given mode is finished, during the same JavaScript tick. The given mode must be a current one, and it must have been created for running JavaScript code. If there were no errors in the effects, the body receives a fresh mode which follows the original, it executes, and then the mode is finished, and the mode's built-up effects are executed as well. If there are multiple pending calls to (trampoline-javascript ...) and client.trampolineIntoTrampoline( ... ) in a single monad value, the first one to execute is chosen arbitrarily by the language runtime on the spot. If it throws an exception, the others will not execute at all, nor will any other effect of the same monad value.
