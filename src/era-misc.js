@@ -216,6 +216,13 @@ function isValidUnicode( string ) {
         return codePointInfo.isReplaced;
     } );
 }
+function toValidUnicode( string ) {
+    var result = "";
+    eachUnicodeCodePoint( string, function ( codePointInfo ) {
+        result += codePointInfo.charString;
+    } );
+    return result;
+}
 function unicodeCodePointToString( codePoint ) {
     function inRange( min, pastMax ) {
         return function ( n ) {

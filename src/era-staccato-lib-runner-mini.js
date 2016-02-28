@@ -1535,7 +1535,8 @@ function usingDefinitionNs( macroDefNs ) {
                 stcIstringNil.ofNow(
                     stcString.ofNow(
                         new StcForeign( "string",
-                            readerStringNilToString( readerExpr ) ) ) ) );
+                            readerStringNilToString(
+                                readerExpr ) ) ) ) );
         } else if ( readerExpr.type === "stringCons" ) {
             return stcStx.ofNow( myStxDetails,
                 stcIstringCons.ofNow(
@@ -1558,7 +1559,10 @@ function usingDefinitionNs( macroDefNs ) {
         stcAddCoreMacros: stcAddCoreMacros,
         processCoreTypes: processCoreTypes,
         macroexpandTopLevel: macroexpandTopLevel,
-        readerExprToStc: readerExprToStc
+        readerExprToStc: readerExprToStc,
+        
+        // NOTE: This is only needed for era-cene-api.js.
+        processDefType: processDefType
     };
 }
 

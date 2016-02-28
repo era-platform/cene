@@ -49,7 +49,7 @@ Gets (file-type-directory), (file-type-blob), or (file-type-missing) depending o
 (defn input-path-directory-list mode input-path ...)
 Lists the filenames in a directory. The given mode must be a current one, and it must permit CLI-time operations.
 
-(defn input-path-utf-8 mode input-path ...)
+(defn input-path-blob-utf-8 mode input-path ...)
 Reads a blob as a string in utf-8 encoding, replacing invalid sequences with the Unicode replacement character if necessary. The given mode must be a current one, and it must permit CLI-time operations.
 
 (defn output-path-get output-path name ...)
@@ -60,9 +60,6 @@ Monadically creates the given output path and its ancestors as directories. If a
 
 (defn output-path-blob-utf-8 output-path output-string ...)
 Monadically creates the given output path's ancestors as directories, creates the path itself as a blob, and overwrites its content with the given string in utf-8 format. The string may be a (string ...) or an (encapsulated-string ...). If a single path is written as a blob and as a directory, or as a blob twice, at least one of those writes is an error. The current mode must permit CLI-time operations.
-
-(defn output-path-blob-quine output-path constructor-name ...)
-Monadically creates the given output path's ancestors as directories, creates the path itself as a blob, and overwrites its content with a self-contained JavaScript file that will invoke a function corresponding to the given constructor name, using the definitions currently existing in this runtime. If this involves data that can't be serialized, this is an error. If a single path is written as a blob and as a directory, or as a blob twice, at least one of those writes is an error. The current mode must permit CLI-time operations.
 
 (defn cli-output-environment-variable-shadow key value ...)
 Monadically sets up the given key-value pair of strings so that it's part of the environment variables during the execution of the CLI interface's --command option. The value string may be a (string ...) or an (encapsulated-string ...). This does not modify the environment variables that are observed by (cli-input-environment-variables), but those variables will be implicitly inherited unless they're shadowed here. If the same key is shadowed twice, at least one of those shadow operations is an error. The current mode must permit CLI-time operations.

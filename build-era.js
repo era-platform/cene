@@ -60,6 +60,15 @@ argParser.addArgument( [ "-S", "--test-mini-staccato" ], {
         "Mini Staccato, a subset of a macro-capable Staccato: Run " +
         "a demo."
 } );
+argParser.addArgument( [ "file" ], {
+    nargs: "?",
+    help: "The path to a Cene file to execute."
+} );
+// TODO: Add support for this.
+//argParser.addArgument( [ "args" ], {
+//    nargs: "*",
+//    help: "Additional arguments to pass to the Cene program."
+//} );
 var args = argParser.parseArgs();
 
 var tasks = [];
@@ -111,37 +120,39 @@ if ( args.build_staccato ) tasks.push( function ( then ) {
     } );
 } );
 
-if ( args.test_mini_staccato ) tasks.push( function ( then ) {
+var runStaccatoFiles = function ( files, testFile, then ) {
     
     var $stc = Function(
         readFiles( [
             "src/era-misc-strmap-avl.js",
             "src/era-misc.js",
             "src/era-reader.js",
-            "src/era-staccato-lib-runner-mini.js"
+            "src/era-staccato-lib-runner-mini.js",
+            "src/era-cene-api.js"
         ] ) + "\n" +
         "\n" +
         "\n" +
         "return {\n" +
         "    readAll: readAll,\n" +
         "    arrAny: arrAny,\n" +
+        "    arrAll: arrAll,\n" +
+        "    arrMap: arrMap,\n" +
         "    stcNsGet: stcNsGet,\n" +
         "    stcNsRoot: stcNsRoot,\n" +
         "    nssGet: nssGet,\n" +
         "    usingDefinitionNs: usingDefinitionNs,\n" +
         "    stcTrivialStxDetails: stcTrivialStxDetails,\n" +
-        "    runAllDefs: runAllDefs\n" +
+        "    runAllDefs: runAllDefs,\n" +
+        "    ceneApiUsingDefinitionNs: ceneApiUsingDefinitionNs\n" +
         "};\n"
     )();
     
     var startMillis = new Date().getTime();
     
-    var libCode =
-        $stc.readAll( readFile( "src/era-staccato-lib.stc" ) );
-    var selfCompilerCode = $stc.readAll(
-        readFile( "src/era-staccato-self-compiler.stc" ) );
-    var testCode =
-        $stc.readAll( readFile( "test/test.stc" ) );
+    var codeOfFiles = $stc.arrMap( files, function ( file ) {
+        return $stc.readAll( readFile( file ) );
+    } );
+    var testCode = $stc.readAll( readFile( testFile ) );
     var readMillis = new Date().getTime();
     
     var nss = {
@@ -151,9 +162,12 @@ if ( args.test_mini_staccato ) tasks.push( function ( then ) {
     };
     
     var usingDefNs = $stc.usingDefinitionNs( nss.definitionNs );
+    var ceneApiUsingDefNs =
+        $stc.ceneApiUsingDefinitionNs( nss.definitionNs );
     
     usingDefNs.stcAddCoreMacros( nss.definitionNs );
     usingDefNs.processCoreTypes( nss.definitionNs );
+    ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
     
     function runCode( code ) {
         return !$stc.arrAny( code, function ( tryExpr ) {
@@ -172,7 +186,9 @@ if ( args.test_mini_staccato ) tasks.push( function ( then ) {
         } );
     }
     
-    if ( runCode( libCode ) && runCode( selfCompilerCode ) ) {
+    if ( $stc.arrAll( codeOfFiles, function ( code ) {
+        return runCode( code );
+    } ) ) {
         $stc.runAllDefs();
         runCode( testCode );
     }
@@ -191,6 +207,21 @@ if ( args.test_mini_staccato ) tasks.push( function ( then ) {
     process.nextTick( function () {
         then();
     } );
+};
+
+if ( args.test_mini_staccato ) tasks.push( function ( then ) {
+    runStaccatoFiles( [
+        "src/era-staccato-lib.stc",
+        "src/era-staccato-self-compiler.stc"
+    ], "test/test.stc", then );
+} );
+
+if ( args.file !== null ) tasks.push( function ( then ) {
+    runStaccatoFiles( [
+        "src/era-staccato-lib.stc",
+        "src/era-staccato-self-compiler.stc",
+        args.file
+    ], "test/test.stc", then );
 } );
 
 
