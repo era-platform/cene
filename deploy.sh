@@ -24,7 +24,7 @@ message="$(git log -1 --pretty=%B HEAD)"
 # `gh-pages` branch on GitHub. If the branch doesn't exist, we proceed
 # anyway (`|| true`); we'll end up creating the branch ourselves.
 git remote add rocketnia-upstream \
-  "https://$ROCKETNIA_GH_TOKEN@github.com/rocketnia/era.git"
+  "https://$ROCKETNIA_GH_TOKEN@github.com/rocketnia/era-cene.git"
 git fetch -q rocketnia-upstream
 git reset rocketnia-upstream/gh-pages || true
 
@@ -32,7 +32,7 @@ git reset rocketnia-upstream/gh-pages || true
 # `.gitignore` file with a version where these dependencies are not
 # ignored.
 echo Building dependencies of the Era demos...
-node build-era.js --minify --build-penknife --build-staccato
+node build-era.js --build-staccato
 cp gh-pages.gitignore .gitignore
 echo Finished building dependencies of the Era demos.
 

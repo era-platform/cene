@@ -1,9 +1,9 @@
 {
   "private": true,
-  "name": "era-lang",
+  "name": "era-cene-lang",
   "version": "0.0.1",
   "description": "A module system for platform-independent code, focusing on the JavaScript platform for now.",
-  "homepage": "https://github.com/rocketnia/era",
+  "homepage": "https://github.com/rocketnia/era-cene",
   "author": {
     "name": "Ross Angle",
     "url":  "http://www.rocketnia.com/"
@@ -14,11 +14,10 @@
     "npm": ">= 1.0.0"
   },
   "dependencies": {
-    "argparse": "*",
-    "uglify-js": "*"
+    "argparse": "*"
   },
   "scripts": {
-    "test": "node build-era.js -mpsERS"
+    "test": "node build-era.js -sES"
   },
   "main": "build-era.js"
 }

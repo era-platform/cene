@@ -6,7 +6,6 @@
 var fs = require( "fs" );
 
 var argparse = require( "argparse" );
-var uglify = require( "uglify-js" );
 
 var _ = require( "./buildlib/lathe" );
 var ltf = require( "./buildlib/lathe-fs" );
@@ -45,33 +44,15 @@ var argParser = new argparse.ArgumentParser( {
     addHelp: true,
     description: "The Era programming systems."
 } );
-argParser.addArgument( [ "-p", "--build-penknife" ], {
-    action: "storeTrue",
-    help:
-        "Penknife, a Lisp dialect: Compile dependencies of " +
-        "demos/penknife-compiled.html."
-} );
 argParser.addArgument( [ "-s", "--build-staccato" ], {
     action: "storeTrue",
     help:
         "Staccato: Compile dependencies of " +
-        "demos/staccato-runner.html and " +
         "demos/staccato-runner-mini.html."
-} );
-argParser.addArgument( [ "-m", "--minify" ], {
-    action: "storeTrue",
-    help:
-        "When compiling the Penknife demo, minify the compiled " +
-        "JavaScript code."
 } );
 argParser.addArgument( [ "-E", "--test-era" ], {
     action: "storeTrue",
-    help: "Era reader and Era module system: Run unit tests."
-} );
-argParser.addArgument( [ "-R", "--test-raw-staccato" ], {
-    action: "storeTrue",
-    help:
-        "Raw Staccato, a sugar for constant time steps: Run a demo."
+    help: "Era reader: Run unit tests."
 } );
 argParser.addArgument( [ "-S", "--test-mini-staccato" ], {
     action: "storeTrue",
@@ -89,11 +70,8 @@ if ( args.test_era ) tasks.push( function ( then ) {
         "src/era-misc-strmap-avl.js",
         "src/era-misc.js",
         "test/harness-first.js",
-        "test/test-bigint.js",
         "src/era-reader.js",
         "test/test-reader.js",
-        "src/era-modules.js",
-        "test/test-modules.js",
         "test/harness-last.js"
     ] ) )();
     
@@ -102,133 +80,6 @@ if ( args.test_era ) tasks.push( function ( then ) {
     } );
 } );
 
-if ( args.test_raw_staccato ) tasks.push( function ( then ) {
-    Function( readFiles( [
-        "src/era-misc-strmap-avl.js",
-        "src/era-misc.js",
-        "src/era-staccato.js",
-        "src/era-staccato-builders.js",
-        "src/era-staccato-lib.js"
-    ] ) )();
-    
-    process.nextTick( function () {
-        then();
-    } );
-} );
-
-
-if ( args.build_penknife ) tasks.push( function ( then ) {
-    
-    var $pk = Function(
-        readFiles( [
-            "src/era-misc-strmap-avl.js",
-            "src/era-misc.js",
-            "src/era-reader.js",
-            "src/era-penknife.js",
-            "src/era-penknife-to-js.js"
-        ] ) + "\n" +
-        "\n" +
-        "\n" +
-        "return { runSyncYoke: runSyncYoke,\n" +
-        "    makePkRuntime: makePkRuntime,\n" +
-        "    pk: pk,\n" +
-        "    compileAndDefineFromString:\n" +
-        "        compileAndDefineFromString };\n"
-    )();
-    
-    var displays = $pk.runSyncYoke( {
-        pkRuntime: $pk.makePkRuntime(),
-        pkRider: $pk.pk( "pure-yoke" )
-    }, function ( yoke, then ) {
-        return $pk.compileAndDefineFromString( yoke,
-            readFile( "demos/penknife-compiled-src.pk" ),
-            then );
-    } ).result;
-    
-    var displayStrings = [];
-    var jsFuncCodeStrings = [];
-    var hasError = false;
-    for ( var i = 0, n = displays.length; i < n; i++ ) {
-        var display = displays[ i ];
-        if ( display.type === "success" ) {
-            jsFuncCodeStrings.push( display.jsFuncCode );
-        } else if ( display.type === "error" ) {
-            displayStrings.push( display.intro + ": " + display.msg );
-            hasError = true;
-        } else {
-            throw new Error();
-        }
-    }
-    // TODO: Come up with a better top-level interface than a single
-    // constant variable name.
-    if ( hasError ) {
-        console.log( displayStrings.join( "\n" ) );
-    } else {
-        var fileCode =
-            "var myFile = [\n" +
-            "\n" +
-            "\n" +
-            jsFuncCodeStrings.join( ",\n\n\n" ) + "\n" +
-            "\n" +
-            "\n" +
-            "];";
-        
-        if ( args.minify )
-            fileCode = uglify.minify( fileCode, {
-                fromString: true,
-                compress: {
-                    sequences: true,
-                    properties: true,
-                    dead_code: true,
-                    drop_debugger: false,
-                    
-                    unsafe: true,
-                    
-                    conditionals: true,
-                    comparisons: true,
-                    evaluate: true,
-                    booleans: true,
-                    loops: true,
-                    unused: true,
-                    hoist_funs: false,
-                    hoist_vars: false,
-                    if_return: true,
-                    join_vars: true,
-                    cascade: true,
-                    warnings: false,
-                    negate_iife: true,
-                    pure_getters: true,
-                    pure_funcs: [
-                        // TODO: See if there's a more convenient way
-                        // to manage all these variables.
-                        "Pk",
-                        "pkCons",
-                        "pkList",
-                        "pkInd",
-                        "pkStrNameRaw",
-                        "pkQualifiedName",
-                        "pkYep",
-                        "pkPairName",
-                        "pkStrUnsafe",
-                        "pkErr",
-                        "pkRet",
-                        "pkfnLinear"
-                    ],
-                    drop_console: false
-                }
-            } ).code;
-        
-        ltf.writeTextFile(
-            "fin/penknife-compiled.js", "utf-8", fileCode,
-            function ( e ) {
-            
-            if ( e ) return void then( e );
-            
-            console.log( "Built fin/penknife-compiled.js." );
-            then();
-        } );
-    }
-} );
 
 if ( args.build_staccato ) tasks.push( function ( then ) {
     arrEachAsyncNodeExn( [
