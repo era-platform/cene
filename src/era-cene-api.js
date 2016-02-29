@@ -2,6 +2,9 @@
 // Copyright 2015, 2016 Ross Angle. Released under the MIT License.
 
 
+staccatoDeclarationState.cliOutputEnvironmentVariableShadows =
+    strMap();
+
 function ceneApiUsingDefinitionNs( macroDefNs ) {
     var usingDefNs = usingDefinitionNs( macroDefNs );
     
@@ -44,46 +47,77 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
     };
     ceneClient.noEffects = function ( result ) {
         var unwrappedResult = maybeUnwrapCene( result ).val;
-        return new StcForeign( "effects", function () {
+        return new StcForeign( "effects", function ( collector ) {
             return unwrappedResult;
         } );
     };
-    ceneClient.bindEffects = function ( arg, funcReturningEffects ) {
-        var unwrappedArg = maybeUnwrapCene( arg ).val;
-        var unwrappedFunc = maybeUnwrapCene( func ).val;
-        return new StcForeign( "effects", function () {
-            var effects = unwrappedFunc.callStc( arg );
-            if ( !(effects instanceof StcForeign
-                && effects.purpose === "effects") )
+    ceneClient.bindEffects =
+        function ( effectfulArg, funcReturningEffects ) {
+        
+        var argEffects = maybeUnwrapCene( effectfulArg ).val;
+        if ( !(argEffects instanceof StcForeign
+            && argEffects.purpose === "effects") )
+            throw new Error();
+        var argFunc = argEffects.foreignVal;
+        
+        var func = maybeUnwrapCene( funcReturningEffects ).val;
+        
+        return new StcForeign( "effects", function ( collector ) {
+            var arg = argFunc( collector );
+            
+            var funcEffects = func.callStc( macroDefNs, arg );
+            if ( !(funcEffects instanceof StcForeign
+                && funcEffects.purpose === "effects") )
                 throw new Error();
-            var effectsFunc = effects.foreignVal;
-            return effectsFunc();
+            var funcFunc = funcEffects.foreignVal;
+            return funcFunc( collector );
         } );
     };
     ceneClient.fork = function ( jsMode ) {
         var unwrappedJsMode = maybeUnwrapCene( jsMode ).val;
         if ( !(unwrappedJsMode instanceof StcForeign
-            && unwrappedJsMode.purpose === "mode") )
+            && unwrappedJsMode.purpose === "mode"
+            && !unwrappedJsMode.foreignVal.finished
+            && unwrappedJsMode.foreignVal.type === "js") )
             throw new Error();
-        // TODO: Enforce this properly, and track the result mode's
-        // built-up effects so we can execute them when the mode
-        // finishes.
-        return new StcForeign( "mode", null );
+        
+        return new StcForeign( "mode", {
+            type: "js",
+            managed: false,
+            finished: false,
+            safe: [],
+            defer: [],
+            unsafe: []
+        } );
     };
     ceneClient.sync = function ( forkedMode ) {
         var unwrappedForkedMode = maybeUnwrapCene( forkedMode ).val;
         if ( !(unwrappedForkedMode instanceof StcForeign
-            && unwrappedForkedMode.purpose === "mode") )
+            && unwrappedForkedMode.purpose === "mode"
+            && !unwrappedForkedMode.foreignVal.finished
+            && unwrappedForkedMode.foreignVal.type === "js"
+            && unwrappedForkedMode.foreignVal.managed) )
             throw new Error();
-        return new StcForeign( "effects", function () {
-            // TODO
+        var modeVal = unwrappedForkedMode.foreignVal;
+        return new StcForeign( "effects", function ( collector ) {
+            arrEach( modeVal.safe, function ( entry ) {
+                collector.addSafe( entry );
+            } );
+            arrEach( modeVal.defer, function ( entry ) {
+                collector.defer( entry );
+            } );
+            arrEach( modeVal.unsafe, function ( entry ) {
+                collector.addUnsafe( entry );
+            } );
             throw new Error();
         } );
     };
     ceneClient.deferIntoTrampoline = function ( jsMode, then ) {
         var unwrappedJsMode = maybeUnwrapCene( jsMode ).val;
         if ( !(unwrappedJsMode instanceof StcForeign
-            && unwrappedJsMode.purpose === "mode") )
+            && unwrappedJsMode.purpose === "mode"
+            && !unwrappedJsMode.foreignVal.finished
+            && unwrappedJsMode.foreignVal.type === "js") )
             throw new Error();
         // TODO
         throw new Error();
@@ -93,7 +127,9 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         
         var unwrappedJsMode = maybeUnwrapCene( jsMode ).val;
         if ( !(unwrappedJsMode instanceof StcForeign
-            && unwrappedJsMode.purpose === "mode") )
+            && unwrappedJsMode.purpose === "mode"
+            && !unwrappedJsMode.foreignVal.finished
+            && unwrappedJsMode.foreignVal.type === "js") )
             throw new Error();
         // TODO
         throw new Error();
@@ -141,7 +177,9 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         
         fun( "cli-arguments", function ( mode ) {
             if ( !(mode instanceof StcForeign
-                && mode.purpose === "mode") )
+                && mode.purpose === "mode"
+                && !mode.foreignVal.finished
+                && mode.foreignVal.type === "macro") )
                 throw new Error();
             
             // TODO
@@ -150,7 +188,9 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         
         fun( "cli-input-environment-variables", function ( mode ) {
             if ( !(mode instanceof StcForeign
-                && mode.purpose === "mode") )
+                && mode.purpose === "mode"
+                && !mode.foreignVal.finished
+                && mode.foreignVal.type === "macro") )
                 throw new Error();
             
             // TODO
@@ -159,7 +199,9 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         
         fun( "cli-input-directory", function ( mode ) {
             if ( !(mode instanceof StcForeign
-                && mode.purpose === "mode") )
+                && mode.purpose === "mode"
+                && !mode.foreignVal.finished
+                && mode.foreignVal.type === "macro") )
                 throw new Error();
             
             // TODO
@@ -168,7 +210,9 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         
         fun( "cli-output-directory", function ( mode ) {
             if ( !(mode instanceof StcForeign
-                && mode.purpose === "mode") )
+                && mode.purpose === "mode"
+                && !mode.foreignVal.finished
+                && mode.foreignVal.type === "macro") )
                 throw new Error();
             
             // TODO
@@ -191,7 +235,9 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         fun( "input-path-type", function ( mode ) {
             return new StcFn( function ( inputPath ) {
                 if ( !(mode instanceof StcForeign
-                    && mode.purpose === "mode") )
+                    && mode.purpose === "mode"
+                    && !mode.foreignVal.finished
+                    && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
                 if ( !(inputPath instanceof StcForeign
@@ -206,7 +252,9 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         fun( "input-path-directory-list", function ( mode ) {
             return new StcFn( function ( inputPath ) {
                 if ( !(mode instanceof StcForeign
-                    && mode.purpose === "mode") )
+                    && mode.purpose === "mode"
+                    && !mode.foreignVal.finished
+                    && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
                 if ( !(inputPath instanceof StcForeign
@@ -221,7 +269,9 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         fun( "input-path-blob-utf-8", function ( mode ) {
             return new StcFn( function ( inputPath ) {
                 if ( !(mode instanceof StcForeign
-                    && mode.purpose === "mode") )
+                    && mode.purpose === "mode"
+                    && !mode.foreignVal.finished
+                    && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
                 if ( !(inputPath instanceof StcForeign
@@ -251,7 +301,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                 && outputPath.purpose === "output-path") )
                 throw new Error();
             
-            return new StcForeign( "effects", function () {
+            return new StcForeign( "effects", function ( collector ) {
                 // TODO
                 throw new Error();
             } );
@@ -267,7 +317,9 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                     stcString.getTupleTag() )
                     throw new Error();
                 
-                return new StcForeign( "effects", function () {
+                return new StcForeign( "effects",
+                    function ( collector ) {
+                    
                     // TODO
                     throw new Error();
                 } );
@@ -281,9 +333,19 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                 var keyInternal = parseString( key );
                 var valueInternal = parseString( value );
                 
-                return new StcForeign( "effects", function () {
-                    // TODO
-                    throw new Error();
+                return new StcForeign( "effects",
+                    function ( collector ) {
+                    
+                    if ( staccatoDeclarationState.
+                        cliOutputEnvironmentVariableShadows.has(
+                            keyInternal ) )
+                        throw new Error();
+                    collector.addSafe( function () {
+                        staccatoDeclarationState.
+                            cliOutputEnvironmentVariableShadows.put(
+                                keyInternal, valueInternal );
+                    } );
+                    return stcNil.of();
                 } );
             } );
         } );
@@ -291,7 +353,9 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         fun( "sloppy-javascript-quine", function ( mode ) {
             return new StcFn( function ( constructorName ) {
                 if ( !(mode instanceof StcForeign
-                    && mode.purpose === "mode") )
+                    && mode.purpose === "mode"
+                    && !mode.foreignVal.finished
+                    && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
                 if ( constructorName.tupleTag !==
@@ -303,7 +367,9 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                     && constructorNameInternal.purpose === "name") )
                     throw new Error();
                 
-                // TODO
+                // TODO: This should be the one place we create a
+                // JavaScript mode without having access to one first.
+                // TODO: Implement this.
                 throw new Error();
             } );
         } );
@@ -329,7 +395,9 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                     return new StcFn( function ( env ) {
                         return new StcFn( function ( body ) {
                             if ( !(mode instanceof StcForeign
-                                && mode.purpose === "mode") )
+                                && mode.purpose === "mode"
+                                && !mode.foreignVal.finished
+                                && mode.foreignVal.type === "js") )
                                 throw new Error();
                             
                             var modeVarInternal =
@@ -380,7 +448,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                             var bodyInternal = parseString( body );
                             
                             return new StcForeign( "effects",
-                                function () {
+                                function ( collector ) {
                                 
                                 // TODO
                                 throw new Error();

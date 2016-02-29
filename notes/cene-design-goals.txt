@@ -87,8 +87,8 @@ Returns null or { val: jsVal } depending on whether the given value is a wrapped
 client.noEffects( result )
 Returns wrapped Cene monadic side effects that, when executed, do nothing but return the given wrapped Cene value.
 
-client.bindEffects( arg, funcReturningEffects )
-Returns wrapped Cene monadic side effects that, when executed, call the given wrapped Cene function with the given wrapped Cene argument and execute the resulting monadic side effects.
+client.bindEffects( effectfulArg, funcReturningEffects )
+Returns wrapped Cene monadic side effects that, when executed, execute the given the given wrapped Cene monadic effects, pass the result to the given wrapped Cene function, and execute the resulting monadic side effects.
 
 client.fork( jsMode )
 Returns a wrapped Cene value representing a fresh mode that follows the given mode. The given mode must be a current one, and it must have been created for running JavaScript code. The resulting mode must eventually be finished with client.sync( ... ) or its side effects will never occur.
