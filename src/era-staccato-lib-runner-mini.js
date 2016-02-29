@@ -676,7 +676,10 @@ function usingDefinitionNs( macroDefNs ) {
                         return new StcFn( function ( myStxDetails ) {
                             return new StcFn( function ( body ) {
                                 if ( !(mode instanceof StcForeign
-                                    && mode.purpose === "mode") )
+                                    && mode.purpose === "mode"
+                                    && !mode.foreignVal.finished
+                                    && mode.foreignVal.type ===
+                                        "macro") )
                                     throw new Error();
                                 if ( !(uniqueNs instanceof StcForeign
                                     && uniqueNs.purpose === "ns") )
@@ -687,7 +690,7 @@ function usingDefinitionNs( macroDefNs ) {
                                     throw new Error();
                                 
                                 return new StcForeign( "effects",
-                                    function () {
+                                    function ( collector ) {
                                     
                                     return new StcForeign( "compiled-code",
                                         macroFunctionImpl( {
@@ -1113,7 +1116,9 @@ function usingDefinitionNs( macroDefNs ) {
         fun( "procure-name", function ( mode ) {
             return new StcFn( function ( ns ) {
                 if ( !(mode instanceof StcForeign
-                    && mode.purpose === "mode") )
+                    && mode.purpose === "mode"
+                    && !mode.foreignVal.finished
+                    && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
                 if ( !(ns instanceof StcForeign
@@ -1128,7 +1133,9 @@ function usingDefinitionNs( macroDefNs ) {
         fun( "procure-defined", function ( mode ) {
             return new StcFn( function ( ns ) {
                 if ( !(mode instanceof StcForeign
-                    && mode.purpose === "mode") )
+                    && mode.purpose === "mode"
+                    && !mode.foreignVal.finished
+                    && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
                 if ( !(ns instanceof StcForeign
@@ -1150,7 +1157,9 @@ function usingDefinitionNs( macroDefNs ) {
                 return new StcFn( function ( value ) {
                     return new StcFn( function ( then ) {
                         if ( !(mode instanceof StcForeign
-                            && mode.purpose === "mode") )
+                            && mode.purpose === "mode"
+                            && !mode.foreignVal.finished
+                            && mode.foreignVal.type === "macro") )
                             throw new Error();
                         
                         if ( !(ns instanceof StcForeign
@@ -1158,16 +1167,32 @@ function usingDefinitionNs( macroDefNs ) {
                             throw new Error();
                         
                         return new StcForeign( "effects",
-                            function () {
+                            function ( collector ) {
                             
                             if ( staccatoDeclarationState.
                                 namespaceDefs.has(
                                     ns.foreignVal.name ) )
                                 throw new Error();
-                            staccatoDeclarationState.namespaceDefs.
-                                set( ns.foreignVal.name, value );
-                            return then.callStc( macroDefNs,
-                                stcNil.ofNow() );
+                            collector.addSafe( function () {
+                                staccatoDeclarationState.
+                                    namespaceDefs.set( ns.foreignVal.name, value );
+                            } );
+                            collector.defer( function ( collector ) {
+                                var modeState = {
+                                    type: "macro",
+                                    finished: false
+                                };
+                                var thenEffects =
+                                    then.callStc( macroDefNs, new StcForeign( "mode", modeState ) );
+                                if ( !(thenEffects instanceof
+                                        StcForeign
+                                    && thenEffects.purpose === "effects") )
+                                    throw new Error();
+                                var thenFunc = thenEffects.foreignVal;
+                                thenFunc( collector );
+                                modeState.finished = true;
+                            } );
+                            return stcNil.ofNow();
                         } );
                     } );
                 } );
@@ -1175,7 +1200,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         fun( "no-effects", function ( val ) {
-            return new StcForeign( "effects", function () {
+            return new StcForeign( "effects", function ( collector ) {
                 return val;
             } );
         } );
@@ -1185,17 +1210,27 @@ function usingDefinitionNs( macroDefNs ) {
                 if ( !(monad instanceof StcForeign
                     && monad.purpose === "effects") )
                     throw new Error();
-                var monadFunc = monad.foreignVal;
+                var argFunc = monad.foreignVal;
                 
-                return new StcForeign( "effects", function () {
-                    return then.callStc( macroDefNs, monadFunc() );
+                return new StcForeign( "effects",
+                    function ( collector ) {
+                    
+                    var arg = argFunc( collector );
+                    
+                    var funcEffects = then.callStc( arg );
+                    if ( !(funcEffects instanceof StcForeign
+                        && funcEffects.purpose === "effects") )
+                        throw new Error();
+                    var funcFunc = funcEffects.foreignVal;
+                    return funcFunc( collector );
                 } );
             } );
         } );
         
         fun( "assert-current-modality", function ( mode ) {
             if ( !(mode instanceof StcForeign
-                && mode.purpose === "mode") )
+                && mode.purpose === "mode"
+                && !mode.foreignVal.finished) )
                 throw new Error();
             return stcNil.ofNow();
         } );
@@ -1205,7 +1240,9 @@ function usingDefinitionNs( macroDefNs ) {
                 return new StcFn( function ( definitionNs ) {
                     return new StcFn( function ( stx ) {
                         if ( !(mode instanceof StcForeign
-                            && mode.purpose === "mode") )
+                            && mode.purpose === "mode"
+                            && !mode.foreignVal.finished
+                            && mode.foreignVal.type === "macro") )
                             throw new Error();
                         
                         if ( !(uniqueNs instanceof StcForeign
@@ -1217,7 +1254,7 @@ function usingDefinitionNs( macroDefNs ) {
                             throw new Error();
                         
                         return new StcForeign( "effects",
-                            function () {
+                            function ( collector ) {
                             
                             return new StcForeign( "compiled-code",
                                 macroexpandInnerLevel( {
@@ -1254,9 +1291,11 @@ function usingDefinitionNs( macroDefNs ) {
             macroFunctionName ) )
             throw new Error(
                 "No such macro: " + JSON.stringify( macroName ) );
+        var modeState = { type: "macro", finished: false };
         var macroResultEffects = staccatoDeclarationState.
             namespaceDefs.get( macroFunctionName ).
-            callStc( macroDefNs, new StcForeign( "mode", null ) ).
+            callStc( macroDefNs,
+                new StcForeign( "mode", modeState ) ).
             callStc( macroDefNs,
                 new StcForeign( "ns", nss.uniqueNs ) ).
             callStc( macroDefNs,
@@ -1268,10 +1307,24 @@ function usingDefinitionNs( macroDefNs ) {
             && macroResultEffects.purpose === "effects") )
             throw new Error();
         var macroResultFunc = macroResultEffects.foreignVal;
-        var macroResult = macroResultFunc();
+        // TODO: Implement this collector for real. We need to be
+        // using macroexpandInnerLevel monadically or with a
+        // collector-passing style all over the program.
+        var collector = {};
+        collector.addSafe = function ( step ) {
+            step();
+        };
+        collector.defer = function ( then ) {
+            then( collector );
+        };
+        collector.addUnsafe = function ( then ) {
+            then();
+        };
+        var macroResult = macroResultFunc( collector );
         if ( !(macroResult instanceof StcForeign
             && macroResult.purpose === "compiled-code") )
             throw new Error();
+        modeState.finished = true;
         return macroResult.foreignVal;
     }
     
