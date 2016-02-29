@@ -140,6 +140,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
         "    stcNsGet: stcNsGet,\n" +
         "    stcNsRoot: stcNsRoot,\n" +
         "    nssGet: nssGet,\n" +
+        "    runTrampoline: runTrampoline,\n" +
         "    usingDefinitionNs: usingDefinitionNs,\n" +
         "    stcTrivialStxDetails: stcTrivialStxDetails,\n" +
         "    runAllDefs: runAllDefs,\n" +
@@ -176,11 +177,39 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                 return true;
             }
             
+            // NOTE: This comment is here in case we do a search for
+            // mode inside quotes.
+            //
+            // "mode"
+            //
+            var rawMode = {
+                type: "macro",
+                finished: null,
+                current: true,
+                safe: [],
+                defer: [],
+                unsafe: []
+            };
+            var stillSync = true;
             usingDefNs.macroexpandTopLevel(
                 $stc.nssGet( nss, "first" ),
+                rawMode,
                 usingDefNs.readerExprToStc(
                     $stc.stcTrivialStxDetails(),
                     tryExpr.val ) );
+            $stc.runTrampoline( rawMode, function ( body ) {  // defer
+                _.defer( body );
+            }, function ( rawMode ) {  // createNextMode
+                return {
+                    type: "macro",
+                    finished: null,
+                    current: true,
+                    safe: [],
+                    defer: [],
+                    unsafe: []
+                };
+            } );
+            
             nss = $stc.nssGet( nss, "rest" );
             return false;
         } );

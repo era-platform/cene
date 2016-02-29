@@ -33,6 +33,7 @@ you must obtain era-staccato-lib.stc.js in one of two ways:</p>
     "http://rocketnia.github.io/era/demos/staccato-runner-mini.html"
 >online</a>.</p>
 
+<script type="text/javascript" src="../buildlib/lathe.js"></script>
 <script type="text/javascript" src="../fin/era-staccato-lib.stc.js">
     </script>
 <script type="text/javascript"
@@ -47,6 +48,8 @@ you must obtain era-staccato-lib.stc.js in one of two ways:</p>
 <script type="text/javascript">"use strict";
 
 window.onload = function () {
+    var _ = rocketnia.lathe;
+    
     function generateOutput() {
         var startMillis = new Date().getTime();
         
@@ -75,11 +78,39 @@ window.onload = function () {
                     return true;
                 }
                 
+                // NOTE: This comment is here in case we do a search
+                // for mode inside quotes.
+                //
+                // "mode"
+                //
+                var rawMode = {
+                    type: "macro",
+                    finished: null,
+                    current: true,
+                    safe: [],
+                    defer: [],
+                    unsafe: []
+                };
+                var stillSync = true;
                 usingDefNs.macroexpandTopLevel(
                     nssGet( nss, "first" ),
+                    rawMode,
                     usingDefNs.readerExprToStc(
                         stcTrivialStxDetails(),
                         tryExpr.val ) );
+                runTrampoline( rawMode, function ( body ) {  // defer
+                    _.defer( body );
+                }, function ( rawMode ) {  // createNextMode
+                    return {
+                        type: "macro",
+                        finished: null,
+                        current: true,
+                        safe: [],
+                        defer: [],
+                        unsafe: []
+                    };
+                } );
+                
                 nss = nssGet( nss, "rest" );
                 return false;
             } );

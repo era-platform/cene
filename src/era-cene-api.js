@@ -14,6 +14,8 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
     var stcName = stcType( macroDefNs, "name", "val" );
     var stcForeign = stcType( macroDefNs, "foreign", "val" );
     var stcAssoc = stcType( macroDefNs, "assoc", "key", "value" );
+    var stcEncapsulatedString =
+        stcType( macroDefNs, "encapsulated-string", "val" );
     
     function wrapCene( unwrappedVal ) {
         return { cene_: unwrappedVal };
@@ -47,7 +49,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
     };
     ceneClient.noEffects = function ( result ) {
         var unwrappedResult = maybeUnwrapCene( result ).val;
-        return new StcForeign( "effects", function ( collector ) {
+        return new StcForeign( "effects", function ( rawMode ) {
             return unwrappedResult;
         } );
     };
@@ -62,52 +64,53 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         
         var func = maybeUnwrapCene( funcReturningEffects ).val;
         
-        return new StcForeign( "effects", function ( collector ) {
-            var arg = argFunc( collector );
+        return new StcForeign( "effects", function ( rawMode ) {
+            var arg = argFunc( rawMode );
             
             var funcEffects = func.callStc( macroDefNs, arg );
             if ( !(funcEffects instanceof StcForeign
                 && funcEffects.purpose === "effects") )
                 throw new Error();
             var funcFunc = funcEffects.foreignVal;
-            return funcFunc( collector );
+            return funcFunc( rawMode );
         } );
     };
     ceneClient.fork = function ( jsMode ) {
         var unwrappedJsMode = maybeUnwrapCene( jsMode ).val;
         if ( !(unwrappedJsMode instanceof StcForeign
             && unwrappedJsMode.purpose === "mode"
-            && !unwrappedJsMode.foreignVal.finished
+            && unwrappedJsMode.foreignVal.current
             && unwrappedJsMode.foreignVal.type === "js") )
             throw new Error();
         
         return new StcForeign( "mode", {
             type: "js",
-            managed: false,
-            finished: false,
+            finished: null,
+            current: true,
             safe: [],
             defer: [],
-            unsafe: []
+            unsafe: [],
+            managed: false
         } );
     };
     ceneClient.sync = function ( forkedMode ) {
         var unwrappedForkedMode = maybeUnwrapCene( forkedMode ).val;
         if ( !(unwrappedForkedMode instanceof StcForeign
             && unwrappedForkedMode.purpose === "mode"
-            && !unwrappedForkedMode.foreignVal.finished
+            && unwrappedForkedMode.foreignVal.current
             && unwrappedForkedMode.foreignVal.type === "js"
             && unwrappedForkedMode.foreignVal.managed) )
             throw new Error();
         var modeVal = unwrappedForkedMode.foreignVal;
-        return new StcForeign( "effects", function ( collector ) {
+        return new StcForeign( "effects", function ( rawMode ) {
             arrEach( modeVal.safe, function ( entry ) {
-                collector.addSafe( entry );
+                collectSafe( rawMode, entry );
             } );
             arrEach( modeVal.defer, function ( entry ) {
-                collector.defer( entry );
+                collectDefer( rawMode, entry );
             } );
             arrEach( modeVal.unsafe, function ( entry ) {
-                collector.addUnsafe( entry );
+                collectUnsafe( rawMode, entry.before, entry.after );
             } );
             throw new Error();
         } );
@@ -116,11 +119,16 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         var unwrappedJsMode = maybeUnwrapCene( jsMode ).val;
         if ( !(unwrappedJsMode instanceof StcForeign
             && unwrappedJsMode.purpose === "mode"
-            && !unwrappedJsMode.foreignVal.finished
+            && unwrappedJsMode.foreignVal.current
             && unwrappedJsMode.foreignVal.type === "js") )
             throw new Error();
-        // TODO
-        throw new Error();
+        collectDefer( unwrappedJsMode.foreignVal,
+            function ( newRawMode ) {  // before
+            
+            then( newRawMode );
+        }, function () {  // after
+            // Do nothing.
+        } );
     };
     ceneClient.trampolineIntoTrampoline =
         function ( jsMode, effects, thenSync ) {
@@ -128,10 +136,19 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         var unwrappedJsMode = maybeUnwrapCene( jsMode ).val;
         if ( !(unwrappedJsMode instanceof StcForeign
             && unwrappedJsMode.purpose === "mode"
-            && !unwrappedJsMode.foreignVal.finished
+            && unwrappedJsMode.foreignVal.current
             && unwrappedJsMode.foreignVal.type === "js") )
             throw new Error();
-        // TODO
+        
+        var effectsInternal = maybeUnwrapCene( effects ).val;
+        if ( !(effectsInternal instanceof StcForeign
+            && effectsInternal.purpose === "effects") )
+            throw new Error();
+        var effectsFunc = effects.foreignVal;
+        
+        // TODO: Does the specification for this even make sense? Is
+        // `thenSync` supposed to occur before or after the other
+        // effects in this mode execute?
         throw new Error();
     };
     
@@ -168,6 +185,23 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                 throw new Error();
             return stringInternal.foreignVal;
         }
+        function parsePossiblyEncapsulatedString( string ) {
+            if ( outputString.tupleTag === stcString.getTupleTag() ) {
+                return parseString( string );
+            } else if ( outputString.tupleTag ===
+                stcEncapsulatedString.getTupleTag() ) {
+                
+                var stringInternal =
+                    stcEncapsulatedString.getProj( string, "val" );
+                if ( !(stringInternal instanceof StcForeign
+                    && stringInternal.purpose ===
+                        "encapsulated-string") )
+                    throw new Error();
+                return stringInternal.foreignVal;
+            } else {
+                throw new Error();
+            }
+        }
         
         type( "encapsulated-string", [ "val" ] );
         type( "assoc", [ "key", "value" ] );
@@ -178,7 +212,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         fun( "cli-arguments", function ( mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
-                && !mode.foreignVal.finished
+                && mode.foreignVal.current
                 && mode.foreignVal.type === "macro") )
                 throw new Error();
             
@@ -189,7 +223,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         fun( "cli-input-environment-variables", function ( mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
-                && !mode.foreignVal.finished
+                && mode.foreignVal.current
                 && mode.foreignVal.type === "macro") )
                 throw new Error();
             
@@ -200,7 +234,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         fun( "cli-input-directory", function ( mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
-                && !mode.foreignVal.finished
+                && mode.foreignVal.current
                 && mode.foreignVal.type === "macro") )
                 throw new Error();
             
@@ -211,7 +245,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         fun( "cli-output-directory", function ( mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
-                && !mode.foreignVal.finished
+                && mode.foreignVal.current
                 && mode.foreignVal.type === "macro") )
                 throw new Error();
             
@@ -236,7 +270,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
             return new StcFn( function ( inputPath ) {
                 if ( !(mode instanceof StcForeign
                     && mode.purpose === "mode"
-                    && !mode.foreignVal.finished
+                    && mode.foreignVal.current
                     && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
@@ -253,7 +287,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
             return new StcFn( function ( inputPath ) {
                 if ( !(mode instanceof StcForeign
                     && mode.purpose === "mode"
-                    && !mode.foreignVal.finished
+                    && mode.foreignVal.current
                     && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
@@ -270,7 +304,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
             return new StcFn( function ( inputPath ) {
                 if ( !(mode instanceof StcForeign
                     && mode.purpose === "mode"
-                    && !mode.foreignVal.finished
+                    && mode.foreignVal.current
                     && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
@@ -301,7 +335,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                 && outputPath.purpose === "output-path") )
                 throw new Error();
             
-            return new StcForeign( "effects", function ( collector ) {
+            return new StcForeign( "effects", function ( rawMode ) {
                 // TODO
                 throw new Error();
             } );
@@ -313,12 +347,11 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                     && outputPath.purpose === "output-path") )
                     throw new Error();
                 
-                if ( outputString.tupleTag !==
-                    stcString.getTupleTag() )
-                    throw new Error();
+                var content =
+                    parsePossiblyEncapsulatedString( outputString );
                 
                 return new StcForeign( "effects",
-                    function ( collector ) {
+                    function ( rawMode ) {
                     
                     // TODO
                     throw new Error();
@@ -331,16 +364,17 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
             
             return new StcFn( function ( value ) {
                 var keyInternal = parseString( key );
-                var valueInternal = parseString( value );
+                var valueInternal =
+                    parsePossiblyEncapsulatedString( value );
                 
                 return new StcForeign( "effects",
-                    function ( collector ) {
+                    function ( rawMode ) {
                     
                     if ( staccatoDeclarationState.
                         cliOutputEnvironmentVariableShadows.has(
                             keyInternal ) )
                         throw new Error();
-                    collector.addSafe( function () {
+                    collectSafe( rawMode, function () {
                         staccatoDeclarationState.
                             cliOutputEnvironmentVariableShadows.put(
                                 keyInternal, valueInternal );
@@ -354,7 +388,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
             return new StcFn( function ( constructorName ) {
                 if ( !(mode instanceof StcForeign
                     && mode.purpose === "mode"
-                    && !mode.foreignVal.finished
+                    && mode.foreignVal.current
                     && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
@@ -396,7 +430,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                         return new StcFn( function ( body ) {
                             if ( !(mode instanceof StcForeign
                                 && mode.purpose === "mode"
-                                && !mode.foreignVal.finished
+                                && mode.foreignVal.current
                                 && mode.foreignVal.type === "js") )
                                 throw new Error();
                             
@@ -424,7 +458,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                                         stcAssoc.getProj(
                                             assoc, "key" ) ) );
                                 vals.push(
-                                    parseString(
+                                    wrapCene(
                                         stcAssoc.getProj(
                                             assoc, "value" ) ) );
                             }
@@ -447,12 +481,40 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                             
                             var bodyInternal = parseString( body );
                             
+                            // TODO: Stop putting a potentially large
+                            // array into an argument list like this.
+                            var compiledJs = Function.apply( null, [
+                                clientVarInternal,
+                                modeVarInternal
+                            ].concat( keys ).concat( [
+                                bodyInternal
+                            ] ) );
+                            
                             return new StcForeign( "effects",
-                                function ( collector ) {
+                                function ( rawMode ) {
                                 
-                                // TODO
-                                throw new Error();
-//                                return stcNil.ofNow();
+                                // NOTE: This uses object identity.
+                                if ( mode.foreignVal !== rawMode )
+                                    throw new Error();
+                                
+                                collectUnsafe( rawMode, function () {
+                                    var newRawMode = {
+                                        type: "js",
+                                        finished: null,
+                                        current: true,
+                                        safe: [],
+                                        defer: [],
+                                        unsafe: [],
+                                        managed: true
+                                    };
+                                    compiledJs.apply( null, [
+                                        ceneClient,
+                                        wrapCene( new StcForeign( "mode", newRawMode ) )
+                                    ].concat( vals ) );
+                                    transferModesToFrom( rawMode, newRawMode );
+                                } );
+                                
+                                return stcNil.ofNow();
                             } );
                         } );
                     } );
