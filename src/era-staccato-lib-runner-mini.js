@@ -417,23 +417,11 @@ function assertMacroDoesNotExist( definitionNs, name ) {
 function collectSafe( rawMode, item ) {
     rawMode.safe.push( item );
 }
-function collectDefer( rawMode, before, after ) {
-    rawMode.defer.push( {
-        before: before,
-        after: after
-    } );
-}
-function collectUnsafe( rawMode, item ) {
-    rawMode.unsafe.push( item );
+function collectDefer( rawMode, item ) {
+    rawMode.defer.push( item );
 }
 function runTrampoline( rawMode, defer, createNextMode ) {
     rawMode.finished = true;
-    while ( rawMode.unsafe.length !== 0 ) {
-        // TODO: Choose an unsafe operation based on a much more
-        // annoying principle than first-in-first-out. If people rely
-        // on this, the monad won't be commutative.
-        rawMode.unsafe.shift()();
-    }
     while ( rawMode.safe.length !== 0 ) {
         // NOTE: All the safe operations are commutative with each
         // other even though they're in JavaScript, so any order is
@@ -444,30 +432,22 @@ function runTrampoline( rawMode, defer, createNextMode ) {
         // TODO: Choose a deferred operation based on a much more
         // annoying principle than first-in-first-out. If people rely
         // on this, the monad won't be commutative.
-        var deferEntry = rawMode.defer.shift();
-        var before = deferEntry.before;
-        var after = deferEntry.after;
+        var body = rawMode.defer.shift();
         defer( function () {
             var nextMode = createNextMode( rawMode );
-            before( nextMode );
+            body( nextMode );
             runTrampoline( nextMode, defer, createNextMode );
-            after();
         } );
     })();
 }
 function transferModesToFrom( rawModeTarget, rawModeSource ) {
     rawModeSource.finished = true;
-    // NOTE: This is only unsafe because it could add unsafe
-    // operations. If the rest of the available operations are safe,
-    // this is also safe.
-    collectUnsafe( rawModeTarget, function () {
+    collectSafe( rawModeTarget, function () {
         rawModeSource.current = false;
         while ( rawModeSource.safe.length !== 0 )
             rawModeTarget.safe.push( rawModeSource.safe.shift() );
         while ( rawModeSource.defer.length !== 0 )
             rawModeTarget.defer.push( rawModeSource.defer.shift() );
-        while ( rawModeSource.unsafe.length !== 0 )
-            rawModeTarget.unsafe.push( rawModeSource.unsafe.shift() );
     } );
 }
 
@@ -1251,7 +1231,7 @@ function usingDefinitionNs( macroDefNs ) {
                                     namespaceDefs.set( ns.foreignVal.name, value );
                             } );
                             collectDefer( rawMode,
-                                function ( rawMode ) {  // before
+                                function ( rawMode ) {
                                 
                                 var thenEffects =
                                     then.callStc( macroDefNs, new StcForeign( "mode", rawMode ) );
@@ -1261,8 +1241,6 @@ function usingDefinitionNs( macroDefNs ) {
                                     throw new Error();
                                 var thenFunc = thenEffects.foreignVal;
                                 thenFunc( rawMode );
-                            }, function () {  // after
-                                // Do nothing.
                             } );
                             return stcNil.ofNow();
                         } );
@@ -1372,8 +1350,7 @@ function usingDefinitionNs( macroDefNs ) {
             finished: null,
             current: true,
             safe: [],
-            defer: [],
-            unsafe: []
+            defer: []
         };
         var macroResultEffects = staccatoDeclarationState.
             namespaceDefs.get( macroFunctionName ).

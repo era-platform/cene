@@ -164,7 +164,11 @@ var runStaccatoFiles = function ( files, testFile, then ) {
     
     var usingDefNs = $stc.usingDefinitionNs( nss.definitionNs );
     var ceneApiUsingDefNs =
-        $stc.ceneApiUsingDefinitionNs( nss.definitionNs );
+        $stc.ceneApiUsingDefinitionNs( nss.definitionNs, {
+            defer: function ( body ) {
+                _.defer( body );
+            }
+        } );
     
     usingDefNs.stcAddCoreMacros( nss.definitionNs );
     usingDefNs.processCoreTypes( nss.definitionNs );
@@ -187,8 +191,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                 finished: null,
                 current: true,
                 safe: [],
-                defer: [],
-                unsafe: []
+                defer: []
             };
             var stillSync = true;
             usingDefNs.macroexpandTopLevel(
@@ -205,8 +208,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                     finished: null,
                     current: true,
                     safe: [],
-                    defer: [],
-                    unsafe: []
+                    defer: []
                 };
             } );
             

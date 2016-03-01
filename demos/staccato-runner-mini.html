@@ -45,6 +45,7 @@ you must obtain era-staccato-lib.stc.js in one of two ways:</p>
 <script type="text/javascript" src="../src/era-reader.js"></script>
 <script type="text/javascript"
     src="../src/era-staccato-lib-runner-mini.js"></script>
+<script type="text/javascript" src="../src/era-cene-api.js"></script>
 <script type="text/javascript">"use strict";
 
 window.onload = function () {
@@ -53,12 +54,20 @@ window.onload = function () {
     function generateOutput() {
         var startMillis = new Date().getTime();
         
-        var libCode =
-            readAll( rocketnia.eraFiles[ "era-staccato-lib.stc" ] );
-        var selfCompilerCode = readAll(
-            rocketnia.eraFiles[ "era-staccato-self-compiler.stc" ] );
-        var testCode =
-            readAll( rocketnia.eraFiles[ "test.stc" ] );
+        var files = [
+            "era-staccato-lib.stc",
+            "era-staccato-self-compiler.stc"
+        ];
+        var testFile = "test.stc";
+        
+        function readFile( file ) {
+            return rocketnia.eraFiles[ file ];
+        }
+        
+        var codeOfFiles = arrMap( files, function ( file ) {
+            return readAll( readFile( file ) );
+        } );
+        var testCode = readAll( readFile( testFile ) );
         var readMillis = new Date().getTime();
         
         var nss = {
@@ -67,9 +76,16 @@ window.onload = function () {
         };
         
         var usingDefNs = usingDefinitionNs( nss.definitionNs );
+        var ceneApiUsingDefNs =
+            ceneApiUsingDefinitionNs( nss.definitionNs, {
+                defer: function ( body ) {
+                    _.defer( body );
+                }
+            } );
         
         usingDefNs.stcAddCoreMacros( nss.definitionNs );
         usingDefNs.processCoreTypes( nss.definitionNs );
+        ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
         
         function runCode( code ) {
             return !arrAny( code, function ( tryExpr ) {
@@ -88,8 +104,7 @@ window.onload = function () {
                     finished: null,
                     current: true,
                     safe: [],
-                    defer: [],
-                    unsafe: []
+                    defer: []
                 };
                 var stillSync = true;
                 usingDefNs.macroexpandTopLevel(
@@ -98,7 +113,8 @@ window.onload = function () {
                     usingDefNs.readerExprToStc(
                         stcTrivialStxDetails(),
                         tryExpr.val ) );
-                runTrampoline( rawMode, function ( body ) {  // defer
+                runTrampoline( rawMode, function ( body ) {
+                    // defer
                     _.defer( body );
                 }, function ( rawMode ) {  // createNextMode
                     return {
@@ -106,8 +122,7 @@ window.onload = function () {
                         finished: null,
                         current: true,
                         safe: [],
-                        defer: [],
-                        unsafe: []
+                        defer: []
                     };
                 } );
                 
@@ -116,11 +131,12 @@ window.onload = function () {
             } );
         }
         
-        if ( runCode( libCode ) && runCode( selfCompilerCode ) ) {
+        if ( arrAll( codeOfFiles, function ( code ) {
+            return runCode( code );
+        } ) ) {
             runAllDefs();
             runCode( testCode );
         }
-        
         
         var stopMillis = new Date().getTime();
         // TODO: Either remove this or display it more prominently.

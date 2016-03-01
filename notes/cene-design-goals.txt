@@ -65,7 +65,7 @@ Monadically creates the given output path's ancestors as directories, creates th
 Monadically sets up the given key-value pair of strings so that it's part of the environment variables during the execution of the CLI interface's --command option. The value string may be a (string ...) or an (encapsulated-string ...). This does not modify the environment variables that are observed by (cli-input-environment-variables), but those variables will be implicitly inherited unless they're shadowed here. If the same key is shadowed twice, at least one of those shadow operations is an error. The current mode must permit CLI-time operations.
 
 (defn sloppy-javascript-quine mode constructor-name ...)
-Creates an (encapsulated-string ...) with self-contained JavaScript that will invoke a function corresponding to the given constructor name, using the definitions currently existing in this runtime, passing it a fresh mode that permits JavaScript-time operations. This will make no attempt to serialize first-class values; it will only put all Cene code and dependency data into a single massive JavaScript file together with a Cene interpreter that can re-run the build (including re-running the (sloppy-javascript-quine ...) operation itself!). The given mode must be a current one, and it must permit CLI-time operations.
+Creates an (encapsulated-string ...) with self-contained JavaScript that will invoke a function corresponding to the given constructor name, using the definitions currently existing in this runtime, passing it a fresh mode that permits synchronous-JavaScript-time operations. This will make no attempt to serialize first-class values; it will only put all Cene code and dependency data into a single massive JavaScript file together with a Cene interpreter that can re-run the build (including re-running the (sloppy-javascript-quine ...) operation itself!). The given mode must be a current one, and it must permit CLI-time operations.
 
 (defn string-to-javascript-utf-16 string ...)
 Translates a Cene string into a JavaScript string.
@@ -73,8 +73,8 @@ Translates a Cene string into a JavaScript string.
 (defn javascript-utf-16-to-string string ...)
 Translates a JavaScript string into a Cene string, reading it according to the utf-16 encoding, replacing invalid sequences with the Unicode replacement character if necessary.
 
-(defn trampoline-javascript mode mode-var client-var env body ...)
-Monadically executes a given body of JavaScript code under an environment dictated by a given list of (assoc ...) entries mapping JavaScript identifiers to unwrapped Cene values (which will be wrapped on the JavaScript side) and other JavaScript identifiers referring to a fresh mode which follows the original (as a wrapped Cene value) and a Cene client object. The given mode must be a current one, and it must permit JavaScript-time operations. On the same JavaScript tick, the JavaScript code is executed, and then the mode is finished, and its built-up effects are executed as well. If there are multiple pending calls to (trampoline-javascript ...) and client.trampolineIntoTrampoline( ... ) in a single monad value, the first one to execute is chosen arbitrarily by the language runtime on the spot. If it throws an exception, the others will not execute at all, nor will any other effect of the same monad value.
+(defn javascript-sync client-var env body)
+Monadically executes a given body of JavaScript code under an environment dictated by a given list of (assoc ...) entries mapping JavaScript identifiers to Cene values (which will be wrapped on the JavaScript side) and another JavaScript identifiers referring to a Cene client object (which is not wrapped, as it does not represent a first-class Cene value). Then this executes the JavaScript code's resulting wrapped Cene monadic effects, and this finally results in their result. The current mode must permit synchronous-JavaScript-time operations.
 
 JavaScript client object operations:
 
@@ -82,24 +82,23 @@ client.wrap( jsVal )
 Wraps the given JavaScript value as a wrapped Cene value. If the JavaScript value is itself a wrapped Cene value, this wraps it again anyway.
 
 client.maybeUnwrap( wrappedVal )
-Returns null or { val: jsVal } depending on whether the given value is a wrapped Cene value that was obtained by wrapping a JavaScript value.
+Returns null or { val: jsVal } depending on whether the given wrapped Cene value was obtained by wrapping a JavaScript value. If the given value isn't a wrapped Cene value, this raises an exception.
 
-client.noEffects( result )
+client.done( result )
 Returns wrapped Cene monadic side effects that, when executed, do nothing but return the given wrapped Cene value.
 
-client.bindEffects( effectfulArg, funcReturningEffects )
-Returns wrapped Cene monadic side effects that, when executed, execute the given the given wrapped Cene monadic effects, pass the result to the given wrapped Cene function, and execute the resulting monadic side effects.
+client.doThen( effectfulArg, then )
+Returns wrapped Cene monadic side effects that, when executed, execute the given the given wrapped Cene monadic effects, pass the result to the given JavaScript function, and execute the resulting wrapped Cene monadic side effects.
+
+client.doCall( func, arg, then )
+Returns wrapped Cene monadic side effects that, when executed, call the given wrapped Cene function with the given wrapped Cene argument, pass the result to the given JavaScript function, and execute the resulting wrapped Cene monadic side effects.
 
 client.fork( jsMode )
-Returns a wrapped Cene value representing a fresh mode that follows the given mode. The given mode must be a current one, and it must have been created for running JavaScript code. The resulting mode must eventually be finished with client.sync( ... ) or its side effects will never occur.
+Returns a wrapped Cene value representing a fresh mode that follows the given wrapped Cene mode. The given mode must be a current one, and it must have been created for running JavaScript code. The resulting mode must eventually be finished with client.sync( ... ) or its side effects will never occur. This fork action is conceived of as a JavaScript side effect, not a Cene side effect; the resulting mode will be usable regardless of future errors in the currently processing Cene effect monad.
 
-client.sync( forkedMode )
-Returns wrapped Cene monadic side effects that, when executed, finish the given mode, executes all its built-up effects, and results in (nil). The given mode must be a current one, it must have been created by client.fork( ... ), and it must be unfinished at the time these side effects execute.
+client.doSync( forkedMode )
+Returns wrapped Cene monadic side effects that, when executed, finish the given wrapped Cene mode, execute all its built-up effects, and result in (nil). The given mode must be a current one, it must have been created by client.fork( ... ), and it must be unfinished at the time these side effects execute.
 
 client.deferIntoTrampoline( jsMode, then )
 where then( trampolinedMode )
-Executes the given JavaScript callback in a future tick, with access to fresh mode which follows the given one, then finishes the fresh node and executes its built-up effects as well. The given mode must be a current one, it must have been created for running JavaScript code, and it must not have been finished yet. This deferral action is considered one of the effects of the monad value that corresponds to the original mode, so if that monad encounters a synchronous error due to (trampoline-javascript ...) or client.trampolineIntoTrampoline( ... ), this callback will not execute.
-
-client.trampolineIntoTrampoline( jsMode, effects, thenSync )
-where thenSync( trampolinedMode, effectsResult )
-Sets up the given wrapped Cene monadic side effects and JavaScript callback to occur when the given mode is finished, during the same JavaScript tick. The given mode must be a current one, and it must have been created for running JavaScript code. If there were no errors in the effects, the body receives a fresh mode which follows the original, it executes, and then the mode is finished, and the mode's built-up effects are executed as well. If there are multiple pending calls to (trampoline-javascript ...) and client.trampolineIntoTrampoline( ... ) in a single monad value, the first one to execute is chosen arbitrarily by the language runtime on the spot. If it throws an exception, the others will not execute at all, nor will any other effect of the same monad value.
+Executes the given JavaScript callback in a future JavaScript tick, with access to a fresh wrapped Cene mode which follows the given one, then executes its resuting wrapped Cene monadic side effects in the same JavaScript tick as the callback was executed in. The given mode must be a current one, it must have been created for running JavaScript code, and it must not have been finished yet. This deferral action is conceived of as a JavaScript side effect, not a Cene side effect; the deferral will occur regardless of future errors in the currently processing Cene effect monad.
