@@ -5,7 +5,7 @@
 staccatoDeclarationState.cliOutputEnvironmentVariableShadows =
     strMap();
 
-function ceneApiUsingDefinitionNs( macroDefNs ) {
+function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     var usingDefNs = usingDefinitionNs( macroDefNs );
     
     var stcCons = stcType( macroDefNs, "cons", "car", "cdr" );
@@ -14,126 +14,201 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
     var stcName = stcType( macroDefNs, "name", "val" );
     var stcForeign = stcType( macroDefNs, "foreign", "val" );
     var stcAssoc = stcType( macroDefNs, "assoc", "key", "value" );
+    var stcEncapsulatedString =
+        stcType( macroDefNs, "encapsulated-string", "val" );
     
-    function wrapCene( unwrappedVal ) {
-        return { cene_: unwrappedVal };
+    
+    // Returns a function with a very boring .toString() result. We
+    // use this to avoid sharing implementation details.
+    function boringfn( func ) {
+        function _( self, args ) {
+            return func.apply( self, args );
+        }
+        return function(){return _(this, arguments)};
     }
     
-    function wrapJs( jsVal ) {
-        return wrapCene( new StcForeign( "foreign", jsVal ) );
+    
+    // Rationale:
+    //
+    // Implementing sealed values in JavaScript is a challenge.
+    // WeakMap isn't widely supported yet, and it might have poor
+    // performance even if it were. Symbol-named properties are even
+    // worse; not only are they not widely supported, but they don't
+    // even protect against scenarios involving Proxy objects. While
+    // we might want to use WeakMap someday, for now we use closures
+    // for privacy.
+    //
+    // We carefully invoke the closures at deterministic and boring
+    // times, with no input, so that we don't expose any
+    // implementation details. (If we need to pass values to the
+    // function in a future version, we can do so by mutating
+    // variables it captures.)
+    //
+    // When we invoke a wrapped value as a function to unwrap it, we
+    // can't trust the result right away. We need to check it first,
+    // but we can't perform most operations on it since it might be a
+    // Proxy. So, we make the function have the side effect of
+    // mutating another variable. That way, we know from the fact that
+    // the variable is modified at all that the function must have
+    // been created in this lexical scope, so we can trust it. As long
+    // as we're modifying a variable, we ignore the function's result
+    // altogether and just put the unwrapped value into that variable.
+    
+    var unwrappingResult = null;
+    
+    function wrapPrivate( unwrappedVal ) {
+        return boringfn( function () {
+            unwrappingResult = unwrappedVal;
+        } );
     }
     
-    function maybeUnwrapCene( wrappedVal ) {
-        return (typeof wrappedVal === "object"
-            && wrappedVal !== null
-            && {}.hasOwnProperty( wrappedVal, "cene_" )
-        ) ? { val: wrappedVal.cene_ } : null;
+    function unwrapPrivate( wrappedVal ) {
+        unwrappingResult = null;
+        wrappedVal();
+        if ( unwrappingResult === null )
+            throw new Error();
+        unwrappingResult = null;
+        return unwrappingResult;
     }
     
-    function maybeUnwrapJs( wrappedVal ) {
-        var maybeCene = maybeUnwrapCene( wrappedVal );
-        return (maybeCene !== null
-            && maybeCene.val instanceof StcForeign
-            && maybeCene.val.purpose === "foreign"
-        ) ? { val: maybeCene.val.foreignVal } : null;
+    function wrapTagged( tag ) {
+        return function ( unwrappedVal ) {
+            return wrapPrivate( { type: tag, val: unwrappedVal } );
+        };
     }
+    
+    function unwrapTagged( tag ) {
+        return function ( wrappedVal ) {
+            var result = unwrapPrivate( wrappedVal );
+            if ( result.type !== tag )
+                throw new Error();
+            return result;
+        };
+    }
+    
+    var wrapCene = wrapTagged( "cene" );
+    var unwrapCene = unwrapTagged( "cene" );
+    
+    // TODO: Use these.
+    var wrapTrampoline = wrapTagged( "trampoline" );
+    var unwrapTrampoline = unwrapTagged( "trampoline" );
+    
+    
+    function runEffects( rawMode, effects ) {
+        if ( !(effects instanceof StcForeign
+            && effects.purpose === "effects") )
+            throw new Error();
+        var effectsFunc = effects.foreignVal;
+        return effectsFunc( rawMode );
+    }
+    function wrapEffects( body ) {
+        return wrapCene( new StcForeign( "effects", body ) );
+    }
+    
     
     var ceneClient = {};
-    ceneClient.wrap = function ( jsVal ) {
-        return wrapJs( jsVal );
-    };
-    ceneClient.maybeUnwrap = function ( wrappedVal ) {
-        return maybeUnwrapJs( wrappedVal );
-    };
-    ceneClient.noEffects = function ( result ) {
-        var unwrappedResult = maybeUnwrapCene( result ).val;
-        return new StcForeign( "effects", function ( collector ) {
+    ceneClient.wrap = boringfn( function ( jsVal ) {
+        return wrapCene( new StcForeign( "foreign", jsVal ) );
+    } );
+    ceneClient.maybeUnwrap = boringfn( function ( wrappedVal ) {
+        var ceneVal = unwrapCene( wrappedVal );
+        return (ceneVal instanceof StcForeign
+            && ceneVal.purpose === "foreign"
+        ) ? { val: ceneVal.foreignVal } : null;
+    } );
+    ceneClient.done = boringfn( function ( result ) {
+        var unwrappedResult = unwrapCene( result );
+        return wrapEffects( function ( rawMode ) {
             return unwrappedResult;
         } );
-    };
-    ceneClient.bindEffects =
-        function ( effectfulArg, funcReturningEffects ) {
-        
-        var argEffects = maybeUnwrapCene( effectfulArg ).val;
-        if ( !(argEffects instanceof StcForeign
-            && argEffects.purpose === "effects") )
+    } );
+    ceneClient.doThen = boringfn( function ( effects, then ) {
+        var effectsInternal = unwrapCene( effects );
+        if ( !(effectsInternal instanceof StcForeign
+            && effectsInternal.purpose === "effects") )
             throw new Error();
-        var argFunc = argEffects.foreignVal;
+        var effectsFunc = effectsInternal.foreignVal;
         
-        var func = maybeUnwrapCene( funcReturningEffects ).val;
-        
-        return new StcForeign( "effects", function ( collector ) {
-            var arg = argFunc( collector );
-            
-            var funcEffects = func.callStc( macroDefNs, arg );
-            if ( !(funcEffects instanceof StcForeign
-                && funcEffects.purpose === "effects") )
-                throw new Error();
-            var funcFunc = funcEffects.foreignVal;
-            return funcFunc( collector );
+        return wrapEffects( function ( rawMode ) {
+            return runEffects( rawMode,
+                unwrapCene(
+                    then( wrapCene( effectsFunc( rawMode ) ) ) ) );
         } );
-    };
-    ceneClient.fork = function ( jsMode ) {
-        var unwrappedJsMode = maybeUnwrapCene( jsMode ).val;
+    } );
+    ceneClient.doCall = boringfn( function ( func, arg, then ) {
+        var funcUnwrapped = unwrapCene( func );
+        var argUnwrapped = unwrapCene( arg );
+        
+        return wrapEffects( function ( rawMode ) {
+            return runEffects( rawMode,
+                unwrapCene(
+                    then(
+                        wrapCene(
+                            funcUnwrapped.callStc( macroDefNs,
+                                argUnwrapped ) ) ) ) );
+        } );
+    } );
+    ceneClient.fork = boringfn( function ( jsMode ) {
+        var unwrappedJsMode = unwrapCene( jsMode );
         if ( !(unwrappedJsMode instanceof StcForeign
             && unwrappedJsMode.purpose === "mode"
-            && !unwrappedJsMode.foreignVal.finished
+            && unwrappedJsMode.foreignVal.current
             && unwrappedJsMode.foreignVal.type === "js") )
             throw new Error();
         
-        return new StcForeign( "mode", {
+        return wrapCene( new StcForeign( "mode", {
             type: "js",
-            managed: false,
-            finished: false,
+            finished: null,
+            current: true,
             safe: [],
             defer: [],
-            unsafe: []
-        } );
-    };
-    ceneClient.sync = function ( forkedMode ) {
-        var unwrappedForkedMode = maybeUnwrapCene( forkedMode ).val;
+            managed: false
+        } ) );
+    } );
+    ceneClient.doSync = boringfn( function ( forkedMode ) {
+        var unwrappedForkedMode = unwrapCene( forkedMode );
         if ( !(unwrappedForkedMode instanceof StcForeign
             && unwrappedForkedMode.purpose === "mode"
-            && !unwrappedForkedMode.foreignVal.finished
+            && unwrappedForkedMode.foreignVal.current
             && unwrappedForkedMode.foreignVal.type === "js"
             && unwrappedForkedMode.foreignVal.managed) )
             throw new Error();
         var modeVal = unwrappedForkedMode.foreignVal;
-        return new StcForeign( "effects", function ( collector ) {
-            arrEach( modeVal.safe, function ( entry ) {
-                collector.addSafe( entry );
-            } );
-            arrEach( modeVal.defer, function ( entry ) {
-                collector.defer( entry );
-            } );
-            arrEach( modeVal.unsafe, function ( entry ) {
-                collector.addUnsafe( entry );
-            } );
-            throw new Error();
+        return wrapEffects( function ( rawMode ) {
+            transferModesToFrom( rawMode, modeVal );
+            return stcNil.ofNow();
         } );
-    };
-    ceneClient.deferIntoTrampoline = function ( jsMode, then ) {
-        var unwrappedJsMode = maybeUnwrapCene( jsMode ).val;
-        if ( !(unwrappedJsMode instanceof StcForeign
-            && unwrappedJsMode.purpose === "mode"
-            && !unwrappedJsMode.foreignVal.finished
-            && unwrappedJsMode.foreignVal.type === "js") )
-            throw new Error();
-        // TODO
-        throw new Error();
-    };
-    ceneClient.trampolineIntoTrampoline =
-        function ( jsMode, effects, thenSync ) {
+    } );
+    ceneClient.deferIntoTrampoline = boringfn(
+        function ( jsMode, then ) {
         
-        var unwrappedJsMode = maybeUnwrapCene( jsMode ).val;
+        var unwrappedJsMode = unwrapCene( jsMode );
         if ( !(unwrappedJsMode instanceof StcForeign
             && unwrappedJsMode.purpose === "mode"
-            && !unwrappedJsMode.foreignVal.finished
+            && unwrappedJsMode.foreignVal.current
             && unwrappedJsMode.foreignVal.type === "js") )
             throw new Error();
-        // TODO
-        throw new Error();
-    };
+        function createNextMode( rawMode ) {
+            return {
+                type: "js",
+                finished: null,
+                current: true,
+                safe: [],
+                defer: [],
+                managed: false
+            };
+        }
+        var newRawMode = createNextMode( unwrappedJsMode.foreignVal );
+        apiOps.defer( function () {
+            runEffects( newRawMode,
+                unwrapCene(
+                    then(
+                        wrapCene(
+                            new StcForeign( "mode",
+                                newRawMode ) ) ) ) );
+            runTrampoline( newRawMode, apiOps.defer, createNextMode );
+        } );
+    } );
     
     function addCeneApi( targetDefNs ) {
         function type( tupleName, projNames ) {
@@ -168,6 +243,23 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                 throw new Error();
             return stringInternal.foreignVal;
         }
+        function parsePossiblyEncapsulatedString( string ) {
+            if ( outputString.tupleTag === stcString.getTupleTag() ) {
+                return parseString( string );
+            } else if ( outputString.tupleTag ===
+                stcEncapsulatedString.getTupleTag() ) {
+                
+                var stringInternal =
+                    stcEncapsulatedString.getProj( string, "val" );
+                if ( !(stringInternal instanceof StcForeign
+                    && stringInternal.purpose ===
+                        "encapsulated-string") )
+                    throw new Error();
+                return stringInternal.foreignVal;
+            } else {
+                throw new Error();
+            }
+        }
         
         type( "encapsulated-string", [ "val" ] );
         type( "assoc", [ "key", "value" ] );
@@ -178,7 +270,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         fun( "cli-arguments", function ( mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
-                && !mode.foreignVal.finished
+                && mode.foreignVal.current
                 && mode.foreignVal.type === "macro") )
                 throw new Error();
             
@@ -189,7 +281,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         fun( "cli-input-environment-variables", function ( mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
-                && !mode.foreignVal.finished
+                && mode.foreignVal.current
                 && mode.foreignVal.type === "macro") )
                 throw new Error();
             
@@ -200,7 +292,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         fun( "cli-input-directory", function ( mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
-                && !mode.foreignVal.finished
+                && mode.foreignVal.current
                 && mode.foreignVal.type === "macro") )
                 throw new Error();
             
@@ -211,7 +303,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
         fun( "cli-output-directory", function ( mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
-                && !mode.foreignVal.finished
+                && mode.foreignVal.current
                 && mode.foreignVal.type === "macro") )
                 throw new Error();
             
@@ -236,7 +328,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
             return new StcFn( function ( inputPath ) {
                 if ( !(mode instanceof StcForeign
                     && mode.purpose === "mode"
-                    && !mode.foreignVal.finished
+                    && mode.foreignVal.current
                     && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
@@ -253,7 +345,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
             return new StcFn( function ( inputPath ) {
                 if ( !(mode instanceof StcForeign
                     && mode.purpose === "mode"
-                    && !mode.foreignVal.finished
+                    && mode.foreignVal.current
                     && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
@@ -270,7 +362,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
             return new StcFn( function ( inputPath ) {
                 if ( !(mode instanceof StcForeign
                     && mode.purpose === "mode"
-                    && !mode.foreignVal.finished
+                    && mode.foreignVal.current
                     && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
@@ -301,7 +393,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                 && outputPath.purpose === "output-path") )
                 throw new Error();
             
-            return new StcForeign( "effects", function ( collector ) {
+            return new StcForeign( "effects", function ( rawMode ) {
                 // TODO
                 throw new Error();
             } );
@@ -313,12 +405,11 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                     && outputPath.purpose === "output-path") )
                     throw new Error();
                 
-                if ( outputString.tupleTag !==
-                    stcString.getTupleTag() )
-                    throw new Error();
+                var content =
+                    parsePossiblyEncapsulatedString( outputString );
                 
                 return new StcForeign( "effects",
-                    function ( collector ) {
+                    function ( rawMode ) {
                     
                     // TODO
                     throw new Error();
@@ -331,16 +422,17 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
             
             return new StcFn( function ( value ) {
                 var keyInternal = parseString( key );
-                var valueInternal = parseString( value );
+                var valueInternal =
+                    parsePossiblyEncapsulatedString( value );
                 
                 return new StcForeign( "effects",
-                    function ( collector ) {
+                    function ( rawMode ) {
                     
                     if ( staccatoDeclarationState.
                         cliOutputEnvironmentVariableShadows.has(
                             keyInternal ) )
                         throw new Error();
-                    collector.addSafe( function () {
+                    collectSafe( rawMode, function () {
                         staccatoDeclarationState.
                             cliOutputEnvironmentVariableShadows.put(
                                 keyInternal, valueInternal );
@@ -354,7 +446,7 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
             return new StcFn( function ( constructorName ) {
                 if ( !(mode instanceof StcForeign
                     && mode.purpose === "mode"
-                    && !mode.foreignVal.finished
+                    && mode.foreignVal.current
                     && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
@@ -389,72 +481,71 @@ function ceneApiUsingDefinitionNs( macroDefNs ) {
                     toValidUnicode( string.foreignVal ) ) );
         } );
         
-        fun( "trampoline-javascript", function ( mode ) {
-            return new StcFn( function ( modeVar ) {
-                return new StcFn( function ( clientVar ) {
-                    return new StcFn( function ( env ) {
-                        return new StcFn( function ( body ) {
-                            if ( !(mode instanceof StcForeign
-                                && mode.purpose === "mode"
-                                && !mode.foreignVal.finished
-                                && mode.foreignVal.type === "js") )
-                                throw new Error();
-                            
-                            var modeVarInternal =
-                                parseString( modeVar );
-                            var clientVarInternal =
-                                parseString( clientVar );
-                            
-                            var keys = [];
-                            var vals = [];
-                            for (
-                                var currentEnv = env;
-                                currentEnv.tupleTag ===
-                                    stcCons.getTupleTag();
-                                currentEnv = stcCons.getProj(
-                                    currentEnv, "cdr" )
-                            ) {
-                                var assoc = stcCons.getProj(
-                                    currentEnv, "car" );
-                                if ( assoc.tupleTag !==
-                                    stcAssoc.getTupleTag() )
-                                    throw new Error();
-                                keys.push(
-                                    parseString(
-                                        stcAssoc.getProj(
-                                            assoc, "key" ) ) );
-                                vals.push(
-                                    parseString(
-                                        stcAssoc.getProj(
-                                            assoc, "value" ) ) );
-                            }
-                            if ( currentEnv.tupleTag !==
-                                stcNil.getTupleTag() )
-                                throw new Error();
-                            
-                            var allVars = {};
-                            function recordVar( va ) {
-                                var k = "|" + va;
-                                if ( allVars[ k ] )
-                                    throw new Error();
-                                allVars[ k ] = true;
-                            }
-                            recordVar( modeVarInternal );
-                            recordVar( clientVarInternal );
-                            arrEach( keys, function ( key ) {
-                                recordVar( key );
-                            } );
-                            
-                            var bodyInternal = parseString( body );
-                            
-                            return new StcForeign( "effects",
-                                function ( collector ) {
-                                
-                                // TODO
-                                throw new Error();
-//                                return stcNil.ofNow();
-                            } );
-                        } );
+        fun( "javascript-sync", function ( clientVar ) {
+            return new StcFn( function ( env ) {
+                return new StcFn( function ( body ) {
+                    
+                    var clientVarInternal = parseString( clientVar );
+                    
+                    var keys = [];
+                    var vals = [];
+                    for (
+                        var currentEnv = env;
+                        currentEnv.tupleTag === stcCons.getTupleTag();
+                        currentEnv =
+                            stcCons.getProj( currentEnv, "cdr" )
+                    ) {
+                        var assoc =
+                            stcCons.getProj( currentEnv, "car" );
+                        if ( assoc.tupleTag !==
+                            stcAssoc.getTupleTag() )
+                            throw new Error();
+                        keys.push(
+                            parseString(
+                                stcAssoc.getProj( assoc, "key" ) ) );
+                        vals.push(
+                            wrapCene(
+                                stcAssoc.getProj(
+                                    assoc, "value" ) ) );
+                    }
+                    if ( currentEnv.tupleTag !==
+                        stcNil.getTupleTag() )
+                        throw new Error();
+                    
+                    var allVars = {};
+                    function recordVar( va ) {
+                        var k = "|" + va;
+                        if ( allVars[ k ] )
+                            throw new Error();
+                        allVars[ k ] = true;
+                    }
+                    recordVar( clientVarInternal );
+                    arrEach( keys, function ( key ) {
+                        recordVar( key );
+                    } );
+                    
+                    var bodyInternal = parseString( body );
+                    
+                    // TODO: Stop putting a potentially large array
+                    // into an argument list like this.
+                    var compiledJs = Function.apply( null, [
+                        clientVarInternal
+                    ].concat( keys ).concat( [
+                        bodyInternal
+                    ] ) );
+                    
+                    return new StcForeign( "effects",
+                        function ( rawMode ) {
+                        
+                        if ( !(rawMode.current
+                            && rawMode.type === "js") )
+                            throw new Error();
+                        
+                        return runEffects( rawMode,
+                            unwrapCene(
+                                compiledJs.apply( null,
+                                    [ ceneClient ].concat(
+                                        vals ) ) ) );
                     } );
                 } );
             } );
