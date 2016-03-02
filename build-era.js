@@ -214,7 +214,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
         var result = $path.resolve( dirname, basename );
         if ( $path.basename( result ) !== basename )
             return null;
-        return null;
+        return result;
     }
     
     var usingDefNs = $stc.usingDefinitionNs( nss.definitionNs );
