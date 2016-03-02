@@ -87,6 +87,23 @@ var args = argParser.parseArgs();
 var tasks = [];
 
 
+if ( args.in !== null && args.out !== null ) (function () {
+    function check( lineage, other ) {
+        if ( lineage === other )
+            throw new Error(
+                "The provided input and output directories " +
+                "overlap, which is not allowed." );
+        var parent = $path.dirname( lineage );
+        if ( parent !== lineage )
+            check( parent, other );
+    }
+    var resolvedIn = $path.resolve( args.in );
+    var resolvedOut = $path.resolve( args.out );
+    check( resolvedIn, resolvedOut );
+    check( resolvedOut, resolvedIn );
+})();
+
+
 if ( args.test_era ) tasks.push( function ( then ) {
     Function( readFiles( [
         "src/era-misc-strmap-avl.js",
@@ -188,6 +205,17 @@ var runStaccatoFiles = function ( files, testFile, then ) {
         ensureDirSync( parent );
         fs.mkdirSync( path );
     }
+    function pathGet( dirname, basename ) {
+        if ( dirname === null )
+            return null;
+        // TODO: See if there's anything more we need to sanitize for.
+        if ( /[/\\]|^\.\.?$/.test( basename ) )
+            return null;
+        var result = $path.resolve( dirname, basename );
+        if ( $path.basename( result ) !== basename )
+            return null;
+        return null;
+    }
     
     var usingDefNs = $stc.usingDefinitionNs( nss.definitionNs );
     var ceneApiUsingDefNs =
@@ -208,8 +236,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                 return args.out;
             },
             inputPathGet: function ( inputPath, name ) {
-                return inputPath === null ? null :
-                    $path.resolve( inputPath, name );
+                return pathGet( inputPath, name );
             },
             inputPathType: function ( inputPath ) {
                 if ( inputPath === null
@@ -238,8 +265,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                 return fs.readFileSync( inputPath, "utf-8" );
             },
             outputPathGet: function ( outputPath, name ) {
-                return outputPath === null ? null :
-                    $path.resolve( outputPath, name );
+                return pathGet( outputPath, name );
             },
             outputPathDirectory: function ( outputPath ) {
                 if ( outputPath === null )
