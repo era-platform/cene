@@ -73,7 +73,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     
     function wrapTagged( tag ) {
         return function ( unwrappedVal ) {
-            return wrapPrivate( { type: tag, val: unwrappedVal } );
+            return wrapPrivate( unwrappedVal );
         };
     }
     
@@ -89,10 +89,6 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     var wrapCene = wrapTagged( "cene" );
     var unwrapCene = unwrapTagged( "cene" );
     
-    // TODO: Use these.
-    var wrapTrampoline = wrapTagged( "trampoline" );
-    var unwrapTrampoline = unwrapTagged( "trampoline" );
-    
     
     function runEffects( rawMode, effects ) {
         if ( !(effects instanceof StcForeign
@@ -103,6 +99,18 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     }
     function wrapEffects( body ) {
         return wrapCene( new StcForeign( "effects", body ) );
+    }
+    function simpleEffects( body ) {
+        return new StcForeign( "effects", function ( rawMode ) {
+            collectDefer( rawMode, function ( rawMode ) {
+                body();
+                return new StcForeign( "effects",
+                    function ( rawMode ) {
+                    
+                    // Do nothing.
+                } );
+            } );
+        } );
     }
     
     
@@ -243,10 +251,17 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                 throw new Error();
             return stringInternal.foreignVal;
         }
+        function unparseNonUnicodeString( string ) {
+            if ( typeof string !== "string" )
+                throw new Error();
+            return stcString.ofNow(
+                new StcForeign( "string",
+                    toValidUnicode( string ) ) );
+        }
         function parsePossiblyEncapsulatedString( string ) {
-            if ( outputString.tupleTag === stcString.getTupleTag() ) {
+            if ( string.tupleTag === stcString.getTupleTag() ) {
                 return parseString( string );
-            } else if ( outputString.tupleTag ===
+            } else if ( string.tupleTag ===
                 stcEncapsulatedString.getTupleTag() ) {
                 
                 var stringInternal =
@@ -274,8 +289,11 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                 && mode.foreignVal.type === "macro") )
                 throw new Error();
             
-            // TODO
-            throw new Error();
+            var args = apiOps.cliArguments();
+            return usingDefNs.stcArrayToConsList(
+                arrMap( args, function ( arg ) {
+                    return unparseNonUnicodeString( arg );
+                } ) );
         } );
         
         fun( "cli-input-environment-variables", function ( mode ) {
@@ -285,8 +303,16 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                 && mode.foreignVal.type === "macro") )
                 throw new Error();
             
-            // TODO
-            throw new Error();
+            var envArr = [];
+            objOwnEach( apiOps.cliInputEnvironmentVariables(),
+                function ( k, v ) {
+                
+                envArr.push(
+                    stcAssoc.ofNow(
+                        unparseNonUnicodeString( k ),
+                        unparseNonUnicodeString( v ) ) );
+            } );
+            return usingDefNs.stcArrayToConsList( envArr );
         } );
         
         fun( "cli-input-directory", function ( mode ) {
@@ -296,8 +322,8 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                 && mode.foreignVal.type === "macro") )
                 throw new Error();
             
-            // TODO
-            throw new Error();
+            return new StcForeign( "input-path",
+                apiOps.cliInputDirectory() );
         } );
         
         fun( "cli-output-directory", function ( mode ) {
@@ -307,8 +333,8 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                 && mode.foreignVal.type === "macro") )
                 throw new Error();
             
-            // TODO
-            throw new Error();
+            return new StcForeign( "output-path",
+                apiOps.cliOutputDirectory() );
         } );
         
         fun( "input-path-get", function ( inputPath ) {
@@ -319,8 +345,9 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                 
                 var nameInternal = parseString( name );
                 
-                // TODO
-                throw new Error();
+                return new StcForeign( "input-path",
+                    apiOps.inputPathGet(
+                        inputPath.foreignVal, nameInternal ) );
             } );
         } );
         
@@ -336,8 +363,16 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                     && inputPath.purpose === "input-path") )
                     throw new Error();
                 
-                // TODO
-                throw new Error();
+                var type =
+                    apiOps.inputPathType( inputPath.foreignVal );
+                if ( type.type === "directory" )
+                    return stcFileTypeDirectory.ofNow();
+                else if ( type.type === "blob" )
+                    return stcFileTypeBlob.ofNow();
+                else if ( type.type === "missing" )
+                    return stcFileTypeMissing.ofNow();
+                else
+                    throw new Error();
             } );
         } );
         
@@ -353,8 +388,15 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                     && inputPath.purpose === "input-path") )
                     throw new Error();
                 
-                // TODO
-                throw new Error();
+                return usingDefNs.stcArrayToConsList(
+                    arrMap(
+                        apiOps.inputPathDirectoryList(
+                            inputPath.foreignVal ),
+                        function ( inputPath ) {
+                        
+                        return new StcForeign( "input-path",
+                            inputPath );
+                    } ) );
             } );
         } );
         
@@ -370,8 +412,9 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                     && inputPath.purpose === "input-path") )
                     throw new Error();
                 
-                // TODO
-                throw new Error();
+                return unparseNonUnicodeString(
+                    apiOps.inputPathBlobUtf8(
+                        inputPath.foreignVal ) );
             } );
         } );
         
@@ -383,8 +426,9 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                 
                 var nameInternal = parseString( name );
                 
-                // TODO
-                throw new Error();
+                return new StcForeign( "output-path",
+                    apiOps.outputPathGet(
+                        outputPath.foreignVal, nameInternal ) );
             } );
         } );
         
@@ -393,9 +437,8 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                 && outputPath.purpose === "output-path") )
                 throw new Error();
             
-            return new StcForeign( "effects", function ( rawMode ) {
-                // TODO
-                throw new Error();
+            return simpleEffects( function () {
+                apiOps.outputPathDirectory( outputPath.foreignVal );
             } );
         } );
         
@@ -408,11 +451,9 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                 var content =
                     parsePossiblyEncapsulatedString( outputString );
                 
-                return new StcForeign( "effects",
-                    function ( rawMode ) {
-                    
-                    // TODO
-                    throw new Error();
+                return simpleEffects( function () {
+                    apiOps.outputPathBlobUtf8(
+                        outputPath.foreignVal, content );
                 } );
             } );
         } );
@@ -472,13 +513,10 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         
         fun( "javascript-utf-16-to-string", function ( string ) {
             if ( !(string instanceof StcForeign
-                && string.purpose === "foreign"
-                && typeof string.foreignVal === "string") )
+                && string.purpose === "foreign") )
                 throw new Error();
             
-            return stcString.ofNow(
-                new StcForeign( "string",
-                    toValidUnicode( string.foreignVal ) ) );
+            return unparseNonUnicodeString( string.foreignVal );
         } );
         
         fun( "javascript-sync", function ( clientVar ) {

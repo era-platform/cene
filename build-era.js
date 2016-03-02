@@ -4,6 +4,7 @@
 "use strict";
 
 var fs = require( "fs" );
+var $path = require( "path" );
 
 var argparse = require( "argparse" );
 
@@ -42,8 +43,28 @@ process.chdir( __dirname );
 var argParser = new argparse.ArgumentParser( {
     version: "0.0.1",
     addHelp: true,
-    description: "The Era programming systems."
+    description: "The Cene programming language."
 } );
+
+// Primary interface
+argParser.addArgument( [ "-i", "--in" ], {
+    action: "store",
+    help: "Cene: The file path to use as input, if any."
+} );
+argParser.addArgument( [ "-o", "--out" ], {
+    action: "store",
+    help: "Cene: The file path to use as output, if any."
+} );
+argParser.addArgument( [ "file" ], {
+    nargs: "?",
+    help: "The path to a Cene file to execute."
+} );
+argParser.addArgument( [ "args" ], {
+    nargs: "*",
+    help: "Additional arguments to pass to the Cene program."
+} );
+
+// Development interface
 argParser.addArgument( [ "-s", "--build-staccato" ], {
     action: "storeTrue",
     help:
@@ -60,15 +81,7 @@ argParser.addArgument( [ "-S", "--test-mini-staccato" ], {
         "Mini Staccato, a subset of a macro-capable Staccato: Run " +
         "a demo."
 } );
-argParser.addArgument( [ "file" ], {
-    nargs: "?",
-    help: "The path to a Cene file to execute."
-} );
-// TODO: Add support for this.
-//argParser.addArgument( [ "args" ], {
-//    nargs: "*",
-//    help: "Additional arguments to pass to the Cene program."
-//} );
+
 var args = argParser.parseArgs();
 
 var tasks = [];
@@ -162,11 +175,86 @@ var runStaccatoFiles = function ( files, testFile, then ) {
         uniqueNs: $stc.stcNsGet( "unique-ns", $stc.stcNsRoot() )
     };
     
+    function ensureDirSync( path ) {
+        if ( fs.existsSync( path ) ) {
+            if ( fs.statSync( path ).isDirectory() )
+                return;
+            throw new Error();
+        }
+        var resolvedPath = $path.resolve( path );
+        var parent = $path.dirname( resolvedPath );
+        if ( parent === resolvedPath )
+            return;
+        ensureDirSync( parent );
+        fs.mkdirSync( path );
+    }
+    
     var usingDefNs = $stc.usingDefinitionNs( nss.definitionNs );
     var ceneApiUsingDefNs =
         $stc.ceneApiUsingDefinitionNs( nss.definitionNs, {
             defer: function ( body ) {
                 _.defer( body );
+            },
+            cliArguments: function () {
+                return args.args;
+            },
+            cliInputEnvironmentVariables: function () {
+                return process.env;
+            },
+            cliInputDirectory: function () {
+                return args.in;
+            },
+            cliOutputDirectory: function () {
+                return args.out;
+            },
+            inputPathGet: function ( inputPath, name ) {
+                return inputPath === null ? null :
+                    $path.resolve( inputPath, name );
+            },
+            inputPathType: function ( inputPath ) {
+                if ( inputPath === null
+                    || !fs.existsSync( inputPath ) )
+                    return { type: "missing" };
+                var stat = fs.statSync( inputPath );
+                if ( stat.isDirectory() )
+                    return { type: "directory" };
+                else if ( stat.isFile() )
+                    return { type: "blob" };
+                else
+                    throw new Error();
+            },
+            inputPathDirectoryList: function ( inputPath ) {
+                if ( inputPath === null )
+                    throw new Error();
+                return $stc.arrMap( fs.readdirSync( inputPath ),
+                    function ( child ) {
+                    
+                    return $path.resolve( inputPath, child );
+                } );
+            },
+            inputPathBlobUtf8: function ( inputPath ) {
+                if ( outputPath === null )
+                    throw new Error();
+                return fs.readFileSync( inputPath, "utf-8" );
+            },
+            outputPathGet: function ( outputPath, name ) {
+                return outputPath === null ? null :
+                    $path.resolve( outputPath, name );
+            },
+            outputPathDirectory: function ( outputPath ) {
+                if ( outputPath === null )
+                    return;
+                ensureDirSync( outputPath );
+            },
+            outputPathBlobUtf8:
+                function ( outputPath, outputString ) {
+                
+                if ( outputPath === null )
+                    return;
+                var resolvedPath = $path.resolve( outputPath );
+                ensureDirSync( $path.dirname( resolvedPath ) );
+                fs.writeFileSync(
+                    resolvedPath, outputString, "utf-8" );
             }
         } );
     
@@ -177,7 +265,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
     function runCode( code ) {
         return !$stc.arrAny( code, function ( tryExpr ) {
             if ( !tryExpr.ok ) {
-                console.err( tryExpr.msg );
+                console.error( tryExpr.msg );
                 return true;
             }
             
