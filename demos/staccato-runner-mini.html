@@ -80,6 +80,41 @@ window.onload = function () {
             ceneApiUsingDefinitionNs( nss.definitionNs, {
                 defer: function ( body ) {
                     _.defer( body );
+                },
+                cliArguments: function () {
+                    return [];
+                },
+                cliInputEnvironmentVariables: function () {
+                    return {};
+                },
+                cliInputDirectory: function () {
+                    return null;
+                },
+                cliOutputDirectory: function () {
+                    return null;
+                },
+                inputPathGet: function ( inputPath, name ) {
+                    return null;
+                },
+                inputPathType: function ( inputPath ) {
+                    return { type: "missing" };
+                },
+                inputPathDirectoryList: function ( inputPath ) {
+                    throw new Error();
+                },
+                inputPathBlobUtf8: function ( inputPath ) {
+                    throw new Error();
+                },
+                outputPathGet: function ( inputPath, name ) {
+                    return null;
+                },
+                outputPathDirectory: function ( outputPath ) {
+                    // Do nothing.
+                },
+                outputPathBlobUtf8:
+                    function ( outputPath, outputString ) {
+                    
+                    // Do nothing.
                 }
             } );
         
@@ -90,7 +125,7 @@ window.onload = function () {
         function runCode( code ) {
             return !arrAny( code, function ( tryExpr ) {
                 if ( !tryExpr.ok ) {
-                    console.err( tryExpr.msg );
+                    console.error( tryExpr.msg );
                     return true;
                 }
                 

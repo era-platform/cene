@@ -1233,14 +1233,8 @@ function usingDefinitionNs( macroDefNs ) {
                             collectDefer( rawMode,
                                 function ( rawMode ) {
                                 
-                                var thenEffects =
-                                    then.callStc( macroDefNs, new StcForeign( "mode", rawMode ) );
-                                if ( !(thenEffects instanceof
-                                        StcForeign
-                                    && thenEffects.purpose === "effects") )
-                                    throw new Error();
-                                var thenFunc = thenEffects.foreignVal;
-                                thenFunc( rawMode );
+                                return then.callStc( macroDefNs,
+                                    new StcForeign( "mode", rawMode ) );
                             } );
                             return stcNil.ofNow();
                         } );
@@ -1663,8 +1657,9 @@ function usingDefinitionNs( macroDefNs ) {
         macroexpandTopLevel: macroexpandTopLevel,
         readerExprToStc: readerExprToStc,
         
-        // NOTE: This is only needed for era-cene-api.js.
-        processDefType: processDefType
+        // NOTE: These are only needed for era-cene-api.js.
+        processDefType: processDefType,
+        stcArrayToConsList: stcArrayToConsList
     };
 }
 

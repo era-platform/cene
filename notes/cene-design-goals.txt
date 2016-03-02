@@ -18,7 +18,7 @@ Options:
   -c, --command command  A command run whenever the build is complete.
   -w, --watch            Keep running builds whenever inputs change.
 
-(TODO: Support --help. Then support --version, then --out. Then do concurrent development on --in and (--command, then --out). Then support --build, then --watch. The --build and --watch options are neither as essential nor as easy as the others, so supporting them too early could be a premature optimization.)
+(TODO: Support --command. Then support --build, then --watch. We haven't focused on implementing the --build and --watch options yet because they could be a premature optimization.)
 
 To interact with the outside world, the Cene code has access to a few things in the form of nonstandard definitions:
 
