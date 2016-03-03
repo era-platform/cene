@@ -167,6 +167,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
         "    arrAny: arrAny,\n" +
         "    arrAll: arrAll,\n" +
         "    arrMap: arrMap,\n" +
+        "    jsnMap: jsnMap,\n" +
         "    stcNsGet: stcNsGet,\n" +
         "    stcNsRoot: stcNsRoot,\n" +
         "    nssGet: nssGet,\n" +
@@ -180,8 +181,11 @@ var runStaccatoFiles = function ( files, testFile, then ) {
     
     var startMillis = new Date().getTime();
     
-    var codeOfFiles = $stc.arrMap( files, function ( file ) {
-        return $stc.readAll( readFile( file ) );
+    var textOfFiles = $stc.arrMap( files, function ( file ) {
+        return readFile( file );
+    } );
+    var codeOfFiles = $stc.arrMap( textOfFiles, function ( text ) {
+        return $stc.readAll( text );
     } );
     var testCode = $stc.readAll( readFile( testFile ) );
     var readMillis = new Date().getTime();
@@ -205,7 +209,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
         ensureDirSync( parent );
         fs.mkdirSync( path );
     }
-    function pathGet( dirname, basename ) {
+    function fsPathGet( dirname, basename ) {
         if ( dirname === null )
             return null;
         // TODO: See if there's anything more we need to sanitize for.
@@ -216,8 +220,33 @@ var runStaccatoFiles = function ( files, testFile, then ) {
             return null;
         return result;
     }
+    function pathGet( dirname, basename ) {
+        return {
+            logicalPath: [ "get", basename, dirname ],
+            fsPath: fsPathGet( dirname.fsPath, basename )
+        };
+    }
     
     var usingDefNs = $stc.usingDefinitionNs( nss.definitionNs );
+    
+    var memoInputPathType = $stc.jsnMap();
+    var memoInputPathDirectoryList = $stc.jsnMap();
+    var memoInputPathBlobUtf8 = $stc.jsnMap();
+    var memoOutputPathDirectory = $stc.jsnMap();
+    var memoOutputPathBlobUtf8 = $stc.jsnMap();
+    function recordMemoForEnsureDir( dir ) {
+        if ( memoOutputPathDirectory.has( dir ) )
+            return;
+        memoOutputPathDirectory.set( dir, true );
+        if ( dir[ 0 ] === "get" )
+            recordMemoForEnsureDir( dir[ 2 ] );
+    }
+    function recordMemo( memoMap, key, body ) {
+        if ( !memoMap.has( key ) )
+            memoMap.set( key, body() );
+        return memoMap.get( key );
+    }
+    
     var ceneApiUsingDefNs =
         $stc.ceneApiUsingDefinitionNs( nss.definitionNs, {
             defer: function ( body ) {
@@ -230,57 +259,157 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                 return process.env;
             },
             cliInputDirectory: function () {
-                return args.in;
+                return {
+                    logicalPath: [ "in-root" ],
+                    fsPath: args.in
+                };
             },
             cliOutputDirectory: function () {
-                return args.out;
+                return {
+                    logicalPath: [ "out-root" ],
+                    fsPath: args.out
+                };
             },
             inputPathGet: function ( inputPath, name ) {
-                return pathGet( inputPath, name );
+                return fsPathGet( inputPath, name );
             },
             inputPathType: function ( inputPath ) {
-                if ( inputPath === null
-                    || !fs.existsSync( inputPath ) )
-                    return { type: "missing" };
-                var stat = fs.statSync( inputPath );
-                if ( stat.isDirectory() )
-                    return { type: "directory" };
-                else if ( stat.isFile() )
-                    return { type: "blob" };
-                else
-                    throw new Error();
+                return recordMemo(
+                    memoInputPathType, inputPath.logicalPath,
+                    function () {
+                    
+                    if ( inputPath.fsPath === null
+                        || !fs.existsSync( inputPath.fsPath ) )
+                        return { type: "missing" };
+                    
+                    var stat = fs.statSync( inputPath.fsPath );
+                    if ( stat.isDirectory() )
+                        return { type: "directory" };
+                    else if ( stat.isFile() )
+                        return { type: "blob" };
+                    else
+                        throw new Error();
+                } );
             },
             inputPathDirectoryList: function ( inputPath ) {
-                if ( inputPath === null )
-                    throw new Error();
-                return $stc.arrMap( fs.readdirSync( inputPath ),
-                    function ( child ) {
+                return recordMemo(
+                    memoInputPathDirectoryList, inputPath.logicalPath,
+                    function () {
                     
-                    return $path.resolve( inputPath, child );
+                    if ( inputPath.fsPath === null )
+                        throw new Error();
+                    return $stc.arrMap(
+                        fs.readdirSync( inputPath.fsPath ),
+                        function ( child ) {
+                        
+                        return $path.resolve(
+                            inputPath.fsPath, child );
+                    } );
                 } );
             },
             inputPathBlobUtf8: function ( inputPath ) {
-                if ( outputPath === null )
-                    throw new Error();
-                return fs.readFileSync( inputPath, "utf-8" );
+                return recordMemo(
+                    memoInputPathBlobUtf8, inputPath.logicalPath,
+                    function () {
+                    
+                    if ( outputPath === null )
+                        throw new Error();
+                    return fs.readFileSync(
+                        inputPath.fsPath, "utf-8" );
+                } );
             },
             outputPathGet: function ( outputPath, name ) {
-                return pathGet( outputPath, name );
+                return fsPathGet( outputPath, name );
             },
             outputPathDirectory: function ( outputPath ) {
-                if ( outputPath === null )
+                recordMemoForEnsureDir( outputPath.logicalPath );
+                
+                if ( outputPath.fsPath === null )
                     return;
-                ensureDirSync( outputPath );
+                ensureDirSync( outputPath.fsPath );
             },
             outputPathBlobUtf8:
                 function ( outputPath, outputString ) {
                 
-                if ( outputPath === null )
+                if ( memoOutputPathDirectory.has(
+                    outputPath.logicalPath ) )
+                    throw new Error();
+                if ( memoOutputPathBlobUtf8.has(
+                    outputPath.logicalPath ) )
+                    throw new Error();
+                
+                if ( outputPath.logicalPath[ 0 ] === "get" )
+                    recordMemoForEnsureDir(
+                        outputPath.logicalPath[ 2 ] );
+                memoOutputPathBlobUtf8.set(
+                    outputPath.logicalPath, true );
+                
+                if ( outputPath.fsPath === null )
                     return;
-                var resolvedPath = $path.resolve( outputPath );
+                var resolvedPath = $path.resolve( outputPath.fsPath );
                 ensureDirSync( $path.dirname( resolvedPath ) );
                 fs.writeFileSync(
                     resolvedPath, outputString, "utf-8" );
+            },
+            sloppyJavaScriptQuine: function ( constructorTag ) {
+                // TODO: This should be the one place we create a
+                // JavaScript mode without having access to one first.
+                var quine =
+                    readFiles( [
+                        "src/era-misc-strmap-avl.js",
+                        "src/era-misc.js",
+                        "src/era-reader.js",
+                        "src/era-staccato-lib-runner-mini.js",
+                        "src/era-cene-api.js",
+                        "src/era-cene-quiner.js"
+                    ] ) + "\n" +
+                    "\n";
+                
+                function addMap( map, mapName ) {
+                    map.each( function ( k, v ) {
+                        quine += "" + mapName + ".set( " +
+                            JSON.stringify( k ) + ", " +
+                            JSON.stringify( v ) + " );\n"
+                    } );
+                }
+                addMap( memoInputPathType, "quinerInputPathType" );
+                addMap( memoInputPathDirectoryList,
+                    "quinerInputPathDirectoryList" );
+                addMap( memoInputPathBlobUtf8,
+                    "quinerInputPathBlobUtf8" );
+                
+                arrEach( textOfFiles, function ( text ) {
+                    quine += "quinerTextOfFiles.push( " +
+                        JSON.stringify( text ) + " )\n";
+                } );
+                
+                quine +=
+                    "quinerCliArguments = "
+                        JSON.stringify( args.args ) + ";\n" +
+                    // TODO: Stop embedding every single environment
+                    // variable. Unfortunately, we might not be able
+                    // to do this until we upgrade to a non-sloppy
+                    // approach.
+                    "quinerCliInputEnvironmentVariables = "
+                        JSON.stringify( process.env ) + ";\n" +
+                    "quinerQuine = quine;\n" +
+                    "\n" +
+                    "return {\n" +
+                    "    quinerCallWithSyncJavaScriptMode:\n" +
+                    "        quinerCallWithSyncJavaScriptMode\n" +
+                    "};\n";
+                
+                return (
+                    "(function () {\n" +
+                    "\n" +
+                    "var quine = " + JSON.stringify( quine ) + ";\n" +
+                    "var quiner = " +
+                        "Function( \"quine\", quine )( quine );\n" +
+                    "quiner.quinerCallWithSyncJavaScriptMode( " +
+                        JSON.stringify( constructorTag ) + " );\n" +
+                    "\n" +
+                    "})();\n"
+                );
             }
         } );
     
@@ -307,7 +436,6 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                 safe: [],
                 defer: []
             };
-            var stillSync = true;
             usingDefNs.macroexpandTopLevel(
                 $stc.nssGet( nss, "first" ),
                 rawMode,
