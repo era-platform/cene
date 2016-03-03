@@ -16,6 +16,11 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     var stcAssoc = stcType( macroDefNs, "assoc", "key", "value" );
     var stcEncapsulatedString =
         stcType( macroDefNs, "encapsulated-string", "val" );
+    var stcFileTypeDirectory =
+        stcType( macroDefNs, "file-type-directory" );
+    var stcFileTypeBlob = stcType( macroDefNs, "file-type-blob" );
+    var stcFileTypeMissing =
+        stcType( macroDefNs, "file-type-missing" );
     
     
     // Returns a function with a very boring .toString() result. We
