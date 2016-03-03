@@ -460,10 +460,14 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                     parsePossiblyEncapsulatedString( outputString );
                 
                 return simpleEffects( function () {
-                    apiOps.onceDependenciesComplete( function () {
+                    // TODO: Figure out if we actually need
+                    // onceDependenciesComplete. We were already using
+                    // defer to run these write effects after the read
+                    // effects.
+//                    apiOps.onceDependenciesComplete( function () {
                         apiOps.outputPathBlobUtf8(
                             outputPath.foreignVal, getContent() );
-                    } );
+//                    } );
                 } );
             } );
         } );
@@ -484,12 +488,16 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                             keyInternal ) )
                         throw new Error();
                     collectSafe( rawMode, function () {
-                        apiOps.onceDependenciesComplete( function () {
+                        // TODO: Figure out if we actually need
+                        // onceDependenciesComplete. We were already
+                        // using defer to run these write effects
+                        // after the read effects.
+//                        apiOps.onceDependenciesComplete( function () {
                             staccatoDeclarationState.
                                 cliOutputEnvironmentVariableShadows.
                                     put( keyInternal,
                                         getValueInternal() );
-                        } );
+//                        } );
                     } );
                     return stcNil.of();
                 } );

@@ -116,10 +116,11 @@ window.onload = function () {
                     
                     // Do nothing.
                 },
-                sloppyJavaScriptQuine:
-                    function ( constructorName ) {
-                    
+                sloppyJavaScriptQuine: function ( constructorTag ) {
                     return null;
+                },
+                onDependenciesComplete: function ( listener ) {
+                    // Do nothing.
                 }
             } );
         

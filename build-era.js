@@ -167,6 +167,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
         "    arrAny: arrAny,\n" +
         "    arrAll: arrAll,\n" +
         "    arrMap: arrMap,\n" +
+        "    arrEach: arrEach,\n" +
         "    jsnMap: jsnMap,\n" +
         "    stcNsGet: stcNsGet,\n" +
         "    stcNsRoot: stcNsRoot,\n" +
@@ -234,6 +235,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
     var memoInputPathBlobUtf8 = $stc.jsnMap();
     var memoOutputPathDirectory = $stc.jsnMap();
     var memoOutputPathBlobUtf8 = $stc.jsnMap();
+    var onceDependenciesCompleteListeners = [];
     function recordMemoForEnsureDir( dir ) {
         if ( memoOutputPathDirectory.has( dir ) )
             return;
@@ -271,7 +273,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                 };
             },
             inputPathGet: function ( inputPath, name ) {
-                return fsPathGet( inputPath, name );
+                return pathGet( inputPath, name );
             },
             inputPathType: function ( inputPath ) {
                 return recordMemo(
@@ -319,7 +321,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                 } );
             },
             outputPathGet: function ( outputPath, name ) {
-                return fsPathGet( outputPath, name );
+                return pathGet( outputPath, name );
             },
             outputPathDirectory: function ( outputPath ) {
                 recordMemoForEnsureDir( outputPath.logicalPath );
@@ -378,19 +380,19 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                 addMap( memoInputPathBlobUtf8,
                     "quinerInputPathBlobUtf8" );
                 
-                arrEach( textOfFiles, function ( text ) {
+                $stc.arrEach( textOfFiles, function ( text ) {
                     quine += "quinerTextOfFiles.push( " +
-                        JSON.stringify( text ) + " )\n";
+                        JSON.stringify( text ) + " );\n";
                 } );
                 
                 quine +=
-                    "quinerCliArguments = "
+                    "quinerCliArguments = " +
                         JSON.stringify( args.args ) + ";\n" +
                     // TODO: Stop embedding every single environment
                     // variable. Unfortunately, we might not be able
                     // to do this until we upgrade to a non-sloppy
                     // approach.
-                    "quinerCliInputEnvironmentVariables = "
+                    "quinerCliInputEnvironmentVariables = " +
                         JSON.stringify( process.env ) + ";\n" +
                     "quinerQuine = quine;\n" +
                     "\n" +
@@ -400,6 +402,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                     "};\n";
                 
                 return (
+                    "\"strict mode\";\n" +
                     "(function () {\n" +
                     "\n" +
                     "var quine = " + JSON.stringify( quine ) + ";\n" +
@@ -410,6 +413,9 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                     "\n" +
                     "})();\n"
                 );
+            },
+            onceDependenciesComplete: function ( listener ) {
+                onceDependenciesCompleteListeners.push( listener );
             }
         } );
     
@@ -464,6 +470,11 @@ var runStaccatoFiles = function ( files, testFile, then ) {
     } ) ) {
         $stc.runAllDefs();
         runCode( testCode );
+        $stc.arrEach( onceDependenciesCompleteListeners,
+            function ( listener ) {
+            
+            listener();
+        } );
     }
     
     var stopMillis = new Date().getTime();
