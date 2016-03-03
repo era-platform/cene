@@ -145,10 +145,11 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
         defer: [],
         managed: true
     };
-    var effects =
-        new Stc( JSON.stringify( [ constructorTag, [] ] ), [] ).
-            callStc( nss.definitionNs,
-                new StcForeign( "mode", rawMode ) );
+    var effects = new Stc(
+        JSON.stringify(
+            stcNameTupleTagAlreadySorted( constructorTag, [] ) ),
+        []
+    ).callStc( nss.definitionNs, new StcForeign( "mode", rawMode ) );
     if ( !(effects instanceof StcForeign
         && effects.purpose === "effects") )
         throw new Error();

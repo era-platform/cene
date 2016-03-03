@@ -72,13 +72,14 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         wrappedVal();
         if ( unwrappingResult === null )
             throw new Error();
+        var result = unwrappingResult;
         unwrappingResult = null;
-        return unwrappingResult;
+        return result;
     }
     
     function wrapTagged( tag ) {
         return function ( unwrappedVal ) {
-            return wrapPrivate( unwrappedVal );
+            return wrapPrivate( { type: tag, val: unwrappedVal } );
         };
     }
     
@@ -87,7 +88,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
             var result = unwrapPrivate( wrappedVal );
             if ( result.type !== tag )
                 throw new Error();
-            return result;
+            return result.val;
         };
     }
     
