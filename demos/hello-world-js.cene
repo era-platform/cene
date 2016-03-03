@@ -40,8 +40,11 @@
   (go))
 
 (defn js-main mode
-  (javascript-sync str.client (nil) str.\;qq/
+  (javascript-sync str.client (cons (assoc str.nil /nil) /nil)
+    str.\;qq/
   
   console.log( "Hello, world!" );
+  
+  return client.done( nil );
   
   ))
