@@ -13,8 +13,8 @@ var quinerInputPathBlobUtf8 = jsnMap();
 var quinerQuine = null;
 
 function quinerCallWithSyncJavaScriptMode( constructorTag ) {
-    var codeOfFiles = $stc.arrMap( textOfFiles, function ( text ) {
-        return $stc.readAll( text );
+    var codeOfFiles = arrMap( quinerTextOfFiles, function ( text ) {
+        return readAll( text );
     } );
     
     var nss = {
@@ -24,10 +24,17 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
     
     var usingDefNs = usingDefinitionNs( nss.definitionNs );
     
+    function defer( body ) {
+        // TODO: Improve this.
+        setTimeout( function () {
+            body();
+        }, 0 );
+    }
+    
     var ceneApiUsingDefNs =
         ceneApiUsingDefinitionNs( nss.definitionNs, {
             defer: function ( body ) {
-                _.defer( body );
+                defer( body );
             },
             cliArguments: function () {
                 return quinerCliArguments;
@@ -72,6 +79,9 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
             },
             sloppyJavaScriptQuine: function ( constructorTag ) {
                 return null;
+            },
+            onDependenciesComplete: function ( listener ) {
+                // Do nothing.
             }
         } );
     
@@ -102,9 +112,9 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
                 rawMode,
                 usingDefNs.readerExprToStc( stcTrivialStxDetails(),
                     tryExpr.val ) );
-            runTrampoline( rawMode, function ( body ) {  // defer
-                _.defer( body );
-            }, function ( rawMode ) {  // createNextMode
+            runTrampoline( rawMode, defer, function ( rawMode ) {
+                // createNextMode
+                
                 return {
                     type: "macro",
                     finished: null,
@@ -122,7 +132,7 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
     if ( arrAll( codeOfFiles, function ( code ) {
         return runCode( code );
     } ) ) {
-        $stc.runAllDefs();
+        runAllDefs();
     } else {
         throw new Error();
     }
@@ -135,12 +145,18 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
         defer: [],
         managed: true
     };
-    new Stc( JSON.stringify( [ constructorTag, [] ] ), [] ).
-        callStc( nss.definitionNs,
-            new StcForeign( "mode", rawMode ) );
-    $stc.runTrampoline( rawMode, function ( body ) {  // defer
-        _.defer( body );
-    }, function ( rawMode ) {  // createNextMode
+    var effects =
+        new Stc( JSON.stringify( [ constructorTag, [] ] ), [] ).
+            callStc( nss.definitionNs,
+                new StcForeign( "mode", rawMode ) );
+    if ( !(effects instanceof StcForeign
+        && effects.purpose === "effects") )
+        throw new Error();
+    var effectsFunc = effects.foreignVal;
+    effectsFunc( rawMode );
+    runTrampoline( rawMode, defer, function ( rawMode ) {
+        // createNextMode
+        
         return {
             type: "js",
             finished: null,
