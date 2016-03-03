@@ -115,6 +115,11 @@ window.onload = function () {
                     function ( outputPath, outputString ) {
                     
                     // Do nothing.
+                },
+                sloppyJavaScriptQuine:
+                    function ( constructorName ) {
+                    
+                    return null;
                 }
             } );
         
@@ -141,7 +146,6 @@ window.onload = function () {
                     safe: [],
                     defer: []
                 };
-                var stillSync = true;
                 usingDefNs.macroexpandTopLevel(
                     nssGet( nss, "first" ),
                     rawMode,

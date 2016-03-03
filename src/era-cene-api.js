@@ -265,7 +265,10 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         }
         function parsePossiblyEncapsulatedString( string ) {
             if ( string.tupleTag === stcString.getTupleTag() ) {
-                return parseString( string );
+                var result = parseString( string );
+                return function () {
+                    return result;
+                };
             } else if ( string.tupleTag ===
                 stcEncapsulatedString.getTupleTag() ) {
                 
@@ -453,12 +456,14 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                     && outputPath.purpose === "output-path") )
                     throw new Error();
                 
-                var content =
+                var getContent =
                     parsePossiblyEncapsulatedString( outputString );
                 
                 return simpleEffects( function () {
-                    apiOps.outputPathBlobUtf8(
-                        outputPath.foreignVal, content );
+                    apiOps.onceDependenciesComplete( function () {
+                        apiOps.outputPathBlobUtf8(
+                            outputPath.foreignVal, getContent() );
+                    } );
                 } );
             } );
         } );
@@ -468,7 +473,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
             
             return new StcFn( function ( value ) {
                 var keyInternal = parseString( key );
-                var valueInternal =
+                var getValueInternal =
                     parsePossiblyEncapsulatedString( value );
                 
                 return new StcForeign( "effects",
@@ -479,9 +484,12 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                             keyInternal ) )
                         throw new Error();
                     collectSafe( rawMode, function () {
-                        staccatoDeclarationState.
-                            cliOutputEnvironmentVariableShadows.put(
-                                keyInternal, valueInternal );
+                        apiOps.onceDependenciesComplete( function () {
+                            staccatoDeclarationState.
+                                cliOutputEnvironmentVariableShadows.
+                                    put( keyInternal,
+                                        getValueInternal() );
+                        } );
                     } );
                     return stcNil.of();
                 } );
@@ -489,26 +497,28 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         } );
         
         fun( "sloppy-javascript-quine", function ( mode ) {
-            return new StcFn( function ( constructorName ) {
+            return new StcFn( function ( constructorTag ) {
                 if ( !(mode instanceof StcForeign
                     && mode.purpose === "mode"
                     && mode.foreignVal.current
                     && mode.foreignVal.type === "macro") )
                     throw new Error();
                 
-                if ( constructorName.tupleTag !==
+                if ( constructorTag.tupleTag !==
                     stcName.getTupleTag() )
                     throw new Error();
-                var constructorNameInternal =
-                    stcName.getProj( name, "val" );
-                if ( !(constructorNameInternal instanceof StcForeign
-                    && constructorNameInternal.purpose === "name") )
+                var constructorTagInternal =
+                    stcName.getProj( constructorTag, "val" );
+                if ( !(constructorTagInternal instanceof StcForeign
+                    && constructorTagInternal.purpose === "name") )
                     throw new Error();
                 
-                // TODO: This should be the one place we create a
-                // JavaScript mode without having access to one first.
-                // TODO: Implement this.
-                throw new Error();
+                return stcEncapsulatedString.ofNow(
+                    new StcForeign( "encapsulated-string",
+                        function () {
+                            return apiOps.sloppyJavaScriptQuine(
+                                constructorTagInternal.foreignVal );
+                        } ) );
             } );
         } );
         
