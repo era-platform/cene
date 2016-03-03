@@ -32,6 +32,7 @@ function arrAll( arr, func ) {
             return result;
         result = null;
     }
+    return true;
 }
 // NOTE: This body takes its args as ( v, k ).
 function arrMap( arr, func ) {
