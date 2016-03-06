@@ -314,7 +314,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                     memoInputPathBlobUtf8, inputPath.logicalPath,
                     function () {
                     
-                    if ( outputPath === null )
+                    if ( inputPath === null )
                         throw new Error();
                     return fs.readFileSync(
                         inputPath.fsPath, "utf-8" );

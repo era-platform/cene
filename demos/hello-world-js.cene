@@ -1,17 +1,18 @@
-\= hello-world.cene
+\= hello-world-js.cene
 \= Copyright 2016 Ross Angle. Released under the MIT License.
 
 \= You can execute this file like so at the command line:
 \=
-\=   $ node build-era.js demos/hello-world.cene --out fin/hello-world
+\=   $ node build-era.js demos/hello-world-js.cene \
+\=       --out fin/hello-world-js
 \=
-\= This Cene program creates its input path as a directory, creates
-\= the file hello-world.txt under that directory, and writes
-\= "Hello, world!" to that file followed by a newline.
+\= This Cene program creates its output path as a directory, creates
+\= the file hello-world.js under that directory, and writes to that
+\= file so it contains JavaScript code that logs "Hello, world!".
 \=
 \= That example command line specifies the output directory as
-\= fin/hello-world, so the file will be located at
-\= fin/hello-world/hello-world.txt.
+\= fin/hello-world-js, so the file will be located at
+\= fin/hello-world-js/hello-world.js.
 
 
 (def-macro go mode unique-ns definition-ns my-stx-details args

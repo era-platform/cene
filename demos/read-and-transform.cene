@@ -1,0 +1,51 @@
+\= read-and-transform.cene
+\= Copyright 2016 Ross Angle. Released under the MIT License.
+
+\= You can execute this file like so at the command line:
+\=
+\=   $ node build-era.js demos/read-and-transform.cene \
+\=       --in demos/read-and-transform-src \
+\=       --out fin/read-and-transform
+\=
+\= This Cene program creates its output path as a directory, creates
+\= the file transformed.txt under that directory, and writes text to
+\= that file that's derived from the file read-and-transform-src.cene
+\= under its input path.
+\=
+\= That example command line specifies the output directory as
+\= fin/read-and-transform, so the file will be located at
+\= fin/read-and-transform/transformed.txt. It specifies the input
+\= directory as demos/read-and-transform-src, so the original file
+\= will be read from
+\= demos/read-and-transform-src/read-and-transform-src.cene.
+
+
+(def-macro go mode unique-ns definition-ns my-stx-details args
+  (let s (fn it /stx my-stx-details it)
+  /let mac
+    (fn str rest
+      (cons (c s /foreign/macro-name mode definition-ns str) rest))
+  /bind-effects
+    (output-path-blob-utf-8
+      (output-path-get (cli-output-directory mode)
+        str.\;qq[transformed.txt])
+    /foldl str.\;qq[]
+      (read-all-force/input-path-blob-utf-8 mode
+      /input-path-get (cli-input-directory mode)
+        str.\;qq[read-and-transform-src.cene])
+    /fn state expr
+      (cast expr stx - list
+        err.\;qq[Internal error]
+      /foldl state list /fn state elem
+        (cast elem stx - string
+          err.\;qq[Internal error]
+        /cast string istring-nil string
+          err.\;qq[Encountered a list element that wasn't a string]
+        /string-append state
+        /string-append str.\;qq[\s] string)))
+  /fn -
+  /compile-expression mode unique-ns definition-ns
+  /c s /c mac str.nil /nil))
+
+(defn do-nothing -
+  (go))

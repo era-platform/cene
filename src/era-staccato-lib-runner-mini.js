@@ -208,7 +208,8 @@ function stcTypeArr(
     var result = {};
     result.type = "stcType";
     result.tupleName = tupleName;
-    result.projNames = projNames;
+    result.unsortedProjNames = projNames;
+    result.sortedProjNames = sortedProjNames;
     result.getTupleTag = function () {
         return tupleTag;
     };
@@ -466,6 +467,16 @@ function usingDefinitionNs( macroDefNs ) {
     var stcName = stcType( macroDefNs, "name", "val" );
     var stcForeign = stcType( macroDefNs, "foreign", "val" );
     
+    function parseString( string ) {
+        if ( string.tupleTag !== stcString.getTupleTag() )
+            throw new Error();
+        var stringInternal = stcString.getProj( string, "val" );
+        if ( !(stringInternal instanceof StcForeign
+            && stringInternal.purpose === "string") )
+            throw new Error();
+        return stringInternal.foreignVal;
+    }
+    
     function stxToMaybeName( stx ) {
         if ( stx.tupleTag !== stcStx.getTupleTag() )
             return null;
@@ -475,21 +486,13 @@ function usingDefinitionNs( macroDefNs ) {
             if ( name.tupleTag !== stcName.getTupleTag() )
                 throw new Error();
             var nameInternal = stcName.getProj( name, "val" );
-            if ( !(nameInternal instanceof StcForeign) )
-                throw new Error();
-            if ( nameInternal.purpose !== "name" )
+            if ( !(nameInternal instanceof StcForeign
+                && nameInternal.purpose === "name") )
                 throw new Error();
             return nameInternal.foreignVal;
         } else if ( sExpr.tupleTag === stcIstringNil.getTupleTag() ) {
-            var string = stcIstringNil.getProj( sExpr, "string" );
-            if ( string.tupleTag !== stcString.getTupleTag() )
-                throw new Error();
-            var stringInternal = stcString.getProj( string, "val" );
-            if ( !(stringInternal instanceof StcForeign) )
-                throw new Error();
-            if ( stringInternal.purpose !== "string" )
-                throw new Error();
-            return stringInternal.foreignVal;
+            return parseString(
+                stcIstringNil.getProj( sExpr, "string" ) );
         } else {
             return null;
         }
@@ -501,7 +504,7 @@ function usingDefinitionNs( macroDefNs ) {
             currentStc.tupleTag === stcCons.getTupleTag();
             currentStc = stcCons.getProj( currentStc, "cdr" )
         ) {
-            result.unshift( stcCons.getProj( currentStc, "car" ) );
+            result.push( stcCons.getProj( currentStc, "car" ) );
         }
         return result;
     }
@@ -554,7 +557,8 @@ function usingDefinitionNs( macroDefNs ) {
         var type = getType( definitionNs, tupleName );
         var remainingBody = stcCons.getProj( body, "cdr" );
         var localVars = [];
-        for ( var i = 0, n = type.projNames.length; i < n; i++ ) {
+        var n = type.sortedProjNames.length;
+        for ( var i = 0; i < n; i++ ) {
             if ( remainingBody.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             var localVar = stxToMaybeName(
@@ -597,11 +601,12 @@ function usingDefinitionNs( macroDefNs ) {
                     JSON.stringify( pattern.type.getTupleTag() ) +
                     " " +
             ") return (function () { " +
-                arrMap( pattern.type.projNames,
-                    function ( projName, i ) {
+                arrMap( pattern.type.sortedProjNames,
+                    function ( entry, i ) {
                     
                     return "var " +
-                        stcIdentifier( pattern.localVars[ i ] ) +
+                        stcIdentifier(
+                            pattern.localVars[ entry.i ] ) +
                         " = " +
                         "matchSubject.projNames[ " + i + " ]; ";
                 } ).join( "" ) +
@@ -647,11 +652,12 @@ function usingDefinitionNs( macroDefNs ) {
             "if ( matchSubject.tupleTag === " +
                 JSON.stringify( pattern.type.getTupleTag() ) + " " +
             ") return (function () { " +
-                arrMap( pattern.type.projNames,
-                    function ( projName, i ) {
+                arrMap( pattern.type.sortedProjNames,
+                    function ( entry, i ) {
                     
                     return "var " +
-                        stcIdentifier( pattern.localVars[ i ] ) +
+                        stcIdentifier(
+                            pattern.localVars[ entry.i ] ) +
                         " = " +
                         "matchSubject.projNames[ " + i + " ]; ";
                 } ).join( "" ) +
@@ -900,15 +906,8 @@ function usingDefinitionNs( macroDefNs ) {
             var istringNil = stcStx.getProj( stx, "s-expr" );
             if ( istringNil.tupleTag !== stcIstringNil.getTupleTag() )
                 throw new Error();
-            var string =
-                stcIstringNil.getProj( istringNil, "string" );
-            if ( string.tupleTag !== stcString.getTupleTag() )
-                throw new Error();
-            var stringInternal = stcString.getProj( string, "val" );
-            if ( !(stringInternal instanceof StcForeign
-                && stringInternal.purpose === "string") )
-                throw new Error();
-            return stringInternal.foreignVal;
+            return parseString(
+                stcIstringNil.getProj( istringNil, "string" ) );
         }
         
         mac( "err", function ( nss, rawMode, myStxDetails, body ) {
@@ -980,29 +979,26 @@ function usingDefinitionNs( macroDefNs ) {
         
         fun( "string-compare", function ( a ) {
             return new StcFn( function ( b ) {
-                if ( a.tupleTag !== stcString.getTupleTag() )
-                    throw new Error();
-                var aInternal = stcString.getProj( a, "val" );
-                if ( !(aInternal instanceof StcForeign
-                    && aInternal.purpose === "string") )
-                    throw new Error();
-                
-                if ( b.tupleTag !== stcString.getTupleTag() )
-                    throw new Error();
-                var bInternal = stcString.getProj( a, "val" );
-                if ( !(bInternal instanceof StcForeign
-                    && bInternal.purpose === "string") )
-                    throw new Error();
+                var aParsed = parseString( a );
+                var bParsed = parseString( b );
                 
                 // TODO: Figure out what ordering we actually want to
                 // have. We probably want this one, for efficiency at
                 // least, but in that case we should turn this into
-                // `string-metacompare` iuntil `string-compare`.
-                if ( aInternal.foreignVal < bInternal.foreignVal )
+                // `string-metacompare`.
+                if ( aParsed < bParsed )
                     return stcYep.ofNow( stcNil.ofNow() );
-                if ( bInternal.foreignVal < aInternal.foreignVal )
+                if ( bParsed < aParsed )
                     return stcNope.ofNow( stcNil.ofNow() );
                 return stcNil.ofNow();
+            } );
+        } );
+        
+        fun( "string-append", function ( a ) {
+            return new StcFn( function ( b ) {
+                return stcString.ofNow(
+                    new StcForeign( "string",
+                        parseString( a ) + parseString( b ) ) );
             } );
         } );
         
@@ -1093,21 +1089,14 @@ function usingDefinitionNs( macroDefNs ) {
         
         fun( "ns-get-string", function ( string ) {
             return new StcFn( function ( ns ) {
-                if ( string.tupleTag !== stcString.getTupleTag() )
-                    throw new Error();
-                var stringInternal =
-                    stcString.getProj( string, "val" );
-                if ( !(stringInternal instanceof StcForeign
-                    && stringInternal.purpose === "string") )
-                    throw new Error();
+                var stringParsed = parseString( string );
                 
                 if ( !(ns instanceof StcForeign
                     && ns.purpose === "ns") )
                     throw new Error();
                 
                 return new StcForeign( "ns",
-                    stcNsGet( stringInternal.foreignVal,
-                        ns.foreignVal ) );
+                    stcNsGet( stringParsed, ns.foreignVal ) );
             } );
         } );
         
@@ -1139,13 +1128,7 @@ function usingDefinitionNs( macroDefNs ) {
         fun( "ns-shadow-string", function ( string ) {
             return new StcFn( function ( subNs ) {
                 return new StcFn( function ( ns ) {
-                    if ( string.tupleTag !== stcString.getTupleTag() )
-                        throw new Error();
-                    var stringInternal =
-                        stcString.getProj( string, "val" );
-                    if ( !(stringInternal instanceof StcForeign
-                        && stringInternal.purpose === "string") )
-                        throw new Error();
+                    var stringParsed = parseString( string );
                     
                     if ( !(subNs instanceof StcForeign
                         && subNs.purpose === "ns") )
@@ -1156,7 +1139,7 @@ function usingDefinitionNs( macroDefNs ) {
                         throw new Error();
                     
                     return new StcForeign( "ns",
-                        stcNsShadow( stringInternal.foreignVal,
+                        stcNsShadow( stringParsed,
                             subNs.foreignVal, ns.foreignVal ) );
                 } );
             } );
@@ -1314,6 +1297,19 @@ function usingDefinitionNs( macroDefNs ) {
                 } );
             } );
         } );
+        
+        fun( "read-all-force", function ( string ) {
+            return stcArrayToConsList( arrMap(
+                readAll( parseString( string ) ),
+                function ( tryExpr ) {
+                
+                if ( !tryExpr.ok )
+                    throw new Error( tryExpr.msg );
+                
+                return readerExprToStc(
+                    stcTrivialStxDetails(), tryExpr.val );
+            } ) );
+        } );
     }
     
     function macroexpandInnerLevel( nss, rawMode, locatedExpr ) {
@@ -1382,7 +1378,7 @@ function usingDefinitionNs( macroDefNs ) {
             projListName ) )
             throw new Error();
         staccatoDeclarationState.namespaceDefs.set( projListName,
-            stcArrayToConsList( arrMap( type.projNames,
+            stcArrayToConsList( arrMap( type.unsortedProjNames,
                 function ( name ) {
                 
                 return stcName.ofNow(

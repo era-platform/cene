@@ -33,6 +33,9 @@
 \= (defn string-compare a b ...)
 \= Compares two strings.
 
+\= (defn string-append a b ...)
+\= Concatenates two strings.
+
 \= macro (str \;qq[example string])
 \= Obtains a first-class string value with the given literal text.
 
@@ -1982,6 +1985,7 @@
           (fn mode /nil))
       /fn - next))
   /c def-foreign str.string-compare
+  /c def-foreign str.string-append
   /c def-foreign str.make-tuple-tag
   /c def-foreign str.name-metacompare
   /c def-foreign str.macro-stx-details

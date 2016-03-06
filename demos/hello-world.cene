@@ -5,7 +5,7 @@
 \=
 \=   $ node build-era.js demos/hello-world.cene --out fin/hello-world
 \=
-\= This Cene program creates its input path as a directory, creates
+\= This Cene program creates its output path as a directory, creates
 \= the file hello-world.txt under that directory, and writes
 \= "Hello, world!" to that file followed by a newline.
 \=
