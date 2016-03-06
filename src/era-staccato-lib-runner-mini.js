@@ -1606,7 +1606,7 @@ function usingDefinitionNs( macroDefNs ) {
                     "Test failed: Expected " + b.pretty() + ", got " +
                     a.pretty() );
         } else {
-            throw new Error();
+            macroexpandInnerLevel( nss, rawMode, locatedExpr );
         }
     }
     
