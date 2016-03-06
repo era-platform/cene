@@ -37,8 +37,7 @@
   /compile-expression mode unique-ns definition-ns
   /c s /c mac str.nil /nil))
 
-(defn do-nothing -
-  (go))
+(go)
 
 (defn js-main mode
   (javascript-sync str.client (cons (assoc str.nil /nil) /nil)
