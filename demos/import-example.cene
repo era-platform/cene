@@ -1,0 +1,66 @@
+\= import-example.cene
+\= Copyright 2016 Ross Angle. Released under the MIT License.
+
+\= You can execute this file like so at the command line:
+\=
+\=   $ node build-era.js demos/import-example.cene \
+\=       --in demos/import-example-src \
+\=       --out fin/import-example
+\=
+\= This Cene program creates its output path as a directory, creates
+\= the file hello-world.txt under that directory, and writes text to
+\= that file that's obtained from a (defn hello-world - ...) defined
+\= in the file import-example-src.cene under its input path.
+\=
+\= That example command line specifies the output directory as
+\= fin/import-example, so the file will be located at
+\= fin/import-example/hello-world.txt. It specifies the input
+\= directory as demos/import-example-src, so the original file will be
+\= read from demos/import-example-src/import-example-src.cene.
+
+
+(def-macro import mode unique-ns definition-ns my-stx-details args
+  (let s (fn it /stx my-stx-details it)
+  /let mac
+    (fn str rest
+      (cons (c s /foreign/macro-name mode definition-ns str) rest))
+  /cast
+    (foldr
+      (read-all-force/input-path-blob-utf-8 mode
+      /input-path-get (cli-input-directory mode)
+        str.\;qq[import-example-src.cene])
+      (folding unique-ns /fn mode /no-effects/nil)
+    /fn expr state
+      (cast state folding unique-ns then
+        err.\;qq[Internal error]
+      /folding (ns-get-string str.rest unique-ns)
+      /fn mode
+      /compile-expression-then mode
+        (ns-get-string str.first unique-ns)
+        definition-ns expr then))
+    folding unique-ns then
+    err.\;qq[Internal error]
+  /bind-effects (c then mode) /fn -
+  /compile-expression mode unique-ns definition-ns
+  /c s /c mac str.nil /nil))
+
+(import)
+
+\= Now that we've imported that file, the (hello-world -) function is
+\= available for use.
+
+(def-macro go mode unique-ns definition-ns my-stx-details args
+  (let s (fn it /stx my-stx-details it)
+  /let mac
+    (fn str rest
+      (cons (c s /foreign/macro-name mode definition-ns str) rest))
+  /bind-effects
+    (output-path-blob-utf-8
+      (output-path-get (cli-output-directory mode)
+        str.\;qq[hello-world.txt])
+    /hello-world/nil)
+  /fn -
+  /compile-expression mode unique-ns definition-ns
+  /c s /c mac str.nil /nil))
+
+(go)

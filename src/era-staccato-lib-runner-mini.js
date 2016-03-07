@@ -421,7 +421,7 @@ function collectSafe( rawMode, item ) {
 function collectDefer( rawMode, item ) {
     rawMode.defer.push( item );
 }
-function runTrampoline( rawMode, defer, createNextMode ) {
+function runTrampoline( rawMode, defer, createNextMode, afterDefer ) {
     rawMode.finished = true;
     while ( rawMode.safe.length !== 0 ) {
         // NOTE: All the safe operations are commutative with each
@@ -429,26 +429,52 @@ function runTrampoline( rawMode, defer, createNextMode ) {
         // fine. We use first-in-first-out.
         rawMode.safe.shift()();
     }
+    var n = 0;
     while ( rawMode.defer.length !== 0 ) (function () {
+        n++;
+        
         // TODO: Choose a deferred operation based on a much more
         // annoying principle than first-in-first-out. If people rely
         // on this, the monad won't be commutative.
         var body = rawMode.defer.shift();
         defer( function () {
             var nextMode = createNextMode( rawMode );
-            body( nextMode );
-            runTrampoline( nextMode, defer, createNextMode );
+            var effects = body( nextMode );
+            if ( !(effects instanceof StcForeign
+                && effects.purpose === "effects") )
+                throw new Error();
+            var effectsFunc = effects.foreignVal;
+            effectsFunc( nextMode );
+            runTrampoline( nextMode, defer, createNextMode,
+                function () {
+                
+                n--;
+                if ( n === 0 )
+                    defer( function () {
+                        afterDefer();
+                    } );
+            } );
         } );
     })();
+    if ( n === 0 )
+        defer( function () {
+            afterDefer();
+        } );
 }
 function transferModesToFrom( rawModeTarget, rawModeSource ) {
     rawModeSource.finished = true;
     collectSafe( rawModeTarget, function () {
+        if ( !rawModeSource.current )
+            throw new Error();
         rawModeSource.current = false;
+        
         while ( rawModeSource.safe.length !== 0 )
             rawModeTarget.safe.push( rawModeSource.safe.shift() );
+        rawModeSource.safe = rawModeTarget.safe;
+        
         while ( rawModeSource.defer.length !== 0 )
             rawModeTarget.defer.push( rawModeSource.defer.shift() );
+        rawModeSource.defer = rawModeTarget.defer;
     } );
 }
 
@@ -1456,6 +1482,54 @@ function usingDefinitionNs( macroDefNs ) {
                                     definitionNs: definitionNs.foreignVal,
                                     uniqueNs: uniqueNs.foreignVal
                                 }, rawMode, stx ) );
+                        } );
+                    } );
+                } );
+            } );
+        } );
+        
+        // TODO: Document this. It should probably just replace the
+        // existing `compile-expression` altogether.
+        fun( "compile-expression-then", function ( mode ) {
+            return new StcFn( function ( uniqueNs ) {
+                return new StcFn( function ( definitionNs ) {
+                    return new StcFn( function ( stx ) {
+                        return new StcFn( function ( then ) {
+                            if ( !(mode instanceof StcForeign
+                                && mode.purpose === "mode"
+                                && mode.foreignVal.current
+                                && mode.foreignVal.type === "macro") )
+                                throw new Error();
+                            
+                            if ( !(uniqueNs instanceof StcForeign
+                                && uniqueNs.purpose === "ns") )
+                                throw new Error();
+                            
+                            if ( !(definitionNs instanceof StcForeign
+                                && definitionNs.purpose === "ns") )
+                                throw new Error();
+                            
+                            return new StcForeign( "effects",
+                                function ( rawMode ) {
+                                
+                                // NOTE: This uses object identity.
+                                if ( mode.foreignVal !== rawMode )
+                                    throw new Error();
+                                
+                                collectDefer( rawMode,
+                                    function ( rawMode ) {
+                                    
+                                    return then.callStc( macroDefNs,
+                                        new StcForeign( "mode", rawMode ) );
+                                } );
+                                
+                                return new StcForeign(
+                                    "compiled-code",
+                                    macroexpandInnerLevel( {
+                                        definitionNs: definitionNs.foreignVal,
+                                        uniqueNs: uniqueNs.foreignVal
+                                    }, rawMode, stx ) );
+                            } );
                         } );
                     } );
                 } );

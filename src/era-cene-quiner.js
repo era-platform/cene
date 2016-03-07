@@ -96,25 +96,17 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
                 return true;
             }
             
-            // NOTE: This comment is here in case we do a search for
-            // mode inside quotes.
-            //
-            // "mode"
-            //
-            var rawMode = {
-                type: "macro",
-                finished: null,
-                current: true,
-                safe: [],
-                defer: []
-            };
-            usingDefNs.macroexpandTopLevel( nssGet( nss, "first" ),
-                rawMode,
-                usingDefNs.readerExprToStc( stcTrivialStxDetails(),
-                    tryExpr.val ) );
-            runTrampoline( rawMode, defer, function ( rawMode ) {
-                // createNextMode
-                
+            var deferred = [];
+            
+            function defer( body ) {
+                deferred.push( body );
+            }
+            function createNextMode( rawMode ) {
+                // NOTE: This comment is here in case we do a search
+                // for mode inside quotes.
+                //
+                // "mode"
+                //
                 return {
                     type: "macro",
                     finished: null,
@@ -122,7 +114,22 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
                     safe: [],
                     defer: []
                 };
+            }
+            var rawMode = createNextMode( null );
+            var done = false;
+            usingDefNs.macroexpandTopLevel( nssGet( nss, "first" ),
+                rawMode,
+                usingDefNs.readerExprToStc( stcTrivialStxDetails(),
+                    tryExpr.val ) );
+            runTrampoline( rawMode, defer, createNextMode,
+                function () {
+                
+                done = true;
             } );
+            while ( deferred.length !== 0 )
+                deferred.shift()();
+            if ( !done )
+                throw new Error( "Not done" );
             
             nss = nssGet( nss, "rest" );
             return false;
@@ -137,14 +144,17 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
         throw new Error();
     }
     
-    var rawMode = {
-        type: "js",
-        finished: null,
-        current: true,
-        safe: [],
-        defer: [],
-        managed: true
-    };
+    function createNextMode( rawMode ) {
+        return {
+            type: "js",
+            finished: null,
+            current: true,
+            safe: [],
+            defer: [],
+            managed: true
+        };
+    }
+    var rawMode = createNextMode( null );
     var effects = new Stc(
         JSON.stringify(
             stcNameTupleTagAlreadySorted( constructorTag, [] ) ),
@@ -155,16 +165,7 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
         throw new Error();
     var effectsFunc = effects.foreignVal;
     effectsFunc( rawMode );
-    runTrampoline( rawMode, defer, function ( rawMode ) {
-        // createNextMode
-        
-        return {
-            type: "js",
-            finished: null,
-            current: true,
-            safe: [],
-            defer: [],
-            managed: true
-        };
+    runTrampoline( rawMode, defer, createNextMode, function () {
+        // Do nothing.
     } );
 }
