@@ -108,10 +108,14 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     }
     function simpleEffects( body ) {
         return new StcForeign( "effects", function ( rawMode ) {
-            collectDefer( rawMode, function ( rawMode ) {
+            collectDefer( rawMode, function ( rawMode1 ) {
                 body();
                 return new StcForeign( "effects",
-                    function ( rawMode ) {
+                    function ( rawMode2 ) {
+                    
+                    // NOTE: This uses object identity.
+                    if ( rawMode1 !== rawMode2 )
+                        throw new Error();
                     
                     // Do nothing.
                 } );
@@ -220,7 +224,14 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                         wrapCene(
                             new StcForeign( "mode",
                                 newRawMode ) ) ) ) );
-            runTrampoline( newRawMode, apiOps.defer, createNextMode );
+            runTrampoline( newRawMode, apiOps.defer, createNextMode,
+                function () {
+                
+                // Do nothing.
+                //
+                // TODO: See if we should let the JavaScript side pass
+                // in a callback for us to call here.
+            } );
         } );
     } );
     

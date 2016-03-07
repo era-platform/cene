@@ -430,27 +430,17 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                 return true;
             }
             
-            // NOTE: This comment is here in case we do a search for
-            // mode inside quotes.
-            //
-            // "mode"
-            //
-            var rawMode = {
-                type: "macro",
-                finished: null,
-                current: true,
-                safe: [],
-                defer: []
-            };
-            usingDefNs.macroexpandTopLevel(
-                $stc.nssGet( nss, "first" ),
-                rawMode,
-                usingDefNs.readerExprToStc(
-                    $stc.stcTrivialStxDetails(),
-                    tryExpr.val ) );
-            $stc.runTrampoline( rawMode, function ( body ) {  // defer
-                _.defer( body );
-            }, function ( rawMode ) {  // createNextMode
+            var deferred = [];
+            
+            function defer( body ) {
+                deferred.push( body );
+            }
+            function createNextMode( rawMode ) {
+                // NOTE: This comment is here in case we do a search
+                // for mode inside quotes.
+                //
+                // "mode"
+                //
                 return {
                     type: "macro",
                     finished: null,
@@ -458,7 +448,24 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                     safe: [],
                     defer: []
                 };
+            }
+            var rawMode = createNextMode( null );
+            var done = false;
+            usingDefNs.macroexpandTopLevel(
+                $stc.nssGet( nss, "first" ),
+                rawMode,
+                usingDefNs.readerExprToStc(
+                    $stc.stcTrivialStxDetails(),
+                    tryExpr.val ) );
+            $stc.runTrampoline( rawMode, defer, createNextMode,
+                function () {
+                
+                done = true;
             } );
+            while ( deferred.length !== 0 )
+                deferred.shift()();
+            if ( !done )
+                throw new Error( "Not done" );
             
             nss = $stc.nssGet( nss, "rest" );
             return false;
