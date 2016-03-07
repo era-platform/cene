@@ -1456,44 +1456,6 @@ function usingDefinitionNs( macroDefNs ) {
             return new StcFn( function ( uniqueNs ) {
                 return new StcFn( function ( definitionNs ) {
                     return new StcFn( function ( stx ) {
-                        if ( !(mode instanceof StcForeign
-                            && mode.purpose === "mode"
-                            && mode.foreignVal.current
-                            && mode.foreignVal.type === "macro") )
-                            throw new Error();
-                        
-                        if ( !(uniqueNs instanceof StcForeign
-                            && uniqueNs.purpose === "ns") )
-                            throw new Error();
-                        
-                        if ( !(definitionNs instanceof StcForeign
-                            && definitionNs.purpose === "ns") )
-                            throw new Error();
-                        
-                        return new StcForeign( "effects",
-                            function ( rawMode ) {
-                            
-                            // NOTE: This uses object identity.
-                            if ( mode.foreignVal !== rawMode )
-                                throw new Error();
-                            
-                            return new StcForeign( "compiled-code",
-                                macroexpandInnerLevel( {
-                                    definitionNs: definitionNs.foreignVal,
-                                    uniqueNs: uniqueNs.foreignVal
-                                }, rawMode, stx ) );
-                        } );
-                    } );
-                } );
-            } );
-        } );
-        
-        // TODO: Document this. It should probably just replace the
-        // existing `compile-expression` altogether.
-        fun( "compile-expression-then", function ( mode ) {
-            return new StcFn( function ( uniqueNs ) {
-                return new StcFn( function ( definitionNs ) {
-                    return new StcFn( function ( stx ) {
                         return new StcFn( function ( then ) {
                             if ( !(mode instanceof StcForeign
                                 && mode.purpose === "mode"

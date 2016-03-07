@@ -13,7 +13,8 @@
       str.\;qq[Hello world inner\n])
   /fn -
   /compile-expression mode unique-ns definition-ns
-  /c s /c mac str.nil /nil))
+    (c s /c mac str.nil /nil)
+  /fn mode /no-effects/nil))
 
 (inner-go)
 
