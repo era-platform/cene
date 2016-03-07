@@ -240,10 +240,13 @@
 \= era-staccato-lib-runner-mini.js rather than doing desugaring in
 \= between.
 \=
-\= (defn compile-expression mode unique-ns definition-ns stx ...)
+\= (defn compile-expression mode unique-ns definition-ns stx then ...)
+\= then (fn mode ...)
 \= Macroexpands the given `stx`, allowing the macro calls to
 \= monadically install definitions and produce a desugarable
-\= Staccato expression. The given modality must be the current one.
+\= Staccato expression. The given modality must be the current one. In
+\= a later tick, if the definitions have been installed, the callback
+\= is invoked, and its own monadic side effects occur.
 
 \= TODO: See if we should add this. Currently we're using monads only
 \= for collecting outputs from subcomputations, rather than using them
@@ -2012,5 +2015,6 @@
     (fn str rest
       (cons (c s /foreign/macro-name mode definition-ns str) rest))
   /compile-expression mode unique-ns definition-ns
-  /foldr args (c s /c mac str.nil /nil) /fn first rest
-    (c s /c mac str.cons /cons first /cons rest /nil)))
+    (foldr args (c s /c mac str.nil /nil) /fn first rest
+      (c s /c mac str.cons /cons first /cons rest /nil))
+  /fn mode /no-effects/nil))
