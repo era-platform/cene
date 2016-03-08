@@ -3,7 +3,6 @@
 "use strict";
 
 var quinerCliArguments = [];
-var quinerCliInputEnvironmentVariables = {};
 var quinerTextOfFiles = [];
 var quinerInputPathType = jsnMap();
 var quinerInputPathDirectoryList = jsnMap();
@@ -38,9 +37,6 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
             },
             cliArguments: function () {
                 return quinerCliArguments;
-            },
-            cliInputEnvironmentVariables: function () {
-                return quinerCliInputEnvironmentVariables;
             },
             cliInputDirectory: function () {
                 return [ "in-root" ];

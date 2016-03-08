@@ -316,25 +316,6 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                 } ) );
         } );
         
-        fun( "cli-input-environment-variables", function ( mode ) {
-            if ( !(mode instanceof StcForeign
-                && mode.purpose === "mode"
-                && mode.foreignVal.current
-                && mode.foreignVal.type === "macro") )
-                throw new Error();
-            
-            var envArr = [];
-            objOwnEach( apiOps.cliInputEnvironmentVariables(),
-                function ( k, v ) {
-                
-                envArr.push(
-                    stcAssoc.ofNow(
-                        unparseNonUnicodeString( k ),
-                        unparseNonUnicodeString( v ) ) );
-            } );
-            return usingDefNs.stcArrayToConsList( envArr );
-        } );
-        
         fun( "cli-input-directory", function ( mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
