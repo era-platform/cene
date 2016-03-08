@@ -34,123 +34,29 @@ function arrEachAsyncNodeExn( arr, asyncFunc, then ) {
 }
 
 
-
-if ( require.main === module ) {
-
-
-process.chdir( __dirname );
-
-var argParser = new argparse.ArgumentParser( {
-    version: "0.0.1",
-    addHelp: true,
-    description: "The Cene programming language."
-} );
-
-// Primary interface
-argParser.addArgument( [ "-i", "--in" ], {
-    action: "store",
-    help: "Cene: The file path to use as input, if any."
-} );
-argParser.addArgument( [ "-o", "--out" ], {
-    action: "store",
-    help: "Cene: The file path to use as output, if any."
-} );
-argParser.addArgument( [ "file" ], {
-    nargs: "?",
-    help: "The path to a Cene file to execute."
-} );
-argParser.addArgument( [ "args" ], {
-    nargs: "*",
-    help: "Additional arguments to pass to the Cene program."
-} );
-
-// Development interface
-argParser.addArgument( [ "-s", "--build-staccato" ], {
-    action: "storeTrue",
-    help:
-        "Staccato: Compile dependencies of " +
-        "demos/staccato-runner-mini.html."
-} );
-argParser.addArgument( [ "-E", "--test-era" ], {
-    action: "storeTrue",
-    help: "Era reader: Run unit tests."
-} );
-argParser.addArgument( [ "-S", "--test-mini-staccato" ], {
-    action: "storeTrue",
-    help:
-        "Mini Staccato, a subset of a macro-capable Staccato: Run " +
-        "a demo."
-} );
-
-var args = argParser.parseArgs();
-
-var tasks = [];
-
-
-if ( args.in !== null && args.out !== null ) (function () {
-    function check( lineage, other ) {
-        if ( lineage === other )
-            throw new Error(
-                "The provided input and output directories " +
-                "overlap, which is not allowed." );
-        var parent = $path.dirname( lineage );
-        if ( parent !== lineage )
-            check( parent, other );
-    }
-    var resolvedIn = $path.resolve( args.in );
-    var resolvedOut = $path.resolve( args.out );
-    check( resolvedIn, resolvedOut );
-    check( resolvedOut, resolvedIn );
-})();
-
-
-if ( args.test_era ) tasks.push( function ( then ) {
-    Function( readFiles( [
-        "src/era-misc-strmap-avl.js",
-        "src/era-misc.js",
-        "test/harness-first.js",
-        "src/era-reader.js",
-        "test/test-reader.js",
-        "test/harness-last.js"
-    ] ) )();
+function runCeneSync(
+    files, testFiles, displayTimeInfo, cliArgs, inRoot, outRoot ) {
     
-    process.nextTick( function () {
-        then();
-    } );
-} );
-
-
-if ( args.build_staccato ) tasks.push( function ( then ) {
-    arrEachAsyncNodeExn( [
-        { dir: "src/", name: "era-staccato-lib.stc" },
-        { dir: "src/", name: "era-staccato-self-compiler.stc" },
-        { dir: "test/", name: "test.stc" }
-    ], function ( i, file, then ) {
-        ltf.readTextFile( file.dir + file.name, "utf-8",
-            function ( e, text ) {
-            
-            if ( e ) return void then( e );
-            if ( text === null ) return void then( new Error() );
-            
-            ltf.writeTextFile( "fin/" + file.name + ".js", "utf-8",
-                "\"use strict\";\n" +
-                "var rocketnia = rocketnia || {};\n" +
-                "rocketnia.eraFiles = rocketnia.eraFiles || {};\n" +
-                "rocketnia.eraFiles[ " +
-                    _.jsStr( file.name ) + " ] =\n" +
-                _.jsStr( text ) + ";\n",
-                then );
-        } );
-    }, function ( e ) {
-        if ( e ) return void then( e );
-        
-        console.log(
-            "Copied Staccato files to fin/ as JavaScript files." );
-        then();
-    } );
-} );
-
-var runStaccatoFiles = function ( files, testFile, then ) {
+    if ( inRoot !== null && outRoot !== null ) (function () {
+        function check( lineage, other ) {
+            if ( lineage === other )
+                throw new Error(
+                    "The provided input and output directories " +
+                    "overlap, which is not allowed." );
+            var parent = $path.dirname( lineage );
+            if ( parent !== lineage )
+                check( parent, other );
+        }
+        var resolvedIn = $path.resolve( inRoot );
+        var resolvedOut = $path.resolve( outRoot );
+        check( resolvedIn, resolvedOut );
+        check( resolvedOut, resolvedIn );
+    })();
+    
+    var resolvedIn = inRoot === null ? null : $path.resolve( inRoot );
+    var resolvedOut =
+        outRoot === null ? null : $path.resolve( outRoot );
+    
     
     var $stc = Function(
         readFiles( [
@@ -188,7 +94,9 @@ var runStaccatoFiles = function ( files, testFile, then ) {
     var codeOfFiles = $stc.arrMap( textOfFiles, function ( text ) {
         return $stc.readAll( text );
     } );
-    var testCode = $stc.readAll( readFile( testFile ) );
+    var codeOfTestFiles = $stc.arrMap( testFiles, function ( file ) {
+        return $stc.readAll( readFile( file ) );
+    } );
     var readMillis = new Date().getTime();
     
     var nss = {
@@ -255,18 +163,18 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                 _.defer( body );
             },
             cliArguments: function () {
-                return args.args;
+                return cliArgs;
             },
             cliInputDirectory: function () {
                 return {
                     logicalPath: [ "in-root" ],
-                    fsPath: args.in
+                    fsPath: resolvedIn
                 };
             },
             cliOutputDirectory: function () {
                 return {
                     logicalPath: [ "out-root" ],
-                    fsPath: args.out
+                    fsPath: resolvedOut
                 };
             },
             inputPathGet: function ( inputPath, name ) {
@@ -384,7 +292,7 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                 
                 quine +=
                     "quinerCliArguments = " +
-                        JSON.stringify( args.args ) + ";\n" +
+                        JSON.stringify( cliArgs ) + ";\n" +
                     "quinerQuine = quine;\n" +
                     "\n" +
                     "return {\n" +
@@ -467,7 +375,9 @@ var runStaccatoFiles = function ( files, testFile, then ) {
         return runCode( code );
     } ) ) {
         $stc.runAllDefs();
-        runCode( testCode );
+        $stc.arrAll( codeOfTestFiles, function ( code ) {
+            return runCode( code );
+        } );
         $stc.arrEach( onceDependenciesCompleteListeners,
             function ( listener ) {
             
@@ -476,34 +386,165 @@ var runStaccatoFiles = function ( files, testFile, then ) {
     }
     
     var stopMillis = new Date().getTime();
-    console.log(
-        "Ran for " + (stopMillis - startMillis) / 1000 + " " +
-        "seconds, broken down as follows:" );
-    console.log(
-        "- Spent " + (readMillis - startMillis) / 1000 + " seconds " +
-        "reading the code." );
-    console.log(
-        "- Spent " + (stopMillis - readMillis) / 1000 + " seconds " +
-        "processing it." );
+    if ( displayTimeInfo ) {
+        console.log(
+            "Ran for " + (stopMillis - startMillis) / 1000 + " " +
+            "seconds, broken down as follows:" );
+        console.log(
+            "- Spent " + (readMillis - startMillis) / 1000 + " " +
+            "seconds reading the code." );
+        console.log(
+            "- Spent " + (stopMillis - readMillis) / 1000 + " " +
+            "seconds processing it." );
+    }
+}
+
+exports.runCeneSync = function ( files, opt_opts ) {
+    var opts = _.opt( opt_opts ).or( {
+        args: [],
+        in: null,
+        out: null
+    } ).bam();
+    
+    if ( !(_.likeArray( files )
+        && _.arrAll( files, function ( file ) {
+            return typeof file === "string";
+        } )) )
+        throw new Error();
+    if ( !(_.likeArray( opts.args )
+        && _.arrAll( opts.args, function ( arg ) {
+            return typeof arg === "string";
+        } )) )
+        throw new Error();
+    if ( !(opts.in === null || typeof opts.in === "string") )
+        throw new Error();
+    if ( !(opts.out === null || typeof opts.out === "string") )
+        throw new Error();
+    
+    runCeneSync( files, [], !"displayTimeInfo",
+        opts.args, opts.in, opts.out );
+};
+
+
+if ( require.main === module ) {
+
+
+process.chdir( __dirname );
+
+var argParser = new argparse.ArgumentParser( {
+    version: "0.0.1",
+    addHelp: true,
+    description: "The Cene programming language."
+} );
+
+// Primary interface
+argParser.addArgument( [ "-i", "--in" ], {
+    action: "store",
+    help: "Cene: The file path to use as input, if any."
+} );
+argParser.addArgument( [ "-o", "--out" ], {
+    action: "store",
+    help: "Cene: The file path to use as output, if any."
+} );
+argParser.addArgument( [ "file" ], {
+    nargs: "?",
+    help: "The path to a Cene file to execute."
+} );
+argParser.addArgument( [ "args" ], {
+    nargs: "*",
+    help: "Additional arguments to pass to the Cene program."
+} );
+
+// Development interface
+argParser.addArgument( [ "-s", "--build-staccato" ], {
+    action: "storeTrue",
+    help:
+        "Staccato: Compile dependencies of " +
+        "demos/staccato-runner-mini.html."
+} );
+argParser.addArgument( [ "-E", "--test-era" ], {
+    action: "storeTrue",
+    help: "Era reader: Run unit tests."
+} );
+argParser.addArgument( [ "-S", "--test-mini-staccato" ], {
+    action: "storeTrue",
+    help:
+        "Mini Staccato, a subset of a macro-capable Staccato: Run " +
+        "a demo."
+} );
+
+var args = argParser.parseArgs();
+
+var tasks = [];
+
+
+if ( args.test_era ) tasks.push( function ( then ) {
+    Function( readFiles( [
+        "src/era-misc-strmap-avl.js",
+        "src/era-misc.js",
+        "test/harness-first.js",
+        "src/era-reader.js",
+        "test/test-reader.js",
+        "test/harness-last.js"
+    ] ) )();
     
     process.nextTick( function () {
         then();
     } );
-};
+} );
+
+
+if ( args.build_staccato ) tasks.push( function ( then ) {
+    arrEachAsyncNodeExn( [
+        { dir: "src/", name: "era-staccato-lib.stc" },
+        { dir: "src/", name: "era-staccato-self-compiler.stc" },
+        { dir: "test/", name: "test.stc" }
+    ], function ( i, file, then ) {
+        ltf.readTextFile( file.dir + file.name, "utf-8",
+            function ( e, text ) {
+            
+            if ( e ) return void then( e );
+            if ( text === null ) return void then( new Error() );
+            
+            ltf.writeTextFile( "fin/" + file.name + ".js", "utf-8",
+                "\"use strict\";\n" +
+                "var rocketnia = rocketnia || {};\n" +
+                "rocketnia.eraFiles = rocketnia.eraFiles || {};\n" +
+                "rocketnia.eraFiles[ " +
+                    _.jsStr( file.name ) + " ] =\n" +
+                _.jsStr( text ) + ";\n",
+                then );
+        } );
+    }, function ( e ) {
+        if ( e ) return void then( e );
+        
+        console.log(
+            "Copied Staccato files to fin/ as JavaScript files." );
+        then();
+    } );
+} );
 
 if ( args.test_mini_staccato ) tasks.push( function ( then ) {
-    runStaccatoFiles( [
+    runCeneSync( [
         "src/era-staccato-lib.stc",
         "src/era-staccato-self-compiler.stc"
-    ], "test/test.stc", then );
+    ], [ "test/test.stc" ], !!"displayTimeInfo", [], null, null );
+    
+    process.nextTick( function () {
+        then();
+    } );
 } );
 
 if ( args.file !== null ) tasks.push( function ( then ) {
-    runStaccatoFiles( [
+    runCeneSync( [
         "src/era-staccato-lib.stc",
         "src/era-staccato-self-compiler.stc",
         args.file
-    ], "test/test.stc", then );
+    ], [], !!"displayTimeInfo", args.args, args.in, args.out );
+    
+    process.nextTick( function () {
+        then();
+    } );
 } );
 
 
