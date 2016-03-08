@@ -257,9 +257,6 @@ var runStaccatoFiles = function ( files, testFile, then ) {
             cliArguments: function () {
                 return args.args;
             },
-            cliInputEnvironmentVariables: function () {
-                return process.env;
-            },
             cliInputDirectory: function () {
                 return {
                     logicalPath: [ "in-root" ],
@@ -388,12 +385,6 @@ var runStaccatoFiles = function ( files, testFile, then ) {
                 quine +=
                     "quinerCliArguments = " +
                         JSON.stringify( args.args ) + ";\n" +
-                    // TODO: Stop embedding every single environment
-                    // variable. Unfortunately, we might not be able
-                    // to do this until we upgrade to a non-sloppy
-                    // approach.
-                    "quinerCliInputEnvironmentVariables = " +
-                        JSON.stringify( process.env ) + ";\n" +
                     "quinerQuine = quine;\n" +
                     "\n" +
                     "return {\n" +

@@ -31,9 +31,6 @@ To interact with the outside world, the Cene code has access to a few things in 
 (defn cli-arguments mode ...)
 Gets the command-line arguments that were provided after the file name to execute. The given mode must be a current one, and it must permit CLI-time operations.
 
-(defn cli-input-environment-variables mode ...)
-Gets the environment variables as a list of (assoc ...) string pairs, sorted by key. The given mode must be a current one, and it must permit CLI-time operations.
-
 (defn cli-input-directory mode ...)
 Gets an input path that corresponds to the input directory provided at the command line. The given mode must be a current one, and it must permit CLI-time operations.
 
