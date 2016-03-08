@@ -429,8 +429,6 @@ exports.runCeneSync = function ( files, opt_opts ) {
 if ( require.main === module ) {
 
 
-process.chdir( __dirname );
-
 var argParser = new argparse.ArgumentParser( {
     version: "0.0.1",
     addHelp: true,
