@@ -15,9 +15,9 @@ var ltf = require( "./buildlib/lathe-fs" );
 function readFile( filename ) {
     return fs.readFileSync( filename, "UTF-8" );
 }
-function readFiles( filenames ) {
+function readInternalFiles( filenames ) {
     return filenames.map( function ( filename ) {
-        return readFile( filename );
+        return readFile( $path.resolve( __dirname, filename ) );
     } ).join( "\n\n\n" );
 }
 
@@ -59,7 +59,7 @@ function runCeneSync(
     
     
     var $stc = Function(
-        readFiles( [
+        readInternalFiles( [
             "src/era-misc-strmap-avl.js",
             "src/era-misc.js",
             "src/era-reader.js",
@@ -262,7 +262,7 @@ function runCeneSync(
                 // TODO: This should be the one place we create a
                 // JavaScript mode without having access to one first.
                 var quine =
-                    readFiles( [
+                    readInternalFiles( [
                         "src/era-misc-strmap-avl.js",
                         "src/era-misc.js",
                         "src/era-reader.js",
@@ -477,7 +477,7 @@ var tasks = [];
 
 
 if ( args.test_era ) tasks.push( function ( then ) {
-    Function( readFiles( [
+    Function( readInternalFiles( [
         "src/era-misc-strmap-avl.js",
         "src/era-misc.js",
         "test/harness-first.js",
@@ -498,13 +498,17 @@ if ( args.build_staccato ) tasks.push( function ( then ) {
         { dir: "src/", name: "era-staccato-self-compiler.stc" },
         { dir: "test/", name: "test.stc" }
     ], function ( i, file, then ) {
-        ltf.readTextFile( file.dir + file.name, "utf-8",
+        ltf.readTextFile(
+            $path.resolve( __dirname, file.dir + file.name ), "utf-8",
             function ( e, text ) {
             
             if ( e ) return void then( e );
             if ( text === null ) return void then( new Error() );
             
-            ltf.writeTextFile( "fin/" + file.name + ".js", "utf-8",
+            ltf.writeTextFile(
+                $path.resolve( __dirname,
+                    "fin/" + file.name + ".js" ),
+                "utf-8",
                 "\"use strict\";\n" +
                 "var rocketnia = rocketnia || {};\n" +
                 "rocketnia.eraFiles = rocketnia.eraFiles || {};\n" +
@@ -522,11 +526,16 @@ if ( args.build_staccato ) tasks.push( function ( then ) {
     } );
 } );
 
+var cenePrelude = _.arrMap( [
+    "src/era-staccato-lib.stc",
+    "src/era-staccato-self-compiler.stc"
+], function ( path ) {
+    return $path.resolve( __dirname, path );
+} );
+
 if ( args.test_mini_staccato ) tasks.push( function ( then ) {
-    runCeneSync( [
-        "src/era-staccato-lib.stc",
-        "src/era-staccato-self-compiler.stc"
-    ], [ "test/test.stc" ], !!"displayTimeInfo", [], null, null );
+    runCeneSync( cenePrelude, [ "test/test.stc" ],
+        !!"displayTimeInfo", [], null, null );
     
     process.nextTick( function () {
         then();
@@ -534,11 +543,8 @@ if ( args.test_mini_staccato ) tasks.push( function ( then ) {
 } );
 
 if ( args.file !== null ) tasks.push( function ( then ) {
-    runCeneSync( [
-        "src/era-staccato-lib.stc",
-        "src/era-staccato-self-compiler.stc",
-        args.file
-    ], [], !!"displayTimeInfo", args.args, args.in, args.out );
+    runCeneSync( cenePrelude.concat( [ args.file ] ), [],
+        !!"displayTimeInfo", args.args, args.in, args.out );
     
     process.nextTick( function () {
         then();
