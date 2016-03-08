@@ -1,5 +1,4 @@
 {
-  "private": true,
   "name": "cene",
   "version": "0.0.1",
   "description": "A programming language for metacircular compilers on the JavaScript platform.",
