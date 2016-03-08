@@ -3,7 +3,7 @@
 
 \= You can execute this file like so at the command line:
 \=
-\=   $ node build-era.js demos/import-example.cene \
+\=   $ cene demos/import-example.cene \
 \=       --in demos/import-example-src \
 \=       --out fin/import-example
 \=

@@ -1,8 +1,8 @@
 {
   "private": true,
-  "name": "era-cene-lang",
+  "name": "cene",
   "version": "0.0.1",
-  "description": "A module system for platform-independent code, focusing on the JavaScript platform for now.",
+  "description": "A programming language for metacircular compilers on the JavaScript platform.",
   "homepage": "https://github.com/rocketnia/era-cene",
   "author": {
     "name": "Ross Angle",
@@ -17,7 +17,8 @@
     "argparse": "*"
   },
   "scripts": {
-    "test": "node build-era.js -sES"
+    "test": "node cene.js -sES"
   },
-  "main": "build-era.js"
+  "main": "cene.js",
+  "bin": "cene.js"
 }

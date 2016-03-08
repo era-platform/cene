@@ -3,7 +3,7 @@
 
 \= You can execute this file like so at the command line:
 \=
-\=   $ node build-era.js demos/hello-world.cene --out fin/hello-world
+\=   $ cene demos/hello-world.cene --out fin/hello-world
 \=
 \= This Cene program creates its output path as a directory, creates
 \= the file hello-world.txt under that directory, and writes

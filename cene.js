@@ -1,6 +1,6 @@
 #!/bin/env node
-// build-era.js
-// Copyright 2013-2015 Ross Angle. Released under the MIT License.
+// cene.js
+// Copyright 2013-2016 Ross Angle. Released under the MIT License.
 "use strict";
 
 var fs = require( "fs" );
