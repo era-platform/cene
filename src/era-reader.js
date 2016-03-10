@@ -569,8 +569,10 @@ function readBracketedStringElements( yoke, s,
         if ( !result.ok )
             return then( yoke, s, result );
         
-        if ( result.val !== null
-            && closeRegex.test( result.val.val ) ) {
+        if ( result.val === null ) {
+            return then( yoke, s, { ok: false, msg:
+                "Expected a closing bracket, got end of document" } );
+        } else if ( closeRegex.test( result.val.val ) ) {
             if ( consume )
                 return s.read( yoke, function ( yoke, s, result ) {
                     if ( !result.ok )
