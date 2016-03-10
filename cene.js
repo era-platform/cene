@@ -131,7 +131,7 @@ function runCeneSync(
     }
     function pathGet( dirname, basename ) {
         return {
-            logicalPath: [ "get", basename, dirname ],
+            logicalPath: [ "get", basename, dirname.logicalPath ],
             fsPath: fsPathGet( dirname.fsPath, basename )
         };
     }
