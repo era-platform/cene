@@ -393,10 +393,9 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                     arrMap(
                         apiOps.inputPathDirectoryList(
                             inputPath.foreignVal ),
-                        function ( inputPath ) {
+                        function ( basename ) {
                         
-                        return new StcForeign( "input-path",
-                            inputPath );
+                        return unparseNonUnicodeString( basename );
                     } ) );
             } );
         } );

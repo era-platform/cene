@@ -205,13 +205,7 @@ function runCeneSync(
                     
                     if ( inputPath.fsPath === null )
                         throw new Error();
-                    return $stc.arrMap(
-                        fs.readdirSync( inputPath.fsPath ),
-                        function ( child ) {
-                        
-                        return $path.resolve(
-                            inputPath.fsPath, child );
-                    } );
+                    return fs.readdirSync( inputPath.fsPath );
                 } );
             },
             inputPathBlobUtf8: function ( inputPath ) {
