@@ -723,12 +723,13 @@ function readNaiveSexpStringElements( yoke, s, revSoFar, then ) {
             } );
         else if ( c === "`" )
             return s.read( yoke, function ( yoke, s, result ) {
-                return readIdentifier( yoke, s, !"any",
+                return readIdentifierStringElement( yoke, s, !"any",
                     { first: { type: "scalars", val: c },
                         rest: revSoFar } );
             } );
         else
-            return readIdentifier( yoke, s, !"any", revSoFar );
+            return readIdentifierStringElement( yoke, s, !"any",
+                revSoFar );
         
         function next( yoke, s, last ) {
             return jsListRev( yoke, { first: last, rest: revSoFar },
@@ -739,7 +740,7 @@ function readNaiveSexpStringElements( yoke, s, revSoFar, then ) {
         }
     } );
     
-    function readIdentifier( yoke, s, any, revSoFar ) {
+    function readIdentifierStringElement( yoke, s, any, revSoFar ) {
         return s.peek( yoke, function ( yoke, s, result ) {
             if ( !result.ok )
                 return then( yoke, s, result );
@@ -763,7 +764,8 @@ function readNaiveSexpStringElements( yoke, s, revSoFar, then ) {
                         
                         if ( !result.ok )
                             return then( yoke, s, result );
-                        return readIdentifier( yoke, s, !!"any",
+                        return readIdentifierStringElement( yoke, s,
+                            !!"any",
                             { first:
                                 { type: "escape",
                                     suffix: result.val },
@@ -772,7 +774,8 @@ function readNaiveSexpStringElements( yoke, s, revSoFar, then ) {
                 } );
             else
                 return s.read( yoke, function ( yoke, s, result ) {
-                    return readIdentifier( yoke, s, !!"any",
+                    return readIdentifierStringElement( yoke, s,
+                        !!"any",
                         { first: { type: "scalars", val: c },
                             rest: revSoFar } );
                 } );
@@ -780,7 +783,7 @@ function readNaiveSexpStringElements( yoke, s, revSoFar, then ) {
             function next( yoke, s, revSoFar ) {
                 if ( !any )
                     return then( yoke, s, { ok: false, msg:
-                        "Expected s-expression, encountered , with" +
+                        "Expected s-expression, encountered ` with" +
                         "no identifier or \\ after it" } );
                 return jsListRev( yoke, revSoFar,
                     function ( yoke, elements ) {
@@ -2143,7 +2146,9 @@ function readSexpOrInfixOp( yoke, s,
         } else if ( result.val.val.type === "scalars" ) {
             var c = result.val.val.val;
             
-            var readIdentifier = function ( yoke, s, revElements ) {
+            var readIdentifierSymbol =
+                function ( yoke, s, any, revElements ) {
+                
                 return s.peek( yoke, function ( yoke, s, result ) {
                     if ( !result.ok )
                         return then( yoke, s, result );
@@ -2171,12 +2176,18 @@ function readSexpOrInfixOp( yoke, s,
                             if ( !result.ok )
                                 return then( yoke, s, result );
                             
-                            return readIdentifier( yoke, s,
+                            return readIdentifierSymbol( yoke, s,
+                                !!"any",
                                 { first: result.val.val.val,
                                     rest: revElements } );
                         } );
                     
                     function next( yoke, s, revElements ) {
+                        if ( !any )
+                            return then( yoke, s, { ok: false, msg:
+                                "Expected s-expression, " +
+                                "encountered ` with no identifier " +
+                                "or \\ after it" } );
                         return jsListRev( yoke, revElements,
                             function ( yoke, elements ) {
                             
@@ -2215,9 +2226,11 @@ function readSexpOrInfixOp( yoke, s,
                 return then( yoke, s, { ok: true, val:
                     { val: { type: "infixDot" } } } );
             } else if ( c === "`" ) {
-                return readIdentifier( yoke, s, jsList() );
+                return readIdentifierSymbol( yoke, s, !"any",
+                    jsList() );
             } else {
-                return readIdentifier( yoke, s, jsList( c ) );
+                return readIdentifierSymbol( yoke, s, !!"any",
+                    jsList( c ) );
             }
         } else {
             throw new Error();
