@@ -12,49 +12,49 @@ It would be interesting to explore at least five kinds of quasiquotation in Cene
 
 Strings have their own set of escape sequences due to the phase separation of the reader from the rest of the language semantics, but all the other kinds of quasiquotation can share the same s-expression-based escape sequences:
 
-  (`/qq/- _) meaning "quasiquote"
-  (`/uq/- _) meaning "unquote"
-  (`/wq _ /- _) meaning "with current quasiquotation level"
-  (`/lq _ _ /- _) meaning "let quasiquotation level"
-  (`/rq _ /- _) meaning "restore quasiquotation level"
+  (^/qq/- _) meaning "quasiquote"
+  (^/uq/- _) meaning "unquote"
+  (^/wq _ /- _) meaning "with current quasiquotation level"
+  (^/lq _ _ /- _) meaning "let quasiquotation level"
+  (^/rq _ /- _) meaning "restore quasiquotation level"
   
-  (`/- _) becoming _
-  (`/s- _) splicing a literal list or literal interpolated string into a parent of the same type
-  (`/g- _) meaning "grave accent", becoming (` _)
+  (^/- _) becoming _
+  (^/s- _) splicing a literal list or literal interpolated string into a parent of the same type
+  (^/^- _) becoming (^ _)
 
 The segments, most notably the /uq/ segment, can be combined:
 
-  (`/qq/-/a b (`/qq/-/c d (`/uq/uq/-/e f) g h) i j)
-  (`/wq q /qq/-/a b (`/qq/-/c d (`/rq q /-/e f) g h) i j)
+  (^/qq/-/a b (^/qq/-/c d (^/uq/uq/-/e f) g h) i j)
+  (^/wq q /qq/-/a b (^/qq/-/c d (^/rq q /-/e f) g h) i j)
 
 The use of this syntax for quasiquoting unlocated s-expressions will need to support dynamic splicing of list values into quoted lists and interpolated string values into quoted interpolated strings. Instead of having non-spliced interpolations, we can just expect those interpolations to use an explicit singleton wrapper:
 
-  (qsexp/`/qq/-/a b (`/uq/-/list/c d) e f (`/uq/-/g h))
+  (qsexp/^/qq/-/a b (^/uq/-/list/c d) e f (^/uq/-/g h))
 
 Quasiquoting located s-expressions is similar, but it may run across complications having to do with how much of the result's source location information should be computed and how much should be obtained from the location of the quasiquotation syntax itself:
 
   (qlsexp my-stx-details
-  /`/qq/-/a b (`/uq/-/list/c d) e f (`/uq/-/g h))
+  /^/qq/-/a b (^/uq/-/list/c d) e f (^/uq/-/g h))
 
 The use of the quasiquotation syntax for quasiquoted program logic is very straightforward, and splicing and source location don't come into it at all:
 
-  (qlet/`/qq/-/fn param
-    (map-lookup (`/uq/-/map str.a str.aaa str.b str.bbb) param))
+  (qlet/^/qq/-/fn param
+    (map-lookup (^/uq/-/map str.a str.aaa str.b str.bbb) param))
 
-The use of quasiquotation for macroexpansion results is a more idiosyncratic topic. If we try to transform names as a code walking pass, then macro names, projection names, constructor names, and hygienic local variables will need to be qualified in four different ways, not to mention unhygienic local variables and the escape sequence strings like "`" and "qq" themselves. Instead of trying to disambiguate all those cases by heuristics or by explicit annotations, let's allow the generated code's macros to guide the scoping themselves:
+The use of quasiquotation for macroexpansion results is a more idiosyncratic topic. If we try to transform names as a code walking pass, then macro names, projection names, constructor names, and hygienic local variables will need to be qualified in four different ways, not to mention unhygienic local variables and the escape sequence strings like "^" and "qq" themselves. Instead of trying to disambiguate all those cases by heuristics or by explicit annotations, let's allow the generated code's macros to guide the scoping themselves:
 
   (qstx my-stx-details later-stx-details /qlsexp my-stx-details
-  /`/qq/-/`/qq/-/a b (`/uq/-/c d) e f)
+  /^/qq/-/^/qq/-/a b (^/uq/-/c d) e f)
   
   --> if later-stx-details evaluates to the syntax my-stx-details,
   evaluates to the syntax
   
   (qlsexp my-stx-details
-  /`/qq/-/q-using-foreign <the qstx caller's definition-ns>
-  /`/qq/-/a b (`/uq/-/`/uq/-/c d) e f)
+  /^/qq/-/q-using-foreign <the qstx caller's definition-ns>
+  /^/qq/-/a b (^/uq/-/^/uq/-/c d) e f)
   --> if (c d) evaluates to the syntax (g h), evaluates to the syntax
   (q-using-foreign <the qstx caller's definition-ns>
-  /`/qq/-/a b (`/uq/-/g h) e f)
+  /^/qq/-/a b (^/uq/-/g h) e f)
   --> macroexpands to
   (using-foreign <the qstx caller's definition-ns>
   /a b
