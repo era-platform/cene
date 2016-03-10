@@ -994,9 +994,10 @@ function readerExprPretty( expr ) {
                         // TODO: Remove the trailing ` when possible.
                         return "\\;uq;ls`" + terp + "`";
                     else if ( m = /^\((.*)\)$/.exec( terp ) )
-                        return "\\;uq;ls" + m[ 1 ];
+                        return "\\;uq;ls" + terp;
                     else
-                        return "\\;uq;ls`" + terp;
+                        // TODO: Remove the trailing ` when possible.
+                        return "\\;uq;ls`" + terp + "`";
                 }
             } );
         return /^[^ \t\r\n`=;',\./()\[\]]*$/.test( s ) ? s :
