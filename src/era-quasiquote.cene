@@ -247,20 +247,20 @@
       /unwrapped val /fn new-list /nope/c rewrap new-list))
   /let basic-non-splicing-unwrapped
     (fn val /c map-non-splicing-unwrapped /c basic-unwrapped val)
+  /case
+    (cast unwrapped-expr cons first rest (nope/nil)
+    /cast unwrap.first unwrapped unwrapped-first rewrap-first
+      err.\;qq[
+        Tried to parse a quasiquotation where the first element
+        couldn't be unwrapped]
+    /cast unwrapped-first istring-nil string (nope/nil)
+    /cast (string-compare string str.^) nil (nope/nil)
+    /yep/nil)
+    yep -
+    (parse-quasiquotation-escape qq-env unwrap expr)
   /caselet not-yet-rewrapped
     (case isa-list.unwrapped-expr yep -
-      (case
-        (cast unwrapped-expr cons first rest (nope/nil)
-        /cast unwrap.first unwrapped unwrapped-first rewrap-first
-          err.\;qq[
-            Tried to parse a quasiquotation where the first element
-            couldn't be unwrapped]
-        /cast unwrapped-first istring-nil string (nope/nil)
-        /cast (string-compare string str.^) nil (nope/nil)
-        /yep/nil)
-        yep -
-        (parse-quasiquotation-escape qq-env unwrap expr)
-      /caselet parsed
+      (caselet parsed
         (map-any unwrapped-expr /fn expr
           (not/c-new parse-quasiquotation-subexpr qq-env unwrap expr))
         
