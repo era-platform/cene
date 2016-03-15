@@ -118,41 +118,6 @@
           yep.rewrapped-sub))
       
       err.\;qq[Internal error])
-  /case (string-compare op str.^-) nil
-    (cast rest cons expr rest
-      err.\;qq[Not enough arguments to quasiquotation escape ^-]
-    /cast rest nil
-      err.\;qq[Too many arguments to quasiquotation escape ^-]
-    /caselet subresult
-      (c-new parse-quasiquotation-subexpr qq-env unwrap expr)
-      
-      nope - subresult
-      
-      yep subresult
-      (cast subresult unrwrapped unwrapped-sub rewrap-sub
-        err.\;qq[Internal error]
-      /cast (c unwrap original-op) unwrap unwrapped-op rewrap-op
-        err.\;qq[Internal error]
-      /yep/unwrapped unwrapped-sub /fn new-list
-        (nope/c rewrap-expr /cons (c rewrap-op /istring-nil str.^)
-        /case rewrap-sub.new-list
-          
-          yep spliceable
-          (cast (c unwrap spliceable) unwrapped spliceable -
-            err.\;qq[
-              Tried to splice a value that couldn't be unwrapped into
-              a quasiquotation]
-          /cast isa-list.spliceable yep -
-            err.\;qq[
-              Tried to splice a non-list into a quasiquotation in a
-              list context]
-            spliceable)
-          
-          nope non-spliceable (cons non-spliceable /nil)
-          
-          err.\;qq[Internal error]))
-      
-      err.\;qq[Internal error])
   /case (string-compare op str.qq) nil
     (cast rest cons escape rest
       err.\;qq[Not enough arguments to quasiquotation escape qq]
