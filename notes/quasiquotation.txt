@@ -19,7 +19,7 @@ Strings have their own set of escape sequences due to the phase separation of th
   (^/rq _ /- _) meaning "restore quasiquotation level"
   
   (^/- _) becoming _
-  (^/s- _) splicing a literal list or literal interpolated string into a parent of the same type
+  (^/s- _) splicing whatever _ becomes into the parent, requiring the parent and child to both be lists or both be interpolated strings
   (^/^- _) becoming (^ _)
 
 The segments, most notably the /uq/ segment, can be combined:
