@@ -61,8 +61,8 @@ Monadically creates the given output path's ancestors as directories, creates th
 (defn cli-output-environment-variable-shadow key value ...)
 Monadically sets up the given key-value pair of strings so that it's part of the environment variables during the execution of the CLI interface's --command option. The value string may be a (string ...) or an (encapsulated-string ...). This does not modify the environment variables that are observed by (cli-input-environment-variables), but those variables will be implicitly inherited unless they're shadowed here. If the same key is shadowed twice, at least one of those shadow operations is an error. The current mode must permit CLI-time operations.
 
-(defn sloppy-javascript-quine mode constructor-tag ...)
-Creates an (encapsulated-string ...) with self-contained JavaScript that will invoke a function corresponding to the given constructor tag, using the definitions currently existing in this runtime, passing it a fresh mode that permits synchronous-JavaScript-time operations. This will make no attempt to serialize first-class values; it will only put all Cene code and dependency data into a single massive JavaScript file together with a Cene interpreter that can re-run the build (including re-running the (sloppy-javascript-quine ...) operation itself!). The given mode must be a current one, and it must permit CLI-time operations.
+(defn sloppy-javascript-quine mode constructor-tag top-level-vars ...)
+Creates an (encapsulated-string ...) with self-contained JavaScript that captures the given cons list of variable name strings and synchronously calls a function corresponding to the given constructor tag, using the definitions currently existing in this runtime, passing it a Cene client object with access to the captured variables. This will make no attempt to serialize first-class values; it will only put all Cene code and dependency data into a single massive JavaScript file together with a Cene interpreter that can re-run the build (including re-running the (sloppy-javascript-quine ...) operation itself!). The given mode must be a current one, and it must permit CLI-time operations.
 
 (defn string-to-javascript-utf-16 string ...)
 Translates a Cene string into a JavaScript string.
@@ -70,10 +70,31 @@ Translates a Cene string into a JavaScript string.
 (defn javascript-utf-16-to-string string ...)
 Translates a JavaScript string into a Cene string, reading it according to the utf-16 encoding, replacing invalid sequences with the Unicode replacement character if necessary.
 
-(defn javascript-sync client-var env body)
-Monadically executes a given body of JavaScript code under an environment dictated by a given list of (assoc ...) entries mapping JavaScript identifiers to Cene values (which will be wrapped on the JavaScript side) and another JavaScript identifiers referring to a Cene client object (which is not wrapped, as it does not represent a first-class Cene value). Then this executes the JavaScript code's resulting wrapped Cene monadic effects, and this finally results in their result. The current mode must permit synchronous-JavaScript-time operations.
+(defn done-js-effects result ...)
+Creates a JavaScript effects value that does nothing and results in the given value.
+
+(defn bind-js-effects js-effects then ...)
+where (then intermediate)
+Creates a JavaScript effects value that executes the given `js-effects` value, calls the given `then` value with the intermediate result, and proceeds by running the resulting JavaScript effects value.
+
+(defn give-unwrapped-js-effects js-val js-then ...)
+where js-then( intermediate )
+Creates a JavaScript effects value that calls the given `js-then` JavaScript function passing an unwrapped version of the given JavaScript value, and proceeds by running the resulting wrapped Cene JavaScript effects value.
+
+(defn give-js-effects cene-val js-then ...)
+where js-then( intermediate )
+Creates a JavaScript effects value that calls the given `js-then` JavaScript function passing a wrapped version of the given Cene value, and proceeds by running the resulting wrapped Cene JavaScript effects value.
+
+(defn compile-function-js-effects params body ...)
+Creates a JavaScript effects value that results in a new JavaScript function created out of the given cons list of parameter strings and the given body string.
 
 JavaScript client object operations:
+
+client.getTopLevelVar( varName )
+Gets the current value of the top-level JavaScript variable whose name is the given JavaScript string. It must be one of the variables that was captured by the code produced by (sloppy-javascript-quine ...).
+
+client.setTopLevelVar( varName, val )
+Assigns to the top-level JavaScript variable whose name is the given JavaScript string. It must be one of the variables that was captured by the code produced by (sloppy-javascript-quine ...).
 
 client.wrap( jsVal )
 Wraps the given JavaScript value as a wrapped Cene value. If the JavaScript value is itself a wrapped Cene value, this wraps it again anyway.
@@ -82,20 +103,20 @@ client.maybeUnwrap( wrappedVal )
 Returns null or { val: jsVal } depending on whether the given wrapped Cene value was obtained by wrapping a JavaScript value. If the given value isn't a wrapped Cene value, this raises an exception.
 
 client.done( result )
-Returns wrapped Cene monadic side effects that, when executed, do nothing but return the given wrapped Cene value.
+Creates a wrapped Cene JavaScript effects value that does nothing and results in the given value.
 
-client.doThen( effectfulArg, then )
-Returns wrapped Cene monadic side effects that, when executed, execute the given the given wrapped Cene monadic effects, pass the result to the given JavaScript function, and execute the resulting wrapped Cene monadic side effects.
+client.then( jsEffects, then )
+where then( intermediate )
+Creates a wrapped Cene JavaScript effects value that executes the given `jsEffects` wrapped Cene JavaScript effects value, calls the given `then` JavaScript function passing a wrapped version of the intermediate result, and proceeds by running the resulting wrapped Cene JavaScript effects value.
 
-client.doCall( func, arg, then )
-Returns wrapped Cene monadic side effects that, when executed, call the given wrapped Cene function with the given wrapped Cene argument, pass the result to the given JavaScript function, and execute the resulting wrapped Cene monadic side effects.
+client.giveSync( val, ceneThen )
+where (ceneThen intermediate)
+Creates a wrapped Cene JavaScript effects value that synchronously calls the given `ceneThen` wrapped Cene function passing the given wrapped Cene value, and proceeds by running the resulting JavaScript effects value.
 
-client.fork( jsMode )
-Returns a wrapped Cene value representing a fresh mode that follows the given wrapped Cene mode. The given mode must be a current one, and it must have been created for running JavaScript code. The resulting mode must eventually be finished with client.sync( ... ) or its side effects will never occur. This fork action is conceived of as a JavaScript side effect, not a Cene side effect; the resulting mode will be usable regardless of future errors in the currently processing Cene effect monad.
+client.giveAsync( jsEffects, ceneThen )
+where (ceneThen intermediate)
+Creates a wrapped Cene JavaScript effects value that executes the given `jsEffects` wrapped Cene JavaScript effects value, asynchronously calls the given `ceneThen` wrapped Cene function passing the intermediate result (taking at least one JavaScript tick), and proceeds by running the resulting JavaScript effects value.
 
-client.doSync( forkedMode )
-Returns wrapped Cene monadic side effects that, when executed, finish the given wrapped Cene mode, execute all its built-up effects, and result in (nil). The given mode must be a current one, it must have been created by client.fork( ... ), and it must be unfinished at the time these side effects execute.
-
-client.deferIntoTrampoline( jsMode, then )
-where then( trampolinedMode )
-Executes the given JavaScript callback in a future JavaScript tick, with access to a fresh wrapped Cene mode which follows the given one, then executes its resuting wrapped Cene monadic side effects in the same JavaScript tick as the callback was executed in. The given mode must be a current one, it must have been created for running JavaScript code, and it must not have been finished yet. This deferral action is conceived of as a JavaScript side effect, not a Cene side effect; the deferral will occur regardless of future errors in the currently processing Cene effect monad.
+client.defer( then )
+where then()
+Schedules the given JavaScript callback to execute in a future JavaScript tick, then executes its resulting wrapped Cene JavaScript effects value in the same JavaScript tick, ignoring the result.
