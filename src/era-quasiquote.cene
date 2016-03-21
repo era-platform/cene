@@ -312,7 +312,11 @@
         /unwrapped expr /fn new-expr
           (stx stx-details new-expr)))
       expr)
-    unwrapped unwrapped-result rewrap-result
+    yep result
+    err.\;qq[
+      Called parse-quasiquotation-for-macro with an expr that wasn't
+      successfully parsed]
+  /cast result unwrapped unwrapped-result rewrap-result
   /unwrapped unwrapped-result /fn new-list
     (cast rewrap-result.new-list none non-spliceable
       err.\;qq[Tried to splice into the quasiquotation root]
