@@ -42,7 +42,7 @@ Quasiquoting located s-expressions is similar, but it may run across complicatio
 The use of the quasiquotation syntax for quasiquoted program logic is very straightforward, and splicing and source location don't come into it at all:
 
   (qlet/^/qq/-/fn param
-    (map-lookup (^/uq/-/map str.a str.aaa str.b str.bbb) param))
+    (table-lookup (^/uq/-/table str.a str.aaa str.b str.bbb) param))
 
 The use of quasiquotation for macroexpansion results is a more idiosyncratic topic. If we try to transform names as a code walking pass, then macro names, projection names, constructor names, and hygienic local variables will need to be qualified in four different ways, not to mention unhygienic local variables and the escape sequence strings like "^" and "qq" themselves. Instead of trying to disambiguate all those cases by heuristics or by explicit annotations, let's allow the generated code's macros to guide the scoping themselves:
 
