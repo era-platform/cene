@@ -288,6 +288,7 @@ function runCeneSync(
                     "quinerCliArguments = " +
                         JSON.stringify( cliArgs ) + ";\n" +
                     "quinerQuine = quine;\n" +
+                    "quinerTopLevelVars = topLevelVars;\n" +
                     "\n" +
                     "return {\n" +
                     "    quinerCallWithSyncJavaScriptMode:\n" +
@@ -300,7 +301,8 @@ function runCeneSync(
                     "\n" +
                     "var quine = " + JSON.stringify( quine ) + ";\n" +
                     "var quiner = " +
-                        "Function( \"quine\", quine )( quine );\n" +
+                        "Function( \"quine\", \"topLevelVars\", " +
+                            "quine )( quine, topLevelVars );\n" +
                     "quiner.quinerCallWithSyncJavaScriptMode( " +
                         JSON.stringify( constructorTag ) + " );\n" +
                     "\n" +

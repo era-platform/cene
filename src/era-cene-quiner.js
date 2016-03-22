@@ -8,8 +8,9 @@ var quinerInputPathType = jsnMap();
 var quinerInputPathDirectoryList = jsnMap();
 var quinerInputPathBlobUtf8 = jsnMap();
 // TODO: See if we actually need to do quines at JavaScript run time.
-// It's at least nice to have this around just in case.
+// It's at least nice to have `quinerQuine` around just in case.
 var quinerQuine = null;
+var quinerTopLevelVars = null;
 
 function quinerCallWithSyncJavaScriptMode( constructorTag ) {
     var codeOfFiles = arrMap( quinerTextOfFiles, function ( text ) {
@@ -83,15 +84,15 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
             },
             getTopLevelVar: function ( varName ) {
                 var k = "|" + varName;
-                if ( !hasOwn( topLevelVars, k ) )
+                if ( !hasOwn( quinerTopLevelVars, k ) )
                     throw new Error();
-                return topLevelVars[ k ].get();
+                return quinerTopLevelVars[ k ].get();
             },
             setTopLevelVar: function ( varName, val ) {
                 var k = "|" + varName;
-                if ( !hasOwn( topLevelVars, k ) )
+                if ( !hasOwn( quinerTopLevelVars, k ) )
                     throw new Error();
-                return topLevelVars[ k ].set( val );
+                return quinerTopLevelVars[ k ].set( val );
             }
         } );
     
