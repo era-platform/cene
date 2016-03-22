@@ -35,6 +35,9 @@
     folding - val nope.val
     err.\;qq[Internal error]))
 
+(defn istring-map istring func
+  (proj1 nope /istring-map-any istring /fn elem /nope/c func elem))
+
 (defn istring-append past rest
   (case past
     
@@ -93,7 +96,7 @@
     err.\;qq[Encountered an unrecognized qq-env frame]))
 
 (defn parse-symbol unwrap expr
-  (cast unwrap.expr unwrapped unwrapped-expr rewrap-expr
+  (cast (c unwrap expr) unwrapped unwrapped-expr rewrap-expr
     err.\;qq[Tried to parse a symbol that couldn't be unwrapped]
   /cast unwrapped-expr istring-nil string
     err.\;qq[Tried to parse a symbol that wasn't a string]
@@ -110,7 +113,7 @@
   
   (cast qq-env qq-env-stack qq-stack
     err.\;qq[Expected a qq-env of type qq-env-stack]
-  /cast unwrap.expr unwrapped unwrapped-expr rewrap-expr
+  /cast (c unwrap expr) unwrapped unwrapped-expr rewrap-expr
     err.\;qq[
       Tried to parse a quasiquotation escape remainder that couldn't
       be unwrapped]
@@ -125,39 +128,19 @@
     /cast rest nil
       err.\;qq[Too many arguments to quasiquotation escape -]
     /case qq-stack nil
-      (yep/unwrapped (cons expr /nil) /fn new-list
-        (cast new-list cons expr-with-splicing rest
-          err.\;qq[
-            Tried to provide too few values when re-wrapping a
-            quasiquotation]
-        /cast rest nil
-          err.\;qq[
-            Tried to provide too many values when re-wrapping a
-            quasiquotation]
-          expr-with-splicing))
-    /caselet subresult
-      (c-new parse-quasiquotation-subexpr qq-env unwrap expr)
+      (nope/foreign yep.expr)
+    /nope/c rewrap-suppressed /c rewrap-expr /cons original-op
+    /case (c-new parse-quasiquotation-subexpr qq-env unwrap expr)
       
-      nope - subresult
+      yep spliceable
+      (cast isa-list.spliceable yep -
+        err.\;qq[
+          Tried to splice a non-list into a quasiquotation in a list
+          context]
+        spliceable)
       
-      yep subresult
-      (cast subresult unwrapped unwrapped-sub rewrap-sub
-        err.\;qq[Internal error]
-      /yep/unwrapped unwrapped-sub /fn new-list
-        (nope/c rewrap-suppressed /c rewrap-expr /cons original-op
-        /case (c rewrap-sub new-list)
-          
-          yep spliceable
-          (cast isa-list.spliceable yep -
-            err.\;qq[
-              Tried to splice a non-list into a quasiquotation in a
-              list context]
-            spliceable)
-          
-          nope non-spliceable
-          (cons non-spliceable /nil)
-          
-          err.\;qq[Internal error]))
+      nope non-spliceable
+      (cons non-spliceable /nil)
       
       err.\;qq[Internal error])
   /case (string-compare op str.s-) nil
@@ -168,44 +151,25 @@
     /case qq-stack nil
       err.\;qq[Called quasiquotation escape s- at a depth of zero]
     /case qq-stack-uq.qq-stack nil
-      (caselet subresult
-        (c-new parse-quasiquotation-subexpr qq-env unwrap expr)
-        
-        nope - subresult
-        
-        yep subresult
-        (cast subresult unwrapped unwrapped-sub rewrap-sub
-          err.\;qq[Internal error]
-        /yep/unwrapped unwrapped-sub /fn new-list
-          (cast (c rewrap-sub new-list) nope rewrapped-sub
-            err.\;qq[
-              Tried to splice into a call to quasiquotation escape s-]
-            yep.rewrapped-sub))
-        
-        err.\;qq[Internal error])
-    /caselet subresult
-      (c-new parse-quasiquotation-subexpr qq-env unwrap expr)
+      (cast (c-new parse-quasiquotation-subexpr qq-env unwrap expr)
+        nope non-splicing-to-splice
+        err.\;qq[
+          Tried to splice into a call to quasiquotation escape s-]
+        yep.non-splicing-to-splice)
+    /nope/c rewrap-suppressed /c rewrap-expr /cons original-op
+    /case (c-new parse-quasiquotation-subexpr qq-env unwrap expr)
       
+      yep spliceable
       nope - subresult
+      yep spliceable
+      (cast isa-list.spliceable yep -
+        err.\;qq[
+          Tried to splice a non-list into a quasiquotation in a list
+          context]
+        spliceable)
       
-      yep subresult
-      (cast subresult unwrapped unwrapped-sub rewrap-sub
-        err.\;qq[Internal error]
-      /yep/unwrapped unwrapped-sub /fn new-list
-        (nope/c rewrap-suppressed /c rewrap-expr /cons original-op
-        /case (c rewrap-sub new-list)
-          
-          yep spliceable
-          (cast isa-list.spliceable yep -
-            err.\;qq[
-              Tried to splice a non-list into a quasiquotation in a
-              list context]
-            spliceable)
-          
-          nope non-spliceable
-          (cons non-spliceable /nil)
-          
-          err.\;qq[Internal error]))
+      nope non-spliceable
+      (cons non-spliceable /nil)
       
       err.\;qq[Internal error])
   /case (string-compare op str.qq) nil
@@ -282,7 +246,7 @@
       recognized]))
 
 (defn parse-quasiquotation-escape qq-env unwrap expr
-  (cast unwrap.expr unwrapped unwrapped-expr rewrap-expr
+  (cast (c unwrap expr) unwrapped unwrapped-expr rewrap-expr
     err.\;qq[
       Tried to parse a quasiquotation escape that couldn't be
       unwrapped]
@@ -313,38 +277,17 @@
         /unwrapped expr /fn new-expr
           (stx stx-details new-expr)))
       expr)
-    yep result
-    err.\;qq[
-      Called parse-quasiquotation-for-macro with an expr that wasn't
-      successfully parsed]
-  /cast result unwrapped unwrapped-result rewrap-result
-  /unwrapped unwrapped-result /fn new-list
-    (cast (c rewrap-result new-list) nope non-spliceable
-      err.\;qq[Tried to splice into the quasiquotation root]
-      non-spliceable)))
+    nope non-spliceable
+    err.\;qq[Tried to splice into the quasiquotation root]
+    non-spliceable))
 
 (defn parse-quasiquotation-subexpr qq-env unwrap expr
-  (cast unwrap.expr unwrapped unwrapped-expr rewrap-expr
+  (cast (c unwrap expr) unwrapped unwrapped-expr rewrap-expr
     err.\;qq[
       Tried to parse a quasiquotation that couldn't be unwrapped]
-  /let basic-unwrapped
-    (fn val
-      (unwrapped (nil) /fn new-list
-        (cast new-list nil
-          err.\;qq[
-            Tried to provide too many values when re-wrapping a
-            quasiquotation]
-          val)))
-  /let map-non-splicing-unwrapped
-    (fn unwrapped
-      (cast unwrapped unwrapped val rewrap
-        err.\;qq[Internal error]
-      /unwrapped val /fn new-list /nope/c rewrap new-list))
-  /let basic-non-splicing-unwrapped
-    (fn val /c map-non-splicing-unwrapped /c basic-unwrapped val)
   /case
     (cast unwrapped-expr cons first rest (nope/nil)
-    /cast unwrap.first unwrapped unwrapped-first rewrap-first
+    /cast (c unwrap first) unwrapped unwrapped-first rewrap-first
       err.\;qq[
         Tried to parse a quasiquotation where the first element
         couldn't be unwrapped]
@@ -353,129 +296,70 @@
     /yep/nil)
     yep -
     (parse-quasiquotation-escape qq-env unwrap expr)
-  /caselet not-yet-rewrapped
-    (case isa-list.unwrapped-expr yep -
-      (caselet parsed
-        (map-any unwrapped-expr /fn expr
-          (not/c-new parse-quasiquotation-subexpr qq-env unwrap expr))
-        
-        yep failure nope.failure
-        
-        nope success
-        (let concat-unwrapped
-          (fix/fn concat-unwrapped unwrappeds
-            (case unwrappeds
-              
-              nil (c basic-unwrapped unwrappeds)
-              
-              cons first rest
-              (cast first unwrapped unwrapped-first rewrap-first
-                err.\;qq[Internal error]
-              /cast (c concat-unwrapped rest)
-                unwrapped unwrapped-rest rewrap-rest
-                err.\;qq[Internal error]
-              /unwrapped (append unwrapped-first unwrapped-rest)
-              /fn new-list
-                (cast (maybe-cut unwrapped-interpolation new-list)
-                  yep cut-result
-                  err.\;qq[
-                    Tried to provide too few values when re-wrapping a
-                    quasiquotation]
-                /cast cut-result cut-result past rest
-                  err.\;qq[Internal error]
-                /case (c rewrap-first past)
-                  
-                  yep spliceable
-                  (cast (c unwrap spliceable) unwrapped spliceable -
-                    err.\;qq[
-                      Tried to splice a value that couldn't be
-                      unwrapped into a quasiquotation]
-                  /cast isa-list.spliceable yep -
-                    err.\;qq[
-                      Tried to splice a non-list into a quasiquotation
-                      in a list context]
-                  /append spliceable /c rewrap-rest rest)
-                  
-                  nope non-spliceable
-                  (cons non-spliceable /c rewrap-rest rest)
-                  
-                  err.\;qq[Internal error]))
-              
-              err.\;qq[Internal error]))
-        /yep/c map-non-splicing-unwrapped /c concat-unwrapped success)
-        
-        err.\;qq[Internal error])
-    
-    /case isa-istring.unwrapped-expr yep -
-      (caselet parsed
-        (istring-map-any unwrapped-expr /fn expr
-          (not/c-new parse-quasiquotation-subexpr qq-env unwrap expr))
-        
-        yep failure nope.failure
-        
-        nope success
-        (let concat-unwrapped
-          (fix/fn concat-unwrapped unwrappeds
-            (case unwrappeds
-              
-              istring-nil - (c basic-unwrapped unwrappeds)
-              
-              istring-cons prefix interpolation rest
-              (cast interpolation
-                unwrapped unwrapped-interpolation rewrap-interpolation
-                err.\;qq[Internal error]
-              /cast (c concat-unwrapped rest)
-                unwrapped unwrapped-rest rewrap-rest
-                err.\;qq[Internal error]
-              /unwrapped
-                (append unwrapped-interpolation unwrapped-rest)
-              /fn new-list
-                (cast (maybe-cut unwrapped-interpolation new-list)
-                  yep cut-result
-                  err.\;qq[
-                    Tried to provide too few values when re-wrapping a
-                    quasiquotation]
-                /cast cut-result cut-result past rest
-                  err.\;qq[Internal error]
-                /case (c rewrap-interpolation past)
-                  
-                  yep spliceable
-                  (cast (c unwrap spliceable) unwrapped spliceable -
-                    err.\;qq[
-                      Tried to splice a value that couldn't be
-                      unwrapped into a quasiquotation]
-                  /cast isa-istring.spliceable yep -
-                    err.\;qq[
-                      Tried to splice a non-istring into a
-                      quasiquotation in an istring context]
-                  /istring-append istring-nil.prefix
-                  /istring-append spliceable /c rewrap-rest rest)
-                  
-                  nope non-spliceable
-                  (istring-cons prefix non-spliceable
-                  /c rewrap-rest rest)
-                  
-                  err.\;qq[Internal error]))
-              
-              err.\;qq[Internal error]))
-        /yep/c map-non-splicing-unwrapped /c concat-unwrapped success)
-        
-        err.\;qq[Internal error])
-    
-    /case unwrapped-expr
-      foreign - (yep/c basic-non-splicing-unwrapped unwrapped-expr)
-      err.\;qq[
-        Tried to parse a quasiquotation that wasn't an s-expression])
-
-    yep not-yet-rewrapped
-    (cast not-yet-rewrapped unwrapped unwrapped-nyr rewrap-nyr
-      err.\;qq[Internal error]
-    /yep/unwrapped unwrapped-nyr /fn new-list
-      (case (c rewrap-nyr new-list)
-        yep spliceable (yep/c rewrap-expr spliceable)
-        nope non-spliceable (nope/c rewrap-expr non-spliceable)
-        err.\;qq[Internal error]))
-    
-    nope - not-yet-rewrapped
-    
-    err.\;qq[Internal error]))
+  /nope/c rewrap-expr
+  /case isa-list.unwrapped-expr yep -
+    (let concat-unwrapped
+      (fix/fn concat-unwrapped unwrappeds
+        (case unwrappeds
+          
+          nil unwrappeds
+          
+          cons first rest
+          (case first
+            
+            yep spliceable
+            (cast (c unwrap spliceable) unwrapped spliceable -
+              err.\;qq[
+                Tried to splice a value that couldn't be unwrapped
+                into a quasiquotation]
+            /cast isa-list.spliceable yep -
+              err.\;qq[
+                Tried to splice a non-list into a quasiquotation in a
+                list context]
+            /append spliceable /c concat-unwrapped rest)
+            
+            nope non-spliceable
+            (cons non-spliceable /c concat-unwrapped rest)
+            
+            err.\;qq[Internal error])
+          
+          err.\;qq[Internal error]))
+    /c concat-unwrapped /map unwrapped-expr /fn expr
+      (c-new parse-quasiquotation-subexpr qq-env unwrap expr))
+  
+  /case isa-istring.unwrapped-expr yep -
+    (let concat-unwrapped
+      (fix/fn concat-unwrapped unwrappeds
+        (case unwrappeds
+          
+          istring-nil - unwrappeds
+          
+          istring-cons prefix interpolation rest
+          (case interpolation
+            
+            yep spliceable
+            (cast (c unwrap spliceable) unwrapped spliceable -
+              err.\;qq[
+                Tried to splice a value that couldn't be unwrapped
+                into a quasiquotation]
+            /cast isa-istring.spliceable yep -
+              err.\;qq[
+                Tried to splice a non-istring into a quasiquotation in
+                an istring context]
+            /istring-append istring-nil.prefix
+            /istring-append spliceable /c concat-unwrapped rest)
+            
+            nope non-spliceable
+            (istring-cons prefix non-spliceable
+            /c concat-unwrapped rest)
+            
+            err.\;qq[Internal error])
+          
+          err.\;qq[Internal error]))
+    /c concat-unwrapped /istring-map unwrapped-expr /fn expr
+      (c-new parse-quasiquotation-subexpr qq-env unwrap expr))
+  
+  /case unwrapped-expr
+    foreign elem (foreign nope.elem)
+    err.\;qq[
+      Tried to parse a quasiquotation that wasn't an s-expression])
