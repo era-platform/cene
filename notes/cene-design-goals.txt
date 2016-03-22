@@ -73,16 +73,16 @@ Translates a JavaScript string into a Cene string, reading it according to the u
 (defn done-js-effects result ...)
 Creates a JavaScript effects value that does nothing and results in the given value.
 
-(defn bind-js-effects js-effects then ...)
+(defn then-js-effects js-effects then ...)
 where (then intermediate)
 Creates a JavaScript effects value that executes the given `js-effects` value, calls the given `then` value with the intermediate result, and proceeds by running the resulting JavaScript effects value.
 
 (defn give-unwrapped-js-effects js-val js-then ...)
-where js-then( intermediate )
+where js-then( val )
 Creates a JavaScript effects value that calls the given `js-then` JavaScript function passing an unwrapped version of the given JavaScript value, and proceeds by running the resulting wrapped Cene JavaScript effects value.
 
 (defn give-js-effects cene-val js-then ...)
-where js-then( intermediate )
+where js-then( val )
 Creates a JavaScript effects value that calls the given `js-then` JavaScript function passing a wrapped version of the given Cene value, and proceeds by running the resulting wrapped Cene JavaScript effects value.
 
 (defn compile-function-js-effects params body ...)
@@ -110,12 +110,12 @@ where then( intermediate )
 Creates a wrapped Cene JavaScript effects value that executes the given `jsEffects` wrapped Cene JavaScript effects value, calls the given `then` JavaScript function passing a wrapped version of the intermediate result, and proceeds by running the resulting wrapped Cene JavaScript effects value.
 
 client.giveSync( val, ceneThen )
-where (ceneThen intermediate)
-Creates a wrapped Cene JavaScript effects value that synchronously calls the given `ceneThen` wrapped Cene function passing the given wrapped Cene value, and proceeds by running the resulting JavaScript effects value.
+where (ceneThen val)
+Creates a wrapped Cene JavaScript effects value that synchronously calls the given `ceneThen` wrapped Cene function passing the given wrapped Cene value and proceeds by running the resulting JavaScript effects value.
 
-client.giveAsync( jsEffects, ceneThen )
-where (ceneThen intermediate)
-Creates a wrapped Cene JavaScript effects value that executes the given `jsEffects` wrapped Cene JavaScript effects value, asynchronously calls the given `ceneThen` wrapped Cene function passing the intermediate result (taking at least one JavaScript tick), and proceeds by running the resulting JavaScript effects value.
+client.giveAsync( val, ceneThen )
+where (ceneThen val)
+Creates a wrapped Cene JavaScript effects value that asynchronously calls the given `ceneThen` wrapped Cene function passing the given wrapped Cene value (taking at least one JavaScript tick) and proceeds by running the resulting JavaScript effects value.
 
 client.defer( then )
 where then()

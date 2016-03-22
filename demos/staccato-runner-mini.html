@@ -113,11 +113,19 @@ window.onload = function () {
                     
                     // Do nothing.
                 },
-                sloppyJavaScriptQuine: function ( constructorTag ) {
+                sloppyJavaScriptQuine:
+                    function ( constructorTag, topLevelVars ) {
+                    
                     return null;
                 },
                 onDependenciesComplete: function ( listener ) {
                     // Do nothing.
+                },
+                getTopLevelVar: function ( varName ) {
+                    throw new Error();
+                },
+                setTopLevelVar: function ( varName, val ) {
+                    throw new Error();
                 }
             } );
         

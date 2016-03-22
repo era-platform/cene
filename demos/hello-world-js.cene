@@ -24,14 +24,15 @@
       (output-path-get (cli-output-directory mode)
         str.\;qq[hello-world.js])
     /sloppy-javascript-quine mode
-    /procure-name mode
-    /ns-get-string str.tag
-    /ns-get-name
       (procure-name mode
-      /ns-get-string str.name
-      /ns-get-string str.js-main
-      /ns-get-string str.constructor-names definition-ns)
-    /ns-get-string str.constructors definition-ns)
+      /ns-get-string str.tag
+      /ns-get-name
+        (procure-name mode
+        /ns-get-string str.name
+        /ns-get-string str.js-main
+        /ns-get-string str.constructor-names definition-ns)
+      /ns-get-string str.constructors definition-ns)
+    /nil)
   /fn -
   /compile-expression mode unique-ns definition-ns
     (c s /c mac str.nil /nil)
@@ -39,12 +40,17 @@
 
 (go)
 
-(defn js-main mode
-  (javascript-sync str.client (cons (assoc str.nil /nil) /nil)
-    str.\;qq/
+(defn compile-give-unwrapped-js-effects param js-val body
+  (then-js-effects
+    (compile-function-js-effects (cons param /nil) body)
+  /fn body
+  /give-unwrapped-js-effects js-val body))
+
+(defn js-main client
+  (compile-give-unwrapped-js-effects str.client client str.\;qq/
   
   console.log( "Hello, world!" );
   
-  return client.done( nil );
+  return client.done( client.wrap( null ) );
   
   ))

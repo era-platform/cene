@@ -73,11 +73,25 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
                 
                 // Do nothing.
             },
-            sloppyJavaScriptQuine: function ( constructorTag ) {
+            sloppyJavaScriptQuine:
+                function ( constructorTag, topLevelVars ) {
+                
                 return null;
             },
             onDependenciesComplete: function ( listener ) {
                 // Do nothing.
+            },
+            getTopLevelVar: function ( varName ) {
+                var k = "|" + varName;
+                if ( !hasOwn( topLevelVars, k ) )
+                    throw new Error();
+                return topLevelVars[ k ].get();
+            },
+            setTopLevelVar: function ( varName, val ) {
+                var k = "|" + varName;
+                if ( !hasOwn( topLevelVars, k ) )
+                    throw new Error();
+                return topLevelVars[ k ].set( val );
             }
         } );
     
@@ -140,28 +154,15 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
         throw new Error();
     }
     
-    function createNextMode( rawMode ) {
-        return {
-            type: "js",
-            finished: null,
-            current: true,
-            safe: [],
-            defer: [],
-            managed: true
-        };
-    }
-    var rawMode = createNextMode( null );
     var effects = new Stc(
         JSON.stringify(
             stcNameTupleTagAlreadySorted( constructorTag, [] ) ),
         []
-    ).callStc( nss.definitionNs, new StcForeign( "mode", rawMode ) );
+    ).callStc( nss.definitionNs,
+        new StcForeign( "foreign", ceneApiUsingDefNs.ceneClient ) );
     if ( !(effects instanceof StcForeign
-        && effects.purpose === "effects") )
+        && effects.purpose === "js-effects") )
         throw new Error();
     var effectsFunc = effects.foreignVal;
-    effectsFunc( rawMode );
-    runTrampoline( rawMode, defer, createNextMode, function () {
-        // Do nothing.
-    } );
+    effectsFunc();
 }

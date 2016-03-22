@@ -96,15 +96,30 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     var unwrapCene = unwrapTagged( "cene" );
     
     
-    function runEffects( rawMode, effects ) {
+    function eachConsList( list, body ) {
+        for ( var e = list;
+            e.tupleTag === stcCons.getTupleTag();
+            e = stcCons.getProj( e, "cdr" )
+        ) {
+            body( stcCons.getProj( e, "car" ) );
+        }
+        if ( e.tupleTag !== stcNil.getTupleTag() )
+            throw new Error();
+    }
+    function mapConsListToArr( list, func ) {
+        var result = [];
+        eachConsList( list, function ( elem ) {
+            result.push( func( elem ) );
+        } );
+        return result;
+    }
+    
+    function runJsEffects( effects ) {
         if ( !(effects instanceof StcForeign
-            && effects.purpose === "effects") )
+            && effects.purpose === "js-effects") )
             throw new Error();
         var effectsFunc = effects.foreignVal;
-        return effectsFunc( rawMode );
-    }
-    function wrapEffects( body ) {
-        return wrapCene( new StcForeign( "effects", body ) );
+        return effectsFunc();
     }
     function simpleEffects( body ) {
         return new StcForeign( "effects", function ( rawMode ) {
@@ -125,6 +140,12 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     
     
     var ceneClient = {};
+    ceneClient.getTopLevelVar = boringfn( function ( varName ) {
+        return apiOps.getTopLevelVar( varName );
+    } );
+    ceneClient.setTopLevelVar = boringfn( function ( varName, val ) {
+        return apiOps.setTopLevelVar( varName, val );
+    } );
     ceneClient.wrap = boringfn( function ( jsVal ) {
         return wrapCene( new StcForeign( "foreign", jsVal ) );
     } );
@@ -136,102 +157,49 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     } );
     ceneClient.done = boringfn( function ( result ) {
         var unwrappedResult = unwrapCene( result );
-        return wrapEffects( function ( rawMode ) {
+        return wrapCene( new StcForeign( "js-effects", function () {
             return unwrappedResult;
-        } );
+        } ) );
     } );
-    ceneClient.doThen = boringfn( function ( effects, then ) {
+    ceneClient.then = boringfn( function ( effects, then ) {
         var effectsInternal = unwrapCene( effects );
         if ( !(effectsInternal instanceof StcForeign
-            && effectsInternal.purpose === "effects") )
+            && effectsInternal.purpose === "js-effects") )
             throw new Error();
         var effectsFunc = effectsInternal.foreignVal;
         
-        return wrapEffects( function ( rawMode ) {
-            return runEffects( rawMode,
-                unwrapCene(
-                    then( wrapCene( effectsFunc( rawMode ) ) ) ) );
-        } );
-    } );
-    ceneClient.doCall = boringfn( function ( func, arg, then ) {
-        var funcUnwrapped = unwrapCene( func );
-        var argUnwrapped = unwrapCene( arg );
-        
-        return wrapEffects( function ( rawMode ) {
-            return runEffects( rawMode,
-                unwrapCene(
-                    then(
-                        wrapCene(
-                            funcUnwrapped.callStc( macroDefNs,
-                                argUnwrapped ) ) ) ) );
-        } );
-    } );
-    ceneClient.fork = boringfn( function ( jsMode ) {
-        var unwrappedJsMode = unwrapCene( jsMode );
-        if ( !(unwrappedJsMode instanceof StcForeign
-            && unwrappedJsMode.purpose === "mode"
-            && unwrappedJsMode.foreignVal.current
-            && unwrappedJsMode.foreignVal.type === "js") )
-            throw new Error();
-        
-        return wrapCene( new StcForeign( "mode", {
-            type: "js",
-            finished: null,
-            current: true,
-            safe: [],
-            defer: [],
-            managed: false
+        return wrapCene( new StcForeign( "js-effects", function () {
+            return runJsEffects(
+                unwrapCene( then( wrapCene( effectsFunc() ) ) ) );
         } ) );
     } );
-    ceneClient.doSync = boringfn( function ( forkedMode ) {
-        var unwrappedForkedMode = unwrapCene( forkedMode );
-        if ( !(unwrappedForkedMode instanceof StcForeign
-            && unwrappedForkedMode.purpose === "mode"
-            && unwrappedForkedMode.foreignVal.current
-            && unwrappedForkedMode.foreignVal.type === "js"
-            && unwrappedForkedMode.foreignVal.managed) )
-            throw new Error();
-        var modeVal = unwrappedForkedMode.foreignVal;
-        return wrapEffects( function ( rawMode ) {
-            transferModesToFrom( rawMode, modeVal );
-            return stcNil.ofNow();
-        } );
-    } );
-    ceneClient.deferIntoTrampoline = boringfn(
-        function ( jsMode, then ) {
+    ceneClient.giveSync = boringfn( function ( val, ceneThen ) {
+        var valUnwrapped = unwrapCene( val );
+        var ceneThenUnwrapped = unwrapCene( ceneThen );
         
-        var unwrappedJsMode = unwrapCene( jsMode );
-        if ( !(unwrappedJsMode instanceof StcForeign
-            && unwrappedJsMode.purpose === "mode"
-            && unwrappedJsMode.foreignVal.current
-            && unwrappedJsMode.foreignVal.type === "js") )
-            throw new Error();
-        function createNextMode( rawMode ) {
-            return {
-                type: "js",
-                finished: null,
-                current: true,
-                safe: [],
-                defer: [],
-                managed: false
-            };
-        }
-        var newRawMode = createNextMode( unwrappedJsMode.foreignVal );
-        apiOps.defer( function () {
-            runEffects( newRawMode,
-                unwrapCene(
-                    then(
-                        wrapCene(
-                            new StcForeign( "mode",
-                                newRawMode ) ) ) ) );
-            runTrampoline( newRawMode, apiOps.defer, createNextMode,
-                function () {
-                
-                // Do nothing.
-                //
-                // TODO: See if we should let the JavaScript side pass
-                // in a callback for us to call here.
+        return wrapCene( new StcForeign( "js-effects", function () {
+            return runJsEffects(
+                ceneThenUnwrapped.callStc( macroDefNs,
+                    valUnwrapped ) );
+        } ) );
+    } );
+    ceneClient.giveAsync = boringfn( function ( val, ceneThen ) {
+        var valUnwrapped = unwrapCene( val );
+        var ceneThenUnwrapped = unwrapCene( ceneThen );
+        
+        return wrapCene( new StcForeign( "js-effects", function () {
+            apiOps.defer( function () {
+                var jsEffects = ceneThenUnwrapped.callStc( macroDefNs,
+                    valUnwrapped );
+                apiOps.defer( function () {
+                    runJsEffects( jsEffects );
+                } );
             } );
+        } ) );
+    } );
+    ceneClient.defer = boringfn( function ( body ) {
+        apiOps.defer( function () {
+            runJsEffects( body() );
         } );
     } );
     
@@ -498,27 +466,44 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         
         fun( "sloppy-javascript-quine", function ( mode ) {
             return new StcFn( function ( constructorTag ) {
-                if ( !(mode instanceof StcForeign
-                    && mode.purpose === "mode"
-                    && mode.foreignVal.current
-                    && mode.foreignVal.type === "macro") )
-                    throw new Error();
-                
-                if ( constructorTag.tupleTag !==
-                    stcName.getTupleTag() )
-                    throw new Error();
-                var constructorTagInternal =
-                    stcName.getProj( constructorTag, "val" );
-                if ( !(constructorTagInternal instanceof StcForeign
-                    && constructorTagInternal.purpose === "name") )
-                    throw new Error();
-                
-                return stcEncapsulatedString.ofNow(
-                    new StcForeign( "encapsulated-string",
-                        function () {
-                            return apiOps.sloppyJavaScriptQuine(
-                                constructorTagInternal.foreignVal );
-                        } ) );
+                return new StcFn( function ( topLevelVars ) {
+                    
+                    if ( !(mode instanceof StcForeign
+                        && mode.purpose === "mode"
+                        && mode.foreignVal.current
+                        && mode.foreignVal.type === "macro") )
+                        throw new Error();
+                    
+                    if ( constructorTag.tupleTag !==
+                        stcName.getTupleTag() )
+                        throw new Error();
+                    var constructorTagInternal =
+                        stcName.getProj( constructorTag, "val" );
+                    if ( !(constructorTagInternal instanceof
+                            StcForeign
+                        && constructorTagInternal.purpose ===
+                            "name") )
+                        throw new Error();
+                    
+                    var dedupVars = [];
+                    var dedupVarsMap = {};
+                    eachConsList( topLevelVars, function ( va ) {
+                        var vaInternal = parseString( va );
+                        var k = "|" + vaInternal;
+                        if ( dedupVarsMap[ k ] )
+                            return;
+                        dedupVarsMap[ k ] = true;
+                        dedupVars.push( vaInternal );
+                    } );
+                    
+                    return stcEncapsulatedString.ofNow(
+                        new StcForeign( "encapsulated-string",
+                            function () {
+                                return apiOps.sloppyJavaScriptQuine(
+                                    constructorTagInternal.foreignVal,
+                                    dedupVars );
+                            } ) );
+                } );
             } );
         } );
         
@@ -534,78 +519,83 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
             return unparseNonUnicodeString( string.foreignVal );
         } );
         
-        fun( "javascript-sync", function ( clientVar ) {
-            return new StcFn( function ( env ) {
-                return new StcFn( function ( body ) {
-                    
-                    var clientVarInternal = parseString( clientVar );
-                    
-                    var keys = [];
-                    var vals = [];
-                    for (
-                        var currentEnv = env;
-                        currentEnv.tupleTag === stcCons.getTupleTag();
-                        currentEnv =
-                            stcCons.getProj( currentEnv, "cdr" )
-                    ) {
-                        var assoc =
-                            stcCons.getProj( currentEnv, "car" );
-                        if ( assoc.tupleTag !==
-                            stcAssoc.getTupleTag() )
-                            throw new Error();
-                        keys.push(
-                            parseString(
-                                stcAssoc.getProj( assoc, "key" ) ) );
-                        vals.push(
-                            wrapCene(
-                                stcAssoc.getProj(
-                                    assoc, "value" ) ) );
-                    }
-                    if ( currentEnv.tupleTag !==
-                        stcNil.getTupleTag() )
-                        throw new Error();
-                    
-                    var allVars = {};
-                    function recordVar( va ) {
-                        var k = "|" + va;
-                        if ( allVars[ k ] )
-                            throw new Error();
-                        allVars[ k ] = true;
-                    }
-                    recordVar( clientVarInternal );
-                    arrEach( keys, function ( key ) {
-                        recordVar( key );
+        fun( "done-js-effects", function ( result ) {
+            return new StcForeign( "js-effects", function () {
+                return result;
+            } );
+        } );
+        
+        fun( "then-js-effects", function ( jsEffects ) {
+            return new StcFn( function ( then ) {
+                if ( !(jsEffects instanceof StcForeign
+                    && jsEffects.purpose === "js-effects") )
+                    throw new Error();
+                var effectsFunc = jsEffects.foreignVal;
+                
+                return new StcForeign( "js-effects", function () {
+                    return runJsEffects(
+                        then.callStc( macroDefNs, effectsFunc() ) );
+                } );
+            } );
+        } );
+        
+        fun( "give-unwrapped-js-effects", function ( val ) {
+            return new StcFn( function ( jsThen ) {
+                
+                if ( !(val instanceof StcForeign
+                    && val.purpose === "foreign") )
+                    throw new Error();
+                var unwrappedVal = val.foreignVal;
+                
+                if ( !(jsThen instanceof StcForeign
+                    && jsThen.purpose === "foreign") )
+                    throw new Error();
+                var then = jsThen.foreignVal;
+                
+                return new StcForeign( "js-effects", function () {
+                    return runJsEffects(
+                        unwrapCene( then( unwrappedVal ) ) );
+                } );
+            } );
+        } );
+        
+        fun( "give-js-effects", function ( val ) {
+            return new StcFn( function ( jsThen ) {
+                if ( !(jsThen instanceof StcForeign
+                    && jsThen.purpose === "foreign") )
+                    throw new Error();
+                var then = jsThen.foreignVal;
+                return new StcForeign( "js-effects", function () {
+                    return runJsEffects(
+                        unwrapCene( then( wrapCene( val ) ) ) );
+                } );
+            } );
+        } );
+        
+        fun( "compile-function-js-effects", function ( params ) {
+            return new StcFn( function ( body ) {
+                
+                var paramsInternal = mapConsListToArr( params,
+                    function ( param ) {
+                        return parseString( param );
                     } );
-                    
-                    var bodyInternal = parseString( body );
-                    
+                
+                var bodyInternal = parseString( body );
+                
+                return new StcForeign( "js-effects", function () {
                     // TODO: Stop putting a potentially large array
                     // into an argument list like this.
-                    var compiledJs = Function.apply( null, [
-                        clientVarInternal
-                    ].concat( keys ).concat( [
-                        bodyInternal
-                    ] ) );
-                    
-                    return new StcForeign( "effects",
-                        function ( rawMode ) {
-                        
-                        if ( !(rawMode.current
-                            && rawMode.type === "js") )
-                            throw new Error();
-                        
-                        return runEffects( rawMode,
-                            unwrapCene(
-                                compiledJs.apply( null,
-                                    [ ceneClient ].concat(
-                                        vals ) ) ) );
-                    } );
+                    return new StcForeign( "foreign",
+                        Function.apply( null,
+                            paramsInternal.concat(
+                                [ bodyInternal ] ) ) );
                 } );
             } );
         } );
     }
     
     return {
+        ceneClient: ceneClient,
         addCeneApi: addCeneApi
     };
 }

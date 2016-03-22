@@ -252,9 +252,9 @@ function runCeneSync(
                 fs.writeFileSync(
                     resolvedPath, outputString, "utf-8" );
             },
-            sloppyJavaScriptQuine: function ( constructorTag ) {
-                // TODO: This should be the one place we create a
-                // JavaScript mode without having access to one first.
+            sloppyJavaScriptQuine:
+                function ( constructorTag, topLevelVars ) {
+                
                 var quine =
                     readInternalFiles( [
                         "src/era-misc-strmap-avl.js",
@@ -296,7 +296,7 @@ function runCeneSync(
                 
                 return (
                     "\"strict mode\";\n" +
-                    "(function () {\n" +
+                    "(function ( topLevelVars ) {\n" +
                     "\n" +
                     "var quine = " + JSON.stringify( quine ) + ";\n" +
                     "var quiner = " +
@@ -304,11 +304,43 @@ function runCeneSync(
                     "quiner.quinerCallWithSyncJavaScriptMode( " +
                         JSON.stringify( constructorTag ) + " );\n" +
                     "\n" +
-                    "})();\n"
+                    "})( {\n" +
+                    $stc.arrMap( topLevelVars, function ( va ) {
+                        if ( !/^[_$a-zA-Z][_$a-zA-Z01-9]*$/.test(
+                            va ) )
+                            throw new Error();
+                        if ( va === "this" || va === "arguments" )
+                            throw new Error();
+                        
+                        // We raise an error if the function bodies we
+                        // need wouldn't usually compile (particularly
+                        // if the variable name is a reserved word).
+                        Function( "return " + va + ";" );
+                        Function( "" + va + " = arguments[ 0 ];" );
+                        
+                        return (
+                            "" + JSON.stringify( "|" + va ) + ": " +
+                                "{\n" +
+                            "    get: function () {\n" +
+                            "        return " + va + ";\n" +
+                            "    },\n" +
+                            "    set: function () {\n" +
+                            "        " + va + " = arguments[ 0 ];\n" +
+                            "    }\n" +
+                            "}"
+                        );
+                    } ).join( ",\n" ) + "\n" +
+                    "} );\n"
                 );
             },
             onceDependenciesComplete: function ( listener ) {
                 onceDependenciesCompleteListeners.push( listener );
+            },
+            getTopLevelVar: function ( varName ) {
+                throw new Error();
+            },
+            setTopLevelVar: function ( varName, val ) {
+                throw new Error();
             }
         } );
     
