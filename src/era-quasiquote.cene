@@ -155,7 +155,7 @@
             spliceable)
           
           nope non-spliceable
-          (cons expr /nil)
+          (cons non-spliceable /nil)
           
           err.\;qq[Internal error]))
       
@@ -174,11 +174,12 @@
         nope - subresult
         
         yep subresult
-        (cast subresult unrwrapped unwrapped-sub rewrap-sub
+        (cast subresult unwrapped unwrapped-sub rewrap-sub
           err.\;qq[Internal error]
         /yep/unwrapped unwrapped-sub /fn new-list
           (cast (c rewrap-sub new-list) nope rewrapped-sub
-            err.\;qq[Internal error]
+            err.\;qq[
+              Tried to splice into a call to quasiquotation escape s-]
             yep.rewrapped-sub))
         
         err.\;qq[Internal error])
@@ -202,7 +203,7 @@
             spliceable)
           
           nope non-spliceable
-          (cons expr /nil)
+          (cons non-spliceable /nil)
           
           err.\;qq[Internal error]))
       
@@ -318,7 +319,7 @@
       successfully parsed]
   /cast result unwrapped unwrapped-result rewrap-result
   /unwrapped unwrapped-result /fn new-list
-    (cast rewrap-result.new-list none non-spliceable
+    (cast (c rewrap-result new-list) nope non-spliceable
       err.\;qq[Tried to splice into the quasiquotation root]
       non-spliceable)))
 
@@ -382,7 +383,7 @@
                     quasiquotation]
                 /cast cut-result cut-result past rest
                   err.\;qq[Internal error]
-                /case rewrap-first.past
+                /case (c rewrap-first past)
                   
                   yep spliceable
                   (cast (c unwrap spliceable) unwrapped spliceable -
@@ -393,15 +394,15 @@
                     err.\;qq[
                       Tried to splice a non-list into a quasiquotation
                       in a list context]
-                  /append spliceable rewrap-rest.rest)
+                  /append spliceable /c rewrap-rest rest)
                   
                   nope non-spliceable
-                  (cons non-spliceable rewrap-rest.rest)
+                  (cons non-spliceable /c rewrap-rest rest)
                   
                   err.\;qq[Internal error]))
               
               err.\;qq[Internal error]))
-        /yep/c map-non-splicing-unwrapped /c concat-unwrapped parsed)
+        /yep/c map-non-splicing-unwrapped /c concat-unwrapped success)
         
         err.\;qq[Internal error])
     
@@ -436,7 +437,7 @@
                     quasiquotation]
                 /cast cut-result cut-result past rest
                   err.\;qq[Internal error]
-                /case rewrap-interpolation.past
+                /case (c rewrap-interpolation past)
                   
                   yep spliceable
                   (cast (c unwrap spliceable) unwrapped spliceable -
@@ -448,16 +449,16 @@
                       Tried to splice a non-istring into a
                       quasiquotation in an istring context]
                   /istring-append istring-nil.prefix
-                  /istring-append spliceable rewrap-rest.rest)
+                  /istring-append spliceable /c rewrap-rest rest)
                   
                   nope non-spliceable
                   (istring-cons prefix non-spliceable
-                    rewrap-rest.rest)
+                  /c rewrap-rest rest)
                   
                   err.\;qq[Internal error]))
               
               err.\;qq[Internal error]))
-        /yep/c map-non-splicing-unwrapped /c concat-unwrapped parsed)
+        /yep/c map-non-splicing-unwrapped /c concat-unwrapped success)
         
         err.\;qq[Internal error])
     
@@ -470,9 +471,9 @@
     (cast not-yet-rewrapped unwrapped unwrapped-nyr rewrap-nyr
       err.\;qq[Internal error]
     /yep/unwrapped unwrapped-nyr /fn new-list
-      (case rewrap-nyr.new-list
-        yep spliceable (yep rewrap-expr.spliceable)
-        nope non-spliceable (nope rewrap-expr.non-spliceable)
+      (case (c rewrap-nyr new-list)
+        yep spliceable (yep/c rewrap-expr spliceable)
+        nope non-spliceable (nope/c rewrap-expr non-spliceable)
         err.\;qq[Internal error]))
     
     nope - not-yet-rewrapped
