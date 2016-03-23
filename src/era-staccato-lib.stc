@@ -2130,6 +2130,48 @@
     /ftree-push early-tree not.polarity early-elem)
     (bftree fix-ftree-ops /ftree-push late-tree polarity late-elem)))
 
+\= TODO: Add more finger tree operations so we can do things that
+\= compile to JavaScript regexes for efficiency. Here's a potential
+\= basis:
+\;rm[
+
+(defn regex-look-ahead-one-from-string string ...)
+Creates a regex that matches once if the next character is contained
+in the given string.
+
+(defn regex-look-ahead-one-from-range a b ...)
+Creates a regex that matches once if the next character falls between
+the first one-character string and the second one-character string,
+inclusive.
+
+(defn regex-one regex ...)
+Creates a regex that matches once and advances by one position if
+there is a character at the current position.
+
+(defn regex-not regex ...)
+Creates a regex that matches once if the given regex does not match.
+
+(defn regex-closure-greedy regex ...)
+Creates a regex that tries matching the given regex. For each time the
+regex matches, this repeats the process at the new position, going
+depth first. Finally, this matches another time at the original
+position.
+
+(defn regex-or regex regex ...)
+Creates a regex that matches for each time the first regex matches and
+then for each time the second regex matches.
+
+(defn regex-then regex regex ...)
+Creates a regex that tries to match the first regex. For each time
+that regex matches, this matches for each time the second regex
+matches at the new position.
+
+(defn regex-match regex ...)
+Takes a regex and produces a function that takes a starting position
+and a string and returns a lazy list of matched positions.
+
+]
+
 
 \= ===== Comparison utilities ========================================
 

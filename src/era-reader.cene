@@ -1,0 +1,89 @@
+\= era-reader.cene
+\= Copyright 2016 Ross Angle. Released under the MIT License.
+
+\= TODO: Port era-reader.js to Cene. Don't port it exactly, though.
+\= Use the `reader-ops` approach to readers that we've started below.
+
+
+\= NOTE: Every instance of `reader-ops` should follow some laws, where
+\= `input-mempty`, `input-mappend`, `output-mempty`, and
+\= `output-mappend` are operations that already follow monoid laws:
+\=
+\= (c feed reader input-mempty)
+\= =
+\= (read-result-block output-mempty reader)
+\=
+\= (c feed reader /input-mappend a b)
+\= =
+\= (caselet result-a (c feed reader a)
+\=   
+\=   read-result-block output-a reader
+\=   (caselet result-b (c feed reader b)
+\=     
+\=     read-result-block output-b reader
+\=     (read-result-block (output-mappend output-a output-b) reader)
+\=     
+\=     read-result-end output-b
+\=     (read-result-end/output-mappend output-a output-b)
+\=     
+\=     read-result-error output-b error
+\=     (read-result-error (output-mappend output-a output-b) error)
+\=     
+\=     err.\;qq[Internal error])
+\=   
+\=   result-a)
+\=
+\= (c feed-end reader /input-mappend a b)
+\= =
+\= (caselet result-a (c feed reader a)
+\=   
+\=   read-result-block output-a reader
+\=   (caselet result-b (c feed-end reader b)
+\=     
+\=     read-result-end output-b
+\=     (read-result-end/output-mappend output-a output-b)
+\=     
+\=     read-result-error output-b error
+\=     (read-result-error (output-mappend output-a output-b) error)
+\=     
+\=     err.\;qq[Internal error])
+\=   
+\=   result-a)
+\=
+\= (c feed-end reader input-segment)
+\= =
+\= (caselet result (c feed-end reader input-segment)
+\=   
+\=   read-result-block output-segment reader
+\=   err.\;qq[Internal error]
+\=   
+\=   result)
+\=
+(def-type reader-ops init feed feed-end)
+
+(def-type read-result-block output-segment reader)
+(def-type read-result-end output-segment)
+(def-type read-result-error output-segment error)
+
+\= Returns an unended reader that has no input.
+(defn reader-init reader-ops
+  (cast reader-ops reader-ops init feed feed-end
+    err.\;qq[Expected a reader-ops value of type reader-ops]
+    init))
+
+\= Returns a read result derived from the given reader and the given
+\= additional input. This respects monoid laws for the input monoid
+\= and the output monoid.
+(defn reader-feed reader-ops unended-reader input-segment
+  (cast reader-ops reader-ops init feed feed-end
+    err.\;qq[Expected a reader-ops value of type reader-ops]
+  /c feed unended-reader input-segment))
+
+\= Returns a read result derived form the given reader and the given
+\= final input. This respects monoid laws for the input monoid and the
+\= output monoid. The final read result should never be a
+\= `read-result-block`.
+(defn reader-feed-end reader-ops unended-reader input-segment
+  (cast reader-ops reader-ops init feed feed-end
+    err.\;qq[Expected a reader-ops value of type reader-ops]
+  /c feed-end unended-reader input-segment))
