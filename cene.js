@@ -427,6 +427,15 @@ function runCeneSync(
     }
 }
 
+var preludeFiles = _.arrMap( [
+    "src/era-staccato-lib.stc",
+    "src/era-staccato-self-compiler.stc"
+], function ( path ) {
+    return $path.resolve( __dirname, path );
+} );
+
+exports.preludeFiles = preludeFiles;
+
 exports.runCeneSync = function ( files, opt_opts ) {
     var opts = _.opt( opt_opts ).or( {
         args: [],
@@ -554,15 +563,8 @@ if ( args.build_staccato ) tasks.push( function ( then ) {
     } );
 } );
 
-var cenePrelude = _.arrMap( [
-    "src/era-staccato-lib.stc",
-    "src/era-staccato-self-compiler.stc"
-], function ( path ) {
-    return $path.resolve( __dirname, path );
-} );
-
 if ( args.test_mini_staccato ) tasks.push( function ( then ) {
-    runCeneSync( cenePrelude, [ "test/test.stc" ],
+    runCeneSync( preludeFiles, [ "test/test.stc" ],
         !!"displayTimeInfo", [], null, null );
     
     process.nextTick( function () {
@@ -571,7 +573,7 @@ if ( args.test_mini_staccato ) tasks.push( function ( then ) {
 } );
 
 if ( args.file !== null ) tasks.push( function ( then ) {
-    runCeneSync( cenePrelude.concat( [ args.file ] ), [],
+    runCeneSync( preludeFiles.concat( [ args.file ] ), [],
         !!"displayTimeInfo", args.args, args.in, args.out );
     
     process.nextTick( function () {
