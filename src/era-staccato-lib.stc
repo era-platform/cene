@@ -2238,43 +2238,68 @@
 
 \= TODO: Add more finger tree operations so we can do things that
 \= compile to JavaScript regexes for efficiency. Here's a potential
-\= basis:
+\= basis. Unfortunately, JavaScript regexes have a backtracking
+\= semantics to find their match, but they don't allow the client to
+\= see anything but the first successful outcome of the backtracking,
+\= so we're using a simplified subset of regexes where backtracking is
+\= unnecessary.
 \;rm[
 
-(defn regex-look-ahead-one-from-string string ...)
-Creates a regex that matches once if the next character is contained
-in the given string.
+(defn finite-regex-zero - ...)
+Creates a finite regex that matches zero characters.
 
-(defn regex-look-ahead-one-from-range a b ...)
-Creates a regex that matches once if the next character falls between
-the first one-character string and the second one-character string,
-inclusive.
+(defn finite-regex-one-from-string-maybe string ...)
+Creates a finite regex that matches one character if it's contained
+in the given string. Returns (yep ...) on success and (nil) if the
+result would be too complicated to represent.
 
-(defn regex-one regex ...)
-Creates a regex that matches once and advances by one position if
-there is a character at the current position.
+(defn finite-regex-one-from-range a b ...)
+Creates a finite regex that matches one character if it falls
+between the first one-character string and the second one-character
+string, inclusive.
 
-(defn regex-not regex ...)
-Creates a regex that matches once if the given regex does not match.
+(defn finite-regex-one - ...)
+Creates a finite regex that matches one character.
 
-(defn regex-closure-greedy regex ...)
-Creates a regex that tries matching the given regex. For each time the
-regex matches, this repeats the process at the new position, going
-depth first. Finally, this matches another time at the original
-position.
+(defn finite-regex-not-maybe finite-regex ...)
+Creates a finite regex that matches if the given finite regex does not
+match it. It matches the same number of characters the given regex
+generally matches. Returns (yep ...) on success and (nil) if the
+result would be too complicated to represent.
 
-(defn regex-or regex regex ...)
-Creates a regex that matches for each time the first regex matches and
-then for each time the second regex matches.
+(defn finite-regex-and-maybe a b ...)
+Creates a finite regex that matches if the two given finite regexes
+both match. The given finite regexes must have the same match length,
+or this call is an error. Returns (yep ...) on success and (nil) if
+the result would be too complicated to represent.
 
-(defn regex-then regex regex ...)
-Creates a regex that tries to match the first regex. For each time
-that regex matches, this matches for each time the second regex
-matches at the new position.
+(defn finite-regex-then-maybe a b ...)
+Creates a finite regex that matches whatever the first given finite
+regex matches, together with whatever the second given finite regex
+matches after that. Returns (yep ...) on success and (nil) if the
+result would be too complicated to represent.
 
-(defn regex-match regex ...)
-Takes a regex and produces a function that takes a starting position
-and a string and returns a lazy list of matched positions.
+(defn optimistic-regex-repeat-maybe finite-regex ...)
+Creates an optimistic regex that matches the given finite regex as
+many times at it can successively. Returns (yep ...) on success and
+(nil) if the result would be too complicated to represent.
+
+(defn optimistic-regex-or-maybe a b ...)
+Creates an optimistic regex that matches if the first given optimistic
+regex matches and otherwise matches if the second given optimistic
+regex matches. Returns (yep ...) on success and (nil) if the result
+would be too complicated to represent.
+
+(defn optimistic-regex-then-maybe finite-regex optimistic-regex ...)
+Creates an optimistic regex that matches whatever given finite regex
+matches, together with whatever the given optimistic regex matches
+after that. Returns (yep ...) on success and (nil) if the
+result would be too complicated to represent.
+
+(defn optimistic-regex-match optimistic-regex ...)
+Takes an optimistic regex and produces an optimized function that
+takes a starting position and a string and returns the ending position
+of the match.
 
 ]
 
