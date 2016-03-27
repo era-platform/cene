@@ -92,7 +92,7 @@ Cene has **namespace** support, which lets you make certain names impossible to 
 
 Even Cene's **command-line tool** is designed to invoke Cene code that implements a compiler (or more generally a build system). The Cene code is given a source directory, an output directory, and command line arguments. The Cene-to-JavaScript compiler is provided not as a command-line tool of its own, but as one of the built-in functions that helps this Cene code write content to its output directory.
 
-## Effects and error-handling in Cene
+## Effects and error handling in Cene
 
 Cene side effects were demonstrated above already, but here's the nitty-gritty:
 
@@ -102,7 +102,7 @@ When Cene needs to model side effects, it uses monads and world-passing techniqu
 
 Currently, Cene code can terminate with an error at any time. This is considered a way to cause resource exhaustion on purpose; it's just a nicer alternative to an explicit infinite loop. Other basic operators in Cene use this mechanism for their dynamic errors.
 
-Cene's approach to errors may be more flexible in the future. There's a plan for Cene code to be able to interact with its interpreter when it's having trouble, but we'll need to implement an interpreter that cares about these interactions before this will actually be useful. Once we have these, applications which make frequent use of custom interpreters and quoted/reified code will end up working a lot like dynamic scope, which will give the error-handling system a flavor much like Common Lisp's condition/restart system.
+Cene's approach to errors may be more flexible in the future. There's a plan for Cene code to be able to interact with its interpreter when it's having trouble, but we'll need to implement an interpreter that cares about these interactions before this will actually be useful. Once we have these, applications which make frequent use of custom interpreters and quoted/reified code will end up working a lot like dynamic scope, which will give the error handling system a flavor much like Common Lisp's condition/restart system.
 
 ## Concessions
 
