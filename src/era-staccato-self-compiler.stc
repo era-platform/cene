@@ -30,8 +30,10 @@
 \= A reference to a string. The value inside is in a format user-level
 \= code does not know how to deconstruct.
 
-\= (defn string-compare a b ...)
-\= Compares two strings.
+\= (defn string-metacompare a b ...)
+\= Compares two strings. For inequal strings, the result will be in a
+\= format user-level code does not know how to deconstruct. For equal
+\= strings, the result will be (nil).
 
 \= (defn string-append a b ...)
 \= Concatenates two strings.
@@ -365,7 +367,7 @@
 (defn stringy-name-metacompare a b
   (bimap (cmpd-compare) a b /fn it
     (case it string -
-      (cmpd-cons (string-compare) it /cmpd-nil)
+      (cmpd-cons (string-metacompare) it /cmpd-nil)
     /cmpd-succ/case it name -
       (cmpd-cons (name-metacompare) it /cmpd-nil)
       err.\;qq[Expected a value of type string or name])))
@@ -388,7 +390,7 @@
       /cmpd-cons (stringy-name-metacompare) name
       /cmpd-nil)
     /cmpd-succ/case it free-var-entry-scope-error message
-      (cmpd-cons (string-compare) message /cmpd-nil)
+      (cmpd-cons (string-metacompare) message /cmpd-nil)
       err.\;qq[Expected a free variable entry])))
 
 (def-type free-vars-object list)
@@ -781,7 +783,7 @@
           desugared-save-save
           desugared-save-root call-tuple-name call-func tuple-name
           opt-proj-pattern call-arg var arg tuple-body-expr
-          (cast (string-compare save-root desugared-save-root) nil
+          (cast (string-metacompare save-root desugared-save-root) nil
             desugared
           /c loop /stc-save-root save-root
           /stc-tuple call-tuple-name
@@ -890,7 +892,7 @@
               (cast entry
                 free-var-entry-saved-input-var save-root-2 name
                 (nope/nil)
-              /and (isa nil /string-compare save-root save-root-2)
+              /and (isa nil /string-metacompare save-root save-root-2)
                 (free-vars-has shadowed free-var-entry-var.name)))
             yep -
             (free-vars-plus-entry shadowed /free-var-entry-scope-error
@@ -904,12 +906,12 @@
             (cast entry
               free-var-entry-saved-input-var save-root-2 name
               (yep/nil)
-            /not/isa nil /string-compare save-root save-root-2))
+            /not/isa nil /string-metacompare save-root save-root-2))
         /let shadowed
           (free-vars-map shadowed /fn entry
             (cast entry free-var-entry-saved-free-var save-root-2 name
               entry
-            /cast (string-compare save-root save-root-2) nil
+            /cast (string-metacompare save-root save-root-2) nil
               entry
               free-var-entry-var.name))
         /c use-shadowed shadowed)
@@ -1821,7 +1823,7 @@
       (cons str.proj-name /cons str.var /cons str.proj-pattern /nil)
     
     \= These constructors are needed for interpreting the results of
-    \= certain built-in operators, namely `isa` and `string-compare`.
+    \= certain built-in operators, namely `isa` for now.
     /c type str.yep (cons str.val /nil)
     /c type str.nope (cons str.val /nil)
     
@@ -1866,7 +1868,7 @@
     \=
     \= NOTE: The metacircular interpreter can't define everything in
     \= `functions` from scratch. While it could transport every
-    \= built-in function it knows about, such as `string-compare`,
+    \= built-in function it knows about, such as `string-metacompare`,
     \= these functions might be implemented as `stc-def-foreign`,
     \= delegating to another function whose type this interpreter
     \= doesn't know about.
@@ -1987,7 +1989,7 @@
           def
           (fn mode /nil))
       /fn - next))
-  /c def-foreign str.string-compare
+  /c def-foreign str.string-metacompare
   /c def-foreign str.string-append
   /c def-foreign str.make-tuple-tag
   /c def-foreign str.name-metacompare

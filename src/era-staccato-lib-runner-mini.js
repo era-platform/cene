@@ -1168,19 +1168,18 @@ function usingDefinitionNs( macroDefNs ) {
             "}( " + bindingVals.join( ", " ) + " ))";
         } );
         
-        fun( "string-compare", function ( a ) {
+        fun( "string-metacompare", function ( a ) {
             return new StcFn( function ( b ) {
                 var aParsed = parseString( a );
                 var bParsed = parseString( b );
                 
-                // TODO: Figure out what ordering we actually want to
-                // have. We probably want this one, for efficiency at
-                // least, but in that case we should turn this into
-                // `string-metacompare`.
+                // NOTE: We compare by UTF-16 encoding for efficiency,
+                // but we don't expose it to user code because that
+                // would commit us to the complexity of UTF-16.
                 if ( aParsed < bParsed )
-                    return stcYep.ofNow( stcNil.ofNow() );
+                    return new StcForeign( "lt", null );
                 if ( bParsed < aParsed )
-                    return stcNope.ofNow( stcNil.ofNow() );
+                    return new StcForeign( "gt", null );
                 return stcNil.ofNow();
             } );
         } );
@@ -1666,8 +1665,7 @@ function usingDefinitionNs( macroDefNs ) {
             [ "proj-name", "var", "proj-pattern" ] );
         
         // These constructors are needed for interpreting the results
-        // of certain built-in operators, namely `isa` and
-        // `string-compare`.
+        // of certain built-in operators, namely `isa` for now.
         type( "yep", [ "val" ] );
         type( "nope", [ "val" ] );
         
