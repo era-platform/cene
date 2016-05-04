@@ -52,7 +52,7 @@ It will likely turn out to be simpler to add a static type system, in the long r
 (table-default <table-for-trying-first> <table-for-trying-second>)
 (table-map-combine <table-to-iterate> <combine> <init-to-combine-into> <key-and-val-to-combine-component>)
 
-\= NOTE: We can't have (cmp-map <func-cmp> <func> <result-cmp>) because it might call things equivalent that are distinguishable from each other, which would make a (combine-cmp ...) stop being commutative.
+\= NOTE: We can't have (cmp-map <func-cmp> <func> <result-cmp>) because it might call things equivalent that are distinguishable from each other, which would make a (merge-cmp ...) stop being commutative.
 
 \= NOTE: We can't have (combine-map <func-cmp> <func> <result-combine>) because it might not be associative. For the same reason, we can't have this, either:
 \=
