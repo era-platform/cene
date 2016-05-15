@@ -133,8 +133,11 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                         throw new Error();
                     
                     // Do nothing.
+                    
+                    return stcNil.ofNow();
                 } );
             } );
+            return stcNil.ofNow();
         } );
     }
     
@@ -459,7 +462,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                                         getValueInternal() );
 //                        } );
                     } );
-                    return stcNil.of();
+                    return stcNil.ofNow();
                 } );
             } );
         } );
