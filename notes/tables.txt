@@ -1,9 +1,13 @@
+Cene keeps track of stateful external resources using hierarchical paths. Thus, for a framework or interpreter to *pretend* to offer an external resource, it needs to be able to offer a path data structure that it can use to look up and track state. This is a use case for key-value tables.
+
+Tables rely on the ability to compare the keys for equality. We usually don't want paths to be compared in an *ordered* way because that would make it possible to observe when one external resource identifier has been globally replaced by another (e.g. if the program has been serialized and resuscitated on another machine).
+
 Cene is not statically typed (yet). If we want to provide table values with a well-defined and deterministic API, we need to ensure that the run time behavior of key comparisons does not expose implementation details of the keys. For instance, it should not let us compare name values to obtain a "less than" or "greater than" result. To accomplish this enforcement, we offer various ad hoc ways of building well-behaved comparators (and other kinds of well-behaved operators).
 
-It will likely turn out to be simpler to add a static type system, in the long run.
+It will likely turn out to be simpler to add a static type system, in the long run. We may even find this approach turns into a sort of type system of its own.
 
 
-\= A "cmp" is a binary relation such that, wherever it is defined, it answers whether or not the given values are indistinguishable. (There is no "custom" sense of indistinguishability allowed here. If there is any way at all to distinguish two values, they are not indistinguishable.)
+\= A "cmp" is a binary relation such that, wherever it is defined, it answers whether or not the given values are indistinguishable. (There is no "custom" sense of indistinguishability allowed here. If there is any Cene code at all that can distinguish the two values, they are not indistinguishable.)
 \=
 (cmp-default <cmp-for-trying-first> <cmp-for-trying-second>)
 (cmp-give-up)
