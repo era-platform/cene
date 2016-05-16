@@ -198,6 +198,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                     runJsEffects( jsEffects );
                 } );
             } );
+            return stcNil.ofNow();
         } ) );
     } );
     ceneClient.defer = boringfn( function ( body ) {
