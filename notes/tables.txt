@@ -12,8 +12,11 @@ It will likely turn out to be simpler to add a static type system, in the long r
 (cmp-default <cmp-for-trying-first> <cmp-for-trying-second>)
 (cmp-give-up)
 (cmp-string)
+  \= NOTE: Unlike most of these, (cmp-string) can distinguish values that might not have been distinguishable any other way.
 (cmp-name)
+  \= NOTE: Unlike most of these, (cmp-name) can distinguish values that might not have been distinguishable any other way.
 (cmp-cmp)
+  \= NOTE: Unlike most of these, (cmp-cmp) can distinguish values that might not have been distinguishable any other way. For instance, it can distinguish between (cmp-default a b) and (cmp-default b a).
 (cmp-combine)
 (cmp-struct cons <car-cmp> <cdr-cmp>)
 (cmp-by-own-method <get-method-cmp> <get-method>)
@@ -24,6 +27,8 @@ It will likely turn out to be simpler to add a static type system, in the long r
 (call-cmp <cmp> <a> <b>)
 
 \= A "merge" is a binary operation that is commutative, associative, and idempotent wherever it is defined.
+\=
+\= TODO: There's something interesting we might be able to do here. Some values may not let us compute an easy yes or no answer as to whether they're indistinguishable because the only way to distinguish them is to send them into the outside world and wait for the ripples to show up. For instance, a message that means "Please send a response eventually" and a message that means "Please don't send a response ever" might only be distinguishable if and when a response arrives. If a response doesn't arrive, we can't destinguish them yet. While we can't define a cmp for these two messages (because that cmp itself would be a way to distinguish them), we can define a merge that combines them into a result with maximal feedback or a result with minimal feedback. There might be something having to do with definition lookups or OWA extensibility that can make practical use of this technique.
 \=
 (merge-cmp <cmp>)
   \= NOTE: This only processes the cmp operation once, calling it with the two values being merged. It doesn't sanity-check that the cmp is reflexive for either argument.
