@@ -155,6 +155,8 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
         throw new Error();
     }
     
+    // TODO NOW: Somehow run the monad resulting from this callStc
+    // call.
     var effects = new Stc(
         JSON.stringify(
             stcNameTupleTagAlreadySorted( constructorTag, [] ) ),

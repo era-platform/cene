@@ -125,7 +125,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         return new StcForeign( "effects", function ( rawMode ) {
             collectDefer( rawMode, function ( rawMode1 ) {
                 body();
-                return new StcForeign( "effects",
+                return macLookupRet( new StcForeign( "effects",
                     function ( rawMode2 ) {
                     
                     // NOTE: This uses object identity.
@@ -134,10 +134,16 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                     
                     // Do nothing.
                     
-                    return stcNil.ofNow();
-                } );
+                    return macLookupRet( stcNil.ofNow() );
+                } ) );
             } );
-            return stcNil.ofNow();
+            return macLookupRet( stcNil.ofNow() );
+        } );
+    }
+    
+    function deferAndRunMacLookup( body ) {
+        apiOps.defer( function () {
+            runMacLookup( body() );
         } );
     }
     
@@ -161,7 +167,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     ceneClient.done = boringfn( function ( result ) {
         var unwrappedResult = unwrapCene( result );
         return wrapCene( new StcForeign( "js-effects", function () {
-            return unwrappedResult;
+            return macLookupRet( unwrappedResult );
         } ) );
     } );
     ceneClient.then = boringfn( function ( effects, then ) {
@@ -172,8 +178,12 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         var effectsFunc = effectsInternal.foreignVal;
         
         return wrapCene( new StcForeign( "js-effects", function () {
-            return runJsEffects(
-                unwrapCene( then( wrapCene( effectsFunc() ) ) ) );
+            return macLookupThen( effectsFunc(),
+                function ( intermediate ) {
+                
+                return runJsEffects(
+                    unwrapCene( then( wrapCene( intermediate ) ) ) );
+            } );
         } ) );
     } );
     ceneClient.giveSync = boringfn( function ( val, ceneThen ) {
@@ -181,9 +191,12 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         var ceneThenUnwrapped = unwrapCene( ceneThen );
         
         return wrapCene( new StcForeign( "js-effects", function () {
-            return runJsEffects(
-                ceneThenUnwrapped.callStc( macroDefNs,
-                    valUnwrapped ) );
+            return macLookupThen(
+                ceneThenUnwrapped.callStc( macroDefNs, valUnwrapped ),
+                function ( effects ) {
+                
+                return runJsEffects( effects );
+            } );
         } ) );
     } );
     ceneClient.giveAsync = boringfn( function ( val, ceneThen ) {
@@ -191,19 +204,25 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         var ceneThenUnwrapped = unwrapCene( ceneThen );
         
         return wrapCene( new StcForeign( "js-effects", function () {
-            apiOps.defer( function () {
-                var jsEffects = ceneThenUnwrapped.callStc( macroDefNs,
-                    valUnwrapped );
-                apiOps.defer( function () {
-                    runJsEffects( jsEffects );
+            deferAndRunMacLookup( function () {
+                return macLookupThen(
+                    ceneThenUnwrapped.callStc( macroDefNs,
+                        valUnwrapped ),
+                    function ( jsEffects ) {
+                    
+                    deferAndRunMacLookup( function () {
+                        return runJsEffects( jsEffects );
+                    } );
+                    
+                    return macLookupRet( null );
                 } );
             } );
-            return stcNil.ofNow();
+            return macLookupRet( stcNil.ofNow() );
         } ) );
     } );
     ceneClient.defer = boringfn( function ( body ) {
-        apiOps.defer( function () {
-            runJsEffects( body() );
+        deferAndRunMacLookup( function () {
+            return runJsEffects( body() );
         } );
     } );
     
@@ -226,7 +245,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
             staccatoDeclarationState.functionDefs[ tupleTag ] =
                 function ( projectionVals, argVal ) {
                 
-                return body( argVal );
+                return macLookupRet( body( argVal ) );
             };
             usingDefNs.processDefType( targetDefNs, name, [] );
         }
@@ -266,6 +285,12 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
             } else {
                 throw new Error();
             }
+        }
+        
+        function stcFnPure( func ) {
+            return new StcFn( function ( arg ) {
+                return macLookupRet( func( arg ) );
+            } );
         }
         
         type( "encapsulated-string", [ "val" ] );
@@ -311,7 +336,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         } );
         
         fun( "input-path-get", function ( inputPath ) {
-            return new StcFn( function ( name ) {
+            return stcFnPure( function ( name ) {
                 if ( !(inputPath instanceof StcForeign
                     && inputPath.purpose === "input-path") )
                     throw new Error();
@@ -325,7 +350,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         } );
         
         fun( "input-path-type", function ( mode ) {
-            return new StcFn( function ( inputPath ) {
+            return stcFnPure( function ( inputPath ) {
                 if ( !(mode instanceof StcForeign
                     && mode.purpose === "mode"
                     && mode.foreignVal.current
@@ -350,7 +375,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         } );
         
         fun( "input-path-directory-list", function ( mode ) {
-            return new StcFn( function ( inputPath ) {
+            return stcFnPure( function ( inputPath ) {
                 if ( !(mode instanceof StcForeign
                     && mode.purpose === "mode"
                     && mode.foreignVal.current
@@ -373,7 +398,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         } );
         
         fun( "input-path-blob-utf-8", function ( mode ) {
-            return new StcFn( function ( inputPath ) {
+            return stcFnPure( function ( inputPath ) {
                 if ( !(mode instanceof StcForeign
                     && mode.purpose === "mode"
                     && mode.foreignVal.current
@@ -391,7 +416,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         } );
         
         fun( "output-path-get", function ( outputPath ) {
-            return new StcFn( function ( name ) {
+            return stcFnPure( function ( name ) {
                 if ( !(outputPath instanceof StcForeign
                     && outputPath.purpose === "output-path") )
                     throw new Error();
@@ -415,7 +440,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         } );
         
         fun( "output-path-blob-utf-8", function ( outputPath ) {
-            return new StcFn( function ( outputString ) {
+            return stcFnPure( function ( outputString ) {
                 if ( !(outputPath instanceof StcForeign
                     && outputPath.purpose === "output-path") )
                     throw new Error();
@@ -439,7 +464,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         fun( "cli-output-environment-variable-shadow",
             function ( key ) {
             
-            return new StcFn( function ( value ) {
+            return stcFnPure( function ( value ) {
                 var keyInternal = parseString( key );
                 var getValueInternal =
                     parsePossiblyEncapsulatedString( value );
@@ -463,14 +488,14 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                                         getValueInternal() );
 //                        } );
                     } );
-                    return stcNil.ofNow();
+                    return macLookupRet( stcNil.ofNow() );
                 } );
             } );
         } );
         
         fun( "sloppy-javascript-quine", function ( mode ) {
-            return new StcFn( function ( constructorTag ) {
-                return new StcFn( function ( topLevelVars ) {
+            return stcFnPure( function ( constructorTag ) {
+                return stcFnPure( function ( topLevelVars ) {
                     
                     if ( !(mode instanceof StcForeign
                         && mode.purpose === "mode"
@@ -525,26 +550,34 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         
         fun( "done-js-effects", function ( result ) {
             return new StcForeign( "js-effects", function () {
-                return result;
+                return macLookupRet( result );
             } );
         } );
         
         fun( "then-js-effects", function ( jsEffects ) {
-            return new StcFn( function ( then ) {
+            return stcFnPure( function ( then ) {
                 if ( !(jsEffects instanceof StcForeign
                     && jsEffects.purpose === "js-effects") )
                     throw new Error();
                 var effectsFunc = jsEffects.foreignVal;
                 
                 return new StcForeign( "js-effects", function () {
-                    return runJsEffects(
-                        then.callStc( macroDefNs, effectsFunc() ) );
+                    return macLookupThen( effectsFunc(),
+                        function ( intermediate ) {
+                        
+                        return macLookupThen(
+                            then.callStc( macroDefNs, intermediate ),
+                            function ( jsEffects ) {
+                            
+                            return runJsEffects( jsEffects );
+                        } );
+                    } );
                 } );
             } );
         } );
         
         fun( "give-unwrapped-js-effects", function ( val ) {
-            return new StcFn( function ( jsThen ) {
+            return stcFnPure( function ( jsThen ) {
                 
                 if ( !(val instanceof StcForeign
                     && val.purpose === "foreign") )
@@ -564,7 +597,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         } );
         
         fun( "give-js-effects", function ( val ) {
-            return new StcFn( function ( jsThen ) {
+            return stcFnPure( function ( jsThen ) {
                 if ( !(jsThen instanceof StcForeign
                     && jsThen.purpose === "foreign") )
                     throw new Error();
@@ -577,7 +610,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         } );
         
         fun( "compile-function-js-effects", function ( params ) {
-            return new StcFn( function ( body ) {
+            return stcFnPure( function ( body ) {
                 
                 var paramsInternal = mapConsListToArr( params,
                     function ( param ) {
@@ -589,10 +622,11 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                 return new StcForeign( "js-effects", function () {
                     // TODO: Stop putting a potentially large array
                     // into an argument list like this.
-                    return new StcForeign( "foreign",
-                        Function.apply( null,
-                            paramsInternal.concat(
-                                [ bodyInternal ] ) ) );
+                    return macLookupRet(
+                        new StcForeign( "foreign",
+                            Function.apply( null,
+                                paramsInternal.concat(
+                                    [ bodyInternal ] ) ) ) );
                 } );
             } );
         } );
