@@ -487,6 +487,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                                     put( keyInternal,
                                         getValueInternal() );
 //                        } );
+                        return macLookupRet( null );
                     } );
                     return macLookupRet( stcNil.ofNow() );
                 } );

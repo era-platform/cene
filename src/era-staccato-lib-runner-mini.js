@@ -429,6 +429,10 @@ function runTrampoline( rawMode, defer, createNextMode, afterDefer ) {
         // NOTE: All the safe operations are commutative with each
         // other even though they're in JavaScript, so any order is
         // fine. We use first-in-first-out.
+        //
+        // TODO NOW: Somehow run the macLookup effects resulting from
+        // this call.
+        //
         rawMode.safe.shift()();
     }
     var n = 0;
@@ -479,6 +483,8 @@ function transferModesToFrom( rawModeTarget, rawModeSource ) {
         while ( rawModeSource.defer.length !== 0 )
             rawModeTarget.defer.push( rawModeSource.defer.shift() );
         rawModeSource.defer = rawModeTarget.defer;
+        
+        return macLookupRet( null );
     } );
 }
 
@@ -800,6 +806,13 @@ function usingDefinitionNs( macroDefNs ) {
         return result;
     }
     
+    function revJsListToArr( jsList ) {
+        var result = [];
+        for ( var toGo = jsList; toGo !== null; toGo = toGo.rest )
+            result.unshift( toGo.first );
+        return result;
+    }
+    
     function mapmConsListToArrWithNss( nss, list, func ) {
         return go( nss, list, null );
         function go( currentNss, e, revResult ) {
@@ -807,14 +820,7 @@ function usingDefinitionNs( macroDefNs ) {
                 if ( e.tupleTag !== stcNil.getTupleTag() )
                     throw new Error();
                 
-                var result = [];
-                for (
-                    var remaining = revResult;
-                    remaining !== null;
-                    remaining = remaining.rest;
-                )
-                    result.unshift( remaining.first );
-                return macLookupRet( result );
+                return macLookupRet( revJsListToArr( revResult ) );
             }
             
             return macLookupThen(
@@ -954,6 +960,8 @@ function usingDefinitionNs( macroDefNs ) {
                         } );
                     processDefType(
                         nss.definitionNs, tupleName, projNames );
+                    
+                    return macLookupRet( null );
                 } );
                 return macLookupRet(
                     new StcForeign( "compiled-code", stcNil.of() ) );
@@ -986,15 +994,21 @@ function usingDefinitionNs( macroDefNs ) {
                     
                     assertMacroDoesNotExist( nss.definitionNs, name );
                     
-                    // TODO NOW: Make this call to processFn monadic.
-                    stcAddDefun( nss,
-                        stcConstructorTag( nss.definitionNs,
-                            stcConstructorName(
-                                nss.definitionNs, name ) ),
-                        firstArg,
-                        stcCall( processFn( nss, rawMode, body1 ),
-                            stcIdentifier( firstArg ) ) );
-                    processDefType( nss.definitionNs, name, [] );
+                    return macLookupThen(
+                        processFn( nss, rawMode, body1 ),
+                        function ( processedFn ) {
+                        
+                        stcAddDefun( nss,
+                            stcConstructorTag( nss.definitionNs,
+                                stcConstructorName(
+                                    nss.definitionNs, name ) ),
+                            firstArg,
+                            stcCall( processedFn,
+                                stcIdentifier( firstArg ) ) );
+                        processDefType( nss.definitionNs, name, [] );
+                        
+                        return macLookupRet( null );
+                    } );
                 } );
                 return macLookupRet(
                     new StcForeign( "compiled-code", stcNil.of() ) );
@@ -1020,13 +1034,20 @@ function usingDefinitionNs( macroDefNs ) {
                     if ( staccatoDeclarationState.hasRunDefs )
                         throw new Error();
                     
-                    var macroFunctionName = assertMacroDoesNotExist(
-                        nss.definitionNs, name );
-                    // TODO NOW: Make this call to processFn monadic.
-                    staccatoDeclarationState.namespaceDefs.set(
-                        macroFunctionName,
-                        stcExecute( nss.definitionNs,
-                            processFn( nss, rawMode, body1 ) ) );
+                    return macLookupThen(
+                        processFn( nss, rawMode, body1 ),
+                        function ( processedFn ) {
+                        
+                        var macroFunctionName =
+                            assertMacroDoesNotExist(
+                                nss.definitionNs, name );
+                        staccatoDeclarationState.namespaceDefs.set(
+                            macroFunctionName,
+                            stcExecute( nss.definitionNs,
+                                processedFn ) );
+                        
+                        return macLookupRet( null );
+                    } );
                 } );
                 return macLookupRet(
                     new StcForeign( "compiled-code", stcNil.of() ) );
@@ -1052,18 +1073,24 @@ function usingDefinitionNs( macroDefNs ) {
                     if ( !staccatoDeclarationState.hasRunDefs )
                         throw new Error();
                     
-                    // TODO NOW: Make this macroexpandInnerLevel call
-                    // monadic.
-                    var a = evalStcForTest( nss.definitionNs,
+                    return macLookupThen(
                         macroexpandInnerLevel( nssGet( nss, "a" ),
                             rawMode,
-                            stcCons.getProj( body, "car" ) ) );
-                    // TODO NOW: Make this macroexpandInnerLevel call
-                    // monadic.
-                    var b = evalStcForTest( nss.definitionNs,
+                            stcCons.getProj( body, "car" ) ),
+                        function ( expandedA ) {
+                    
+                    var a =
+                        evalStcForTest( nss.definitionNs, expandedA );
+                    
+                    return macLookupThen(
                         macroexpandInnerLevel( nssGet( nss, "b" ),
                             rawMode,
-                            stcCons.getProj( body1, "car" ) ) );
+                            stcCons.getProj( body1, "car" ) ),
+                        function ( expandedB ) {
+                    
+                    var b =
+                        evalStcForTest( nss.definitionNs, expandedB );
+                    
                     var match = compareStc( a, b );
                     
                     // NOTE: This can be true, false, or null.
@@ -1073,6 +1100,12 @@ function usingDefinitionNs( macroDefNs ) {
                         console.log(
                             "Test failed: Expected " +
                             b.pretty() + ", got " + a.pretty() );
+                    
+                    return macLookupRet( null );
+                    
+                    } );
+                    
+                    } );
                 } );
                 return macLookupRet(
                     new StcForeign( "compiled-code", stcNil.of() ) );
@@ -1269,12 +1302,11 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "let", function ( nss, rawMode, myStxDetails, body ) {
-            var remainingBody = body;
-            var bindingVars = [];
-            var bindingVals = [];
-            var bindingArrThunks = [];
-            var bindingsNss = nssGet( nss, "bindings" );
-            while ( true ) {
+            return loop(
+                null, null, body, nssGet( nss, "bindings" ) );
+            function loop( revBindingVars, revBindingVals,
+                remainingBody, bindingsNss ) {
+                
                 if ( remainingBody.tupleTag !==
                     stcCons.getTupleTag() )
                     throw new Error();
@@ -1282,36 +1314,49 @@ function usingDefinitionNs( macroDefNs ) {
                     stcCons.getProj( remainingBody, "cdr" );
                 if ( remainingBody1.tupleTag !==
                     stcCons.getTupleTag() )
-                    break;
+                    return next( revBindingVars, revBindingVals,
+                        remainingBody );
                 var va = stxToMaybeName(
                     stcCons.getProj( remainingBody, "car" ) );
                 if ( va === null )
                     throw new Error();
-                bindingVars.push( stcIdentifier( va ) );
-                // TODO NOW: Make this macroexpandInnerLevel call
-                // monadic.
-                bindingVals.push(
+                
+                return macLookupThen(
                     macroexpandInnerLevel(
                         nssGet( bindingsNss, "first" ),
                         rawMode,
-                        stcCons.getProj( remainingBody1, "car" ) ) );
-                remainingBody =
-                    stcCons.getProj( remainingBody1, "cdr" );
-                bindingsNss = nssGet( bindingsNss, "rest" );
+                        stcCons.getProj( remainingBody1, "car" ) ),
+                    function ( bindingVal ) {
+                    
+                    return loop(
+                        { first: stcIdentifier( va ),
+                            rest: revBindingVars },
+                        { first: bindingVal, rest: revBindingVals },
+                        stcCons.getProj( remainingBody1, "cdr" ),
+                        nssGet( bindingsNss, "rest" ) );
+                } );
             }
-            return macLookupThen(
-                macroexpandInnerLevel( nssGet( nss, "body" ),
-                    rawMode,
-                    stcCons.getProj( remainingBody, "car" ) ),
-                function ( expandedBody ) {
             
-            return macLookupRet(
-                "(function ( " + bindingVars.join( ", " ) + " ) " +
-                    "{ " +
-                    "return " + expandedBody + "; " +
-                "}( " + bindingVals.join( ", " ) + " ))" );
-            
-            } );
+            function next( revBindingVars, revBindingVals,
+                remainingBody ) {
+                
+                return macLookupThen(
+                    macroexpandInnerLevel( nssGet( nss, "body" ),
+                        rawMode,
+                        stcCons.getProj( remainingBody, "car" ) ),
+                    function ( expandedBody ) {
+                    
+                    return macLookupRet(
+                        "(function ( " +
+                            revJsListToArr( revBindingVars
+                                ).join( ", " ) + " ) " +
+                            "{ " +
+                            "return " + expandedBody + "; " +
+                        "}( " +
+                            revJsListToArr( revBindingVals
+                                ).join( ", " ) + " ))" );
+                } );
+            }
         } );
         
         fun( "string-metacompare", function ( a ) {
@@ -1546,6 +1591,8 @@ function usingDefinitionNs( macroDefNs ) {
                             collectSafe( rawMode, function () {
                                 staccatoDeclarationState.
                                     namespaceDefs.set( ns.foreignVal.name, value );
+                                
+                                return macLookupRet( null );
                             } );
                             collectDefer( rawMode,
                                 function ( rawMode ) {
@@ -1752,41 +1799,52 @@ function usingDefinitionNs( macroDefNs ) {
         stcAddMacro( definitionNs, tupleName,
             function ( nss, rawMode, myStxDetails, body ) {
             
-            var projVals = [];
-            var remainingBody = body;
-            var projectionsNss = nssGet( nss, "projections" );
-            for ( var i = 0; i < n; i++ ) {
+            return loop(
+                0, null, body, nssGet( nss, "projections" ) );
+            function loop(
+                i, revProjVals, remainingBody, projectionsNss ) {
+                
+                if ( n <= i )
+                    return next( revProjVals, remainingBody );
+                
                 if ( remainingBody.tupleTag !==
                     stcCons.getTupleTag() )
                     throw new Error(
                         "Expected more arguments to " +
                         JSON.stringify( tupleName ) );
-                // TODO NOW: Make this macroexpandInnerLevel call
-                // monadic.
-                projVals.push(
+                
+                return macLookupThen(
                     macroexpandInnerLevel(
                         nssGet( projectionsNss, "first" ),
                         rawMode,
-                        stcCons.getProj( remainingBody, "car" ) ) );
-                remainingBody =
-                    stcCons.getProj( remainingBody, "cdr" );
-                projectionsNss = nssGet( projectionsNss, "rest" );
+                        stcCons.getProj( remainingBody, "car" ) ),
+                    function ( projVal ) {
+                    
+                    return loop( i + 1,
+                        { first: projVal, rest: revProjVals },
+                        stcCons.getProj( remainingBody, "cdr" ),
+                        nssGet( projectionsNss, "rest" ) );
+                } );
             }
             
-            return macLookupThen(
-                mapmConsListToArrWithNss( nssGet( nss, "args" ),
-                    remainingBody,
-                    function ( nss, expr ) {
+            function next( revProjVals, remainingBody ) {
+                return macLookupThen(
+                    mapmConsListToArrWithNss( nssGet( nss, "args" ),
+                        remainingBody,
+                        function ( nss, expr ) {
+                        
+                        return macroexpandInnerLevel( nss, rawMode,
+                            expr );
+                    } ),
+                    function ( expandedArgs ) {
                     
-                    return macroexpandInnerLevel( nss, rawMode,
-                        expr );
-                } ),
-                function ( expandedArgs ) {
-                
-                return macLookupRet(
-                    stcCallArr( type.ofArr( projVals ),
-                        expandedArgs ) );
-            } );
+                    return macLookupRet(
+                        stcCallArr(
+                            type.ofArr(
+                                revJsListToArr( revProjVals ) ),
+                            expandedArgs ) );
+                } );
+            }
         } );
     }
     
