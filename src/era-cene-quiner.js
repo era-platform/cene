@@ -13,7 +13,9 @@ var quinerQuine = null;
 var quinerTopLevelVars = null;
 
 function quinerCallWithSyncJavaScriptMode( constructorTag ) {
-    var codeOfFiles = arrMap( quinerTextOfFiles, function ( text ) {
+    var codeOfFiles = arrMappend( quinerTextOfFiles,
+        function ( text ) {
+        
         return readAll( text );
     } );
     
@@ -100,60 +102,7 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
     usingDefNs.processCoreTypes( nss.definitionNs );
     ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
     
-    function runCode( code ) {
-        return !arrAny( code, function ( tryExpr ) {
-            if ( !tryExpr.ok ) {
-                console.error( tryExpr.msg );
-                return true;
-            }
-            
-            var deferred = [];
-            
-            function defer( body ) {
-                deferred.push( body );
-            }
-            function createNextMode( rawMode ) {
-                // NOTE: This comment is here in case we do a search
-                // for mode inside quotes.
-                //
-                // "mode"
-                //
-                return {
-                    type: "macro",
-                    finished: null,
-                    current: true,
-                    safe: [],
-                    defer: []
-                };
-            }
-            var rawMode = createNextMode( null );
-            var done = false;
-            usingDefNs.macroexpandTopLevel( nssGet( nss, "first" ),
-                rawMode,
-                usingDefNs.readerExprToStc( stcTrivialStxDetails(),
-                    tryExpr.val ) );
-            runTrampoline( rawMode, defer, createNextMode,
-                function () {
-                
-                done = true;
-            } );
-            while ( deferred.length !== 0 )
-                deferred.shift()();
-            if ( !done )
-                throw new Error( "Not done" );
-            
-            nss = nssGet( nss, "rest" );
-            return false;
-        } );
-    }
-    
-    if ( arrAll( codeOfFiles, function ( code ) {
-        return runCode( code );
-    } ) ) {
-        runAllDefs();
-    } else {
-        throw new Error();
-    }
+    usingDefNs.runTopLevelTryExprsSync( nss, codeOfFiles );
     
     // TODO NOW: Somehow run the monad resulting from this callStc
     // call.

@@ -298,7 +298,6 @@ function stcType( definitionNs, tupleStringyName, var_args ) {
 var staccatoDeclarationState = {};
 staccatoDeclarationState.namespaceDefs = jsnMap();
 staccatoDeclarationState.functionDefs = {};
-staccatoDeclarationState.hasRunDefs = false;
 function Stc( tupleTag, opt_projNames ) {
     this.tupleTag = tupleTag;
     this.projNames = opt_projNames || [];
@@ -497,8 +496,53 @@ function macLookupGet( name, err ) {
 function macLookupThen( macLookupEffects, then ) {
     return { type: "then", first: macLookupEffects, then: then };
 }
+function runMacLookups( macLookupEffectsArr ) {
+    // TODO NOW: Finish implementing this, and use it.
+    
+    var threads = [].slice.call( macLookupEffectsArr );
+    while ( threads.length !== 0 ) {
+        var thread = threads.shift();
+        if ( thread.type === "ret" ) {
+        } else if ( thread.type === "" ) {}
+    }
+}
 function runMacLookup( macLookupEffects ) {
     // TODO NOW: Implement this.
+}
+function runTopLevelMacLookupsSync( nss, macLookupEffectsArr ) {
+    arrEach( macLookupEffectsArr, function ( macLookupEffect ) {
+        var deferred = [];
+        
+        function defer( body ) {
+            deferred.push( body );
+        }
+        function createNextMode( rawMode ) {
+            // NOTE: This comment is here in case we do a search for
+            // mode inside quotes.
+            //
+            // "mode"
+            //
+            return {
+                type: "macro",
+                finished: null,
+                current: true,
+                safe: [],
+                defer: []
+            };
+        }
+        var rawMode = createNextMode( null );
+        var done = false;
+        // TODO NOW: Somehow run the macLookup effects resulting from
+        // this call.
+        macLookupEffect( rawMode );
+        runTrampoline( rawMode, defer, createNextMode, function () {
+            done = true;
+        } );
+        while ( deferred.length !== 0 )
+            deferred.shift()();
+        if ( !done )
+            throw new Error( "Not done" );
+    } );
 }
 
 function usingDefinitionNs( macroDefNs ) {
@@ -944,9 +988,6 @@ function usingDefinitionNs( macroDefNs ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
                 collectSafe( rawMode, function () {
-                    if ( staccatoDeclarationState.hasRunDefs )
-                        throw new Error();
-                    
                     assertMacroDoesNotExist(
                         nss.definitionNs, tupleName );
                     
@@ -989,9 +1030,6 @@ function usingDefinitionNs( macroDefNs ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
                 collectSafe( rawMode, function () {
-                    if ( staccatoDeclarationState.hasRunDefs )
-                        throw new Error();
-                    
                     assertMacroDoesNotExist( nss.definitionNs, name );
                     
                     return macLookupThen(
@@ -1031,9 +1069,6 @@ function usingDefinitionNs( macroDefNs ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
                 collectSafe( rawMode, function () {
-                    if ( staccatoDeclarationState.hasRunDefs )
-                        throw new Error();
-                    
                     return macLookupThen(
                         processFn( nss, rawMode, body1 ),
                         function ( processedFn ) {
@@ -1070,9 +1105,6 @@ function usingDefinitionNs( macroDefNs ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
                 collectSafe( rawMode, function () {
-                    if ( !staccatoDeclarationState.hasRunDefs )
-                        throw new Error();
-                    
                     return macLookupThen(
                         macroexpandInnerLevel( nssGet( nss, "a" ),
                             rawMode,
@@ -1925,9 +1957,10 @@ function usingDefinitionNs( macroDefNs ) {
         type( "name", [ "val" ] );
     }
     
+    // TODO NOW: Replace macroexpandTopLevel and macroexpandInnerLevel
+    // with a single function.
     function macroexpandTopLevel( nss, rawMode, locatedExpr ) {
-        // TODO NOW: Make this macroexpandInnerLevel call monadic.
-        macroexpandInnerLevel( nss, rawMode, locatedExpr );
+        return macroexpandInnerLevel( nss, rawMode, locatedExpr );
     }
     
     function readerExprToStc( myStxDetails, readerExpr ) {
@@ -1967,21 +2000,36 @@ function usingDefinitionNs( macroDefNs ) {
         }
     }
     
+    function runTopLevelTryExprsSync( nss, tryExprs ) {
+        var macLookupEffectsArr = [];
+        var remainingNss = nss;
+        arrEach( tryExprs, function ( tryExpr ) {
+            if ( !tryExpr.ok )
+                throw new Error( tryExpr.msg );
+            
+            var thisRemainingNss = remainingNss;
+            
+            macLookupEffectsArr.push( function ( rawMode ) {
+                return macroexpandInnerLevel(
+                    nssGet( thisRemainingNss, "first" ),
+                    rawMode,
+                    readerExprToStc(
+                        stcTrivialStxDetails(), tryExpr.val ) );
+            } );
+            
+            remainingNss = nssGet( thisRemainingNss, "rest" );
+        } );
+        runTopLevelMacLookupsSync(
+            remainingNss, macLookupEffectsArr );
+    }
+    
     return {
         stcAddCoreMacros: stcAddCoreMacros,
         processCoreTypes: processCoreTypes,
-        macroexpandTopLevel: macroexpandTopLevel,
-        readerExprToStc: readerExprToStc,
+        runTopLevelTryExprsSync: runTopLevelTryExprsSync,
         
         // NOTE: These are only needed for era-cene-api.js.
         processDefType: processDefType,
         stcArrayToConsList: stcArrayToConsList
     };
-}
-
-function runAllDefs() {
-    if ( staccatoDeclarationState.hasRunDefs )
-        throw new Error();
-    
-    staccatoDeclarationState.hasRunDefs = true;
 }

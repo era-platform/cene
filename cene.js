@@ -70,18 +70,14 @@ function runCeneSync(
         "\n" +
         "return {\n" +
         "    readAll: readAll,\n" +
-        "    arrAny: arrAny,\n" +
-        "    arrAll: arrAll,\n" +
         "    arrMap: arrMap,\n" +
+        "    arrMappend: arrMappend,\n" +
         "    arrEach: arrEach,\n" +
         "    jsnMap: jsnMap,\n" +
         "    stcNsGet: stcNsGet,\n" +
         "    stcNsRoot: stcNsRoot,\n" +
-        "    nssGet: nssGet,\n" +
-        "    runTrampoline: runTrampoline,\n" +
+        "    runTopLevelTryExprsSync: runTopLevelTryExprsSync,\n" +
         "    usingDefinitionNs: usingDefinitionNs,\n" +
-        "    stcTrivialStxDetails: stcTrivialStxDetails,\n" +
-        "    runAllDefs: runAllDefs,\n" +
         "    ceneApiUsingDefinitionNs: ceneApiUsingDefinitionNs\n" +
         "};\n"
     )();
@@ -91,10 +87,14 @@ function runCeneSync(
     var textOfFiles = $stc.arrMap( files, function ( file ) {
         return readFile( file );
     } );
-    var codeOfFiles = $stc.arrMap( textOfFiles, function ( text ) {
+    var codeOfFiles = $stc.arrMappend( textOfFiles,
+        function ( text ) {
+        
         return $stc.readAll( text );
     } );
-    var codeOfTestFiles = $stc.arrMap( testFiles, function ( file ) {
+    var codeOfTestFiles = $stc.arrMappend( testFiles,
+        function ( file ) {
+        
         return $stc.readAll( readFile( file ) );
     } );
     var readMillis = new Date().getTime();
@@ -350,68 +350,13 @@ function runCeneSync(
     usingDefNs.processCoreTypes( nss.definitionNs );
     ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
     
-    function runCode( code ) {
-        return !$stc.arrAny( code, function ( tryExpr ) {
-            if ( !tryExpr.ok ) {
-                console.error( tryExpr.msg );
-                return true;
-            }
-            
-            var deferred = [];
-            
-            function defer( body ) {
-                deferred.push( body );
-            }
-            function createNextMode( rawMode ) {
-                // NOTE: This comment is here in case we do a search
-                // for mode inside quotes.
-                //
-                // "mode"
-                //
-                return {
-                    type: "macro",
-                    finished: null,
-                    current: true,
-                    safe: [],
-                    defer: []
-                };
-            }
-            var rawMode = createNextMode( null );
-            var done = false;
-            usingDefNs.macroexpandTopLevel(
-                $stc.nssGet( nss, "first" ),
-                rawMode,
-                usingDefNs.readerExprToStc(
-                    $stc.stcTrivialStxDetails(),
-                    tryExpr.val ) );
-            $stc.runTrampoline( rawMode, defer, createNextMode,
-                function () {
-                
-                done = true;
-            } );
-            while ( deferred.length !== 0 )
-                deferred.shift()();
-            if ( !done )
-                throw new Error( "Not done" );
-            
-            nss = $stc.nssGet( nss, "rest" );
-            return false;
-        } );
-    }
-    
-    if ( $stc.arrAll( codeOfFiles, function ( code ) {
-        return runCode( code );
-    } ) ) {
-        $stc.runAllDefs();
-        $stc.arrAll( codeOfTestFiles, function ( code ) {
-            return runCode( code );
-        } );
-        $stc.arrEach( onceDependenciesCompleteListeners,
-            function ( listener ) {
-            
-            listener();
-        } );
-    }
+    usingDefNs.runTopLevelTryExprsSync( nss,
+        [].concat( codeOfFiles, codeOfTestFiles ) );
+    $stc.arrEach( onceDependenciesCompleteListeners,
+        function ( listener ) {
+        
+        listener();
+    } );
     
     var stopMillis = new Date().getTime();
     if ( displayTimeInfo ) {
