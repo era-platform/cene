@@ -690,7 +690,7 @@ function usingDefinitionNs( macroDefNs ) {
             var body1 = stcCons.getProj( body, "cdr" );
             if ( body1.tupleTag !== stcCons.getTupleTag() )
                 return macLookupThen(
-                    macroexpandInnerLevel( nss, rawMode,
+                    macroexpand( nss, rawMode,
                         stcCons.getProj( body, "car" ) ),
                     function ( expanded ) {
                     
@@ -707,7 +707,7 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return macLookupThen(
-                macroexpandInnerLevel( nssGet( nss, "then" ),
+                macroexpand( nssGet( nss, "then" ),
                     rawMode,
                     stcCons.getProj( pattern.remainingBody, "car" ) ),
                 function ( then ) {
@@ -741,7 +741,7 @@ function usingDefinitionNs( macroDefNs ) {
         }
         
         return macLookupThen(
-            macroexpandInnerLevel( nssGet( nss, "subject" ),
+            macroexpand( nssGet( nss, "subject" ),
                 rawMode, matchSubject ),
             function ( expandedSubject ) {
         return macLookupThen(
@@ -777,17 +777,17 @@ function usingDefinitionNs( macroDefNs ) {
             throw new Error();
         
         return macLookupThen(
-            macroexpandInnerLevel( nssGet( nss, "on-cast-err" ),
+            macroexpand( nssGet( nss, "on-cast-err" ),
                 rawMode,
                 stcCons.getProj( pattern.remainingBody, "car" ) ),
             function ( onCastErr ) {
         return macLookupThen(
-            macroexpandInnerLevel( nssGet( nss, "body" ),
+            macroexpand( nssGet( nss, "body" ),
                 rawMode,
                 stcCons.getProj( remainingBody1, "car" ) ),
             function ( body ) {
         return macLookupThen(
-            macroexpandInnerLevel( nssGet( nss, "subject" ),
+            macroexpand( nssGet( nss, "subject" ),
                 rawMode, matchSubject ),
             function ( expandedSubject ) {
         
@@ -822,7 +822,7 @@ function usingDefinitionNs( macroDefNs ) {
             throw new Error();
         var body1 = stcCons.getProj( body, "cdr" );
         if ( body1.tupleTag !== stcCons.getTupleTag() )
-            return macroexpandInnerLevel( nss, rawMode,
+            return macroexpand( nss, rawMode,
                 stcCons.getProj( body, "car" ) );
         var param = stcCons.getProj( body, "car" );
         var paramName = stxToMaybeName( param );
@@ -1106,7 +1106,7 @@ function usingDefinitionNs( macroDefNs ) {
             return new StcForeign( "effects", function ( rawMode ) {
                 collectSafe( rawMode, function () {
                     return macLookupThen(
-                        macroexpandInnerLevel( nssGet( nss, "a" ),
+                        macroexpand( nssGet( nss, "a" ),
                             rawMode,
                             stcCons.getProj( body, "car" ) ),
                         function ( expandedA ) {
@@ -1115,7 +1115,7 @@ function usingDefinitionNs( macroDefNs ) {
                         evalStcForTest( nss.definitionNs, expandedA );
                     
                     return macLookupThen(
-                        macroexpandInnerLevel( nssGet( nss, "b" ),
+                        macroexpand( nssGet( nss, "b" ),
                             rawMode,
                             stcCons.getProj( body1, "car" ) ),
                         function ( expandedB ) {
@@ -1193,7 +1193,7 @@ function usingDefinitionNs( macroDefNs ) {
                     tupleNameExpr.pretty() );
             
             return macLookupThen(
-                macroexpandInnerLevel( nss, rawMode,
+                macroexpand( nss, rawMode,
                     stcCons.getProj( body1, "car" ) ),
                 function ( expandedBody ) {
             return macLookupThen(
@@ -1249,7 +1249,7 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return macLookupThen(
-                macroexpandInnerLevel( nssGet( nss, "func" ), rawMode,
+                macroexpand( nssGet( nss, "func" ), rawMode,
                     stcCons.getProj( body, "car" ) ),
                 function ( expandedFunc ) {
             return macLookupThen(
@@ -1257,8 +1257,7 @@ function usingDefinitionNs( macroDefNs ) {
                     stcCons.getProj( body, "cdr" ),
                     function ( nss, expr ) {
                     
-                    return macroexpandInnerLevel( nss, rawMode,
-                        expr );
+                    return macroexpand( nss, rawMode, expr );
                 } ),
                 function ( expandedArgs ) {
             
@@ -1283,8 +1282,7 @@ function usingDefinitionNs( macroDefNs ) {
                     stcCons.getProj( body, "cdr" ),
                     function ( nss, expr ) {
                     
-                    return macroexpandInnerLevel( nss, rawMode,
-                        expr );
+                    return macroexpand( nss, rawMode, expr );
                 } ),
                 function ( expandedArgs ) {
                 
@@ -1354,8 +1352,7 @@ function usingDefinitionNs( macroDefNs ) {
                     throw new Error();
                 
                 return macLookupThen(
-                    macroexpandInnerLevel(
-                        nssGet( bindingsNss, "first" ),
+                    macroexpand( nssGet( bindingsNss, "first" ),
                         rawMode,
                         stcCons.getProj( remainingBody1, "car" ) ),
                     function ( bindingVal ) {
@@ -1373,7 +1370,7 @@ function usingDefinitionNs( macroDefNs ) {
                 remainingBody ) {
                 
                 return macLookupThen(
-                    macroexpandInnerLevel( nssGet( nss, "body" ),
+                    macroexpand( nssGet( nss, "body" ),
                         rawMode,
                         stcCons.getProj( remainingBody, "car" ) ),
                     function ( expandedBody ) {
@@ -1714,7 +1711,7 @@ function usingDefinitionNs( macroDefNs ) {
                                 } );
                                 
                                 return macLookupThen(
-                                    macroexpandInnerLevel( {
+                                    macroexpand( {
                                         definitionNs: definitionNs.foreignVal,
                                         uniqueNs: uniqueNs.foreignVal
                                     }, rawMode, stx ),
@@ -1744,7 +1741,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
     }
     
-    function macroexpandInnerLevel( nss, rawMode, locatedExpr ) {
+    function macroexpand( nss, rawMode, locatedExpr ) {
         var identifier = stxToMaybeName( locatedExpr );
         if ( identifier !== null )
             return macLookupRet( stcIdentifier( identifier ) );
@@ -1846,8 +1843,7 @@ function usingDefinitionNs( macroDefNs ) {
                         JSON.stringify( tupleName ) );
                 
                 return macLookupThen(
-                    macroexpandInnerLevel(
-                        nssGet( projectionsNss, "first" ),
+                    macroexpand( nssGet( projectionsNss, "first" ),
                         rawMode,
                         stcCons.getProj( remainingBody, "car" ) ),
                     function ( projVal ) {
@@ -1865,8 +1861,7 @@ function usingDefinitionNs( macroDefNs ) {
                         remainingBody,
                         function ( nss, expr ) {
                         
-                        return macroexpandInnerLevel( nss, rawMode,
-                            expr );
+                        return macroexpand( nss, rawMode, expr );
                     } ),
                     function ( expandedArgs ) {
                     
@@ -1957,12 +1952,6 @@ function usingDefinitionNs( macroDefNs ) {
         type( "name", [ "val" ] );
     }
     
-    // TODO NOW: Replace macroexpandTopLevel and macroexpandInnerLevel
-    // with a single function.
-    function macroexpandTopLevel( nss, rawMode, locatedExpr ) {
-        return macroexpandInnerLevel( nss, rawMode, locatedExpr );
-    }
-    
     function readerExprToStc( myStxDetails, readerExpr ) {
         if ( readerExpr.type === "nil" ) {
             return stcStx.ofNow( myStxDetails, stcNil.ofNow() );
@@ -2010,7 +1999,7 @@ function usingDefinitionNs( macroDefNs ) {
             var thisRemainingNss = remainingNss;
             
             macLookupEffectsArr.push( function ( rawMode ) {
-                return macroexpandInnerLevel(
+                return macroexpand(
                     nssGet( thisRemainingNss, "first" ),
                     rawMode,
                     readerExprToStc(
