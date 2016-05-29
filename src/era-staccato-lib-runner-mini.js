@@ -35,12 +35,19 @@ function stcIdentifier( identifier ) {
 }
 
 function stcCallArr( func, argsArr ) {
-    // TODO NOW: Make this generated code monadic.
     var result = func;
     arrEach( argsArr, function ( arg ) {
-        // TODO NOW: Make this use of .callStc monadic.
         result =
-            "(" + result + ".callStc( definitionNs, " + arg + " ))";
+            "macLookupThen( " + result + ", " +
+                "function ( stcLocal_result ) {\n" +
+            "    \n"
+            "    return macLookupThen( " + arg + ", " +
+                    "function ( stcLocal_arg ) {\n" +
+            "        \n"
+            "        return stcLocal_result.callStc( " +
+                        "definitionNs, stcLocal_arg );\n" +
+            "    } );\n" +
+            "} )";
     } );
     return result;
 }
@@ -57,11 +64,12 @@ function stcFn( var_args ) {
     for ( var i = n - 2; 0 <= i; i-- ) {
         var va = vars[ i ];
         var vaIdentifier = stcIdentifier( va );
-        // TODO NOW: Make this generated code monadic.
         result =
-            "(new StcFn( function ( " + vaIdentifier + " ) { " +
+            "macLookupRet( " +
+                "new StcFn( function ( " + vaIdentifier + " ) { " +
+                
                 "return " + result + "; " +
-            "} ))";
+            "} ) )";
     }
     return result;
 }
@@ -533,12 +541,18 @@ function runTopLevelMacLookupsSync( threads ) {
 }
 
 function stcExecute( definitionNs, expr ) {
-    // TODO NOW: Make sure we actually use macLookupRet, macLookupGet,
-    // and macLookupThen in generated code.
+    // TODO NOW: Make sure we actually use macLookupGet in generated
+    // code.
     return Function(
         "definitionNs", "Stc", "StcFn", "StcForeign", "macLookupRet",
         "macLookupGet", "macLookupThen",
+        
+        // NOTE: When the code we generate for this has local
+        // variables, we consistently prefix them with "stcLocal_" or
+        // "_stc_". The latter is for variables that correspond to
+        // variables in the original code.
         "return " + expr + ";"
+        
     )( definitionNs, Stc, StcFn, StcForeign, macLookupRet,
         macLookupGet, macLookupThen );
 }
@@ -566,8 +580,6 @@ function stcAddDefun( nss, name, argName, body ) {
 }
 
 function stcErr( msg ) {
-    // TODO NOW: Verify that this generated code is already
-    // sufficiently monadic.
     return "(function () { " +
         "throw new Error( " + JSON.stringify( msg ) + " ); " +
     "})()";
@@ -730,8 +742,6 @@ function usingDefinitionNs( macroDefNs ) {
     function stcCaseletForRunner(
         nss, rawMode, maybeVa, matchSubject, body ) {
         
-        // TODO NOW: Make this generated code monadic.
-        
         function processTail( nss, body ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
@@ -767,7 +777,7 @@ function usingDefinitionNs( macroDefNs ) {
                 function ( processedTail ) {
             
             return macLookupRet( "if ( " +
-                "matchSubject.tupleTag === " +
+                "stcLocal_matchSubject.tupleTag === " +
                     JSON.stringify( pattern.type.getTupleTag() ) +
                     " " +
             ") return (function () { " +
@@ -778,7 +788,8 @@ function usingDefinitionNs( macroDefNs ) {
                         stcIdentifier(
                             pattern.localVars[ entry.i ] ) +
                         " = " +
-                        "matchSubject.projNames[ " + i + " ]; ";
+                        "stcLocal_matchSubject.projNames[ " +
+                            i + " ]; ";
                 } ).join( "" ) +
                 "return " + then + "; " +
             "})(); " + processedTail );
@@ -796,22 +807,21 @@ function usingDefinitionNs( macroDefNs ) {
             processTail( nssGet( nss, "tail" ), body ),
             function ( processedTail ) {
         
-        return macLookupRet( "(function () { " +
-            "var matchSubject = " + expandedSubject + "; " +
-            (maybeVa === null ? "" :
-                "var " + stcIdentifier( maybeVa.val ) + " = " +
-                    "matchSubject; ") +
-            processedTail +
-        " }())" );
+        return macLookupRet(
+            "macLookupThen( " + expandedSubject + ", " +
+                "function ( stcLocal_matchSubject ) { " +
+                
+                (maybeVa === null ? "" :
+                    "var " + stcIdentifier( maybeVa.val ) + " = " +
+                        "stcLocal_matchSubject; ") +
+                processedTail +
+            "} )" );
         
         } );
         } );
     }
     
     function stcCast( nss, rawMode, matchSubject, body ) {
-        
-        // TODO NOW: Make this generated code monadic.
-        
         return macLookupThen(
             extractPattern( nss.definitionNs, body ),
             function ( pattern ) {
@@ -842,24 +852,28 @@ function usingDefinitionNs( macroDefNs ) {
                 rawMode, matchSubject ),
             function ( expandedSubject ) {
         
-        return macLookupRet( "(function () { " +
-            "var matchSubject = " + expandedSubject + "; " +
-            "if ( matchSubject.tupleTag === " +
-                JSON.stringify( pattern.type.getTupleTag() ) + " " +
-            ") return (function () { " +
-                arrMap( pattern.type.sortedProjNames,
-                    function ( entry, i ) {
-                    
-                    return "var " +
-                        stcIdentifier(
-                            pattern.localVars[ entry.i ] ) +
-                        " = " +
-                        "matchSubject.projNames[ " + i + " ]; ";
-                } ).join( "" ) +
-                "return " + body + "; " +
-            "})(); " +
-            "return " + onCastErr + "; " +
-        " }())" );
+        return macLookupRet(
+            "macLookupThen( + " expandedSubject + ", " +
+                "function ( stcLocal_matchSubject ) { " +
+                
+                "if ( stcLocal_matchSubject.tupleTag === " +
+                    JSON.stringify(
+                        pattern.type.getTupleTag() ) + " " +
+                ") return (function () { " +
+                    arrMap( pattern.type.sortedProjNames,
+                        function ( entry, i ) {
+                        
+                        return "var " +
+                            stcIdentifier(
+                                pattern.localVars[ entry.i ] ) +
+                            " = " +
+                            "stcLocal_matchSubject.projNames[ " +
+                                i + " ]; ";
+                    } ).join( "" ) +
+                    "return " + body + "; " +
+                "})(); " +
+                "return " + onCastErr + "; " +
+            "} )" );
         
         } );
         } );
@@ -1093,9 +1107,9 @@ function usingDefinitionNs( macroDefNs ) {
                                     nss.definitionNs, name ) ),
                             firstArg,
                             stcCall( processedFn,
-                                // TODO NOW: Wrap this identifier in
-                                // macLookupRet code.
-                                stcIdentifier( firstArg ) ) );
+                                "macLookupRet( " +
+                                    stcIdentifier( firstArg ) + " )"
+                                ) );
                         processDefType( nss.definitionNs, name, [] );
                         
                         return macLookupRet( null );
@@ -1253,13 +1267,15 @@ function usingDefinitionNs( macroDefNs ) {
                 getType( nss.definitionNs, tupleName ),
                 function ( type ) {
             
-            // TODO NOW: Make this generated code monadic.
             return macLookupRet(
-                "(" + expandedBody + ".tupleTag === " +
-                    JSON.stringify( type.getTupleTag() ) + " ? " +
-                    stcYep.of( stcNil.of() ) + " : " +
-                    stcNope.of( stcNil.of() ) + ")" );
-            
+                "macLookupThen( " + expandedBody + ", " +
+                    "function ( stcLocal_body ) {\n" +
+                "    \n"
+                "    return stcLocal_body.tupleTag === " +
+                        JSON.stringify( type.getTupleTag() ) + " ? " +
+                        stcYep.of( stcNil.of() ) + " : " +
+                        stcNope.of( stcNil.of() ) + ";\n"
+                "} )"
             } );
         } );
         
@@ -1374,13 +1390,12 @@ function usingDefinitionNs( macroDefNs ) {
                 stcCons.getTupleTag() )
                 throw new Error();
             return macLookupRet(
-                // TODO NOW: Wrap this StcForeign call in a call to
-                // macLookupRet.
-                stcString.of( "(new StcForeign( \"string\", " +
-                    JSON.stringify(
-                        stxToDefiniteString(
-                            stcCons.getProj( body, "car" ) ) ) +
-                " ))" ) );
+                stcString.of(
+                    "macLookupRet( new StcForeign( \"string\", " +
+                        JSON.stringify(
+                            stxToDefiniteString(
+                                stcCons.getProj( body, "car" ) ) ) +
+                    " ) )" ) );
         } );
         
         mac( "fn", function ( nss, rawMode, myStxDetails, body ) {
@@ -1803,8 +1818,9 @@ function usingDefinitionNs( macroDefNs ) {
     function macroexpand( nss, rawMode, locatedExpr ) {
         var identifier = stxToMaybeName( locatedExpr );
         if ( identifier !== null )
-            // TODO NOW: Wrap this identifier in macLookupRet code.
-            return macLookupRet( stcIdentifier( identifier ) );
+            return macLookupRet(
+                "macLookupRet( " +
+                    stcIdentifier( identifier ) + " )" );
         if ( locatedExpr.tupleTag !== stcStx.getTupleTag() )
             throw new Error();
         var sExpr = stcStx.getProj( locatedExpr, "s-expr" );
