@@ -35,6 +35,7 @@ function stcIdentifier( identifier ) {
 }
 
 function stcCallArr( func, argsArr ) {
+    // TODO NOW: Make this generated code monadic.
     var result = func;
     arrEach( argsArr, function ( arg ) {
         // TODO NOW: Make this use of .callStc monadic.
@@ -56,7 +57,7 @@ function stcFn( var_args ) {
     for ( var i = n - 2; 0 <= i; i-- ) {
         var va = vars[ i ];
         var vaIdentifier = stcIdentifier( va );
-        // TODO NOW: Make the body of this StcFn monadic.
+        // TODO NOW: Make this generated code monadic.
         result =
             "(new StcFn( function ( " + vaIdentifier + " ) { " +
                 "return " + result + "; " +
@@ -234,6 +235,7 @@ function stcTypeArr(
                 return args[ entry.i ];
             } );
         
+        // TODO NOW: Make this generated code monadic.
         var result =
             "(new Stc( " + JSON.stringify( tupleTag ) + ", [ " +
                 projectionVals.join( ", " ) +
@@ -368,6 +370,8 @@ function stcAddDefun( nss, name, argName, body ) {
 }
 
 function stcErr( msg ) {
+    // TODO NOW: Verify that this generated code is already
+    // sufficiently monadic.
     return "(function () { " +
         "throw new Error( " + JSON.stringify( msg ) + " ); " +
     "})()";
@@ -583,6 +587,20 @@ function usingDefinitionNs( macroDefNs ) {
     var stcName = stcType( macroDefNs, "name", "val" );
     var stcForeign = stcType( macroDefNs, "foreign", "val" );
     
+    function callStcMulti( func, var_args ) {
+        var args = arguments;
+        var n = args.length;
+        return loop( func, 0 );
+        function loop( func, i ) {
+            if ( n <= i )
+                return macLookupRet( func );
+            return macLookupThen( func.call( macroDefNs, args[ i ] ),
+                function ( func ) {
+                    return loop( func, i + 1 );
+                } );
+        }
+    }
+    
     function parseString( string ) {
         if ( string.tupleTag !== stcString.getTupleTag() )
             throw new Error();
@@ -707,6 +725,8 @@ function usingDefinitionNs( macroDefNs ) {
     function stcCaseletForRunner(
         nss, rawMode, maybeVa, matchSubject, body ) {
         
+        // TODO NOW: Make this generated code monadic.
+        
         function processTail( nss, body ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
@@ -784,6 +804,9 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function stcCast( nss, rawMode, matchSubject, body ) {
+        
+        // TODO NOW: Make this generated code monadic.
+        
         return macLookupThen(
             extractPattern( nss.definitionNs, body ),
             function ( pattern ) {
@@ -1065,6 +1088,8 @@ function usingDefinitionNs( macroDefNs ) {
                                     nss.definitionNs, name ) ),
                             firstArg,
                             stcCall( processedFn,
+                                // TODO NOW: Wrap this identifier in
+                                // macLookupRet code.
                                 stcIdentifier( firstArg ) ) );
                         processDefType( nss.definitionNs, name, [] );
                         
@@ -1223,6 +1248,7 @@ function usingDefinitionNs( macroDefNs ) {
                 getType( nss.definitionNs, tupleName ),
                 function ( type ) {
             
+            // TODO NOW: Make this generated code monadic.
             return macLookupRet(
                 "(" + expandedBody + ".tupleTag === " +
                     JSON.stringify( type.getTupleTag() ) + " ? " +
@@ -1343,6 +1369,8 @@ function usingDefinitionNs( macroDefNs ) {
                 stcCons.getTupleTag() )
                 throw new Error();
             return macLookupRet(
+                // TODO NOW: Wrap this StcForeign call in a call to
+                // macLookupRet.
                 stcString.of( "(new StcForeign( \"string\", " +
                     JSON.stringify(
                         stxToDefiniteString(
@@ -1355,6 +1383,9 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "let", function ( nss, rawMode, myStxDetails, body ) {
+            
+            // TODO NOW: Make this generated code monadic.
+            
             return loop(
                 null, null, body, nssGet( nss, "bindings" ) );
             function loop( revBindingVars, revBindingVals,
@@ -1767,6 +1798,7 @@ function usingDefinitionNs( macroDefNs ) {
     function macroexpand( nss, rawMode, locatedExpr ) {
         var identifier = stxToMaybeName( locatedExpr );
         if ( identifier !== null )
+            // TODO NOW: Wrap this identifier in macLookupRet code.
             return macLookupRet( stcIdentifier( identifier ) );
         if ( locatedExpr.tupleTag !== stcStx.getTupleTag() )
             throw new Error();
@@ -1800,16 +1832,17 @@ function usingDefinitionNs( macroDefNs ) {
             safe: [],
             defer: []
         };
-        var macroResultEffects = macroFunction.
-            callStc( macroDefNs,
-                new StcForeign( "mode", newRawMode ) ).
-            callStc( macroDefNs,
-                new StcForeign( "ns", nss.uniqueNs ) ).
-            callStc( macroDefNs,
-                new StcForeign( "ns", nss.definitionNs ) ).
-            callStc( macroDefNs, stcTrivialStxDetails() ).
-            callStc( macroDefNs,
-                stcCons.getProj( sExpr, "cdr" ) );
+        
+        return macLookupThen(
+            callStcMulti( macroFunction,
+                new StcForeign( "mode", newRawMode ),
+                new StcForeign( "ns", nss.uniqueNs ),
+                new StcForeign( "ns", nss.definitionNs ),
+                stcTrivialStxDetails(),
+                stcCons.getProj( sExpr, "cdr" ),
+                stcCons.getProj( sExpr, "cdr" ) ).
+            function ( macroResultEffects ) {
+        
         if ( !(macroResultEffects instanceof StcForeign
             && macroResultEffects.purpose === "effects") )
             throw new Error();
@@ -1823,6 +1856,8 @@ function usingDefinitionNs( macroDefNs ) {
             throw new Error();
         transferModesToFrom( rawMode, newRawMode );
         return macLookupRet( macroResult.foreignVal );
+        
+        } );
         
         } );
         

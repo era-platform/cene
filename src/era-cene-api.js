@@ -241,9 +241,6 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
             usingDefNs.processDefType(
                 targetDefNs, tupleName, projNames );
         }
-        function mac( name, body ) {
-            stcAddMacro( targetDefNs, name, body );
-        }
         function fun( name, body ) {
             var constructorTag = stcConstructorTag( targetDefNs,
                 stcConstructorName( targetDefNs, name ) );
