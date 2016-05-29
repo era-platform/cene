@@ -243,11 +243,18 @@ function stcTypeArr(
                 return args[ entry.i ];
             } );
         
-        // TODO NOW: Make this generated code monadic.
-        var result =
-            "(new Stc( " + JSON.stringify( tupleTag ) + ", [ " +
-                projectionVals.join( ", " ) +
-            " ] ))";
+        var result = "macLookupRet( " +
+            "new Stc( " + JSON.stringify( tupleTag ) + ", [ " +
+                arrMap( projectionVals, function ( entry, i ) {
+                    return "stcLocal_proj" + i;
+                } ).join( ", " ) +
+            " ] ) )";
+        for ( var i = projectionVals.length - 1; 0 <= i; i-- )
+            result = "macLookupThen( " + projectionVals[ i ] + ", " +
+                "function ( stcLocal_proj" + i + " ) {\n" +
+            
+            "return " + result + ";\n" +
+            "} )";
         return result;
     };
     result.of = function ( var_args ) {
@@ -541,11 +548,9 @@ function runTopLevelMacLookupsSync( threads ) {
 }
 
 function stcExecute( definitionNs, expr ) {
-    // TODO NOW: Make sure we actually use macLookupGet in generated
-    // code.
     return Function(
         "definitionNs", "Stc", "StcFn", "StcForeign", "macLookupRet",
-        "macLookupGet", "macLookupThen",
+        "macLookupThen",
         
         // NOTE: When the code we generate for this has local
         // variables, we consistently prefix them with "stcLocal_" or
@@ -554,7 +559,7 @@ function stcExecute( definitionNs, expr ) {
         "return " + expr + ";"
         
     )( definitionNs, Stc, StcFn, StcForeign, macLookupRet,
-        macLookupGet, macLookupThen );
+        macLookupThen );
 }
 
 function stcAddDefun( nss, name, argName, body ) {
@@ -1403,14 +1408,8 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "let", function ( nss, rawMode, myStxDetails, body ) {
-            
-            // TODO NOW: Make this generated code monadic.
-            
-            return loop(
-                null, null, body, nssGet( nss, "bindings" ) );
-            function loop( revBindingVars, revBindingVals,
-                remainingBody, bindingsNss ) {
-                
+            return loop( body, nssGet( nss, "bindings" ) );
+            function loop( remainingBody, bindingsNss ) {
                 if ( remainingBody.tupleTag !==
                     stcCons.getTupleTag() )
                     throw new Error();
@@ -1418,8 +1417,9 @@ function usingDefinitionNs( macroDefNs ) {
                     stcCons.getProj( remainingBody, "cdr" );
                 if ( remainingBody1.tupleTag !==
                     stcCons.getTupleTag() )
-                    return next( revBindingVars, revBindingVals,
-                        remainingBody );
+                    return macroexpand( nssGet( nss, "body" ),
+                        rawMode,
+                        stcCons.getProj( remainingBody, "car" ) );
                 var va = stxToMaybeName(
                     stcCons.getProj( remainingBody, "car" ) );
                 if ( va === null )
@@ -1431,33 +1431,19 @@ function usingDefinitionNs( macroDefNs ) {
                         stcCons.getProj( remainingBody1, "car" ) ),
                     function ( bindingVal ) {
                     
-                    return loop(
-                        { first: stcIdentifier( va ),
-                            rest: revBindingVars },
-                        { first: bindingVal, rest: revBindingVals },
-                        stcCons.getProj( remainingBody1, "cdr" ),
-                        nssGet( bindingsNss, "rest" ) );
-                } );
-            }
-            
-            function next( revBindingVars, revBindingVals,
-                remainingBody ) {
-                
-                return macLookupThen(
-                    macroexpand( nssGet( nss, "body" ),
-                        rawMode,
-                        stcCons.getProj( remainingBody, "car" ) ),
-                    function ( expandedBody ) {
-                    
-                    return macLookupRet(
-                        "(function ( " +
-                            revJsListToArr( revBindingVars
-                                ).join( ", " ) + " ) " +
-                            "{ " +
-                            "return " + expandedBody + "; " +
-                        "}( " +
-                            revJsListToArr( revBindingVals
-                                ).join( ", " ) + " ))" );
+                    return macLookupThen(
+                        loop(
+                            stcCons.getProj( remainingBody1, "cdr" ),
+                            nssGet( bindingsNss, "rest" ) ),
+                        function ( loopResult ) {
+                        
+                        return macLookupRet(
+                            "macLookupThen( " + bindingVal + ", " +
+                                "function ( " +
+                                    stcIdentifier( va ) + " ) {\n" +
+                            "return " + loopResult + ";\n" +
+                            "} )" );
+                    } );
                 } );
             }
         } );
