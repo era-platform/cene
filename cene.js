@@ -76,7 +76,6 @@ function runCeneSync(
         "    jsnMap: jsnMap,\n" +
         "    stcNsGet: stcNsGet,\n" +
         "    stcNsRoot: stcNsRoot,\n" +
-        "    runTopLevelTryExprsSync: runTopLevelTryExprsSync,\n" +
         "    usingDefinitionNs: usingDefinitionNs,\n" +
         "    ceneApiUsingDefinitionNs: ceneApiUsingDefinitionNs\n" +
         "};\n"
