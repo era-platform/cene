@@ -503,45 +503,68 @@ function runMacLookups( macLookupEffectsArr ) {
     while ( threads.length !== 0 ) {
         var thread = threads.shift();
         if ( thread.type === "ret" ) {
-        } else if ( thread.type === "" ) {}
+            // TODO
+        } else if ( thread.type === "get" ) {
+            // TODO
+        } else if ( thread.type === "then" ) {
+            // TODO
+        } else {
+            throw new Error();
+        }
     }
 }
-function runMacLookup( macLookupEffects ) {
-    // TODO NOW: Implement this.
-}
-function runTopLevelMacLookupsSync( nss, macLookupEffectsArr ) {
-    arrEach( macLookupEffectsArr, function ( macLookupEffect ) {
-        var deferred = [];
-        
-        function defer( body ) {
-            deferred.push( body );
+function runTopLevelMacLookupsSync( threads ) {
+    arrEach( threads, function ( thread ) {
+        if ( thread.type === "topLevelDefinitionThread" ) {
+            var macLookupEffect = thread.topLevelDefinitionThread;
+            
+            var deferred = [];
+            
+            function defer( body ) {
+                deferred.push( body );
+            }
+            function createNextMode( rawMode ) {
+                // NOTE: This comment is here in case we do a search
+                // for mode inside quotes.
+                //
+                // "mode"
+                //
+                return {
+                    type: "macro",
+                    finished: null,
+                    current: true,
+                    safe: [],
+                    defer: []
+                };
+            }
+            var rawMode = createNextMode( null );
+            var done = false;
+            // TODO NOW: Somehow run the macLookup effects resulting
+            // from this call.
+            macLookupEffect( rawMode );
+            runTrampoline( rawMode, defer, createNextMode,
+                function () {
+                
+                done = true;
+            } );
+            while ( deferred.length !== 0 )
+                deferred.shift()();
+            if ( !done )
+                throw new Error( "Not done" );
+        } else if ( thread.type === "jsEffectsThread" ) {
+            var effects = thread.macLookupEffectsOfJsEffects;
+            
+            // TODO NOW: Somehow run the macLookup effects represented
+            // by `effects`.
+            
+            if ( !(effects instanceof StcForeign
+                && effects.purpose === "js-effects") )
+                throw new Error();
+            var effectsFunc = effects.foreignVal;
+            effectsFunc();
+        } else {
+            throw new Error();
         }
-        function createNextMode( rawMode ) {
-            // NOTE: This comment is here in case we do a search for
-            // mode inside quotes.
-            //
-            // "mode"
-            //
-            return {
-                type: "macro",
-                finished: null,
-                current: true,
-                safe: [],
-                defer: []
-            };
-        }
-        var rawMode = createNextMode( null );
-        var done = false;
-        // TODO NOW: Somehow run the macLookup effects resulting from
-        // this call.
-        macLookupEffect( rawMode );
-        runTrampoline( rawMode, defer, createNextMode, function () {
-            done = true;
-        } );
-        while ( deferred.length !== 0 )
-            deferred.shift()();
-        if ( !done )
-            throw new Error( "Not done" );
     } );
 }
 
@@ -1989,7 +2012,7 @@ function usingDefinitionNs( macroDefNs ) {
         }
     }
     
-    function runTopLevelTryExprsSync( nss, tryExprs ) {
+    function topLevelTryExprsToMacLookupThreads( nss, tryExprs ) {
         var macLookupEffectsArr = [];
         var remainingNss = nss;
         arrEach( tryExprs, function ( tryExpr ) {
@@ -2008,13 +2031,22 @@ function usingDefinitionNs( macroDefNs ) {
             
             remainingNss = nssGet( thisRemainingNss, "rest" );
         } );
+        return arrMap( macLookupEffectsArr, function ( effects ) {
+            return { type: "topLevelDefinitionThread",
+                macLookupEffectsOfDefinitionEffects: effects };
+        } );
+    }
+    
+    function runTopLevelTryExprsSync( nss, tryExprs ) {
         runTopLevelMacLookupsSync(
-            remainingNss, macLookupEffectsArr );
+            topLevelTryExprsToMacLookupThreads( nss, tryExprs ) );
     }
     
     return {
         stcAddCoreMacros: stcAddCoreMacros,
         processCoreTypes: processCoreTypes,
+        topLevelTryExprsToMacLookupThreads:
+            topLevelTryExprsToMacLookupThreads,
         runTopLevelTryExprsSync: runTopLevelTryExprsSync,
         
         // NOTE: These are only needed for era-cene-api.js.

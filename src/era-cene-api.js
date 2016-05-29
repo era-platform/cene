@@ -143,7 +143,17 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     
     function deferAndRunMacLookup( body ) {
         apiOps.defer( function () {
-            runMacLookup( body() );
+            runTopLevelMacLookupsSync( [ {
+                type: "jsEffectsThread",
+                macLookupEffectsOfJsEffects:
+                    macLookupThen( body(), function ( ignored ) {
+                        return new StcForeign( "js-effects",
+                            function () {
+                            
+                            return macLookupRet( stcNil.ofNow() );
+                        } );
+                    } )
+            } ] );
         } );
     }
     
@@ -214,7 +224,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                         return runJsEffects( jsEffects );
                     } );
                     
-                    return macLookupRet( null );
+                    return macLookupRet( stcNil.ofNow() );
                 } );
             } );
             return macLookupRet( stcNil.ofNow() );

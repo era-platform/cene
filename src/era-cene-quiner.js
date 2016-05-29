@@ -102,19 +102,17 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
     usingDefNs.processCoreTypes( nss.definitionNs );
     ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
     
-    usingDefNs.runTopLevelTryExprsSync( nss, codeOfFiles );
-    
-    // TODO NOW: Somehow run the monad resulting from this callStc
-    // call.
-    var effects = new Stc(
-        JSON.stringify(
-            stcNameTupleTagAlreadySorted( constructorTag, [] ) ),
-        []
-    ).callStc( nss.definitionNs,
-        new StcForeign( "foreign", ceneApiUsingDefNs.ceneClient ) );
-    if ( !(effects instanceof StcForeign
-        && effects.purpose === "js-effects") )
-        throw new Error();
-    var effectsFunc = effects.foreignVal;
-    effectsFunc();
+    runTopLevelMacLookupsSync( [].concat(
+        usingDefNs.topLevelTryExprsToMacLookupThreads( nss,
+            codeOfFiles ),
+        [ { type: "jsEffectsThread", macLookupEffectsOfJsEffects:
+            new Stc(
+                JSON.stringify(
+                    stcNameTupleTagAlreadySorted(
+                        constructorTag, [] ) ),
+                []
+            ).callStc( nss.definitionNs,
+                new StcForeign( "foreign",
+                    ceneApiUsingDefNs.ceneClient ) ) } ]
+    ) );
 }
