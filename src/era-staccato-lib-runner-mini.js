@@ -802,6 +802,8 @@ function usingDefinitionNs( macroDefNs ) {
             } );
             
             } );
+            
+            } );
         }
         
         return macLookupThen(
@@ -858,7 +860,7 @@ function usingDefinitionNs( macroDefNs ) {
             function ( expandedSubject ) {
         
         return macLookupRet(
-            "macLookupThen( + " expandedSubject + ", " +
+            "macLookupThen( " + expandedSubject + ", " +
                 "function ( stcLocal_matchSubject ) { " +
                 
                 "if ( stcLocal_matchSubject.tupleTag === " +
@@ -1275,12 +1277,14 @@ function usingDefinitionNs( macroDefNs ) {
             return macLookupRet(
                 "macLookupThen( " + expandedBody + ", " +
                     "function ( stcLocal_body ) {\n" +
-                "    \n"
+                "    \n" +
                 "    return stcLocal_body.tupleTag === " +
                         JSON.stringify( type.getTupleTag() ) + " ? " +
                         stcYep.of( stcNil.of() ) + " : " +
-                        stcNope.of( stcNil.of() ) + ";\n"
-                "} )"
+                        stcNope.of( stcNil.of() ) + ";\n" +
+                "} )" );
+            
+            } );
             } );
         } );
         
@@ -1628,7 +1632,7 @@ function usingDefinitionNs( macroDefNs ) {
                 
                 return stcName.ofNow(
                     new StcForeign( "name", ns.foreignVal.name ) );
-            } ) );
+            } );
         } );
         
         fun( "procure-defined", function ( mode ) {
@@ -1847,7 +1851,7 @@ function usingDefinitionNs( macroDefNs ) {
                 new StcForeign( "ns", nss.definitionNs ),
                 stcTrivialStxDetails(),
                 stcCons.getProj( sExpr, "cdr" ),
-                stcCons.getProj( sExpr, "cdr" ) ).
+                stcCons.getProj( sExpr, "cdr" ) ),
             function ( macroResultEffects ) {
         
         if ( !(macroResultEffects instanceof StcForeign
