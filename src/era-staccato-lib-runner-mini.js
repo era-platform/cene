@@ -341,46 +341,6 @@ StcForeign.prototype.pretty = function () {
         JSON.stringify( this.foreignVal ) + ")";
 };
 
-function stcExecute( definitionNs, expr ) {
-    return Function( "definitionNs", "Stc", "StcFn", "StcForeign",
-        "return " + expr + ";"
-    )( definitionNs, Stc, StcFn, StcForeign );
-}
-
-function stcAddDefun( nss, name, argName, body ) {
-    var tupleTagName = stcNameTupleTagAlreadySorted( name, [] );
-    var tupleTag = JSON.stringify( tupleTagName );
-    var staccatoName =
-        stcNsGet( "staccato",
-            stcNsGet( tupleTagName,
-                stcNsGet( "functions", nss.definitionNs ) ) );
-    var innerFunc = stcExecute( nss.definitionNs,
-        "function ( " + stcIdentifier( argName ) + " ) { " +
-            "return " + body + "; " +
-        "}" );
-    // TODO: Also add an entry to `namespaceDefs`. This naive Staccato
-    // implementation doesn't do a full desugaring, so we can't create
-    // the correct `stc-def`, but let's at least create an appropriate
-    // `stc-def-foreign`.
-    staccatoDeclarationState.functionDefs[ tupleTag ] =
-        function ( projectionVals, argVal ) {
-        
-        return innerFunc( argVal );
-    };
-}
-
-function stcErr( msg ) {
-    // TODO NOW: Verify that this generated code is already
-    // sufficiently monadic.
-    return "(function () { " +
-        "throw new Error( " + JSON.stringify( msg ) + " ); " +
-    "})()";
-}
-
-function evalStcForTest( definitionNs, expr ) {
-    return stcExecute( definitionNs, expr );
-}
-
 function compareStc( a, b ) {
     var incomparableAtBest = false;
     var queue = [ { a: a, b: b } ];
@@ -570,6 +530,46 @@ function runTopLevelMacLookupsSync( threads ) {
             throw new Error();
         }
     } );
+}
+
+function stcExecute( definitionNs, expr ) {
+    return Function( "definitionNs", "Stc", "StcFn", "StcForeign",
+        "return " + expr + ";"
+    )( definitionNs, Stc, StcFn, StcForeign );
+}
+
+function stcAddDefun( nss, name, argName, body ) {
+    var tupleTagName = stcNameTupleTagAlreadySorted( name, [] );
+    var tupleTag = JSON.stringify( tupleTagName );
+    var staccatoName =
+        stcNsGet( "staccato",
+            stcNsGet( tupleTagName,
+                stcNsGet( "functions", nss.definitionNs ) ) );
+    var innerFunc = stcExecute( nss.definitionNs,
+        "function ( " + stcIdentifier( argName ) + " ) { " +
+            "return " + body + "; " +
+        "}" );
+    // TODO: Also add an entry to `namespaceDefs`. This naive Staccato
+    // implementation doesn't do a full desugaring, so we can't create
+    // the correct `stc-def`, but let's at least create an appropriate
+    // `stc-def-foreign`.
+    staccatoDeclarationState.functionDefs[ tupleTag ] =
+        function ( projectionVals, argVal ) {
+        
+        return innerFunc( argVal );
+    };
+}
+
+function stcErr( msg ) {
+    // TODO NOW: Verify that this generated code is already
+    // sufficiently monadic.
+    return "(function () { " +
+        "throw new Error( " + JSON.stringify( msg ) + " ); " +
+    "})()";
+}
+
+function evalStcForTest( definitionNs, expr ) {
+    return stcExecute( definitionNs, expr );
 }
 
 function usingDefinitionNs( macroDefNs ) {
