@@ -533,9 +533,14 @@ function runTopLevelMacLookupsSync( threads ) {
 }
 
 function stcExecute( definitionNs, expr ) {
-    return Function( "definitionNs", "Stc", "StcFn", "StcForeign",
+    // TODO NOW: Make sure we actually use macLookupRet, macLookupGet,
+    // and macLookupThen in generated code.
+    return Function(
+        "definitionNs", "Stc", "StcFn", "StcForeign", "macLookupRet",
+        "macLookupGet", "macLookupThen",
         "return " + expr + ";"
-    )( definitionNs, Stc, StcFn, StcForeign );
+    )( definitionNs, Stc, StcFn, StcForeign, macLookupRet,
+        macLookupGet, macLookupThen );
 }
 
 function stcAddDefun( nss, name, argName, body ) {
