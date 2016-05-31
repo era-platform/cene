@@ -486,25 +486,8 @@ function macLookupGet( name, err ) {
 function macLookupThen( macLookupEffects, then ) {
     return { type: "then", first: macLookupEffects, then: then };
 }
-function runMacLookups( macLookupEffectsArr ) {
-    // TODO NOW: Finish implementing this, and use it.
-    
-    var threads = [].slice.call( macLookupEffectsArr );
-    while ( threads.length !== 0 ) {
-        var thread = threads.shift();
-        if ( thread.type === "ret" ) {
-            // TODO
-        } else if ( thread.type === "get" ) {
-            // TODO
-        } else if ( thread.type === "then" ) {
-            // TODO
-        } else {
-            throw new Error();
-        }
-    }
-}
-function runTopLevelMacLookupsSync( threads ) {
-    arrEach( threads, function ( thread ) {
+function runTopLevelMacLookupsSync( originalThreads ) {
+    var threads = arrMap( originalThreads, function ( thread ) {
         if ( thread.type === "topLevelDefinitionThread" ) {
             var macLookupEffect = thread.topLevelDefinitionThread;
             
@@ -529,9 +512,7 @@ function runTopLevelMacLookupsSync( threads ) {
             }
             var rawMode = createNextMode( null );
             var done = false;
-            // TODO NOW: Somehow run the macLookup effects resulting
-            // from this macLookupThen call.
-            macLookupThen( macLookupEffect( rawMode ),
+            var monad = macLookupThen( macLookupEffect( rawMode ),
                 function ( ignored ) {
             macLookupThen(
                 runTrampoline( rawMode, defer, createNextMode,
@@ -562,20 +543,126 @@ function runTopLevelMacLookupsSync( threads ) {
             } );
             } );
             
+            return { isJs: false, monad: monad };
+            
         } else if ( thread.type === "jsEffectsThread" ) {
-            var effects = thread.macLookupEffectsOfJsEffects;
+            var monad = macLookupThen(
+                thread.macLookupEffectsOfJsEffects,
+                function ( effects ) {
+                
+                if ( !(effects instanceof StcForeign
+                    && effects.purpose === "js-effects") )
+                    throw new Error();
+                var effectsFunc = effects.foreignVal;
+                return effectsFunc();
+            } );
             
-            // TODO NOW: Somehow run the macLookup effects represented
-            // by `effects`.
+            return { isJs: true, monad: monad };
             
-            if ( !(effects instanceof StcForeign
-                && effects.purpose === "js-effects") )
-                throw new Error();
-            var effectsFunc = effects.foreignVal;
-            effectsFunc();
         } else {
             throw new Error();
         }
+    } );
+    
+    function advanceThread( i ) {
+        var thread = threads[ i ];
+        
+        function replaceThread( monad ) {
+            threads[ i ] = { isJs: thread.isJs, monad: monad };
+            return true;
+        }
+        
+        if ( thread.monad.type === "ret" ) {
+            threads.splice( i, 1 );
+            return false;
+        } else if ( thread.monad.type === "get" ) {
+            return replaceThread(
+                macLookupThen( thread.monad, function ( ignored ) {
+                    return null;
+                } ) );
+        } else if ( thread.monad.type === "then" ) {
+            var then = thread.monad.then;
+            if ( thread.monad.first.type === "ret" ) {
+                return replaceThread(
+                    then( thread.monad.first.val ) );
+            } else if ( thread.monad.first.type === "get" ) {
+                if ( staccatoDeclarationState.namespaceDefs.has(
+                    thread.monad.first.name ) ) {
+                    
+                    return replaceThread( then(
+                        staccatoDeclarationState.namespaceDefs.get(
+                            thread.monad.first.name ) ) );
+                } else {
+                    return false;
+                }
+            } else if ( thread.monad.first.type === "then" ) {
+                return replaceThread( macLookupThen(
+                    thread.monad.first.first,
+                    function ( val ) {
+                    
+                    var firstThen = thread.monad.first.then;
+                    return macLookupThen( firstThen( val ), then );
+                } ) );
+                return true;
+            } else {
+                throw new Error();
+            }
+        } else {
+            throw new Error();
+        }
+    }
+    
+    function raiseErrorsForStalledThread( thread ) {
+        // TODO: Stop using `setTimeout` here. We don't typically use
+        // `setTimeout` directly if we can use a user-supplied defer
+        // procedure instead.
+        setTimeout( function () {
+            var err = thread.monad.err;
+            err();
+            throw new Error(
+                "Encountered a `macLookupGet` that didn't throw an " +
+                "error." );
+        }, 0 );
+    }
+    
+    // We advance every thread except those which can perform
+    // JavaScript side effects. We don't want to perform JavaScript
+    // side effects if there's a "load-time" error on the way.
+    while ( arrAny( threads.slice(), function ( thread, i ) {
+        if ( thread.isJs )
+            return false;
+        
+        return advanceThread( i );
+    } ) ) {
+        // Do nothing.
+    }
+    
+    // We raise errors for any threads that have stalled due to
+    // blocking on definitions that will never come.
+    var anyError = arrAny( threads, function ( thread ) {
+        if ( thread.isJs )
+            return false;
+        
+        raiseErrorsForStalledThread( thread );
+        return true;
+    } );
+    
+    if ( anyError )
+        return;
+    
+    // If no threads have stalled, we advance every thread, now
+    // including the threads which can perform JavaScript side
+    // effects.
+    while ( arrAny( threads.slice(), function ( thread, i ) {
+        return advanceThread( i );
+    } ) ) {
+        // Do nothing.
+    }
+    
+    // We raise errors for any threads that have stalled due to
+    // blocking on definitions that will never come.
+    arrEach( threads.slice(), function ( thread ) {
+        raiseErrorsForStalledThread( thread );
     } );
 }
 
@@ -712,12 +799,10 @@ function usingDefinitionNs( macroDefNs ) {
                 stcNsGet( constructorName,
                     stcNsGet( "constructors", definitionNs ) ) ).name;
         return macLookupThen(
-            macLookupGet( projListName,
-                function () {
-                    throw new Error(
-                        "No such type: " +
-                        JSON.stringify( tupleName ) );
-                } ),
+            macLookupGet( projListName, function () {
+                throw new Error(
+                    "No such type: " + JSON.stringify( tupleName ) );
+            } ),
             function ( projList ) {
             
             return macLookupRet(
@@ -1860,12 +1945,10 @@ function usingDefinitionNs( macroDefNs ) {
                     stcNsGet( "macros", nss.definitionNs ) ) ).name;
         
         return macLookupThen(
-            macLookupGet( macroFunctionName,
-                function () {
-                    throw new Error(
-                        "No such macro: " +
-                        JSON.stringify( macroName ) );
-                } ),
+            macLookupGet( macroFunctionName, function () {
+                throw new Error(
+                    "No such macro: " + JSON.stringify( macroName ) );
+            } ),
             function ( macroFunction ) {
         
         var newRawMode = {
