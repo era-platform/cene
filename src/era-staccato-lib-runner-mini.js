@@ -403,15 +403,16 @@ function collectDefer( rawMode, item ) {
 }
 function runTrampoline( rawMode, defer, createNextMode, afterDefer ) {
     rawMode.finished = true;
-    while ( rawMode.safe.length !== 0 ) {
+    if ( rawMode.safe.length !== 0 ) {
         // NOTE: All the safe operations are commutative with each
         // other even though they're in JavaScript, so any order is
         // fine. We use first-in-first-out.
-        //
-        // TODO NOW: Somehow run the macLookup effects resulting from
-        // this call.
-        //
-        rawMode.safe.shift()();
+        return macLookupThen( rawMode.safe.shift()(),
+            function ( ignored ) {
+            
+            return runTrampoline(
+                rawMode, defer, createNextNode, afterDefer );
+        } );
     }
     var n = 0;
     while ( rawMode.defer.length !== 0 ) (function () {
@@ -423,29 +424,39 @@ function runTrampoline( rawMode, defer, createNextMode, afterDefer ) {
         var body = rawMode.defer.shift();
         defer( function () {
             var nextMode = createNextMode( rawMode );
-            var effects = body( nextMode );
+            
+            return macLookupThen( body( nextMode ),
+                function ( effects ) {
+            
             if ( !(effects instanceof StcForeign
                 && effects.purpose === "effects") )
                 throw new Error();
             var effectsFunc = effects.foreignVal;
-            // TODO NOW: Somehow run the macLookup effects resulting
-            // from this call.
-            effectsFunc( nextMode );
-            runTrampoline( nextMode, defer, createNextMode,
+            
+            return macLookupThen( effectsFunc( nextMode ),
+                function ( ignored ) {
+            
+            return runTrampoline( nextMode, defer, createNextMode,
                 function () {
                 
                 n--;
                 if ( n === 0 )
                     defer( function () {
-                        afterDefer();
+                        return afterDefer();
                     } );
+                return macLookupRet( null );
+            } );
+            
+            } );
+            
             } );
         } );
     })();
     if ( n === 0 )
         defer( function () {
-            afterDefer();
+            return afterDefer();
         } );
+    return macLookupRet( null );
 }
 function transferModesToFrom( rawModeTarget, rawModeSource ) {
     rawModeSource.finished = true;
@@ -519,17 +530,38 @@ function runTopLevelMacLookupsSync( threads ) {
             var rawMode = createNextMode( null );
             var done = false;
             // TODO NOW: Somehow run the macLookup effects resulting
-            // from this call.
-            macLookupEffect( rawMode );
-            runTrampoline( rawMode, defer, createNextMode,
-                function () {
-                
-                done = true;
+            // from this macLookupThen call.
+            macLookupThen( macLookupEffect( rawMode ),
+                function ( ignored ) {
+            macLookupThen(
+                runTrampoline( rawMode, defer, createNextMode,
+                    function () {
+                    
+                    done = true;
+                    
+                    return macLookupRet( null );
+                } ),
+                function ( ignored ) {
+            
+            return loop();
+            function loop() {
+                if ( deferred.length !== 0 ) {
+                    return macLookupThen( deferred.shift()(),
+                        function ( ignored ) {
+                        
+                        return loop();
+                    } );
+                } else {
+                    if ( !done )
+                        throw new Error( "Not done" );
+                    
+                    return macLookupRet( null );
+                }
+            }
+            
             } );
-            while ( deferred.length !== 0 )
-                deferred.shift()();
-            if ( !done )
-                throw new Error( "Not done" );
+            } );
+            
         } else if ( thread.type === "jsEffectsThread" ) {
             var effects = thread.macLookupEffectsOfJsEffects;
             
