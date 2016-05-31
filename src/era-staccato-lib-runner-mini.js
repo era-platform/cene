@@ -489,7 +489,8 @@ function macLookupThen( macLookupEffects, then ) {
 function runTopLevelMacLookupsSync( originalThreads ) {
     var threads = arrMap( originalThreads, function ( thread ) {
         if ( thread.type === "topLevelDefinitionThread" ) {
-            var macLookupEffect = thread.topLevelDefinitionThread;
+            var macLookupEffect =
+                thread.macLookupEffectsOfDefinitionEffects;
             
             var deferred = [];
             
@@ -735,7 +736,8 @@ function usingDefinitionNs( macroDefNs ) {
         function loop( func, i ) {
             if ( n <= i )
                 return macLookupRet( func );
-            return macLookupThen( func.call( macroDefNs, args[ i ] ),
+            return macLookupThen(
+                func.callStc( macroDefNs, args[ i ] ),
                 function ( func ) {
                     return loop( func, i + 1 );
                 } );
