@@ -40,10 +40,10 @@ function stcCallArr( func, argsArr ) {
         result =
             "macLookupThen( " + result + ", " +
                 "function ( stcLocal_result ) {\n" +
-            "    \n"
+            "    \n" +
             "    return macLookupThen( " + arg + ", " +
                     "function ( stcLocal_arg ) {\n" +
-            "        \n"
+            "        \n" +
             "        return stcLocal_result.callStc( " +
                         "definitionNs, stcLocal_arg );\n" +
             "    } );\n" +
@@ -320,11 +320,21 @@ function Stc( tupleTag, opt_projNames ) {
     this.projNames = opt_projNames || [];
 }
 Stc.prototype.callStc = function ( definitionNs, arg ) {
-    // TODO: Look up the function implementation from `namespaceDefs`
-    // /functions/<tupleTag>/staccato, at least when there's no entry
-    // in `functionDefs`.
-    var func = staccatoDeclarationState.functionDefs[ this.tupleTag ];
-    return func( this.projNames, arg );
+    var self = this;
+    var staccatoName =
+        stcNsGet( "staccato",
+            stcNsGet( self.tupleTag,
+                stcNsGet( "functions", definitionNs ) ) );
+    return macLookupThen( macLookupGet( staccatoName ),
+        function ( ignored ) {
+        
+        // TODO: Look up the function implementation from
+        // `namespaceDefs` /functions/<tupleTag>/staccato, at least
+        // when there's no entry in `functionDefs`.
+        var func =
+            staccatoDeclarationState.functionDefs[ self.tupleTag ];
+        return func( self.projNames, arg );
+    } );
 };
 Stc.prototype.pretty = function () {
     return "(" +
@@ -411,7 +421,7 @@ function runTrampoline( rawMode, defer, createNextMode, afterDefer ) {
             function ( ignored ) {
             
             return runTrampoline(
-                rawMode, defer, createNextNode, afterDefer );
+                rawMode, defer, createNextMode, afterDefer );
         } );
     }
     var n = 0;
@@ -483,6 +493,9 @@ function macLookupRet( result ) {
 function macLookupGet( name, err ) {
     return { type: "get", name: name, err: err };
 }
+// TODO NOW: Make some kind of `macLookupSet` or `collectSet` so that
+// we don't have to commit environment changes until we know there's
+// no error.
 function macLookupThen( macLookupEffects, then ) {
     return { type: "then", first: macLookupEffects, then: then };
 }
@@ -515,7 +528,7 @@ function runTopLevelMacLookupsSync( originalThreads ) {
             var done = false;
             var monad = macLookupThen( macLookupEffect( rawMode ),
                 function ( ignored ) {
-            macLookupThen(
+            return macLookupThen(
                 runTrampoline( rawMode, defer, createNextMode,
                     function () {
                     
@@ -574,8 +587,7 @@ function runTopLevelMacLookupsSync( originalThreads ) {
         }
         
         if ( thread.monad.type === "ret" ) {
-            threads.splice( i, 1 );
-            return false;
+            return true;
         } else if ( thread.monad.type === "get" ) {
             return replaceThread(
                 macLookupThen( thread.monad, function ( ignored ) {
@@ -635,7 +647,12 @@ function runTopLevelMacLookupsSync( originalThreads ) {
         
         return advanceThread( i );
     } ) ) {
-        // Do nothing.
+        threads = arrKeep( threads, function ( thread ) {
+            if ( thread.isJs )
+                return true;
+            
+            return thread.monad.type !== "ret";
+        } );
     }
     
     // We raise errors for any threads that have stalled due to
@@ -657,7 +674,9 @@ function runTopLevelMacLookupsSync( originalThreads ) {
     while ( arrAny( threads.slice(), function ( thread, i ) {
         return advanceThread( i );
     } ) ) {
-        // Do nothing.
+        threads = arrKeep( threads, function ( thread ) {
+            return thread.monad.type !== "ret";
+        } );
     }
     
     // We raise errors for any threads that have stalled due to
@@ -732,7 +751,7 @@ function usingDefinitionNs( macroDefNs ) {
     function callStcMulti( func, var_args ) {
         var args = arguments;
         var n = args.length;
-        return loop( func, 0 );
+        return loop( func, 1 );
         function loop( func, i ) {
             if ( n <= i )
                 return macLookupRet( func );
@@ -1265,16 +1284,22 @@ function usingDefinitionNs( macroDefNs ) {
                     return macLookupThen(
                         processFn( nss, rawMode, body1 ),
                         function ( processedFn ) {
-                        
-                        var macroFunctionName =
-                            assertMacroDoesNotExist(
-                                nss.definitionNs, name );
-                        staccatoDeclarationState.namespaceDefs.set(
-                            macroFunctionName,
-                            stcExecute( nss.definitionNs,
-                                processedFn ) );
-                        
-                        return macLookupRet( null );
+                    
+                    var macroFunctionName =
+                        assertMacroDoesNotExist(
+                            nss.definitionNs, name );
+                    
+                    return macLookupThen(
+                        stcExecute( nss.definitionNs, processedFn ),
+                        function ( executedFn ) {
+                    
+                    staccatoDeclarationState.namespaceDefs.set(
+                        macroFunctionName, executedFn );
+                    
+                    return macLookupRet( null );
+                    
+                    } );
+                    
                     } );
                 } );
                 return macLookupRet(
@@ -1967,7 +1992,6 @@ function usingDefinitionNs( macroDefNs ) {
                 new StcForeign( "ns", nss.uniqueNs ),
                 new StcForeign( "ns", nss.definitionNs ),
                 stcTrivialStxDetails(),
-                stcCons.getProj( sExpr, "cdr" ),
                 stcCons.getProj( sExpr, "cdr" ) ),
             function ( macroResultEffects ) {
         
