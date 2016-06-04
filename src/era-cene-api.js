@@ -247,8 +247,10 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
             var tupleTagName =
                 stcNameTupleTagAlreadySorted( constructorTag, [] );
             var tupleTag = JSON.stringify( tupleTagName );
-            // TODO: Also add an entry to `namespaceDefs`. We should
+            // TODO: Add a real entry to `namespaceDefs`. We should
             // create an appropriate `stc-def-foreign`.
+            addBogusFunctionStaccatoDefinition(
+                targetDefNs, tupleTagName );
             staccatoDeclarationState.functionDefs[ tupleTag ] =
                 function ( projectionVals, argVal ) {
                 

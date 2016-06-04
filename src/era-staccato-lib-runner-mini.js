@@ -321,11 +321,17 @@ function Stc( tupleTag, opt_projNames ) {
 }
 Stc.prototype.callStc = function ( definitionNs, arg ) {
     var self = this;
+    // TODO NOW: Running `JSON.parse()` on every function call is
+    // ludicrous. Optimize this.
     var staccatoName =
         stcNsGet( "staccato",
-            stcNsGet( self.tupleTag,
+            stcNsGet( JSON.parse( self.tupleTag ),
                 stcNsGet( "functions", definitionNs ) ) );
-    return macLookupThen( macLookupGet( staccatoName ),
+    return macLookupThen(
+        macLookupGet( staccatoName, function () {
+            throw new Error(
+                "No such function definition: " + self.tupleTag );
+        } ),
         function ( ignored ) {
         
         // TODO: Look up the function implementation from
@@ -557,8 +563,11 @@ function runTopLevelMacLookupsSync( originalThreads ) {
             } );
             } );
             
-            return { isJs: false, monad: monad };
-            
+            return {
+                isJs: false,
+                rawMode: rawMode,
+                monad: monad
+            };
         } else if ( thread.type === "jsEffectsThread" ) {
             var monad = macLookupThen(
                 thread.macLookupEffectsOfJsEffects,
@@ -571,8 +580,11 @@ function runTopLevelMacLookupsSync( originalThreads ) {
                 return effectsFunc();
             } );
             
-            return { isJs: true, monad: monad };
-            
+            return {
+                isJs: false,
+                rawMode: null,
+                monad: monad
+            };
         } else {
             throw new Error();
         }
@@ -582,7 +594,12 @@ function runTopLevelMacLookupsSync( originalThreads ) {
         var thread = threads[ i ];
         
         function replaceThread( monad ) {
-            threads[ i ] = { isJs: thread.isJs, monad: monad };
+            
+            threads[ i ] = {
+                isJs: thread.isJs,
+                rawMode: thread.rawMode,
+                monad: monad
+            };
             return true;
         }
         
@@ -630,7 +647,7 @@ function runTopLevelMacLookupsSync( originalThreads ) {
         // `setTimeout` directly if we can use a user-supplied defer
         // procedure instead.
         setTimeout( function () {
-            var err = thread.monad.err;
+            var err = thread.monad.first.err;
             err();
             throw new Error(
                 "Encountered a `macLookupGet` that didn't throw an " +
@@ -701,21 +718,28 @@ function stcExecute( definitionNs, expr ) {
         macLookupThen );
 }
 
-function stcAddDefun( nss, name, argName, body ) {
-    var tupleTagName = stcNameTupleTagAlreadySorted( name, [] );
-    var tupleTag = JSON.stringify( tupleTagName );
+function addBogusFunctionStaccatoDefinition( defNs, tupleTagName ) {
     var staccatoName =
         stcNsGet( "staccato",
             stcNsGet( tupleTagName,
-                stcNsGet( "functions", nss.definitionNs ) ) );
+                stcNsGet( "functions", defNs ) ) );
+    staccatoDeclarationState.namespaceDefs.set( staccatoName,
+        new StcForeign( "native-definition", null ) );
+}
+function stcAddDefun( nss, name, argName, body ) {
+    var tupleTagName = stcNameTupleTagAlreadySorted( name, [] );
+    var tupleTag = JSON.stringify( tupleTagName );
     var innerFunc = stcExecute( nss.definitionNs,
         "function ( " + stcIdentifier( argName ) + " ) { " +
             "return " + body + "; " +
         "}" );
-    // TODO: Also add an entry to `namespaceDefs`. This naive Staccato
-    // implementation doesn't do a full desugaring, so we can't create
-    // the correct `stc-def`, but let's at least create an appropriate
+    // TODO: Add a real entry to `namespaceDefs`. This Cene language
+    // implementation is naive and doesn't do a full Staccato
+    // desugaring, so we can't create a `stc-def` exposing Staccato
+    // code, but let's at least create an appropriate
     // `stc-def-foreign`.
+    addBogusFunctionStaccatoDefinition( nss.definitionNs,
+        tupleTagName );
     staccatoDeclarationState.functionDefs[ tupleTag ] =
         function ( projectionVals, argVal ) {
         
@@ -1174,8 +1198,10 @@ function usingDefinitionNs( macroDefNs ) {
             var tupleTagName =
                 stcNameTupleTagAlreadySorted( constructorTag, [] );
             var tupleTag = JSON.stringify( tupleTagName );
-            // TODO: Also add an entry to `namespaceDefs`. We should
+            // TODO: Add a real entry to `namespaceDefs`. We should
             // create an appropriate `stc-def-foreign`.
+            addBogusFunctionStaccatoDefinition(
+                targetDefNs, tupleTagName );
             staccatoDeclarationState.functionDefs[ tupleTag ] =
                 function ( projectionVals, argVal ) {
                 
