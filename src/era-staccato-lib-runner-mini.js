@@ -321,8 +321,20 @@ function Stc( tupleTag, opt_projNames ) {
 }
 Stc.prototype.callStc = function ( definitionNs, arg ) {
     var self = this;
-    // TODO NOW: Running `JSON.parse()` on every function call is
-    // ludicrous. Optimize this.
+    
+    // OPTIMIZATION: It would be ludicrous to run `JSON.parse()` on
+    // every single function call, so we do an early check to see if
+    // we already have access to the definition we would have blocked
+    // on.
+    //
+    // TODO: Look up the function implementation from `namespaceDefs`
+    // /functions/<tupleTag>/staccato, at least when there's no entry
+    // in `functionDefs`.
+    //
+    var func = staccatoDeclarationState.functionDefs[ self.tupleTag ];
+    if ( func !== void 0 )
+        return func( self.projNames, arg );
+    
     var staccatoName =
         stcNsGet( "staccato",
             stcNsGet( JSON.parse( self.tupleTag ),
@@ -499,9 +511,6 @@ function macLookupRet( result ) {
 function macLookupGet( name, err ) {
     return { type: "get", name: name, err: err };
 }
-// TODO NOW: Make some kind of `macLookupSet` or `collectSet` so that
-// we don't have to commit environment changes until we know there's
-// no error.
 function macLookupThen( macLookupEffects, then ) {
     return { type: "then", first: macLookupEffects, then: then };
 }
@@ -1266,12 +1275,12 @@ function usingDefinitionNs( macroDefNs ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
                 collectSafe( rawMode, function () {
-                    assertMacroDoesNotExist( nss.definitionNs, name );
-                    
                     return macLookupThen(
                         processFn( nss, rawMode, body1 ),
                         function ( processedFn ) {
                         
+                        assertMacroDoesNotExist(
+                            nss.definitionNs, name );
                         stcAddDefun( nss,
                             stcConstructorTag( nss.definitionNs,
                                 stcConstructorName(
@@ -1291,6 +1300,16 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        // TODO NOW: Redesign this. Macros should take an additional
+        // argument which acts as a monadic side effect that consumes
+        // the macro result. Maybe.
+        //
+        // TODO NOW: Add a (later/fn mode ...) monadic side effect
+        // that runs the inner effects in a future mode. This has two
+        // purposes: Multiples of these can be concurrent with each
+        // other, and their errors will not retroactively invalidate
+        // effects from the current mode.
+        //
         effectfulMac( "def-macro",
             function ( nss, rawMode, myStxDetails, body ) {
             
@@ -1310,22 +1329,19 @@ function usingDefinitionNs( macroDefNs ) {
                     return macLookupThen(
                         processFn( nss, rawMode, body1 ),
                         function ( processedFn ) {
-                    
-                    var macroFunctionName =
-                        assertMacroDoesNotExist(
-                            nss.definitionNs, name );
-                    
                     return macLookupThen(
                         stcExecute( nss.definitionNs, processedFn ),
                         function ( executedFn ) {
                     
+                    var macroFunctionName =
+                        assertMacroDoesNotExist(
+                            nss.definitionNs, name );
                     staccatoDeclarationState.namespaceDefs.set(
                         macroFunctionName, executedFn );
                     
                     return macLookupRet( null );
                     
                     } );
-                    
                     } );
                 } );
                 return macLookupRet(
@@ -1903,6 +1919,8 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        // TODO NOW: Make it so this doesn't accept a modality
+        // belonging to a different concurrent thread.
         fun( "assert-current-modality", function ( mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
@@ -1911,6 +1929,10 @@ function usingDefinitionNs( macroDefNs ) {
             return stcNil.ofNow();
         } );
         
+        // TODO NOW: Reevaluate this design now that we have a
+        // concurrent macroexpander. This should probably use its
+        // `uniqueNs` parameter to get a definition site that the
+        // macroexpander can fill with its result.
         fun( "compile-expression", function ( mode ) {
             return stcFnPure( function ( uniqueNs ) {
                 return stcFnPure( function ( definitionNs ) {
