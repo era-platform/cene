@@ -338,7 +338,7 @@ Stc.prototype.callStc = function ( definitionNs, arg ) {
     var staccatoName =
         stcNsGet( "staccato",
             stcNsGet( JSON.parse( self.tupleTag ),
-                stcNsGet( "functions", definitionNs ) ) );
+                stcNsGet( "functions", definitionNs ) ) ).name;
     return macLookupThen(
         macLookupGet( staccatoName, function () {
             throw new Error(
@@ -416,14 +416,6 @@ function getMacroFunctionNamespace( definitionNs, name ) {
         stcNsGet( stcMacroName( definitionNs, name ),
             stcNsGet( "macros", definitionNs ) ) );
 }
-function assertMacroDoesNotExist( definitionNs, name ) {
-    var macroFunctionName =
-        getMacroFunctionNamespace( definitionNs, name ).name;
-    if ( staccatoDeclarationState.namespaceDefs.has(
-        macroFunctionName ) )
-        throw new Error();
-    return macroFunctionName;
-}
 
 function collectPut( rawMode, namespace, value ) {
     rawMode.put.push( { namespace: namespace, value: value } );
@@ -434,8 +426,8 @@ function collectSafe( rawMode, item ) {
 function collectDefer( rawMode, item ) {
     rawMode.defer.push( item );
 }
-function runTrampoline( rawMode, defer, createNextMode, afterDefer ) {
-    if ( rawMode.put.length !== 0 ) {
+function runPuts( rawMode ) {
+    while ( rawMode.put.length !== 0 ) {
         var put = rawMode.put.shift();
         // TODO NOW: Don't finalize the put right away like this. We
         // need to be able to revoke it.
@@ -445,6 +437,9 @@ function runTrampoline( rawMode, defer, createNextMode, afterDefer ) {
         staccatoDeclarationState.namespaceDefs.set(
             put.namespace.name, put.value );
     }
+}
+function runTrampoline( rawMode, defer, createNextMode, afterDefer ) {
+    runPuts( rawMode );
     if ( rawMode.safe.length !== 0 ) {
         // NOTE: All the safe operations are commutative with each
         // other even though they're in JavaScript, so any order is
@@ -725,15 +720,16 @@ function stcExecute( definitionNs, expr ) {
         macLookupThen );
 }
 
-function addBogusFunctionStaccatoDefinition( defNs, tupleTagName ) {
-    var staccatoName =
+function addBogusFunctionStaccatoDefinition(
+    defNs, rawMode, tupleTagName ) {
+    
+    collectPut( rawMode,
         stcNsGet( "staccato",
             stcNsGet( tupleTagName,
-                stcNsGet( "functions", defNs ) ) );
-    staccatoDeclarationState.namespaceDefs.set( staccatoName,
+                stcNsGet( "functions", defNs ) ) ),
         new StcForeign( "native-definition", null ) );
 }
-function stcAddDefun( nss, name, argName, body ) {
+function stcAddDefun( nss, rawMode, name, argName, body ) {
     var tupleTagName = stcNameTupleTagAlreadySorted( name, [] );
     var tupleTag = JSON.stringify( tupleTagName );
     var innerFunc = stcExecute( nss.definitionNs,
@@ -745,7 +741,7 @@ function stcAddDefun( nss, name, argName, body ) {
     // desugaring, so we can't create a `stc-def` exposing Staccato
     // code, but let's at least create an appropriate
     // `stc-def-foreign`.
-    addBogusFunctionStaccatoDefinition( nss.definitionNs,
+    addBogusFunctionStaccatoDefinition( nss.definitionNs, rawMode,
         tupleTagName );
     staccatoDeclarationState.functionDefs[ tupleTag ] =
         function ( projectionVals, argVal ) {
@@ -1127,11 +1123,10 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function stcAddEffectfulMacro(
-        definitionNs, name, macroFunctionImpl ) {
+        definitionNs, rawMode, name, macroFunctionImpl ) {
         
-        var macroFunctionName =
-            assertMacroDoesNotExist( definitionNs, name );
-        staccatoDeclarationState.namespaceDefs.set( macroFunctionName,
+        collectPut( rawMode,
+            getMacroFunctionNamespace( definitionNs, name ),
             stcFnPure( function ( mode ) {
                 return stcFnPure( function ( uniqueNs ) {
                     return stcFnPure( function ( definitionNs ) {
@@ -1174,8 +1169,10 @@ function usingDefinitionNs( macroDefNs ) {
                 } );
             } ) );
     }
-    function stcAddMacro( definitionNs, name, macroFunctionImpl ) {
-        stcAddEffectfulMacro( definitionNs, name,
+    function stcAddMacro(
+        definitionNs, rawMode, name, macroFunctionImpl ) {
+        
+        stcAddEffectfulMacro( definitionNs, rawMode, name,
             function ( nss, rawMode, myStxDetails, body ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
@@ -1192,12 +1189,28 @@ function usingDefinitionNs( macroDefNs ) {
         } );
     }
     
+    function makeDummyMode() {
+        return {
+            type: "dummy-mode",
+            put: []
+        };
+    }
+    function commitDummyMode( rawMode ) {
+        if ( rawMode.type !== "dummy-mode" )
+            throw new Error();
+        runPuts( rawMode );
+    }
+    
     function stcAddCoreMacros( targetDefNs ) {
+        
+        var dummyMode = makeDummyMode();
+        
         function effectfulMac( name, body ) {
-            stcAddEffectfulMacro( targetDefNs, name, body );
+            stcAddEffectfulMacro(
+                targetDefNs, dummyMode, name, body );
         }
         function mac( name, body ) {
-            stcAddMacro( targetDefNs, name, body );
+            stcAddMacro( targetDefNs, dummyMode, name, body );
         }
         function fun( name, body ) {
             var constructorTag = stcConstructorTag( targetDefNs,
@@ -1208,13 +1221,13 @@ function usingDefinitionNs( macroDefNs ) {
             // TODO: Add a real entry to `namespaceDefs`. We should
             // create an appropriate `stc-def-foreign`.
             addBogusFunctionStaccatoDefinition(
-                targetDefNs, tupleTagName );
+                targetDefNs, dummyMode, tupleTagName );
             staccatoDeclarationState.functionDefs[ tupleTag ] =
                 function ( projectionVals, argVal ) {
                 
                 return macLookupRet( body( argVal ) );
             };
-            processDefType( targetDefNs, name, [] );
+            processDefType( targetDefNs, dummyMode, name, [] );
         }
         
         effectfulMac( "def-type",
@@ -1239,16 +1252,8 @@ function usingDefinitionNs( macroDefNs ) {
                         return projStringyName;
                     } );
                 
-                // TODO NOW: Replace this `collectSafe` with
-                // `collectPut`.
-                assertMacroDoesNotExist(
-                    nss.definitionNs, tupleName );
-                collectSafe( rawMode, function () {
-                    processDefType(
-                        nss.definitionNs, tupleName, projNames );
-                    
-                    return macLookupRet( null );
-                } );
+                processDefType(
+                    nss.definitionNs, rawMode, tupleName, projNames );
                 return macLookupRet(
                     new StcForeign( "compiled-code", stcNil.of() ) );
             } );
@@ -1278,24 +1283,17 @@ function usingDefinitionNs( macroDefNs ) {
                     processFn( nss, rawMode, body1 ),
                     function ( processedFn ) {
                     
-                    // TODO NOW: Replace this `collectSafe` with
-                    // `collectPut`.
-                    collectSafe( rawMode, function () {
-                        assertMacroDoesNotExist(
-                            nss.definitionNs, name );
-                        stcAddDefun( nss,
-                            stcConstructorTag( nss.definitionNs,
-                                stcConstructorName(
-                                    nss.definitionNs, name ) ),
-                            firstArg,
-                            stcCall( processedFn,
-                                "macLookupRet( " +
-                                    stcIdentifier( firstArg ) + " )"
-                                ) );
-                        processDefType( nss.definitionNs, name, [] );
-                        
-                        return macLookupRet( null );
-                    } );
+                    stcAddDefun( nss, rawMode,
+                        stcConstructorTag( nss.definitionNs,
+                            stcConstructorName(
+                                nss.definitionNs, name ) ),
+                        firstArg,
+                        stcCall( processedFn,
+                            "macLookupRet( " +
+                                stcIdentifier( firstArg ) + " )"
+                            ) );
+                    processDefType(
+                        nss.definitionNs, rawMode, name, [] );
                     
                     return macLookupRet(
                         new StcForeign( "compiled-code",
@@ -1365,9 +1363,10 @@ function usingDefinitionNs( macroDefNs ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
                 // TODO NOW: See if we should change this
-                // `collectSafe` so that it can't have errors. (Errors
-                // are a pretty common thing for unit tests, so we
-                // should probably catch or defer the errors.)
+                // `collectSafe` so that it can't have errors... or in
+                // other words, so that it's "safe" as advertised.
+                // (Errors are a pretty common thing for unit tests,
+                // so we should probably catch or defer the errors.)
                 collectSafe( rawMode, function () {
                     return macLookupThen(
                         macroexpand( nssGet( nss, "a" ),
@@ -1917,7 +1916,8 @@ function usingDefinitionNs( macroDefNs ) {
         
         // TODO NOW: Make it so this doesn't accept a modality
         // belonging to a different concurrent thread. Currently,
-        // nothing ever sets `mode.foreignVal.current` to false.
+        // nothing ever sets `mode.foreignVal.current` to false, so
+        // this just lets any modality through.
         fun( "assert-current-modality", function ( mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
@@ -1927,9 +1927,9 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO NOW: Reevaluate this design now that we have a
-        // concurrent macroexpander. This should probably use its
-        // `uniqueNs` parameter to get a definition site that the
-        // macroexpander can fill with its result.
+        // concurrent macroexpander. This should probably take another
+        // namespace parameter to use as a definition site for the
+        // macroexpansion result.
         fun( "compile-expression", function ( mode ) {
             return stcFnPure( function ( uniqueNs ) {
                 return stcFnPure( function ( definitionNs ) {
@@ -1992,6 +1992,8 @@ function usingDefinitionNs( macroDefNs ) {
                     stcTrivialStxDetails(), tryExpr.val );
             } ) );
         } );
+        
+        commitDummyMode( dummyMode );
     }
     
     function macroexpand( nss, rawMode, locatedExpr ) {
@@ -2054,26 +2056,24 @@ function usingDefinitionNs( macroDefNs ) {
         } );
     }
     
-    function processDefType( definitionNs, tupleName, projNames ) {
+    function processDefType(
+        definitionNs, rawMode, tupleName, projNames ) {
+        
         var n = projNames.length;
         var type = stcTypeArr( definitionNs, tupleName, projNames );
         var constructorName =
             stcConstructorName( definitionNs, tupleName );
-        var projListName =
+        collectPut( rawMode,
             stcNsGet( "projection-list",
                 stcNsGet( constructorName,
-                    stcNsGet( "constructors", definitionNs ) ) ).name;
-        if ( staccatoDeclarationState.namespaceDefs.has(
-            projListName ) )
-            throw new Error();
-        staccatoDeclarationState.namespaceDefs.set( projListName,
+                    stcNsGet( "constructors", definitionNs ) ) ),
             stcArrayToConsList( arrMap( type.unsortedProjNames,
                 function ( name ) {
                 
                 return stcName.ofNow(
                     new StcForeign( "name", name ) );
             } ) ) );
-        stcAddMacro( definitionNs, tupleName,
+        stcAddMacro( definitionNs, rawMode, tupleName,
             function ( nss, rawMode, myStxDetails, body ) {
             
             return loop(
@@ -2125,8 +2125,11 @@ function usingDefinitionNs( macroDefNs ) {
     
     function processCoreTypes( definitionNs ) {
         
+        var dummyMode = makeDummyMode();
+        
         function type( tupleName, projNames ) {
-            processDefType( definitionNs, tupleName, projNames );
+            processDefType(
+                definitionNs, dummyMode, tupleName, projNames );
         }
         
         // These constructors are needed so that macros can generate
@@ -2198,6 +2201,8 @@ function usingDefinitionNs( macroDefNs ) {
         // it's dealing with.
         type( "string", [ "val" ] );
         type( "name", [ "val" ] );
+        
+        commitDummyMode( dummyMode );
     }
     
     function readerExprToStc( myStxDetails, readerExpr ) {
@@ -2276,6 +2281,8 @@ function usingDefinitionNs( macroDefNs ) {
         
         // NOTE: These are only needed for era-cene-api.js.
         processDefType: processDefType,
-        stcArrayToConsList: stcArrayToConsList
+        stcArrayToConsList: stcArrayToConsList,
+        makeDummyMode: makeDummyMode,
+        commitDummyMode: commitDummyMode
     };
 }

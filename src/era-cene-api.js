@@ -234,9 +234,11 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     } );
     
     function addCeneApi( targetDefNs ) {
+        var dummyMode = usingDefNs.makeDummyMode();
+        
         function type( tupleName, projNames ) {
             usingDefNs.processDefType(
-                targetDefNs, tupleName, projNames );
+                targetDefNs, dummyMode, tupleName, projNames );
         }
         function fun( name, body ) {
             var constructorTag = stcConstructorTag( targetDefNs,
@@ -247,13 +249,14 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
             // TODO: Add a real entry to `namespaceDefs`. We should
             // create an appropriate `stc-def-foreign`.
             addBogusFunctionStaccatoDefinition(
-                targetDefNs, tupleTagName );
+                targetDefNs, dummyMode, tupleTagName );
             staccatoDeclarationState.functionDefs[ tupleTag ] =
                 function ( projectionVals, argVal ) {
                 
                 return macLookupRet( body( argVal ) );
             };
-            usingDefNs.processDefType( targetDefNs, name, [] );
+            usingDefNs.processDefType(
+                targetDefNs, dummyMode, name, [] );
         }
         
         function parseString( string ) {
@@ -629,6 +632,8 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                 } );
             } );
         } );
+        
+        usingDefNs.commitDummyMode( dummyMode );
     }
     
     return {
