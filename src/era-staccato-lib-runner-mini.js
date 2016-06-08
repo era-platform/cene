@@ -1601,8 +1601,10 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "let", function ( nss, rawMode, myStxDetails, body ) {
-            return loop( body, nssGet( nss, "bindings" ) );
-            function loop( remainingBody, bindingsNss ) {
+            return loop( 0, body, nssGet( nss, "bindings" ), "" );
+            function loop(
+                i, remainingBody, bindingsNss, obscureVarsCode ) {
+                
                 if ( remainingBody.tupleTag !==
                     stcCons.getTupleTag() )
                     throw new Error();
@@ -1610,9 +1612,18 @@ function usingDefinitionNs( macroDefNs ) {
                     stcCons.getProj( remainingBody, "cdr" );
                 if ( remainingBody1.tupleTag !==
                     stcCons.getTupleTag() )
-                    return macroexpand( nssGet( nss, "body" ),
-                        rawMode,
-                        stcCons.getProj( remainingBody, "car" ) );
+                    return macLookupThen(
+                        macroexpand( nssGet( nss, "body" ),
+                            rawMode,
+                            stcCons.getProj( remainingBody, "car" ) ),
+                        function ( body ) {
+                        
+                        return macLookupRet(
+                            "(function () {\n" +
+                            obscureVarsCode +
+                            "return " + body + ";\n" +
+                            "})()" );
+                    } );
                 var va = stxToMaybeName(
                     stcCons.getProj( remainingBody, "car" ) );
                 if ( va === null )
@@ -1624,16 +1635,22 @@ function usingDefinitionNs( macroDefNs ) {
                         stcCons.getProj( remainingBody1, "car" ) ),
                     function ( bindingVal ) {
                     
+                    var innerVar = stcIdentifier( va );
+                    var obscureVar = "stcLocal_" + i;
+                    
                     return macLookupThen(
-                        loop(
+                        loop( i + 1,
                             stcCons.getProj( remainingBody1, "cdr" ),
-                            nssGet( bindingsNss, "rest" ) ),
+                            nssGet( bindingsNss, "rest" ),
+                            obscureVarsCode +
+                                "var " + innerVar + " = " +
+                                    obscureVar + ";\n" ),
                         function ( loopResult ) {
                         
                         return macLookupRet(
                             "macLookupThen( " + bindingVal + ", " +
                                 "function ( " +
-                                    stcIdentifier( va ) + " ) {\n" +
+                                    obscureVar + " ) {\n" +
                             "return " + loopResult + ";\n" +
                             "} )" );
                     } );
