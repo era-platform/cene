@@ -1373,18 +1373,17 @@ function usingDefinitionNs( macroDefNs ) {
                             rawMode,
                             stcCons.getProj( body, "car" ) ),
                         function ( expandedA ) {
-                    
-                    var a =
-                        evalStcForTest( nss.definitionNs, expandedA );
-                    
+                    return macLookupThen(
+                        evalStcForTest( nss.definitionNs, expandedA ),
+                        function ( a ) {
                     return macLookupThen(
                         macroexpand( nssGet( nss, "b" ),
                             rawMode,
                             stcCons.getProj( body1, "car" ) ),
                         function ( expandedB ) {
-                    
-                    var b =
-                        evalStcForTest( nss.definitionNs, expandedB );
+                    return macLookupThen(
+                        evalStcForTest( nss.definitionNs, expandedB ),
+                        function ( b ) {
                     
                     var match = compareStc( a, b );
                     
@@ -1399,7 +1398,8 @@ function usingDefinitionNs( macroDefNs ) {
                     return macLookupRet( null );
                     
                     } );
-                    
+                    } );
+                    } );
                     } );
                 } );
                 return macLookupRet(
