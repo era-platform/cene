@@ -2,9 +2,6 @@
 // Copyright 2015, 2016 Ross Angle. Released under the MIT License.
 
 
-staccatoDeclarationState.cliOutputEnvironmentVariableShadows =
-    strMap();
-
 function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     var usingDefNs = usingDefinitionNs( macroDefNs );
     
@@ -475,29 +472,21 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
             
             return stcFnPure( function ( value ) {
                 var keyInternal = parseString( key );
-                var getValueInternal =
-                    parsePossiblyEncapsulatedString( value );
                 
                 return new StcForeign( "effects",
                     function ( rawMode ) {
                     
-                    if ( staccatoDeclarationState.
-                        cliOutputEnvironmentVariableShadows.has(
-                            keyInternal ) )
-                        throw new Error();
-                    collectSafe( rawMode, function () {
-                        // TODO: Figure out if we actually need
-                        // onceDependenciesComplete. We were already
-                        // using defer to run these write effects
-                        // after the read effects.
-//                        apiOps.onceDependenciesComplete( function () {
-                            staccatoDeclarationState.
-                                cliOutputEnvironmentVariableShadows.
-                                    put( keyInternal,
-                                        getValueInternal() );
-//                        } );
-                        return macLookupRet( null );
-                    } );
+                    // TODO: Document the namespace path we're using
+                    // for this,
+                    // /cli-output-environment-variable-shadows/<key>.
+                    // Maybe we don't actually need this to be a
+                    // built-in function.
+                    collectPut( rawMode,
+                        stcNsGet( keyInternal,
+                            stcNsGet(
+                                "cli-output-environment-variable-shadows",
+                                defNs ) ),
+                        value );
                     return macLookupRet( stcNil.ofNow() );
                 } );
             } );

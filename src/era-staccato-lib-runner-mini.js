@@ -411,18 +411,23 @@ function stcTrivialStxDetails() {
     return new StcForeign( "macro-stx-details", null );
 }
 
+function getMacroFunctionNamespace( definitionNs, name ) {
+    return stcNsGet( "function",
+        stcNsGet( stcMacroName( definitionNs, name ),
+            stcNsGet( "macros", definitionNs ) ) );
+}
 function assertMacroDoesNotExist( definitionNs, name ) {
-    var resolvedMacroName = stcMacroName( definitionNs, name );
     var macroFunctionName =
-        stcNsGet( "function",
-            stcNsGet( resolvedMacroName,
-                stcNsGet( "macros", definitionNs ) ) ).name;
+        getMacroFunctionNamespace( definitionNs, name ).name;
     if ( staccatoDeclarationState.namespaceDefs.has(
         macroFunctionName ) )
         throw new Error();
     return macroFunctionName;
 }
 
+function collectPut( rawMode, namespace, value ) {
+    rawMode.put.push( { namespace: namespace, value: value } );
+}
 function collectSafe( rawMode, item ) {
     rawMode.safe.push( item );
 }
@@ -430,7 +435,16 @@ function collectDefer( rawMode, item ) {
     rawMode.defer.push( item );
 }
 function runTrampoline( rawMode, defer, createNextMode, afterDefer ) {
-    rawMode.finished = true;
+    if ( rawMode.put.length !== 0 ) {
+        var put = rawMode.put.shift();
+        // TODO NOW: Don't finalize the put right away like this. We
+        // need to be able to revoke it.
+        if ( staccatoDeclarationState.namespaceDefs.has(
+            put.namespace.name ) )
+            throw new Error();
+        staccatoDeclarationState.namespaceDefs.set(
+            put.namespace.name, put.value );
+    }
     if ( rawMode.safe.length !== 0 ) {
         // NOTE: All the safe operations are commutative with each
         // other even though they're in JavaScript, so any order is
@@ -486,24 +500,6 @@ function runTrampoline( rawMode, defer, createNextMode, afterDefer ) {
         } );
     return macLookupRet( null );
 }
-function transferModesToFrom( rawModeTarget, rawModeSource ) {
-    rawModeSource.finished = true;
-    collectSafe( rawModeTarget, function () {
-        if ( !rawModeSource.current )
-            throw new Error();
-        rawModeSource.current = false;
-        
-        while ( rawModeSource.safe.length !== 0 )
-            rawModeTarget.safe.push( rawModeSource.safe.shift() );
-        rawModeSource.safe = rawModeTarget.safe;
-        
-        while ( rawModeSource.defer.length !== 0 )
-            rawModeTarget.defer.push( rawModeSource.defer.shift() );
-        rawModeSource.defer = rawModeTarget.defer;
-        
-        return macLookupRet( null );
-    } );
-}
 
 function macLookupRet( result ) {
     return { type: "ret", val: result };
@@ -516,7 +512,9 @@ function macLookupThen( macLookupEffects, then ) {
 }
 function runTopLevelMacLookupsSync( originalThreads ) {
     var threads = arrMap( originalThreads, function ( thread ) {
-        if ( thread.type === "topLevelDefinitionThread" ) {
+        if ( thread.type === "topLevelDefinitionThread" )
+            return (function () {
+            
             var macLookupEffect =
                 thread.macLookupEffectsOfDefinitionEffects;
             
@@ -533,8 +531,8 @@ function runTopLevelMacLookupsSync( originalThreads ) {
                 //
                 return {
                     type: "macro",
-                    finished: null,
                     current: true,
+                    put: [],
                     safe: [],
                     defer: []
                 };
@@ -577,7 +575,7 @@ function runTopLevelMacLookupsSync( originalThreads ) {
                 rawMode: rawMode,
                 monad: monad
             };
-        } else if ( thread.type === "jsEffectsThread" ) {
+        })(); else if ( thread.type === "jsEffectsThread" ) {
             var monad = macLookupThen(
                 thread.macLookupEffectsOfJsEffects,
                 function ( effects ) {
@@ -1232,18 +1230,20 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
+                var projNames = mapConsListToArr( body1,
+                    function ( projName ) {
+                        var projStringyName =
+                            stxToMaybeName( projName );
+                        if ( projStringyName === null )
+                            throw new Error();
+                        return projStringyName;
+                    } );
+                
+                // TODO NOW: Replace this `collectSafe` with
+                // `collectPut`.
+                assertMacroDoesNotExist(
+                    nss.definitionNs, tupleName );
                 collectSafe( rawMode, function () {
-                    assertMacroDoesNotExist(
-                        nss.definitionNs, tupleName );
-                    
-                    var projNames = mapConsListToArr( body1,
-                        function ( projName ) {
-                            var projStringyName =
-                                stxToMaybeName( projName );
-                            if ( projStringyName === null )
-                                throw new Error();
-                            return projStringyName;
-                        } );
                     processDefType(
                         nss.definitionNs, tupleName, projNames );
                     
@@ -1274,11 +1274,13 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
-                collectSafe( rawMode, function () {
-                    return macLookupThen(
-                        processFn( nss, rawMode, body1 ),
-                        function ( processedFn ) {
-                        
+                return macLookupThen(
+                    processFn( nss, rawMode, body1 ),
+                    function ( processedFn ) {
+                    
+                    // TODO NOW: Replace this `collectSafe` with
+                    // `collectPut`.
+                    collectSafe( rawMode, function () {
                         assertMacroDoesNotExist(
                             nss.definitionNs, name );
                         stcAddDefun( nss,
@@ -1294,9 +1296,11 @@ function usingDefinitionNs( macroDefNs ) {
                         
                         return macLookupRet( null );
                     } );
+                    
+                    return macLookupRet(
+                        new StcForeign( "compiled-code",
+                            stcNil.of() ) );
                 } );
-                return macLookupRet(
-                    new StcForeign( "compiled-code", stcNil.of() ) );
             } );
         } );
         
@@ -1325,27 +1329,23 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
-                collectSafe( rawMode, function () {
-                    return macLookupThen(
-                        processFn( nss, rawMode, body1 ),
-                        function ( processedFn ) {
-                    return macLookupThen(
-                        stcExecute( nss.definitionNs, processedFn ),
-                        function ( executedFn ) {
-                    
-                    var macroFunctionName =
-                        assertMacroDoesNotExist(
-                            nss.definitionNs, name );
-                    staccatoDeclarationState.namespaceDefs.set(
-                        macroFunctionName, executedFn );
-                    
-                    return macLookupRet( null );
-                    
-                    } );
-                    } );
-                } );
+                return macLookupThen(
+                    processFn( nss, rawMode, body1 ),
+                    function ( processedFn ) {
+                return macLookupThen(
+                    stcExecute( nss.definitionNs, processedFn ),
+                    function ( executedFn ) {
+                
+                collectPut( rawMode,
+                    getMacroFunctionNamespace(
+                        nss.definitionNs, name ),
+                    executedFn );
+                
                 return macLookupRet(
                     new StcForeign( "compiled-code", stcNil.of() ) );
+                
+                } );
+                } );
             } );
         } );
         
@@ -1364,6 +1364,10 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
+                // TODO NOW: See if we should change this
+                // `collectSafe` so that it can't have errors. (Errors
+                // are a pretty common thing for unit tests, so we
+                // should probably catch or defer the errors.)
                 collectSafe( rawMode, function () {
                     return macLookupThen(
                         macroexpand( nssGet( nss, "a" ),
@@ -1863,16 +1867,8 @@ function usingDefinitionNs( macroDefNs ) {
                             if ( mode.foreignVal !== rawMode )
                                 throw new Error();
                             
-                            if ( staccatoDeclarationState.
-                                namespaceDefs.has(
-                                    ns.foreignVal.name ) )
-                                throw new Error();
-                            collectSafe( rawMode, function () {
-                                staccatoDeclarationState.
-                                    namespaceDefs.set( ns.foreignVal.name, value );
-                                
-                                return macLookupRet( null );
-                            } );
+                            collectPut( rawMode, ns.foreignVal,
+                                value );
                             collectDefer( rawMode,
                                 function ( rawMode ) {
                                 
@@ -1920,7 +1916,8 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO NOW: Make it so this doesn't accept a modality
-        // belonging to a different concurrent thread.
+        // belonging to a different concurrent thread. Currently,
+        // nothing ever sets `mode.foreignVal.current` to false.
         fun( "assert-current-modality", function ( mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
@@ -2026,17 +2023,11 @@ function usingDefinitionNs( macroDefNs ) {
             } ),
             function ( macroFunction ) {
         
-        var newRawMode = {
-            type: "macro",
-            finished: null,
-            current: true,
-            safe: [],
-            defer: []
-        };
-        
+        // TODO NOW: See if this call should be deferred to a future
+        // mode.
         return macLookupThen(
             callStcMulti( macroFunction,
-                new StcForeign( "mode", newRawMode ),
+                new StcForeign( "mode", rawMode ),
                 new StcForeign( "ns", nss.uniqueNs ),
                 new StcForeign( "ns", nss.definitionNs ),
                 stcTrivialStxDetails(),
@@ -2048,13 +2039,12 @@ function usingDefinitionNs( macroDefNs ) {
             throw new Error();
         var macroResultFunc = macroResultEffects.foreignVal;
         
-        return macLookupThen( macroResultFunc( newRawMode ),
+        return macLookupThen( macroResultFunc( rawMode ),
             function ( macroResult ) {
         
         if ( !(macroResult instanceof StcForeign
             && macroResult.purpose === "compiled-code") )
             throw new Error();
-        transferModesToFrom( rawMode, newRawMode );
         return macLookupRet( macroResult.foreignVal );
         
         } );
