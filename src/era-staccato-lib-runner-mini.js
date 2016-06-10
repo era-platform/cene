@@ -852,6 +852,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
     }
     
+    // TODO NOW: Convert this to outbox-passing style.
     function stcCaseletForRunner(
         nss, rawMode, maybeVa, matchSubject, body ) {
         
@@ -936,6 +937,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
     }
     
+    // TODO NOW: Convert this to outbox-passing style.
     function stcCast( nss, rawMode, matchSubject, body ) {
         return macLookupThen(
             extractPattern( nss.definitionNs, body ),
@@ -997,6 +999,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
     }
     
+    // TODO NOW: Convert this to outbox-passing style.
     function processFn( nss, rawMode, body ) {
         if ( body.tupleTag !== stcCons.getTupleTag() )
             throw new Error();
@@ -1070,6 +1073,7 @@ function usingDefinitionNs( macroDefNs ) {
         
         collectPut( rawMode,
             getMacroFunctionNamespace( definitionNs, name ),
+            // TODO NOW: Convert this to outbox-passing style.
             stcFnPure( function ( mode ) {
                 return stcFnPure( function ( uniqueNs ) {
                     return stcFnPure( function ( definitionNs ) {
@@ -1115,6 +1119,7 @@ function usingDefinitionNs( macroDefNs ) {
     function stcAddMacro(
         definitionNs, rawMode, name, macroFunctionImpl ) {
         
+        // TODO NOW: Convert this to outbox-passing style.
         stcAddEffectfulMacro( definitionNs, rawMode, name,
             function ( nss, rawMode, myStxDetails, body ) {
             
@@ -1173,6 +1178,7 @@ function usingDefinitionNs( macroDefNs ) {
             processDefType( targetDefNs, dummyMode, name, [] );
         }
         
+        // TODO NOW: Convert this to outbox-passing style.
         effectfulMac( "def-type",
             function ( nss, rawMode, myStxDetails, body ) {
             
@@ -1202,6 +1208,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        // TODO NOW: Convert this to outbox-passing style.
         effectfulMac( "defn",
             function ( nss, rawMode, myStxDetails, body ) {
             
@@ -1245,6 +1252,8 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        // TODO NOW: Convert this to outbox-passing style.
+        //
         // TODO NOW: Redesign this. Macros should take an additional
         // argument which acts as a monadic side effect that consumes
         // the macro result. Maybe.
@@ -1283,6 +1292,8 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        // TODO NOW: Convert this to outbox-passing style.
+        //
         // TODO: This doesn't really fit the side effect model. Design
         // a different approach to unit tests.
         effectfulMac( "test",
@@ -1342,6 +1353,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        // TODO NOW: Convert this to outbox-passing style.
         mac( "case", function ( nss, rawMode, myStxDetails, body ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
@@ -1350,6 +1362,7 @@ function usingDefinitionNs( macroDefNs ) {
                 stcCons.getProj( body, "cdr" ) );
         } );
         
+        // TODO NOW: Convert this to outbox-passing style.
         mac( "caselet", function ( nss, rawMode, myStxDetails, body ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
@@ -1365,6 +1378,7 @@ function usingDefinitionNs( macroDefNs ) {
                 stcCons.getProj( body1, "cdr" ) );
         } );
         
+        // TODO NOW: Convert this to outbox-passing style.
         mac( "cast", function ( nss, rawMode, myStxDetails, body ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
@@ -1373,6 +1387,7 @@ function usingDefinitionNs( macroDefNs ) {
                 stcCons.getProj( body, "cdr" ) );
         } );
         
+        // TODO NOW: Convert this to outbox-passing style.
         mac( "isa", function ( nss, rawMode, myStxDetails, body ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
@@ -1412,6 +1427,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        // TODO NOW: Convert this to outbox-passing style.
         mac( "proj1", function ( nss, rawMode, myStxDetails, body ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
@@ -1447,6 +1463,7 @@ function usingDefinitionNs( macroDefNs ) {
                 ] ) );
         } );
         
+        // TODO NOW: Convert this to outbox-passing style.
         mac( "c", function ( nss, rawMode, myStxDetails, body ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
@@ -1471,6 +1488,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        // TODO NOW: Convert this to outbox-passing style.
         mac( "c-new", function ( nss, rawMode, myStxDetails, body ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
@@ -1504,6 +1522,7 @@ function usingDefinitionNs( macroDefNs ) {
                 stcIstringNil.getProj( istringNil, "string" ) );
         }
         
+        // TODO NOW: Convert this to outbox-passing style.
         mac( "err", function ( nss, rawMode, myStxDetails, body ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
@@ -1516,6 +1535,7 @@ function usingDefinitionNs( macroDefNs ) {
                         stcCons.getProj( body, "car" ) ) ) );
         } );
         
+        // TODO NOW: Convert this to outbox-passing style.
         mac( "str", function ( nss, rawMode, myStxDetails, body ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
@@ -1531,10 +1551,12 @@ function usingDefinitionNs( macroDefNs ) {
                     " ) )" ) );
         } );
         
+        // TODO NOW: Convert this to outbox-passing style.
         mac( "fn", function ( nss, rawMode, myStxDetails, body ) {
             return processFn( nss, rawMode, body );
         } );
         
+        // TODO NOW: Convert this to outbox-passing style.
         mac( "let", function ( nss, rawMode, myStxDetails, body ) {
             return loop( 0, body, nssGet( nss, "bindings" ), "" );
             function loop(
@@ -1896,6 +1918,10 @@ function usingDefinitionNs( macroDefNs ) {
         // concurrent macroexpander. This should probably take another
         // namespace parameter to use as a definition site for the
         // macroexpansion result.
+        //
+        // TODO NOW: Convert this to outbox-passing style. In fact,
+        // the above comment describes what that means for this one.
+        //
         fun( "compile-expression", function ( mode ) {
             return stcFnPure( function ( uniqueNs ) {
                 return stcFnPure( function ( definitionNs ) {
@@ -1962,6 +1988,7 @@ function usingDefinitionNs( macroDefNs ) {
         commitDummyMode( dummyMode );
     }
     
+    // TODO NOW: Convert this to outbox-passing style.
     function macroexpand( nss, rawMode, locatedExpr ) {
         var identifier = stxToMaybeName( locatedExpr );
         if ( identifier !== null )
@@ -2039,6 +2066,7 @@ function usingDefinitionNs( macroDefNs ) {
                 return stcName.ofNow(
                     new StcForeign( "name", name ) );
             } ) ) );
+        // TODO NOW: Convert this to outbox-passing style.
         stcAddMacro( definitionNs, rawMode, tupleName,
             function ( nss, rawMode, myStxDetails, body ) {
             
@@ -2218,6 +2246,7 @@ function usingDefinitionNs( macroDefNs ) {
             var thisRemainingNss = remainingNss;
             
             macLookupEffectsArr.push( function ( rawMode ) {
+                // TODO NOW: Convert this to outbox-passing style.
                 return macroexpand(
                     nssGet( thisRemainingNss, "first" ),
                     rawMode,
