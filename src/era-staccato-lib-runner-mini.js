@@ -420,80 +420,23 @@ function getMacroFunctionNamespace( definitionNs, name ) {
 function collectPut( rawMode, namespace, value ) {
     rawMode.put.push( { namespace: namespace, value: value } );
 }
-function collectSafe( rawMode, item ) {
-    rawMode.safe.push( item );
-}
 function collectDefer( rawMode, item ) {
     rawMode.defer.push( item );
 }
 function runPuts( rawMode ) {
-    while ( rawMode.put.length !== 0 ) {
-        var put = rawMode.put.shift();
-        // TODO NOW: Don't finalize the put right away like this. We
-        // need to be able to revoke it.
+    var seenAlready = jsnMap();
+    arrEach( rawMode.put, function ( put ) {
         if ( staccatoDeclarationState.namespaceDefs.has(
             put.namespace.name ) )
             throw new Error();
+        if ( seenAlready.has( put.namespace.name ) )
+            throw new Error();
+        seenAlready.set( put.namespace.name, true );
+    } );
+    arrEach( rawMode.put, function ( put ) {
         staccatoDeclarationState.namespaceDefs.set(
             put.namespace.name, put.value );
-    }
-}
-function runTrampoline( rawMode, defer, createNextMode, afterDefer ) {
-    runPuts( rawMode );
-    if ( rawMode.safe.length !== 0 ) {
-        // NOTE: All the safe operations are commutative with each
-        // other even though they're in JavaScript, so any order is
-        // fine. We use first-in-first-out.
-        return macLookupThen( rawMode.safe.shift()(),
-            function ( ignored ) {
-            
-            return runTrampoline(
-                rawMode, defer, createNextMode, afterDefer );
-        } );
-    }
-    var n = 0;
-    while ( rawMode.defer.length !== 0 ) (function () {
-        n++;
-        
-        // TODO: Choose a deferred operation based on a much more
-        // annoying principle than first-in-first-out. If people rely
-        // on this, the monad won't be commutative.
-        var body = rawMode.defer.shift();
-        defer( function () {
-            var nextMode = createNextMode( rawMode );
-            
-            return macLookupThen( body( nextMode ),
-                function ( effects ) {
-            
-            if ( !(effects instanceof StcForeign
-                && effects.purpose === "effects") )
-                throw new Error();
-            var effectsFunc = effects.foreignVal;
-            
-            return macLookupThen( effectsFunc( nextMode ),
-                function ( ignored ) {
-            
-            return runTrampoline( nextMode, defer, createNextMode,
-                function () {
-                
-                n--;
-                if ( n === 0 )
-                    defer( function () {
-                        return afterDefer();
-                    } );
-                return macLookupRet( null );
-            } );
-            
-            } );
-            
-            } );
-        } );
-    })();
-    if ( n === 0 )
-        defer( function () {
-            return afterDefer();
-        } );
-    return macLookupRet( null );
+    } );
 }
 
 function macLookupRet( result ) {
@@ -506,71 +449,67 @@ function macLookupThen( macLookupEffects, then ) {
     return { type: "then", first: macLookupEffects, then: then };
 }
 function runTopLevelMacLookupsSync( originalThreads ) {
-    var threads = arrMap( originalThreads, function ( thread ) {
-        if ( thread.type === "topLevelDefinitionThread" )
-            return (function () {
+    
+    function currentlyMode( rawMode, body ) {
+        rawMode.current = true;
+        var result = body();
+        rawMode.current = false;
+        return result;
+    }
+    function currentlyThread( thread, body ) {
+        if ( thread.isJs )
+            return body();
+        return currentlyMode( thread.rawMode, body );
+    }
+    
+    var threads = [];
+    
+    function addMacroThread( thread ) {
+        var rawMode = {
+            type: "macro",
+            current: false,
+            put: [],
+            defer: []
+        };
+        var monad = macLookupThen( macLookupRet( null ),
+            function ( ignored ) {
+        return macLookupThen( thread( rawMode ),
+            function ( ignored ) {
             
-            var macLookupEffect =
-                thread.macLookupEffectsOfDefinitionEffects;
-            
-            var deferred = [];
-            
-            function defer( body ) {
-                deferred.push( body );
-            }
-            function createNextMode( rawMode ) {
-                // NOTE: This comment is here in case we do a search
-                // for mode inside quotes.
-                //
-                // "mode"
-                //
-                return {
-                    type: "macro",
-                    current: true,
-                    put: [],
-                    safe: [],
-                    defer: []
-                };
-            }
-            var rawMode = createNextMode( null );
-            var done = false;
-            var monad = macLookupThen( macLookupEffect( rawMode ),
-                function ( ignored ) {
-            return macLookupThen(
-                runTrampoline( rawMode, defer, createNextMode,
-                    function () {
-                    
-                    done = true;
-                    
-                    return macLookupRet( null );
-                } ),
-                function ( ignored ) {
-            
-            return loop();
-            function loop() {
-                if ( deferred.length !== 0 ) {
-                    return macLookupThen( deferred.shift()(),
-                        function ( ignored ) {
+            runPuts( rawMode );
+            arrEach( rawMode.defer, function ( thread ) {
+                addMacroThread( function ( rawMode ) {
+                    return macLookupThen( thread( rawMode ),
+                        function ( effects ) {
                         
-                        return loop();
+                        if ( !(effects instanceof StcForeign
+                            && effects.purpose === "effects") )
+                            throw new Error();
+                        var effectsFunc = effects.foreignVal;
+                        
+                        return currentlyMode( rawMode, function () {
+                            return effectsFunc( rawMode );
+                        } );
                     } );
-                } else {
-                    if ( !done )
-                        throw new Error( "Not done" );
-                    
-                    return macLookupRet( null );
-                }
-            }
-            
-            } );
+                } );
             } );
             
-            return {
-                isJs: false,
-                rawMode: rawMode,
-                monad: monad
-            };
-        })(); else if ( thread.type === "jsEffectsThread" ) {
+            return macLookupRet( null );
+        } );
+        } );
+        
+        threads.push( {
+            isJs: false,
+            rawMode: rawMode,
+            monad: monad
+        } );
+    }
+    
+    arrEach( originalThreads, function ( thread ) {
+        if ( thread.type === "topLevelDefinitionThread" ) {
+            addMacroThread(
+                thread.macLookupEffectsOfDefinitionEffects );
+        } else if ( thread.type === "jsEffectsThread" ) {
             var monad = macLookupThen(
                 thread.macLookupEffectsOfJsEffects,
                 function ( effects ) {
@@ -582,11 +521,11 @@ function runTopLevelMacLookupsSync( originalThreads ) {
                 return effectsFunc();
             } );
             
-            return {
-                isJs: false,
+            threads.push( {
+                isJs: true,
                 rawMode: null,
                 monad: monad
-            };
+            } );
         } else {
             throw new Error();
         }
@@ -596,7 +535,6 @@ function runTopLevelMacLookupsSync( originalThreads ) {
         var thread = threads[ i ];
         
         function replaceThread( monad ) {
-            
             threads[ i ] = {
                 isJs: thread.isJs,
                 rawMode: thread.rawMode,
@@ -616,14 +554,20 @@ function runTopLevelMacLookupsSync( originalThreads ) {
             var then = thread.monad.then;
             if ( thread.monad.first.type === "ret" ) {
                 return replaceThread(
-                    then( thread.monad.first.val ) );
+                    currentlyThread( thread, function () {
+                        return then( thread.monad.first.val );
+                    } ) );
             } else if ( thread.monad.first.type === "get" ) {
                 if ( staccatoDeclarationState.namespaceDefs.has(
                     thread.monad.first.name ) ) {
                     
-                    return replaceThread( then(
-                        staccatoDeclarationState.namespaceDefs.get(
-                            thread.monad.first.name ) ) );
+                    return replaceThread(
+                        currentlyThread( thread, function () {
+                            return then(
+                                staccatoDeclarationState.
+                                    namespaceDefs.get(
+                                        thread.monad.first.name ) );
+                        } ) );
                 } else {
                     return false;
                 }
@@ -635,7 +579,6 @@ function runTopLevelMacLookupsSync( originalThreads ) {
                     var firstThen = thread.monad.first.then;
                     return macLookupThen( firstThen( val ), then );
                 } ) );
-                return true;
             } else {
                 throw new Error();
             }
@@ -1362,12 +1305,7 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
-                // TODO NOW: See if we should change this
-                // `collectSafe` so that it can't have errors... or in
-                // other words, so that it's "safe" as advertised.
-                // (Errors are a pretty common thing for unit tests,
-                // so we should probably catch or defer the errors.)
-                collectSafe( rawMode, function () {
+                collectDefer( rawMode, function ( rawMode ) {
                     return macLookupThen(
                         macroexpand( nssGet( nss, "a" ),
                             rawMode,
@@ -1385,17 +1323,21 @@ function usingDefinitionNs( macroDefNs ) {
                         evalStcForTest( nss.definitionNs, expandedB ),
                         function ( b ) {
                     
-                    var match = compareStc( a, b );
-                    
-                    // NOTE: This can be true, false, or null.
-                    if ( match === true )
-                        console.log( "Test succeeded" );
-                    else
-                        console.log(
-                            "Test failed: Expected " +
-                            b.pretty() + ", got " + a.pretty() );
-                    
-                    return macLookupRet( null );
+                    return macLookupRet( new StcForeign( "effects",
+                        function ( rawMode ) {
+                        
+                        var match = compareStc( a, b );
+                        
+                        // NOTE: This can be true, false, or null.
+                        if ( match === true )
+                            console.log( "Test succeeded" );
+                        else
+                            console.log(
+                                "Test failed: Expected " +
+                                b.pretty() + ", got " + a.pretty() );
+                        
+                        return macLookupRet( stcNil.ofNow() );
+                    } ) );
                     
                     } );
                     } );
@@ -1931,10 +1873,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO NOW: Make it so this doesn't accept a modality
-        // belonging to a different concurrent thread. Currently,
-        // nothing ever sets `mode.foreignVal.current` to false, so
-        // this just lets any modality through.
         fun( "assert-current-modality", function ( mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
