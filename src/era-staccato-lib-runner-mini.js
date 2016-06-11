@@ -860,22 +860,21 @@ function usingDefinitionNs( macroDefNs ) {
         } );
     }
     
-    // TODO NOW: Convert this to outbox-passing style.
+    // TODO: Make this expand multiple expressions concurrently.
     function stcCaseletForRunner(
-        nss, rawMode, maybeVa, matchSubject, body ) {
+        nss, rawMode, maybeVa, matchSubject, body, then ) {
         
-        function processTail( nss, body ) {
+        function processTail( nss, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
             if ( body1.tupleTag !== stcCons.getTupleTag() )
-                return macLookupThen(
-                    macroexpand( nss, rawMode,
-                        stcCons.getProj( body, "car" ) ),
+                return macroexpand( nssGet( nss, "unique" ), rawMode,
+                    stcCons.getProj( body, "car" ),
+                    nssGet( nss, "outbox" ),
                     function ( expanded ) {
                     
-                    return macLookupRet(
-                        "return " + expanded + "; " );
+                    return then( "return " + expanded + "; " );
                 } );
             
             return macLookupThen(
@@ -886,19 +885,19 @@ function usingDefinitionNs( macroDefNs ) {
                 stcCons.getTupleTag() )
                 throw new Error();
             
-            return macLookupThen(
-                macroexpand( nssGet( nss, "then" ),
-                    rawMode,
-                    stcCons.getProj( pattern.remainingBody, "car" ) ),
-                function ( then ) {
+            var thenNss = nssGet( nss, "then" );
+            return macroexpand( nssGet( thenNss, "unique" ),
+                rawMode,
+                stcCons.getProj( pattern.remainingBody, "car" ),
+                nssGet( thenNss, "outbox" ),
+                function ( thenBranch ) {
             
             var els = stcCons.getProj( pattern.remainingBody, "cdr" );
             
-            return macLookupThen(
-                processTail( nssGet( nss, "tail" ), els ),
+            return processTail( nssGet( nss, "tail" ), els,
                 function ( processedTail ) {
             
-            return macLookupRet( "if ( " +
+            return then( "if ( " +
                 "stcLocal_matchSubject.tupleTag === " +
                     JSON.stringify( pattern.type.getTupleTag() ) +
                     " " +
@@ -913,7 +912,7 @@ function usingDefinitionNs( macroDefNs ) {
                         "stcLocal_matchSubject.projNames[ " +
                             i + " ]; ";
                 } ).join( "" ) +
-                "return " + then + "; " +
+                "return " + thenBranch + "; " +
             "})(); " + processedTail );
             
             } );
@@ -923,30 +922,32 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         }
         
-        return macLookupThen(
-            macroexpand( nssGet( nss, "subject" ),
-                rawMode, matchSubject ),
+        var subjectNss = nssGet( nss, "subject" );
+        return macroexpand( nssGet( subjectNss, "unique" ), rawMode,
+            matchSubject,
+            nssGet( subjectNss, "outbox" ),
             function ( expandedSubject ) {
-        return macLookupThen(
-            processTail( nssGet( nss, "tail" ), body ),
+        return processTail( nssGet( nss, "tail" ), body,
             function ( processedTail ) {
         
-        return macLookupRet(
-            "macLookupThen( " + expandedSubject + ", " +
-                "function ( stcLocal_matchSubject ) { " +
-                
-                (maybeVa === null ? "" :
-                    "var " + stcIdentifier( maybeVa.val ) + " = " +
-                        "stcLocal_matchSubject; ") +
-                processedTail +
-            "} )" );
+        return macLookupThenRunEffects( rawMode,
+            then(
+                "macLookupThen( " + expandedSubject + ", " +
+                    "function ( stcLocal_matchSubject ) { " +
+                    
+                    (maybeVa === null ? "" :
+                        "var " +
+                            stcIdentifier( maybeVa.val ) + " = " +
+                            "stcLocal_matchSubject; ") +
+                    processedTail +
+                "} )" ) );
         
         } );
         } );
     }
     
-    // TODO NOW: Convert this to outbox-passing style.
-    function stcCast( nss, rawMode, matchSubject, body ) {
+    // TODO: Make this expand multiple expressions concurrently.
+    function stcCast( nss, rawMode, matchSubject, body, then ) {
         return macLookupThen(
             extractPattern( nss.definitionNs, body ),
             function ( pattern ) {
@@ -962,43 +963,45 @@ function usingDefinitionNs( macroDefNs ) {
         if ( remainingBody2.tupleTag === stcCons.getTupleTag() )
             throw new Error();
         
-        return macLookupThen(
-            macroexpand( nssGet( nss, "on-cast-err" ),
-                rawMode,
-                stcCons.getProj( pattern.remainingBody, "car" ) ),
+        var onCastErrNss = nssGet( nss, "on-cast-err" );
+        return macroexpand( nssGet( onCastErrNss, "unique" ), rawMode,
+            stcCons.getProj( pattern.remainingBody, "car" )
+            nssGet( onCastErrNss, "outbox" ),
             function ( onCastErr ) {
-        return macLookupThen(
-            macroexpand( nssGet( nss, "body" ),
-                rawMode,
-                stcCons.getProj( remainingBody1, "car" ) ),
+        var bodyNss = nssGet( nss, "body" );
+        return macroexpand( nssGet( bodyNss, "unique" ), rawMode,
+            stcCons.getProj( remainingBody1, "car" ) ),
+            nssGet( bodyNss, "outbox" ),
             function ( body ) {
-        return macLookupThen(
-            macroexpand( nssGet( nss, "subject" ),
-                rawMode, matchSubject ),
+        var subjectNss = nssGet( nss, "subject" );
+        return macroexpand( nssGet( subjectNss, "unique" ), rawMode,
+            matchSubject,
+            nssGet( subjectNss, "outbox" ),
             function ( expandedSubject ) {
         
-        return macLookupRet(
-            "macLookupThen( " + expandedSubject + ", " +
-                "function ( stcLocal_matchSubject ) { " +
-                
-                "if ( stcLocal_matchSubject.tupleTag === " +
-                    JSON.stringify(
-                        pattern.type.getTupleTag() ) + " " +
-                ") return (function () { " +
-                    arrMap( pattern.type.sortedProjNames,
-                        function ( entry, i ) {
-                        
-                        return "var " +
-                            stcIdentifier(
-                                pattern.localVars[ entry.i ] ) +
-                            " = " +
-                            "stcLocal_matchSubject.projNames[ " +
-                                i + " ]; ";
-                    } ).join( "" ) +
-                    "return " + body + "; " +
-                "})(); " +
-                "return " + onCastErr + "; " +
-            "} )" );
+        return macLookupThenRunEffects( rawMode,
+            then(
+                "macLookupThen( " + expandedSubject + ", " +
+                    "function ( stcLocal_matchSubject ) { " +
+                    
+                    "if ( stcLocal_matchSubject.tupleTag === " +
+                        JSON.stringify(
+                            pattern.type.getTupleTag() ) + " " +
+                    ") return (function () { " +
+                        arrMap( pattern.type.sortedProjNames,
+                            function ( entry, i ) {
+                            
+                            return "var " +
+                                stcIdentifier(
+                                    pattern.localVars[ entry.i ] ) +
+                                " = " +
+                                "stcLocal_matchSubject.projNames[ " +
+                                    i + " ]; ";
+                        } ).join( "" ) +
+                        "return " + body + "; " +
+                    "})(); " +
+                    "return " + onCastErr + "; " +
+                "} )" ) );
         
         } );
         } );
@@ -1007,25 +1010,30 @@ function usingDefinitionNs( macroDefNs ) {
         } );
     }
     
-    // TODO NOW: Convert this to outbox-passing style.
-    function processFn( nss, rawMode, body ) {
-        if ( body.tupleTag !== stcCons.getTupleTag() )
-            throw new Error();
-        var body1 = stcCons.getProj( body, "cdr" );
-        if ( body1.tupleTag !== stcCons.getTupleTag() )
-            return macroexpand( nss, rawMode,
-                stcCons.getProj( body, "car" ) );
-        var param = stcCons.getProj( body, "car" );
-        var paramName = stxToMaybeName( param );
-        if ( paramName === null )
-            throw new Error(
-                "Called fn with a variable name that wasn't a " +
-                "syntactic name: " + param.pretty() );
-        return macLookupThen( processFn( nss, rawMode, body1 ),
-            function ( processedRest ) {
-            
-            return macLookupRet( stcFn( paramName, processedRest ) );
+    function processFn( nss, rawMode, body, then ) {
+        return loop( body, function ( processedRest ) {
+            return macLookupThenRunEffects( rawMode,
+                then( processedRest ) );
         } );
+        function loop( body, then ) {
+            if ( body.tupleTag !== stcCons.getTupleTag() )
+                throw new Error();
+            var body1 = stcCons.getProj( body, "cdr" );
+            if ( body1.tupleTag !== stcCons.getTupleTag() )
+                return macroexpand( getNss( nss, "unique" ), rawMode,
+                    stcCons.getProj( body, "car" ),
+                    getNss( nss, "outbox" ),
+                    then );
+            var param = stcCons.getProj( body, "car" );
+            var paramName = stxToMaybeName( param );
+            if ( paramName === null )
+                throw new Error(
+                    "Called fn with a variable name that wasn't a " +
+                    "syntactic name: " + param.pretty() );
+            return processFn( body1, function ( processedRest ) {
+                return then( stcFn( paramName, processedRest ) );
+            } );
+        }
     }
     
     function mapConsListToArr( list, func ) {
@@ -1116,18 +1124,6 @@ function usingDefinitionNs( macroDefNs ) {
                 } );
             } ) );
     }
-    function stcAddMacro(
-        definitionNs, rawMode, name, macroFunctionImpl ) {
-        
-        stcAddEffectfulMacro( definitionNs, rawMode, name,
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
-            return new StcForeign( "effects", function ( rawMode ) {
-                return macroFunctionImpl(
-                    nss, rawMode, myStxDetails, body, then );
-            } );
-        } );
-    }
     
     function makeDummyMode() {
         return {
@@ -1145,12 +1141,10 @@ function usingDefinitionNs( macroDefNs ) {
         
         var dummyMode = makeDummyMode();
         
+        // TODO: Rename this to `mac`.
         function effectfulMac( name, body ) {
             stcAddEffectfulMacro(
                 targetDefNs, dummyMode, name, body );
-        }
-        function mac( name, body ) {
-            stcAddMacro( targetDefNs, dummyMode, name, body );
         }
         function fun( name, body ) {
             var constructorTag = stcConstructorTag( targetDefNs,
@@ -1219,8 +1213,7 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
-                return macLookupThen(
-                    processFn( nss, rawMode, body1 ),
+                return processFn( nss, rawMode, body1,
                     function ( processedFn ) {
                     
                     stcAddDefun( nss, rawMode,
@@ -1264,8 +1257,7 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
-                return macLookupThen(
-                    processFn( nss, rawMode, body1 ),
+                return processFn( nss, rawMode, body1,
                     function ( processedFn ) {
                 return macLookupThen(
                     stcExecute( nss.definitionNs, processedFn ),
@@ -1286,6 +1278,9 @@ function usingDefinitionNs( macroDefNs ) {
         
         // TODO: See if we should design a different approach to unit
         // tests.
+        //
+        // TODO: Make this expand multiple expressions concurrently.
+        //
         effectfulMac( "test",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
@@ -1299,62 +1294,61 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
-                collectDefer( rawMode, function ( rawMode ) {
-                    return macLookupThen(
-                        macroexpand( nssGet( nss, "a" ),
-                            rawMode,
-                            stcCons.getProj( body, "car" ) ),
-                        function ( expandedA ) {
-                    return macLookupThen(
-                        evalStcForTest( nss.definitionNs, expandedA ),
-                        function ( a ) {
-                    return macLookupThen(
-                        macroexpand( nssGet( nss, "b" ),
-                            rawMode,
-                            stcCons.getProj( body1, "car" ) ),
-                        function ( expandedB ) {
-                    return macLookupThen(
-                        evalStcForTest( nss.definitionNs, expandedB ),
-                        function ( b ) {
-                    
-                    return macLookupRet( new StcForeign( "effects",
-                        function ( rawMode ) {
-                        
-                        var match = compareStc( a, b );
-                        
-                        // NOTE: This can be true, false, or null.
-                        if ( match === true )
-                            console.log( "Test succeeded" );
-                        else
-                            console.log(
-                                "Test failed: Expected " +
-                                b.pretty() + ", got " + a.pretty() );
-                        
-                        return macLookupRet( stcNil.ofNow() );
-                    } ) );
-                    
-                    } );
-                    } );
-                    } );
-                    } );
+                var aNss = nssGet( nss, "a" );
+                // NOTE: This is the only place we ignore
+                // `macroexpand`'s result.
+                macroexpand( nssGet( aNss, "unique" ), rawMode,
+                    stcCons.getProj( body, "car" ),
+                    nssGet( aNss, "outbox" ),
+                    function ( expandedA ) {
+                return macLookupThen(
+                    evalStcForTest( nss.definitionNs, expandedA ),
+                    function ( a ) {
+                var bNss = nssGet( nss, "b" );
+                return macroexpand( nssGet( bNss, "unique" ), rawMode,
+                    stcCons.getProj( body, "car" ),
+                    nssGet( bNss, "outbox" ),
+                    function ( expandedB ) {
+                return macLookupThen(
+                    evalStcForTest( nss.definitionNs, expandedB ),
+                    function ( b ) {
+                
+                var match = compareStc( a, b );
+                
+                // NOTE: This can be true, false, or null.
+                if ( match === true )
+                    console.log( "Test succeeded" );
+                else
+                    console.log(
+                        "Test failed: Expected " +
+                        b.pretty() + ", got " + a.pretty() );
+                
+                return macLookupRet( stcNil.ofNow() );
+                
+                } );
+                } );
+                } );
                 } );
                 return macLookupThenRunEffects( rawMode,
                     then( stcNil.of() ) );
             } );
         } );
         
-        // TODO NOW: Convert this to outbox-passing style.
-        mac( "case", function ( nss, rawMode, myStxDetails, body ) {
+        effectfulMac( "case",
+            function ( nss, rawMode, myStxDetails, body, then ) {
+            
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
-            return stcCaseletForRunner( nss, rawMode, null,
-                stcCons.getProj( body, "car" ),
-                stcCons.getProj( body, "cdr" ) );
+            return new StcForeign( "effects", function ( rawMode ) {
+                return stcCaseletForRunner( nss, rawMode, null,
+                    stcCons.getProj( body, "car" ),
+                    stcCons.getProj( body, "cdr" ),
+                    then );
+            } );
         } );
         
-        // TODO NOW: Convert this to outbox-passing style.
-        mac( "caselet",
-            function ( nss, rawMode, myStxDetails, body ) {
+        effectfulMac( "caselet",
+            function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
@@ -1365,18 +1359,25 @@ function usingDefinitionNs( macroDefNs ) {
             if ( va === null )
                 throw new Error();
             
-            return stcCaseletForRunner( nss, rawMode, { val: va },
-                stcCons.getProj( body1, "car" ),
-                stcCons.getProj( body1, "cdr" ) );
+            return new StcForeign( "effects", function ( rawMode ) {
+                return stcCaseletForRunner( nss, rawMode, { val: va },
+                    stcCons.getProj( body1, "car" ),
+                    stcCons.getProj( body1, "cdr" ),
+                    then );
+            } );
         } );
         
-        // TODO NOW: Convert this to outbox-passing style.
-        mac( "cast", function ( nss, rawMode, myStxDetails, body ) {
+        effectfulMac( "cast",
+            function ( nss, rawMode, myStxDetails, body, then ) {
+            
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
-            return stcCast( nss, rawMode,
-                stcCons.getProj( body, "car" ),
-                stcCons.getProj( body, "cdr" ) );
+            return new StcForeign( "effects", function ( rawMode ) {
+                return stcCast( nss, rawMode,
+                    stcCons.getProj( body, "car" ),
+                    stcCons.getProj( body, "cdr" ),
+                    then );
+            } );
         } );
         
         effectfulMac( "isa",
@@ -1424,8 +1425,9 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO NOW: Convert this to outbox-passing style.
-        mac( "proj1", function ( nss, rawMode, myStxDetails, body ) {
+        effectfulMac( "proj1",
+            function ( nss, rawMode, myStxDetails, body, then ) {
+            
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -1439,25 +1441,30 @@ function usingDefinitionNs( macroDefNs ) {
                 stcForeign.ofNow(
                     stcName.ofNow(
                         new StcForeign( "name",
-                            nssGet( nss, "var" ).uniqueNs.name ) ) ) );
-            return stcCast( nssGet( nss, "cast" ), rawMode,
-                stcCons.getProj( body1, "car" ),
-                stcArrayToConsList( [
-                    stcCons.getProj( body, "car" ),
-                    va,
-                    stcStx.ofNow( myStxDetails,
-                        stcArrayToConsList( [
-                            stcStx.ofNow( myStxDetails,
-                                stcForeign.ofNow(
-                                    stcName.ofNow(
-                                        new StcForeign( "name", stcMacroName( macroDefNs, "err" ) ) ) ) ),
-                            stcStx.ofNow( myStxDetails,
-                                stcIstringNil.ofNow(
-                                    stcString.ofNow(
-                                        new StcForeign( "string", "Internal error" ) ) ) )
-                        ] ) ),
-                    va
-                ] ) );
+                            nssGet(
+                                nss, "var" ).uniqueNs.name ) ) ) );
+            return new StcForeign( "effects", function ( rawMode ) {
+                return stcCast( nssGet( nss, "cast" ), rawMode,
+                    stcCons.getProj( body1, "car" ),
+                    stcArrayToConsList( [
+                        stcCons.getProj( body, "car" ),
+                        va,
+                        stcStx.ofNow( myStxDetails,
+                            stcArrayToConsList( [
+                                stcStx.ofNow( myStxDetails,
+                                    stcForeign.ofNow(
+                                        stcName.ofNow(
+                                            new StcForeign( "name",
+                                                stcMacroName( macroDefNs, "err" ) ) ) ) ),
+                                stcStx.ofNow( myStxDetails,
+                                    stcIstringNil.ofNow(
+                                        stcString.ofNow(
+                                            new StcForeign( "string", "Internal error" ) ) ) )
+                            ] ) ),
+                        va
+                    ] ),
+                    then );
+            } );
         } );
         
         effectfulMac( "c",
@@ -1563,17 +1570,19 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO NOW: Convert this to outbox-passing style.
-        mac( "fn", function ( nss, rawMode, myStxDetails, body ) {
-            return processFn( nss, rawMode, body );
+        effectfulMac( "fn",
+            function ( nss, rawMode, myStxDetails, body, then ) {
+            
+            return new StcForeign( "effects", function ( rawMode ) {
+                return processFn( nss, rawMode, body, then );
+            } );
         } );
         
         effectfulMac( "let",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
-                return macLookupThen(
-                    loop( 0, body, nssGet( nss, "bindings" ), "" ),
+                return loop( 0, body, nssGet( nss, "bindings" ), "",
                     function ( code ) {
                     
                     return macLookupThenRunEffects( rawMode,
@@ -1582,7 +1591,8 @@ function usingDefinitionNs( macroDefNs ) {
             } );
             
             function loop(
-                i, remainingBody, bindingsNss, obscureVarsCode ) {
+                i, remainingBody, bindingsNss, obscureVarsCode,
+                then ) {
                 
                 if ( remainingBody.tupleTag !==
                     stcCons.getTupleTag() )
@@ -1590,43 +1600,45 @@ function usingDefinitionNs( macroDefNs ) {
                 var remainingBody1 =
                     stcCons.getProj( remainingBody, "cdr" );
                 if ( remainingBody1.tupleTag !==
-                    stcCons.getTupleTag() )
-                    return macLookupThen(
-                        macroexpand( nssGet( nss, "body" ),
-                            rawMode,
-                            stcCons.getProj( remainingBody, "car" ) ),
+                    stcCons.getTupleTag() ) {
+                    var bodyNss = nssGet( nss, "body" );
+                    return macroexpand( nssGet( bodyNss, "unique" ),
+                        rawMode,
+                        stcCons.getProj( remainingBody, "car" ),
+                        nssGet( bodyNss, "outbox" ),
                         function ( body ) {
                         
-                        return macLookupRet(
+                        return then(
                             "(function () {\n" +
                             obscureVarsCode +
                             "return " + body + ";\n" +
                             "})()" );
                     } );
+                }
                 var va = stxToMaybeName(
                     stcCons.getProj( remainingBody, "car" ) );
                 if ( va === null )
                     throw new Error();
                 
-                return macLookupThen(
-                    macroexpand( nssGet( bindingsNss, "first" ),
-                        rawMode,
-                        stcCons.getProj( remainingBody1, "car" ) ),
+                var firstNss = nssGet( bindingsNss, "first" );
+                return macroexpand( nssGet( firstNss, "unique" ),
+                    rawMode,
+                    stcCons.getProj( remainingBody1, "car" )
+                    nssGet( firstNss, "outbox" ),
                     function ( bindingVal ) {
                     
                     var innerVar = stcIdentifier( va );
                     var obscureVar = "stcLocal_" + i;
                     
-                    return macLookupThen(
-                        loop( i + 1,
-                            stcCons.getProj( remainingBody1, "cdr" ),
-                            nssGet( bindingsNss, "rest" ),
-                            obscureVarsCode +
-                                "var " + innerVar + " = " +
-                                    obscureVar + ";\n" ),
+                    return loop( i + 1,
+                        stcCons.getProj( remainingBody1, "cdr" ),
+                        nssGet( bindingsNss, "rest" ),
+                        obscureVarsCode +
+                            "var " + innerVar + " = " +
+                                obscureVar + ";\n",
                         function ( loopResult ) {
                         
-                        return macLookupRet(
+                        return then(
                             "macLookupThen( " + bindingVal + ", " +
                                 "function ( " +
                                     obscureVar + " ) {\n" +
@@ -2071,13 +2083,17 @@ function usingDefinitionNs( macroDefNs ) {
                 return stcName.ofNow(
                     new StcForeign( "name", name ) );
             } ) ) );
+        // TODO: Rename this to `stcAddMacro`.
         // TODO: Make this expand multiple subexpressions
         // concurrently.
-        stcAddMacro( definitionNs, rawMode, tupleName,
+        stcAddEffectfulMacro( definitionNs, rawMode, tupleName,
             function ( nss, rawMode, myStxDetails, body, then ) {
             
-            return loop(
-                0, null, body, nssGet( nss, "projections" ) );
+            return new StcForeign( "effects", function ( rawMode ) {
+                return loop(
+                    0, null, body, nssGet( nss, "projections" ) );
+            } );
+            
             function loop(
                 i, revProjVals, remainingBody, projectionsNss ) {
                 
@@ -2112,11 +2128,12 @@ function usingDefinitionNs( macroDefNs ) {
                     remainingBody,
                     function ( expandedArgs ) {
                     
-                    return then(
-                        stcCallArr(
-                            type.ofArr(
-                                revJsListToArr( revProjVals ) ),
-                            expandedArgs ) );
+                    return macLookupThenRunEffects( rawMode,
+                        then(
+                            stcCallArr(
+                                type.ofArr(
+                                    revJsListToArr( revProjVals ) ),
+                                expandedArgs ) ) );
                 } );
             }
         } );
