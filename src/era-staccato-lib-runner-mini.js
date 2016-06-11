@@ -169,14 +169,17 @@ function nameCompare( a, b ) {
         } else if ( b[ 0 ] === "root" ) {
             return 1;
         } else if ( b[ 0 ] === "get" ) {
-            // NOTE: This ends up ordering the names in a breath-first
-            // way. If we needed any ordering in particular, it
-            // probably wouldn't be this one, but for now an arbitrary
-            // order is fine.
-            var compareParents = nameCompare( a[ 2 ], b[ 2 ] );
-            if ( compareParents !== 0 )
-                return compareParents;
-            return nameCompare( a[ 1 ], b[ 1 ] );
+            // NOTE: This ends up ordering the names in a very
+            // arbitrary way. If we needed any ordering in particular,
+            // it probably wouldn't be this one, but for now an
+            // arbitrary order is fine.
+            var compareLatestSegments = nameCompare( a[ 1 ], b[ 1 ] );
+            if ( compareLatestSegments !== 0 )
+                return compareLatestSegments;
+            var compareRepetitions = a[ 2 ] - b[ 2 ];
+            if ( compareRepetitions !== 0 )
+                return compareRepetitions;
+            return nameCompare( a[ 3 ], b[ 3 ] );
         } else {
             throw new Error();
         }
@@ -284,7 +287,17 @@ function stcNsRoot() {
 function stcNsGet( stringOrName, ns ) {
     return ns.shadows.has( stringOrName ) ?
         ns.shadows.get( stringOrName ) : {
-            name: [ "get", stringOrName, ns.name ],
+            name:
+                (ns.name[ 0 ] === "get"
+                    && ns.name[ 2 ] <= 1000
+                    // TODO: See if we should do a deep check here. We
+                    // effectively collapse deep names only when
+                    // they're made of strings.
+                    && nameCompare( ns.name[ 1 ], stringOrName ) ===
+                        0 ) ?
+                    [ "get", stringOrName, ns.name[ 2 ] + 1,
+                        ns.name[ 3 ] ] :
+                    [ "get", stringOrName, 1, ns.name ],
             shadows: jsnMap()
         };
 }
@@ -357,7 +370,7 @@ Stc.prototype.callStc = function ( definitionNs, arg ) {
 Stc.prototype.pretty = function () {
     return "(" +
         JSON.stringify(
-            JSON.parse( this.tupleTag )[ 1 ][ 2 ][ 1 ][ 2 ][ 1 ] ) +
+            JSON.parse( this.tupleTag )[ 1 ][ 3 ][ 1 ][ 3 ][ 1 ] ) +
         arrMap( this.projNames, function ( elem, i ) {
             return " " + elem.pretty();
         } ).join( "" ) + ")";
@@ -438,6 +451,18 @@ function runPuts( rawMode ) {
             put.namespace.name, put.value );
     } );
 }
+function runEffects( rawMode, effects ) {
+    if ( !(effects instanceof StcForeign
+        && effects.purpose === "effects") )
+        throw new Error();
+    var effectsFunc = effects.foreignVal;
+    return effectsFunc( rawMode );
+}
+function macLookupThenRunEffects( rawMode, effects ) {
+    return macLookupThen( effects, function ( effects ) {
+        return runEffects( rawMode, effects );
+    } );
+}
 
 function macLookupRet( result ) {
     return { type: "ret", val: result };
@@ -464,19 +489,6 @@ function runTopLevelMacLookupsSync( originalThreads ) {
     
     var threads = [];
     
-    function runEffects( rawMode, effects ) {
-        if ( !(effects instanceof StcForeign
-            && effects.purpose === "effects") )
-            throw new Error();
-        var effectsFunc = effects.foreignVal;
-        return effectsFunc( rawMode );
-    }
-    function macLookupThenRunEffects( rawMode, effects ) {
-        return macLookupThen( effects, function ( effects ) {
-            return runEffects( rawMode, effects );
-        } );
-    }
-    
     function addMacroThread( thread ) {
         var rawMode = {
             type: "macro",
@@ -486,12 +498,16 @@ function runTopLevelMacLookupsSync( originalThreads ) {
         };
         var monad = macLookupThen( macLookupRet( null ),
             function ( ignored ) {
+        // TODO: See if this thread() call needs to be
+        // surrounded by currentlyMode().
         return macLookupThen( thread( rawMode ),
             function ( ignored ) {
             
             runPuts( rawMode );
             arrEach( rawMode.defer, function ( thread ) {
                 addMacroThread( function ( rawMode ) {
+                    // TODO: See if this thread() call needs to be
+                    // surrounded by currentlyMode().
                     return macLookupThen( thread( rawMode ),
                         function ( effects ) {
                         
@@ -508,6 +524,7 @@ function runTopLevelMacLookupsSync( originalThreads ) {
         
         threads.push( {
             isJs: false,
+            failedAdvances: 0,
             rawMode: rawMode,
             monad: monad
         } );
@@ -531,6 +548,7 @@ function runTopLevelMacLookupsSync( originalThreads ) {
             
             threads.push( {
                 isJs: true,
+                failedAdvances: 0,
                 rawMode: null,
                 monad: monad
             } );
@@ -545,6 +563,7 @@ function runTopLevelMacLookupsSync( originalThreads ) {
         function replaceThread( monad ) {
             threads[ i ] = {
                 isJs: thread.isJs,
+                failedAdvances: 0,
                 rawMode: thread.rawMode,
                 monad: monad
             };
@@ -577,6 +596,7 @@ function runTopLevelMacLookupsSync( originalThreads ) {
                                         thread.monad.first.name ) );
                         } ) );
                 } else {
+                    thread.failedAdvances++;
                     return false;
                 }
             } else if ( thread.monad.first.type === "then" ) {
@@ -608,15 +628,56 @@ function runTopLevelMacLookupsSync( originalThreads ) {
         }, 0 );
     }
     
+    function arrAnyButKeepGoing( arr, func ) {
+        var result = false;
+        arrEach( arr, function ( item, i ) {
+            if ( func( item, i ) )
+                result = true;
+        } );
+        return result;
+    }
+    
     // We advance every thread except those which can perform
     // JavaScript side effects. We don't want to perform JavaScript
     // side effects if there's a "load-time" error on the way.
-    while ( arrAny( threads.slice(), function ( thread, i ) {
+    while ( arrAnyButKeepGoing( threads.slice(),
+        function ( thread, i ) {
+        
         if ( thread.isJs )
             return false;
         
         return advanceThread( i );
     } ) ) {
+        
+        // OPTIMIZATION: In between full passes, we do short passes
+        // over the most likely threads to be able to advance.
+        threads.sort( function ( a, b ) {
+            var compareIsJs = (b.isJs ? 1 : 0) - (a.isJs ? 1 : 0);
+            if ( compareIsJs !== 0 )
+                return compareIsJs;
+            
+            return b.failedAdvances - a.failedAdvances;
+        } );
+        var start;
+        while (
+            start = threads.length - ~~Math.sqrt( threads.length ),
+            arrAnyButKeepGoing( threads.slice( start ),
+                function ( thread, i ) {
+                
+                if ( thread.isJs )
+                    return false;
+                
+                return advanceThread( start + i );
+            } )
+        ) {
+            threads = arrKeep( threads, function ( thread ) {
+                if ( thread.isJs )
+                    return true;
+                
+                return thread.monad.type !== "ret";
+            } );
+        }
+        
         threads = arrKeep( threads, function ( thread ) {
             if ( thread.isJs )
                 return true;
@@ -627,21 +688,21 @@ function runTopLevelMacLookupsSync( originalThreads ) {
     
     // We raise errors for any threads that have stalled due to
     // blocking on definitions that will never come.
-    var anyError = arrAny( threads, function ( thread ) {
+    if ( arrAnyButKeepGoing( threads, function ( thread ) {
         if ( thread.isJs )
             return false;
         
         raiseErrorsForStalledThread( thread );
         return true;
-    } );
-    
-    if ( anyError )
+    } ) )
         return;
     
     // If no threads have stalled, we advance every thread, now
     // including the threads which can perform JavaScript side
     // effects.
-    while ( arrAny( threads.slice(), function ( thread, i ) {
+    while ( arrAnyButKeepGoing( threads.slice(),
+        function ( thread, i ) {
+        
         return advanceThread( i );
     } ) ) {
         threads = arrKeep( threads, function ( thread ) {
@@ -864,17 +925,18 @@ function usingDefinitionNs( macroDefNs ) {
     function stcCaseletForRunner(
         nss, rawMode, maybeVa, matchSubject, body, then ) {
         
-        function processTail( nss, body, then ) {
+        function processTail( nss, rawMode, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
             if ( body1.tupleTag !== stcCons.getTupleTag() )
                 return macroexpand( nssGet( nss, "unique" ), rawMode,
                     stcCons.getProj( body, "car" ),
-                    nssGet( nss, "outbox" ),
-                    function ( expanded ) {
+                    nssGet( nss, "outbox" ).uniqueNs,
+                    function ( rawMode, expanded ) {
                     
-                    return then( "return " + expanded + "; " );
+                    return then( rawMode,
+                        "return " + expanded + "; " );
                 } );
             
             return macLookupThen(
@@ -889,15 +951,15 @@ function usingDefinitionNs( macroDefNs ) {
             return macroexpand( nssGet( thenNss, "unique" ),
                 rawMode,
                 stcCons.getProj( pattern.remainingBody, "car" ),
-                nssGet( thenNss, "outbox" ),
-                function ( thenBranch ) {
+                nssGet( thenNss, "outbox" ).uniqueNs,
+                function ( rawMode, thenBranch ) {
             
             var els = stcCons.getProj( pattern.remainingBody, "cdr" );
             
-            return processTail( nssGet( nss, "tail" ), els,
-                function ( processedTail ) {
+            return processTail( nssGet( nss, "tail" ), rawMode, els,
+                function ( rawMode, processedTail ) {
             
-            return then( "if ( " +
+            return then( rawMode, "if ( " +
                 "stcLocal_matchSubject.tupleTag === " +
                     JSON.stringify( pattern.type.getTupleTag() ) +
                     " " +
@@ -925,10 +987,10 @@ function usingDefinitionNs( macroDefNs ) {
         var subjectNss = nssGet( nss, "subject" );
         return macroexpand( nssGet( subjectNss, "unique" ), rawMode,
             matchSubject,
-            nssGet( subjectNss, "outbox" ),
-            function ( expandedSubject ) {
-        return processTail( nssGet( nss, "tail" ), body,
-            function ( processedTail ) {
+            nssGet( subjectNss, "outbox" ).uniqueNs,
+            function ( rawMode, expandedSubject ) {
+        return processTail( nssGet( nss, "tail" ), rawMode, body,
+            function ( rawMode, processedTail ) {
         
         return macLookupThenRunEffects( rawMode,
             then(
@@ -965,19 +1027,19 @@ function usingDefinitionNs( macroDefNs ) {
         
         var onCastErrNss = nssGet( nss, "on-cast-err" );
         return macroexpand( nssGet( onCastErrNss, "unique" ), rawMode,
-            stcCons.getProj( pattern.remainingBody, "car" )
-            nssGet( onCastErrNss, "outbox" ),
-            function ( onCastErr ) {
+            stcCons.getProj( pattern.remainingBody, "car" ),
+            nssGet( onCastErrNss, "outbox" ).uniqueNs,
+            function ( rawMode, onCastErr ) {
         var bodyNss = nssGet( nss, "body" );
         return macroexpand( nssGet( bodyNss, "unique" ), rawMode,
-            stcCons.getProj( remainingBody1, "car" ) ),
-            nssGet( bodyNss, "outbox" ),
-            function ( body ) {
+            stcCons.getProj( remainingBody1, "car" ),
+            nssGet( bodyNss, "outbox" ).uniqueNs,
+            function ( rawMode, body ) {
         var subjectNss = nssGet( nss, "subject" );
         return macroexpand( nssGet( subjectNss, "unique" ), rawMode,
             matchSubject,
-            nssGet( subjectNss, "outbox" ),
-            function ( expandedSubject ) {
+            nssGet( subjectNss, "outbox" ).uniqueNs,
+            function ( rawMode, expandedSubject ) {
         
         return macLookupThenRunEffects( rawMode,
             then(
@@ -1011,18 +1073,18 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function processFn( nss, rawMode, body, then ) {
-        return loop( body, function ( processedRest ) {
-            return macLookupThenRunEffects( rawMode,
-                then( processedRest ) );
+        // TODO NOW: Simplify this again. We don't really need loop().
+        return loop( body, function ( rawMode, processedRest ) {
+            return then( rawMode, processedRest );
         } );
         function loop( body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
             if ( body1.tupleTag !== stcCons.getTupleTag() )
-                return macroexpand( getNss( nss, "unique" ), rawMode,
+                return macroexpand( nssGet( nss, "unique" ), rawMode,
                     stcCons.getProj( body, "car" ),
-                    getNss( nss, "outbox" ),
+                    nssGet( nss, "outbox" ).uniqueNs,
                     then );
             var param = stcCons.getProj( body, "car" );
             var paramName = stxToMaybeName( param );
@@ -1030,8 +1092,9 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error(
                     "Called fn with a variable name that wasn't a " +
                     "syntactic name: " + param.pretty() );
-            return processFn( body1, function ( processedRest ) {
-                return then( stcFn( paramName, processedRest ) );
+            return loop( body1, function ( rawMode, processedRest ) {
+                return then( rawMode,
+                    stcFn( paramName, processedRest ) );
             } );
         }
     }
@@ -1058,13 +1121,13 @@ function usingDefinitionNs( macroDefNs ) {
     
     // TODO: Make this expand multiple expressions concurrently.
     function macroexpandConsListToArr( nss, rawMode, list, then ) {
-        return go( nss, list, null );
-        function go( currentNss, e, revResult ) {
+        return go( nss, rawMode, list, null );
+        function go( currentNss, rawMode, e, revResult ) {
             if ( e.tupleTag !== stcCons.getTupleTag() ) {
                 if ( e.tupleTag !== stcNil.getTupleTag() )
                     throw new Error();
                 
-                return then( revJsListToArr( revResult ) );
+                return then( rawMode, revJsListToArr( revResult ) );
             }
             
             var firstNss = nssGet( currentNss, "first" );
@@ -1072,9 +1135,9 @@ function usingDefinitionNs( macroDefNs ) {
                 rawMode,
                 stcCons.getProj( e, "car" ),
                 nssGet( firstNss, "outbox" ).uniqueNs,
-                function ( elemResult ) {
+                function ( rawMode, elemResult ) {
                 
-                return go( nssGet( currentNss, "rest" ),
+                return go( nssGet( currentNss, "rest" ), rawMode,
                     stcCons.getProj( e, "cdr" ),
                     { first: elemResult, rest: revResult } );
             } );
@@ -1113,7 +1176,7 @@ function usingDefinitionNs( macroDefNs ) {
                                     return macroFunctionImpl( {
                                         definitionNs: definitionNs.foreignVal,
                                         uniqueNs: uniqueNs.foreignVal
-                                    }, rawMode, myStxDetails, body, function ( code ) {
+                                    }, mode.foreignVal, myStxDetails, body, function ( code ) {
                                         return then.callStc( macroDefNs,
                                             new StcForeign( "compiled-code", code ) );
                                     } );
@@ -1214,7 +1277,7 @@ function usingDefinitionNs( macroDefNs ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
                 return processFn( nss, rawMode, body1,
-                    function ( processedFn ) {
+                    function ( rawMode, processedFn ) {
                     
                     stcAddDefun( nss, rawMode,
                         stcConstructorTag( nss.definitionNs,
@@ -1234,14 +1297,9 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO NOW: Update the code that calls this. Macros should
-        // now take an additional argument which acts as a monadic
-        // side effect that consumes the macro result.
-        //
         // TODO: Write documentation for this in
         // era-staccato-self-compiler.stc and/or
         // cene-design-goals.txt.
-        //
         effectfulMac( "def-macro",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
@@ -1258,7 +1316,7 @@ function usingDefinitionNs( macroDefNs ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
                 return processFn( nss, rawMode, body1,
-                    function ( processedFn ) {
+                    function ( rawMode, processedFn ) {
                 return macLookupThen(
                     stcExecute( nss.definitionNs, processedFn ),
                     function ( executedFn ) {
@@ -1299,16 +1357,16 @@ function usingDefinitionNs( macroDefNs ) {
                 // `macroexpand`'s result.
                 macroexpand( nssGet( aNss, "unique" ), rawMode,
                     stcCons.getProj( body, "car" ),
-                    nssGet( aNss, "outbox" ),
-                    function ( expandedA ) {
+                    nssGet( aNss, "outbox" ).uniqueNs,
+                    function ( rawMode, expandedA ) {
                 return macLookupThen(
                     evalStcForTest( nss.definitionNs, expandedA ),
                     function ( a ) {
                 var bNss = nssGet( nss, "b" );
                 return macroexpand( nssGet( bNss, "unique" ), rawMode,
                     stcCons.getProj( body, "car" ),
-                    nssGet( bNss, "outbox" ),
-                    function ( expandedB ) {
+                    nssGet( bNss, "outbox" ).uniqueNs,
+                    function ( rawMode, expandedB ) {
                 return macLookupThen(
                     evalStcForTest( nss.definitionNs, expandedB ),
                     function ( b ) {
@@ -1400,10 +1458,10 @@ function usingDefinitionNs( macroDefNs ) {
                     tupleNameExpr.pretty() );
             
             return new StcForeign( "effects", function ( rawMode ) {
-                return macroexpand( getNss( nss, "unique" ), rawMode,
+                return macroexpand( nssGet( nss, "unique" ), rawMode,
                     stcCons.getProj( body1, "car" ),
-                    getNss( nss, "outbox" ).uniqueNs,
-                    function ( expandedBody ) {
+                    nssGet( nss, "outbox" ).uniqueNs,
+                    function ( rawMode, expandedBody ) {
                 return macLookupThen(
                     getType( nss.definitionNs, tupleName ),
                     function ( type ) {
@@ -1481,12 +1539,12 @@ function usingDefinitionNs( macroDefNs ) {
                     rawMode,
                     stcCons.getProj( body, "car" ),
                     nssGet( funcNss, "outbox" ).uniqueNs,
-                    function ( expandedFunc ) {
+                    function ( rawMode, expandedFunc ) {
                 return macroexpandConsListToArr(
                     nssGet( nss, "args" ),
                     rawMode,
                     stcCons.getProj( body, "cdr" ),
-                    function ( expandedArgs ) {
+                    function ( rawMode, expandedArgs ) {
                 
                 return macLookupThenRunEffects( rawMode,
                     then(
@@ -1511,7 +1569,7 @@ function usingDefinitionNs( macroDefNs ) {
             return new StcForeign( "effects", function ( rawMode ) {
                 return macroexpandConsListToArr( nss, rawMode,
                     stcCons.getProj( body, "cdr" ),
-                    function ( expr ) {
+                    function ( rawMode, expandedArgs ) {
                     
                     return macLookupThenRunEffects( rawMode,
                         then(
@@ -1574,7 +1632,12 @@ function usingDefinitionNs( macroDefNs ) {
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
-                return processFn( nss, rawMode, body, then );
+                return processFn( nss, rawMode, body,
+                    function ( rawMode, processedFn ) {
+                    
+                    return macLookupThenRunEffects( rawMode,
+                        then( processedFn ) );
+                } );
             } );
         } );
         
@@ -1582,8 +1645,9 @@ function usingDefinitionNs( macroDefNs ) {
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
-                return loop( 0, body, nssGet( nss, "bindings" ), "",
-                    function ( code ) {
+                return loop(
+                    rawMode, 0, body, nssGet( nss, "bindings" ), "",
+                    function ( rawMode, code ) {
                     
                     return macLookupThenRunEffects( rawMode,
                         then( code ) );
@@ -1591,8 +1655,8 @@ function usingDefinitionNs( macroDefNs ) {
             } );
             
             function loop(
-                i, remainingBody, bindingsNss, obscureVarsCode,
-                then ) {
+                rawMode, i, remainingBody, bindingsNss,
+                obscureVarsCode, then ) {
                 
                 if ( remainingBody.tupleTag !==
                     stcCons.getTupleTag() )
@@ -1605,10 +1669,10 @@ function usingDefinitionNs( macroDefNs ) {
                     return macroexpand( nssGet( bodyNss, "unique" ),
                         rawMode,
                         stcCons.getProj( remainingBody, "car" ),
-                        nssGet( bodyNss, "outbox" ),
-                        function ( body ) {
+                        nssGet( bodyNss, "outbox" ).uniqueNs,
+                        function ( rawMode, body ) {
                         
-                        return then(
+                        return then( rawMode,
                             "(function () {\n" +
                             obscureVarsCode +
                             "return " + body + ";\n" +
@@ -1623,22 +1687,22 @@ function usingDefinitionNs( macroDefNs ) {
                 var firstNss = nssGet( bindingsNss, "first" );
                 return macroexpand( nssGet( firstNss, "unique" ),
                     rawMode,
-                    stcCons.getProj( remainingBody1, "car" )
-                    nssGet( firstNss, "outbox" ),
-                    function ( bindingVal ) {
+                    stcCons.getProj( remainingBody1, "car" ),
+                    nssGet( firstNss, "outbox" ).uniqueNs,
+                    function ( rawMode, bindingVal ) {
                     
                     var innerVar = stcIdentifier( va );
                     var obscureVar = "stcLocal_" + i;
                     
-                    return loop( i + 1,
+                    return loop( rawMode, i + 1,
                         stcCons.getProj( remainingBody1, "cdr" ),
                         nssGet( bindingsNss, "rest" ),
                         obscureVarsCode +
                             "var " + innerVar + " = " +
                                 obscureVar + ";\n",
-                        function ( loopResult ) {
+                        function ( rawMode, loopResult ) {
                         
-                        return then(
+                        return then( rawMode,
                             "macLookupThen( " + bindingVal + ", " +
                                 "function ( " +
                                     obscureVar + " ) {\n" +
@@ -1853,38 +1917,20 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "procure-put-defined", function ( mode ) {
-            return stcFnPure( function ( ns ) {
-                return stcFnPure( function ( value ) {
-                    return stcFnPure( function ( then ) {
-                        if ( !(mode instanceof StcForeign
-                            && mode.purpose === "mode"
-                            && mode.foreignVal.current
-                            && mode.foreignVal.type === "macro") )
-                            throw new Error();
-                        
-                        if ( !(ns instanceof StcForeign
-                            && ns.purpose === "ns") )
-                            throw new Error();
-                        
-                        return new StcForeign( "effects",
-                            function ( rawMode ) {
-                            
-                            // NOTE: This uses object identity.
-                            if ( mode.foreignVal !== rawMode )
-                                throw new Error();
-                            
-                            collectPut( rawMode, ns.foreignVal,
-                                value );
-                            collectDefer( rawMode,
-                                function ( rawMode ) {
-                                
-                                return then.callStc( macroDefNs,
-                                    new StcForeign( "mode", rawMode ) );
-                            } );
-                            return macLookupRet( stcNil.ofNow() );
-                        } );
-                    } );
+        fun( "procure-put-defined", function ( ns ) {
+            return stcFnPure( function ( value ) {
+                if ( !(ns instanceof StcForeign
+                    && ns.purpose === "ns") )
+                    throw new Error();
+                
+                return new StcForeign( "effects",
+                    function ( rawMode ) {
+                    
+                    if ( rawMode.type !== "macro" )
+                        throw new Error();
+                    
+                    collectPut( rawMode, ns.foreignVal, value );
+                    return macLookupRet( stcNil.ofNow() );
                 } );
             } );
         } );
@@ -1915,8 +1961,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO NOW: Test this.
-        //
         // TODO: Document this in era-staccato-self-compiler.stc
         // and/or cene-design-goals.txt. It's a (later/fn mode ...)
         // monadic side effect that runs the inner effects in a future
@@ -1941,9 +1985,6 @@ function usingDefinitionNs( macroDefNs ) {
             return stcNil.ofNow();
         } );
         
-        // TODO NOW: Modify the things that call this, and document
-        // this new design. This takes another namespace parameter to
-        // use as a definition site for the macroexpansion result.
         fun( "compile-expression", function ( mode ) {
             return stcFnPure( function ( uniqueNs ) {
                 return stcFnPure( function ( definitionNs ) {
@@ -1963,6 +2004,10 @@ function usingDefinitionNs( macroDefNs ) {
                                 && definitionNs.purpose === "ns") )
                                 throw new Error();
                             
+                            if ( !(outNs instanceof StcForeign
+                                && outNs.purpose === "ns") )
+                                throw new Error();
+                            
                             return new StcForeign( "effects",
                                 function ( rawMode ) {
                                 
@@ -1973,8 +2018,8 @@ function usingDefinitionNs( macroDefNs ) {
                                 return macroexpand( {
                                     definitionNs: definitionNs.foreignVal,
                                     uniqueNs: uniqueNs.foreignVal
-                                }, rawMode, stx, outNs,
-                                    function ( result ) {
+                                }, rawMode, stx, outNs.foreignVal,
+                                    function ( rawMode, result ) {
                                     
                                     return macLookupRet( null );
                                 } );
@@ -2002,28 +2047,39 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function macroexpand( nss, rawMode, locatedExpr, outNs, then ) {
-        var identifier = stxToMaybeName( locatedExpr );
-        if ( identifier !== null )
-            return macLookupRet(
-                "macLookupRet( " +
-                    stcIdentifier( identifier ) + " )" );
-        if ( locatedExpr.tupleTag !== stcStx.getTupleTag() )
-            throw new Error();
-        var sExpr = stcStx.getProj( locatedExpr, "s-expr" );
-        if ( sExpr.tupleTag !== stcCons.getTupleTag() )
-            throw new Error();
-        var macroName =
-            stxToMaybeName( stcCons.getProj( sExpr, "car" ) );
-        if ( macroName === null )
-            throw new Error();
-        var resolvedMacroName =
-            stcMacroName( nss.definitionNs, macroName );
-        var macroFunctionName =
-            stcNsGet( "function",
-                stcNsGet( resolvedMacroName,
-                    stcNsGet( "macros", nss.definitionNs ) ) ).name;
-        
         collectDefer( rawMode, function ( rawMode ) {
+            var identifier = stxToMaybeName( locatedExpr );
+            if ( identifier !== null )
+                return macLookupRet( new StcForeign( "effects",
+                    function ( rawMode ) {
+                    
+                    // TODO: Report better errors if an unbound local
+                    // variable is used. Currently, we just generate
+                    // the JavaScript code for the variable anyway.
+                    collectPut( rawMode, outNs,
+                        new StcForeign( "compiled-code",
+                            "macLookupRet( " +
+                                stcIdentifier(
+                                    identifier ) + " )" ) );
+                    return macLookupRet( stcNil.ofNow() );
+                } ) );
+            if ( locatedExpr.tupleTag !== stcStx.getTupleTag() )
+                throw new Error();
+            var sExpr = stcStx.getProj( locatedExpr, "s-expr" );
+            if ( sExpr.tupleTag !== stcCons.getTupleTag() )
+                throw new Error();
+            var macroNameStx = stcCons.getProj( sExpr, "car" );
+            var macroName = stxToMaybeName( macroNameStx );
+            if ( macroName === null )
+                throw new Error();
+            var resolvedMacroName =
+                stcMacroName( nss.definitionNs, macroName );
+            var macroFunctionName =
+                stcNsGet( "function",
+                    stcNsGet( resolvedMacroName,
+                        stcNsGet( "macros",
+                            nss.definitionNs ) ) ).name;
+            
             return macLookupThen(
                 macLookupGet( macroFunctionName, function () {
                     throw new Error(
@@ -2032,26 +2088,41 @@ function usingDefinitionNs( macroDefNs ) {
                 } ),
                 function ( macroFunction ) {
             
-            return macLookupThenRunEffects( rawMode,
-                callStcMulti( macroFunction,
-                    new StcForeign( "mode", rawMode ),
-                    new StcForeign( "ns", nss.uniqueNs ),
-                    new StcForeign( "ns", nss.definitionNs ),
-                    stcTrivialStxDetails(),
-                    stcCons.getProj( sExpr, "cdr" ),
-                    stcFnPure( function ( macroResult ) {
-                        return new StcForeign( "effects",
-                            function ( rawMode ) {
-                            
-                            collectPut( rawMode, outNs, macroResult );
-                            return macLookupRet( stcNil.ofNow() );
-                        } );
-                    } ) ) );
+            return callStcMulti( macroFunction,
+                new StcForeign( "mode", rawMode ),
+                new StcForeign( "ns", nss.uniqueNs ),
+                new StcForeign( "ns", nss.definitionNs ),
+                stcTrivialStxDetails(),
+                stcCons.getProj( sExpr, "cdr" ),
+                stcFnPure( function ( macroResult ) {
+                    return new StcForeign( "effects",
+                        function ( rawMode ) {
+                        
+                        collectPut( rawMode, outNs, macroResult );
+                        return macLookupRet( stcNil.ofNow() );
+                    } );
+                } ) );
             
             } );
         } );
         collectDefer( rawMode, function ( rawMode ) {
-            return macLookupGet( outNs, function ( macroResult ) {
+            return macLookupThen(
+                macLookupGet( outNs.name, function () {
+                    if ( locatedExpr.tupleTag !==
+                        stcStx.getTupleTag() )
+                        throw new Error();
+                    var sExpr =
+                        stcStx.getProj( locatedExpr, "s-expr" );
+                    if ( sExpr.tupleTag !== stcCons.getTupleTag() )
+                        throw new Error();
+                    var macroNameStx =
+                        stcCons.getProj( sExpr, "car" );
+                    throw new Error(
+                        "Macro never completed: " +
+                        macroNameStx.pretty() );
+                } ),
+                function ( macroResult ) {
+                
                 if ( !(macroResult instanceof StcForeign
                     && macroResult.purpose === "compiled-code") )
                     throw new Error();
@@ -2063,7 +2134,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        return macLookupRet( stcNil.of() );
+        return macLookupRet( stcNil.ofNow() );
     }
     
     function processDefType(
@@ -2090,15 +2161,16 @@ function usingDefinitionNs( macroDefNs ) {
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
-                return loop(
-                    0, null, body, nssGet( nss, "projections" ) );
+                return loop( rawMode, 0, null, body,
+                    nssGet( nss, "projections" ) );
             } );
             
-            function loop(
-                i, revProjVals, remainingBody, projectionsNss ) {
+            function loop( rawMode, i, revProjVals, remainingBody,
+                projectionsNss ) {
                 
                 if ( n <= i )
-                    return next( revProjVals, remainingBody );
+                    return next( rawMode,
+                        revProjVals, remainingBody );
                 
                 if ( remainingBody.tupleTag !==
                     stcCons.getTupleTag() )
@@ -2112,21 +2184,21 @@ function usingDefinitionNs( macroDefNs ) {
                     rawMode,
                     stcCons.getProj( remainingBody, "car" ),
                     nssGet( firstNss, "outbox" ).uniqueNs,
-                    function ( projVal ) {
+                    function ( rawMode, projVal ) {
                     
-                    return loop( i + 1,
+                    return loop( rawMode, i + 1,
                         { first: projVal, rest: revProjVals },
                         stcCons.getProj( remainingBody, "cdr" ),
                         nssGet( projectionsNss, "rest" ) );
                 } );
             }
             
-            function next( revProjVals, remainingBody ) {
+            function next( rawMode, revProjVals, remainingBody ) {
                 return macroexpandConsListToArr(
                     nssGet( nss, "args" ),
                     rawMode,
                     remainingBody,
-                    function ( expandedArgs ) {
+                    function ( rawMode, expandedArgs ) {
                     
                     return macLookupThenRunEffects( rawMode,
                         then(
@@ -2269,13 +2341,12 @@ function usingDefinitionNs( macroDefNs ) {
             
             macLookupEffectsArr.push( function ( rawMode ) {
                 var firstNss = nssGet( thisRemainingNss, "first" );
-                return macroexpand(
-                    nssGet( firstNss, "unique" ),
+                return macroexpand( nssGet( firstNss, "unique" ),
                     rawMode,
                     readerExprToStc(
                         stcTrivialStxDetails(), tryExpr.val ),
-                    nssGet( firstNss, "outbox" ),
-                    function ( code ) {
+                    nssGet( firstNss, "outbox" ).uniqueNs,
+                    function ( rawMode, code ) {
                     
                     return macLookupRet( null );
                 } );

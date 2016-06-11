@@ -19,7 +19,9 @@
 \= read from demos/import-example-src/import-example-src.cene.
 
 
-(def-macro import mode unique-ns definition-ns my-stx-details args
+(def-macro import
+  mode unique-ns definition-ns my-stx-details args then
+  
   (let s (fn it /stx my-stx-details it)
   /let mac
     (fn str rest
@@ -31,37 +33,52 @@
         str.\;qq[import-example-src.cene])
       (folding unique-ns /fn mode /no-effects/nil)
     /fn expr state
-      (cast state folding unique-ns then
+      (cast state folding unique-ns launch-rest
         err.\;qq[Internal error]
       /folding (ns-get-string str.rest unique-ns)
       /fn mode
-      /compile-expression mode (ns-get-string str.first unique-ns)
-        definition-ns expr then))
-    folding unique-ns then
+      /bind-effects (c launch-rest mode) /fn -
+      /let first-ns (ns-get-string str.first unique-ns)
+      /compile-expression mode
+        (ns-get-string str.unique first-ns)
+        definition-ns
+        expr
+        (ns-get-string str.outbox first-ns)))
+    folding unique-ns launch-rest
     err.\;qq[Internal error]
-  /bind-effects (c then mode) /fn -
-  /compile-expression mode unique-ns definition-ns
+  /bind-effects (c launch-rest mode) /fn -
+  /let outbox (ns-get-string str.outbox unique-ns)
+  /bind-effects (later/fn mode /c then /procure-defined mode outbox)
+  /fn -
+  /compile-expression mode
+    (ns-get-string str.unique unique-ns)
+    definition-ns
     (c s /c mac str.nil /nil)
-  /fn mode /no-effects/nil))
+    outbox))
 
 (import)
 
 \= Now that we've imported that file, the (hello-world -) function is
 \= available for use.
 
-(def-macro go mode unique-ns definition-ns my-stx-details args
+(def-macro go mode unique-ns definition-ns my-stx-details args then
   (let s (fn it /stx my-stx-details it)
   /let mac
     (fn str rest
       (cons (c s /foreign/macro-name mode definition-ns str) rest))
+  /let outbox (ns-get-string str.outbox unique-ns)
+  /bind-effects (later/fn mode /c then /procure-defined mode outbox)
+  /fn -
   /bind-effects
     (output-path-blob-utf-8
       (output-path-get (cli-output-directory mode)
         str.\;qq[hello-world.txt])
     /hello-world/nil)
   /fn -
-  /compile-expression mode unique-ns definition-ns
+  /compile-expression mode
+    (ns-get-string str.unique unique-ns)
+    definition-ns
     (c s /c mac str.nil /nil)
-  /fn mode /no-effects/nil))
+    outbox))
 
 (go)
