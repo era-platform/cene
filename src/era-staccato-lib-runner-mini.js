@@ -1073,30 +1073,26 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function processFn( nss, rawMode, body, then ) {
-        // TODO NOW: Simplify this again. We don't really need loop().
-        return loop( body, function ( rawMode, processedRest ) {
-            return then( rawMode, processedRest );
+        if ( body.tupleTag !== stcCons.getTupleTag() )
+            throw new Error();
+        var body1 = stcCons.getProj( body, "cdr" );
+        if ( body1.tupleTag !== stcCons.getTupleTag() )
+            return macroexpand( nssGet( nss, "unique" ), rawMode,
+                stcCons.getProj( body, "car" ),
+                nssGet( nss, "outbox" ).uniqueNs,
+                then );
+        var param = stcCons.getProj( body, "car" );
+        var paramName = stxToMaybeName( param );
+        if ( paramName === null )
+            throw new Error(
+                "Called fn with a variable name that wasn't a " +
+                "syntactic name: " + param.pretty() );
+        return processFn( nss, rawMode, body1,
+            function ( rawMode, processedRest ) {
+            
+            return then( rawMode,
+                stcFn( paramName, processedRest ) );
         } );
-        function loop( body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
-                throw new Error();
-            var body1 = stcCons.getProj( body, "cdr" );
-            if ( body1.tupleTag !== stcCons.getTupleTag() )
-                return macroexpand( nssGet( nss, "unique" ), rawMode,
-                    stcCons.getProj( body, "car" ),
-                    nssGet( nss, "outbox" ).uniqueNs,
-                    then );
-            var param = stcCons.getProj( body, "car" );
-            var paramName = stxToMaybeName( param );
-            if ( paramName === null )
-                throw new Error(
-                    "Called fn with a variable name that wasn't a " +
-                    "syntactic name: " + param.pretty() );
-            return loop( body1, function ( rawMode, processedRest ) {
-                return then( rawMode,
-                    stcFn( paramName, processedRest ) );
-            } );
-        }
     }
     
     function mapConsListToArr( list, func ) {
