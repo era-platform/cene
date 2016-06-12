@@ -64,7 +64,7 @@ window.onload = function () {
             return rocketnia.eraFiles[ file ];
         }
         
-        var codeOfFiles = arrMap( files, function ( file ) {
+        var codeOfFiles = arrMappend( files, function ( file ) {
             return readAll( readFile( file ) );
         } );
         var testCode = readAll( readFile( testFile ) );
@@ -133,61 +133,8 @@ window.onload = function () {
         usingDefNs.processCoreTypes( nss.definitionNs );
         ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
         
-        function runCode( code ) {
-            return !arrAny( code, function ( tryExpr ) {
-                if ( !tryExpr.ok ) {
-                    console.error( tryExpr.msg );
-                    return true;
-                }
-                
-                var deferred = [];
-                
-                function defer( body ) {
-                    deferred.push( body );
-                }
-                function createNextMode( rawMode ) {
-                    // NOTE: This comment is here in case we do a
-                    // search for mode inside quotes.
-                    //
-                    // "mode"
-                    //
-                    return {
-                        type: "macro",
-                        finished: null,
-                        current: true,
-                        safe: [],
-                        defer: []
-                    };
-                }
-                var rawMode = createNextMode( null );
-                var done = false;
-                usingDefNs.macroexpandTopLevel(
-                    nssGet( nss, "first" ),
-                    rawMode,
-                    usingDefNs.readerExprToStc(
-                        stcTrivialStxDetails(),
-                        tryExpr.val ) );
-                runTrampoline( rawMode, defer, createNextMode,
-                    function () {
-                    
-                    done = true;
-                } );
-                while ( deferred.length !== 0 )
-                    deferred.shift()();
-                if ( !done )
-                    throw new Error( "Not done" );
-                
-                nss = nssGet( nss, "rest" );
-                return false;
-            } );
-        }
-        
-        if ( arrAll( codeOfFiles, function ( code ) {
-            return runCode( code );
-        } ) ) {
-            runAllDefs();
-            runCode( testCode );
-        }
+        usingDefNs.runTopLevelTryExprsSync( nss,
+            [].concat( codeOfFiles, testCode ) );
         
         var stopMillis = new Date().getTime();
         // TODO: Either remove this or display it more prominently.
