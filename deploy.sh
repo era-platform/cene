@@ -32,7 +32,7 @@ git reset rocketnia-upstream/gh-pages || true
 # `.gitignore` file with a version where these dependencies are not
 # ignored.
 echo Building dependencies of the Era demos...
-node build-era.js --build-staccato
+node cene.js --build-staccato
 cp gh-pages.gitignore .gitignore
 echo Finished building dependencies of the Era demos.
 

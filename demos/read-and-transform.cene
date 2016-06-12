@@ -3,7 +3,7 @@
 
 \= You can execute this file like so at the command line:
 \=
-\=   $ node build-era.js demos/read-and-transform.cene \
+\=   $ cene demos/read-and-transform.cene \
 \=       --in demos/read-and-transform-src \
 \=       --out fin/read-and-transform
 \=
@@ -20,11 +20,14 @@
 \= demos/read-and-transform-src/read-and-transform-src.cene.
 
 
-(def-macro go mode unique-ns definition-ns my-stx-details args
+(def-macro go mode unique-ns definition-ns my-stx-details args then
   (let s (fn it /stx my-stx-details it)
   /let mac
     (fn str rest
       (cons (c s /foreign/macro-name mode definition-ns str) rest))
+  /let outbox (ns-get-string str.outbox unique-ns)
+  /bind-effects (later/fn mode /c then /procure-defined mode outbox)
+  /fn -
   /bind-effects
     (output-path-blob-utf-8
       (output-path-get (cli-output-directory mode)
@@ -44,8 +47,10 @@
         /string-append state
         /string-append str.\;qq[\s] string)))
   /fn -
-  /compile-expression mode unique-ns definition-ns
+  /compile-expression mode
+    (ns-get-string str.unique unique-ns)
+    definition-ns
     (c s /c mac str.nil /nil)
-  /fn mode /no-effects/nil))
+    outbox))
 
 (go)

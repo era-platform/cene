@@ -1679,13 +1679,17 @@
 \= When it implements pure thunks, all four of these operations run in
 \= logarithmic time. (TODO: Is that true?)
 
-(defn make-immediate-lazy make-lazy val
-  (c make-lazy /fn - val))
+(def-type lazy-ops done then make-lazy force)
+
+(defn make-immediate-lazy lazy-ops val
+  (cast lazy-ops lazy-ops done then make-lazy force
+    err.\;qq[Expected a lazy-ops value of type lazy-ops]
+  /c make-lazy /fn - /c done val))
 
 (defn list-order-swap polarity list
   (case polarity yep - list rev.list))
 
-(def-type ftree-meta make-lazy force measure plus)
+(def-type ftree-meta lazy-ops measure plus)
 (def-type ftree-node summary elements)
 
 \= NOTE: The values of `n-digits` and `y-digits` are lists of one to
@@ -1712,23 +1716,34 @@
 
 (defn ftree-push tree polarity new-element
   (case tree ftree-empty meta
-    (ftree-single meta new-element)
-  /case tree ftree-single meta element
-    (cast meta ftree-meta make-lazy force measure plus
+    (cast meta ftree-meta lazy-ops measure plus
       err.\;qq[Expected a meta value of type ftree-meta]
+    /cast lazy-ops lazy-ops done then make-lazy force
+      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+    /c done /ftree-single meta new-element)
+  /case tree ftree-single meta element
+    (cast meta ftree-meta lazy-ops measure plus
+      err.\;qq[Expected a meta value of type ftree-meta]
+    /cast lazy-ops lazy-ops done then make-lazy force
+      err.\;qq[Expected a lazy-ops value of type lazy-ops]
     /let sub-measure
       (fn node
         (cast node ftree-node summary elements
           err.\;qq[Expected a node value of type ftree-node]
           summary))
-    /ftree-deep meta
+    /c then
+      (make-immediate-lazy lazy-ops
+      /ftree-empty/ftree-meta lazy-ops sub-measure plus)
+    /fn lazy-next
+    /c done /ftree-deep meta
       (ftree-digits-swap polarity
       /ftree-digits (cons element /nil) (cons new-element /nil))
-    /make-immediate-lazy make-lazy
-    /ftree-empty/ftree-meta make-lazy force sub-measure plus)
+      lazy-next)
   /case tree ftree-deep meta digits lazy-next
-    (cast meta ftree-meta make-lazy force measure plus
+    (cast meta ftree-meta lazy-ops measure plus
       err.\;qq[Expected a meta value of type ftree-meta]
+    /cast lazy-ops lazy-ops done then make-lazy force
+      err.\;qq[Expected a lazy-ops value of type lazy-ops]
     /cast (ftree-digits-swap polarity digits)
       ftree-digits w-digits t-digits
       err.\;qq[Expected a digits value of type ftree-digits]
@@ -1745,13 +1760,25 @@
     /cast t-digits cons d3 t-digits (c not-four-digits /nil)
     /let d012 (cons d0 /cons d1 /cons d2 /nil)
     /let new-node (ftree-node (c plus /map d012 measure) d012)
-    /ftree-deep meta
+    \= NOTE: This `make-lazy` call isn't constant-time, so it's
+    \= impure. It does have the same space footprint before and after.
+    /c then
+      (c make-lazy /fn -
+        (c then (c force lazy-next) /fn lazy-next
+        /c-new ftree-push lazy-next polarity new-node))
+    /fn lazy-next
+    /c done /ftree-deep meta
       (ftree-digits-swap polarity
       /ftree-digits w-digits (cons d3 /cons new-element /nil))
-    \= NOTE: This `makeLazy()` isn't constant-time, so it's impure. It
-    \= does have the same space footprint before and after.
-    /c make-lazy /fn -
-      (c-new ftree-push (c force lazy-next) polarity new-node))
+      lazy-next)
+    err.\;qq[
+      Expected a tree value of type ftree-empty, ftree-single, or
+      ftree-deep]))
+
+(defn ftree-get-meta tree
+  (case tree ftree-empty meta meta
+  /case tree ftree-single meta element meta
+  /case tree ftree-deep meta digits lazy-next meta
     err.\;qq[
       Expected a tree value of type ftree-empty, ftree-single, or
       ftree-deep]))
@@ -1760,41 +1787,66 @@
 \= elements so they're in the opposite order as they are in the
 \= original list.
 (defn ftree-push-list tree polarity list
-  (foldl tree list /fn tree elem /ftree-push tree polarity elem))
+  (let meta ftree-get-meta.tree
+  /cast meta ftree-meta lazy-ops measure plus
+    err.\;qq[Expected a meta value of type ftree-meta]
+  /cast lazy-ops lazy-ops done then make-lazy force
+    err.\;qq[Expected a lazy-ops value of type lazy-ops]
+  /let done
+    (foldr list done /fn elem done
+      (fn tree /c then (ftree-push tree polarity elem) done))
+  /c done tree))
 
 (def-type ftree-pop-result maybe-popped-val tree)
 
 (defn ftree-pop tree polarity
   (case tree ftree-empty meta
-    (ftree-pop-result (nil) tree)
+    (cast meta ftree-meta lazy-ops measure plus
+      err.\;qq[Expected a meta value of type ftree-meta]
+    /cast lazy-ops lazy-ops done then make-lazy force
+      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+    /c done /ftree-pop-result (nil) tree)
   /case tree ftree-single meta element
-    (ftree-pop-result yep.element ftree-empty.meta)
+    (cast meta ftree-meta lazy-ops measure plus
+      err.\;qq[Expected a meta value of type ftree-meta]
+    /cast lazy-ops lazy-ops done then make-lazy force
+      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+    /c done /ftree-pop-result yep.element ftree-empty.meta)
   /case tree ftree-deep meta digits lazy-next
     (cast (ftree-digits-swap polarity digits)
       ftree-digits w-digits t-digits
       err.\;qq[Expected a digits value of type ftree-digits]
     /cast rev.t-digits cons last rev-past
       err.\;qq[Expected a t-digits value with at least one digit]
-    /ftree-pop-result yep.last
-    /c-new ftree-maybe-deep polarity meta
-      (ftree-digits-swap polarity /ftree-digits w-digits rev.rev-past)
-      lazy-next)
+    /c then
+      (c-new ftree-maybe-deep polarity meta
+        (ftree-digits-swap polarity
+        /ftree-digits w-digits rev.rev-past)
+        lazy-next)
+    /fn tree
+    /c done /ftree-pop-result yep.last tree)
     err.\;qq[
       Expected a tree value of type ftree-empty, ftree-single, or
       ftree-deep]))
 
 (defn ftree-get-summary-stack tree
   (case tree ftree-empty meta
-    (cast meta ftree-meta make-lazy force measure plus
+    (cast meta ftree-meta lazy-ops measure plus
       err.\;qq[Expected a meta value of type ftree-meta]
-    /cons (c plus /nil) /nil)
+    /cast lazy-ops lazy-ops done then make-lazy force
+      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+    /c done /cons (c plus /nil) /nil)
   /case tree ftree-single meta element
-    (cast meta ftree-meta make-lazy force measure plus
+    (cast meta ftree-meta lazy-ops measure plus
       err.\;qq[Expected a meta value of type ftree-meta]
-    /cons (c measure element) /nil)
+    /cast lazy-ops lazy-ops done then make-lazy force
+      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+    /c done /cons (c measure element) /nil)
   /case tree ftree-deep meta digits lazy-next
-    (cast meta ftree-meta make-lazy force measure plus
+    (cast meta ftree-meta lazy-ops measure plus
       err.\;qq[Expected a meta value of type ftree-meta]
+    /cast lazy-ops lazy-ops done then make-lazy force
+      err.\;qq[Expected a lazy-ops value of type lazy-ops]
     /let add-side
       (fn summary polarity
         (cast (ftree-digits-swap polarity digits)
@@ -1803,13 +1855,14 @@
         /foldl summary t-digits /fn summary digit
           (c plus /list-order-swap polarity
           /cons summary /cons (c measure digit) /nil)))
-    /let parent-summary-stack
-      (c-new ftree-get-summary-stack /c force lazy-next)
+    /c then (c force lazy-next) /fn lazy-next
+    /c then (c-new ftree-get-summary-stack lazy-next)
+    /fn parent-summary-stack
     /cast parent-summary-stack cons summary rest
       err.\;qq[Internal error]
     /let summary (c add-side summary /nope/nil)
     /let summary (c add-side summary /yep/nil)
-    /cons summary parent-summary-stack)
+    /c done /cons summary parent-summary-stack)
     err.\;qq[
       Expected a tree value of type ftree-empty, ftree-single, or
       ftree-deep]))
@@ -1817,14 +1870,17 @@
 \= This works like `(ftree-deep meta digits lazy-next)`, except that
 \= it allows one of the sides of digits to be empty.
 (defn ftree-maybe-deep polarity meta digits lazy-next
-  (cast meta ftree-meta make-lazy force measure plus
+  (cast meta ftree-meta lazy-ops measure plus
     err.\;qq[Expected a meta value of type ftree-meta]
+  /cast lazy-ops lazy-ops done then make-lazy force
+    err.\;qq[Expected a lazy-ops value of type lazy-ops]
   /cast (ftree-digits-swap polarity digits)
     ftree-digits w-digits t-digits
     err.\;qq[Expected a digits value of type ftree-digits]
-  /case t-digits cons - -b (ftree-deep meta digits lazy-next)
-  /cast (ftree-pop (c force lazy-next) polarity)
-    ftree-pop-result maybe-node rest
+  /case t-digits cons - -b (c done /ftree-deep meta digits lazy-next)
+  /c then (c force lazy-next) /fn lazy-next
+  /c then (ftree-pop lazy-next polarity) /fn ftree-pop-result
+  /cast ftree-pop-result ftree-pop-result maybe-node rest
     err.\;qq[Internal error]
   /cast maybe-node yep node
     (ftree-push-list ftree-empty.meta not.polarity w-digits)
@@ -1832,10 +1888,11 @@
     err.\;qq[
       Expected the finger tree in lazy-next to contain values of type
       ftree-node]
-  /ftree-deep meta
+  /c then (make-immediate-lazy lazy-ops rest) /fn lazy-next
+  /c done /ftree-deep meta
     (ftree-digits-swap polarity
     /ftree-digits w-digits (list-order-swap polarity elements))
-  /make-immediate-lazy make-lazy rest))
+    lazy-next))
 
 (def-type ftree-split-iter-state summary-so-far rev-before after)
 (def-type ftree-split-iter-result-fell-off summary-so-far)
@@ -1845,19 +1902,27 @@
   tree summary-so-far summary-stack polarity test-is-early
   
   (case tree ftree-empty meta
-    ftree-split-iter-result-fell-off.summary-so-far
-  /case tree ftree-single meta element
-    (cast meta ftree-meta make-lazy force measure plus
+    (cast meta ftree-meta lazy-ops measure plus
       err.\;qq[Expected a meta value of type ftree-meta]
+    /cast lazy-ops lazy-ops done then make-lazy force
+      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+    /c done ftree-split-iter-result-fell-off.summary-so-far)
+  /case tree ftree-single meta element
+    (cast meta ftree-meta lazy-ops measure plus
+      err.\;qq[Expected a meta value of type ftree-meta]
+    /cast lazy-ops lazy-ops done then make-lazy force
+      err.\;qq[Expected a lazy-ops value of type lazy-ops]
     /let summary-so-far
       (c plus /list-order-swap polarity
       /cons (c measure element) /cons summary-so-far /nil)
-    /case (c test-is-early summary-so-far) yep -
+    /c done /case (c test-is-early summary-so-far) yep -
       ftree-split-iter-result-fell-off.summary-so-far
     /ftree-split-iter-result-completed ftree-empty.meta tree)
   /case tree ftree-deep meta digits lazy-next
-    (cast meta ftree-meta make-lazy force measure plus
+    (cast meta ftree-meta lazy-ops measure plus
       err.\;qq[Expected a meta value of type ftree-meta]
+    /cast lazy-ops lazy-ops done then make-lazy force
+      err.\;qq[Expected a lazy-ops value of type lazy-ops]
     /cast summary-stack cons summary-stack-first summary-stack-rest
       err.\;qq[Expected a summary-stack value of type cons]
     /cast (ftree-digits-swap polarity digits)
@@ -1908,14 +1973,16 @@
             (case iterating-inward yep -
               rev-before
               after)
-          /let t2-tree
+          /c then
             (ftree-push-list ftree-empty.meta side-polarity t2-digits)
-          /let w2-tree
+          /fn t2-tree
+          /c then
             (ftree-maybe-deep side-polarity meta
               (ftree-digits-swap side-polarity
               /ftree-digits w2-digits w2t-digits)
               lazy-next)
-          /case iterating-inward yep -
+          /fn w2-tree
+          /c done /case iterating-inward yep -
             (ftree-split-iter-result-completed t2-tree w2-tree)
             (ftree-split-iter-result-completed w2-tree t2-tree))
           
@@ -1925,20 +1992,25 @@
     /c try-side summary-so-far polarity /fn summary-so-far
     
     \= Try a recursive call on the `lazy-next`.
-    /case
-      (c-new ftree-split-iter (c force lazy-next) summary-so-far
+    /c then (c force lazy-next) /fn lazy-next
+    /c then
+      (c-new ftree-split-iter lazy-next summary-so-far
         summary-stack-rest polarity test-is-early)
+    /fn subresult
+    /case subresult
       
       ftree-split-iter-result-completed early-tree late-tree
-      (ftree-split-iter-result-completed
-        (ftree-push-list early-tree polarity t-digits)
-        (ftree-push-list late-tree not.polarity w-digits))
+      (c then (ftree-push-list early-tree polarity t-digits)
+      /fn early-tree
+      /c then (ftree-push-list late-tree not.polarity w-digits)
+      /fn late-tree
+      /c done /ftree-split-iter-result-completed early-tree late-tree)
       
       ftree-split-iter-result-fell-off summary-so-far
       \= Try each of the digits on the side opposite to `polarity`.
       (c try-side summary-so-far not.polarity
       /fn summary-so-far
-      /ftree-split-iter-result-fell-off summary-so-far)
+      /c done /ftree-split-iter-result-fell-off summary-so-far)
       
       err.\;qq[Internal error])
     
@@ -1947,7 +2019,14 @@
       ftree-deep]))
 
 (defn ftree-append-with-middle a middle b
-  (case a ftree-empty meta
+  (let lazy-done
+    (fn meta result
+      (cast meta ftree-meta lazy-ops measure plus
+        err.\;qq[Expected a meta value of type ftree-meta]
+      /cast lazy-ops lazy-ops done then make-lazy force
+        err.\;qq[Expected a lazy-ops value of type lazy-ops]
+      /c done result))
+  /case a ftree-empty meta
     (ftree-push-list b (nope/nil) rev.middle)
   /case b ftree-empty meta
     (ftree-push-list a (yep/nil) middle)
@@ -1955,8 +2034,7 @@
     (ftree-push-list b (nope/nil)
     /rev-append middle /cons element /nil)
   /case b ftree-single meta element
-    (ftree-push-list a (yep/nil)
-    /append middle /cons element /nil)
+    (ftree-push-list a (yep/nil) /append middle /cons element /nil)
   /cast a ftree-deep a-meta a-digits a-lazy-next
     err.\;qq[
       Expected an a value of type ftree-empty, ftree-single, or
@@ -1969,15 +2047,23 @@
       ftree-deep]
   /cast b-digits ftree-digits bn-digits by-digits
     err.\;qq[Expected a b-digits value of type ftree-digits]
-  /cast a-meta ftree-meta make-lazy force measure plus
+  /cast a-meta ftree-meta lazy-ops measure plus
     err.\;qq[Expected an a-meta value of type ftree-meta]
-  /ftree-deep a-meta (ftree-digits an-digits by-digits)
+  /cast lazy-ops lazy-ops done then make-lazy force
+    err.\;qq[Expected a lazy-ops value of type lazy-ops]
   \= NOTE: This `make-lazy` isn't constant-time, so it's impure. It
   \= does have the same space footprint before and after.
-  /c make-lazy /c-new ftree-append-with-middle
-    (c force a-lazy-next)
-    (append ay-digits /append middle bn-digits)
-    (c force b-lazy-next)))
+  /c then
+    (c make-lazy /fn -
+      (c then (c force a-lazy-next) /fn a-lazy-next
+      /c then (c force b-lazy-next) /fn b-lazy-next
+      /c-new ftree-append-with-middle
+        a-lazy-next
+        (append ay-digits /append middle bn-digits)
+        b-lazy-next))
+  /fn lazy-next
+  /c done
+  /ftree-deep a-meta (ftree-digits an-digits by-digits) lazy-next))
 
 (def-type ftree-split-result early-tree late-tree)
 
@@ -2009,18 +2095,17 @@
 \= operation requires to exist.
 \=
 (defn ftree-split tree polarity test-is-early
-  (let meta
-    (case tree ftree-empty meta meta
-    /case tree ftree-single meta element meta
-    /case tree ftree-deep meta digits lazy-next meta
-      err.\;qq[
-        Expected a tree value of type ftree-empty, ftree-single, or
-        ftree-deep])
-  /cast meta ftree-meta make-lazy force measure plus
+  (let meta ftree-get-meta.tree
+  /cast meta ftree-meta lazy-ops measure plus
     err.\;qq[Expected a meta value of type ftree-meta]
-  /case
+  /cast lazy-ops lazy-ops done then make-lazy force
+    err.\;qq[Expected a lazy-ops value of type lazy-ops]
+  /c then ftree-get-summary-stack.tree /fn summary-stack
+  /c then
     (ftree-split-iter (c plus /nil)
-      ftree-get-summary-stack.tree polarity test-is-early)
+      summary-stack polarity test-is-early)
+  /fn ftree-split-iter-result
+  /c done /case ftree-split-iter-result
     
     ftree-split-iter-result-fell-off summary-so-far
     \= Apparently everything is early.
@@ -2041,94 +2126,182 @@
 \= finger-tree-style interface, with the anomaly that the elements'
 \= concatenation operation doesn't have to be total.
 
-(def-type fix-ftree-ops push pop maybe-plus split)
+(def-type fix-ftree-ops done then push pop maybe-plus split)
 (def-type bftree fix-ftree-ops ftree)
 
-(defn ftree-is-too-empty-to-pop elem pop
-  (cast (c pop elem /yep/nil) ftree-pop-result maybe-popped -
+(defn ftree-is-too-empty-to-pop done then pop elem
+  (c then (c pop elem /yep/nil) /fn ftree-pop-result
+  /cast ftree-pop-result ftree-pop-result maybe-popped -
     err.\;qq[Expected pop to return a value of type ftree-pop-result]
-  /isa nil maybe-popped))
+  /c done /isa nil maybe-popped))
 
 (defn bftree-push tree polarity elem
   (cast tree bftree fix-ftree-ops ftree
     err.\;qq[Expected a tree value of type bftree]
-  /cast fix-ftree-ops fix-ftree-ops push pop maybe-plus split
+  /cast fix-ftree-ops
+    fix-ftree-ops done then push pop maybe-plus split
     err.\;qq[Expected a fix-ftree-ops value of type fix-ftree-ops]
-  /case (ftree-is-too-empty-to-pop elem pop) yep - tree
-  /cast (ftree-pop ftree polarity)
+  /c then (ftree-is-too-empty-to-pop elem pop) /fn too-empty
+  /case too-empty yep - tree
+  /c then (ftree-pop tree polarity) /fn ftree-pop-result
+  /cast ftree-pop-result
     ftree-pop-result maybe-popped diminished-ftree
     err.\;qq[Internal error]
-  /bftree fix-ftree-ops
-  /case
-    (cast maybe-popped yep popped (nil)
+  /c then
+    (cast maybe-popped yep popped (c done /nil)
     /case polarity yep -
       (c maybe-plus popped elem)
       (c maybe-plus elem popped))
-    yep elem (ftree-push diminished-ftree polarity elem)
-    (ftree-push ftree polarity elem)))
+  /fn plus-result
+  /c then
+    (case plus-result yep elem
+      (ftree-push diminished-ftree polarity elem)
+      (ftree-push ftree polarity elem))
+  /fn ftree
+  /bftree fix-ftree-ops ftree))
 
 (defn bftree-pop tree polarity
   (cast tree bftree fix-ftree-ops ftree
     err.\;qq[Expected a tree value of type bftree]
-  /cast fix-ftree-ops fix-ftree-ops push pop maybe-plus split
+  /cast fix-ftree-ops
+    fix-ftree-ops done then push pop maybe-plus split
     err.\;qq[Expected a fix-ftree-ops value of type fix-ftree-ops]
-  /cast (ftree-pop ftree polarity) ftree-pop-result maybe-popped ftree
+  /c then (ftree-pop ftree polarity) /fn ftree-pop-result
+  /cast ftree-pop-result ftree-pop-result maybe-popped ftree
     err.\;qq[Internal error]
   /cast maybe-popped yep popped
     (ftree-pop-result (nil) ftree)
-  /cast (c pop popped polarity) ftree-pop-result maybe-popped new-leaf
+  /c then (c pop popped polarity) /fn ftree-pop-result
+  /cast ftree-pop-result ftree-pop-result maybe-popped new-leaf
     err.\;qq[
       Expected a fix-ftree-ops's pop function to return a value of
       type ftree-pop-result]
   /cast maybe-popped yep popped
     err.\;qq[
       Expected a bftree's ftree to contain only nonempty leaves]
-  /ftree-pop-result maybe-popped
-  /bftree fix-ftree-ops /ftree-push ftree polarity new-leaf))
+  /c then (ftree-push ftree polarity new-leaf) /fn ftree
+  /c done /ftree-pop-result maybe-popped /bftree fix-ftree-ops ftree))
 
 (defn bftree-plus a b
   (cast a bftree fix-ftree-ops a
     err.\;qq[Expected an a value of type bftree]
   /cast b bftree - b
     err.\;qq[Expected a b value of type bftree]
-  /cast fix-ftree-ops fix-ftree-ops push pop maybe-plus split
+  /cast fix-ftree-ops
+    fix-ftree-ops done then push pop maybe-plus split
     err.\;qq[Expected a fix-ftree-ops value of type fix-ftree-ops]
-  /cast (ftree-pop a /yep/nil)
-    ftree-pop-result a-maybe-popped a-diminished
+  /c then (ftree-pop a /yep/nil) /fn ftree-pop-result
+  /cast ftree-pop-result ftree-pop-result a-maybe-popped a-diminished
     err.\;qq[Internal error]
-  /cast (ftree-pop b /yep/nil)
-    ftree-pop-result b-maybe-popped b-diminished
+  /c then (ftree-pop b /yep/nil) /fn ftree-pop-result
+  /cast ftree-pop-result ftree-pop-result b-maybe-popped b-diminished
     err.\;qq[Internal error]
-  /bftree fix-ftree-ops
-  /cast a-maybe-popped yep a-elem (ftree-append-with-middle a (nil) b)
-  /cast b-maybe-popped yep b-elem (ftree-append-with-middle a (nil) b)
-  /cast (c maybe-plus a-elem b-elem) yep elem
-    (ftree-append-with-middle a (nil) b)
-  /ftree-append-with-middle
-    a-diminished (cons elem /nil) b-diminished))
+  /c then
+    (cast a-maybe-popped yep a-elem
+      (ftree-append-with-middle a (nil) b)
+    /cast b-maybe-popped yep b-elem
+      (ftree-append-with-middle a (nil) b)
+    /c then (c maybe-plus a-elem b-elem) /fn plus-result
+    /cast plus-result yep elem (ftree-append-with-middle a (nil) b)
+    /ftree-append-with-middle
+      a-diminished (cons elem /nil) b-diminished)
+  /fn ftree
+  /c done /bftree fix-ftree-ops ftree))
 
 (defn bftree-split tree polarity test-is-early
   (cast tree bftree fix-ftree-ops ftree
     err.\;qq[Expected a tree value of type bftree]
-  /cast fix-ftree-ops fix-ftree-ops push pop maybe-plus split
+  /cast fix-ftree-ops
+    fix-ftree-ops done then push pop maybe-plus split
     err.\;qq[Expected a fix-ftree-ops value of type fix-ftree-ops]
-  /cast (ftree-split ftree polarity test-is-early)
-    ftree-split-result early-tree late-tree
+  /c then (ftree-split ftree polarity test-is-early)
+  /fn ftree-split-result
+  /cast ftree-split-result ftree-split-result early-tree late-tree
     err.\;qq[Internal error]
-  /cast (ftree-pop late-tree polarity)
-    ftree-pop-result maybe-popped late-tree
+  /c then (ftree-pop late-tree polarity) /fn ftree-pop-result
+  /cast ftree-pop-result ftree-pop-result maybe-popped late-tree
     err.\;qq[Internal error]
   /cast maybe-popped yep popped
-    (ftree-split-result
+    (c done /ftree-split-result
       (bftree fix-ftree-ops early-tree)
       (bftree fix-ftree-ops late-tree))
-  /cast (c split popped polarity test-is-early)
-    ftree-split-result early-elem late-elem
+  /c then (c split popped polarity test-is-early)
+  /fn ftree-split-result
+  /cast ftree-split-result ftree-split-result early-elem late-elem
     err.\;qq[Internal error]
-  /ftree-split-result
-    (bftree fix-ftree-ops
-    /ftree-push early-tree not.polarity early-elem)
-    (bftree fix-ftree-ops /ftree-push late-tree polarity late-elem)))
+  /c then (ftree-push early-tree not.polarity early-elem)
+  /fn early-tree
+  /c then (ftree-push late-tree polarity late-elem) /fn late-tree
+  /c done /ftree-split-result
+    (bftree fix-ftree-ops early-tree)
+    (bftree fix-ftree-ops late-tree)))
+
+\= TODO: Add more finger tree operations so we can do things that
+\= compile to JavaScript regexes for efficiency. Here's a potential
+\= basis. Unfortunately, JavaScript regexes have a backtracking
+\= semantics to find their match, but they don't allow the client to
+\= see anything but the first successful outcome of the backtracking,
+\= so we're using a simplified subset of regexes where backtracking is
+\= unnecessary.
+\;rm[
+
+(defn finite-regex-zero - ...)
+Creates a finite regex that matches zero characters.
+
+(defn finite-regex-one-from-string-maybe string ...)
+Creates a finite regex that matches one character if it's contained
+in the given string. Returns (yep ...) on success and (nil) if the
+result would be too complicated to represent.
+
+(defn finite-regex-one-from-range a b ...)
+Creates a finite regex that matches one character if it falls
+between the first one-character string and the second one-character
+string, inclusive.
+
+(defn finite-regex-one - ...)
+Creates a finite regex that matches one character.
+
+(defn finite-regex-not-maybe finite-regex ...)
+Creates a finite regex that matches if the given finite regex does not
+match it. It matches the same number of characters the given regex
+generally matches. Returns (yep ...) on success and (nil) if the
+result would be too complicated to represent.
+
+(defn finite-regex-and-maybe a b ...)
+Creates a finite regex that matches if the two given finite regexes
+both match. The given finite regexes must have the same match length,
+or this call is an error. Returns (yep ...) on success and (nil) if
+the result would be too complicated to represent.
+
+(defn finite-regex-then-maybe a b ...)
+Creates a finite regex that matches whatever the first given finite
+regex matches, together with whatever the second given finite regex
+matches after that. Returns (yep ...) on success and (nil) if the
+result would be too complicated to represent.
+
+(defn optimistic-regex-repeat-maybe finite-regex ...)
+Creates an optimistic regex that matches the given finite regex as
+many times at it can successively. Returns (yep ...) on success and
+(nil) if the result would be too complicated to represent.
+
+(defn optimistic-regex-or-maybe a b ...)
+Creates an optimistic regex that matches if the first given optimistic
+regex matches and otherwise matches if the second given optimistic
+regex matches. Returns (yep ...) on success and (nil) if the result
+would be too complicated to represent.
+
+(defn optimistic-regex-then-maybe finite-regex optimistic-regex ...)
+Creates an optimistic regex that matches whatever given finite regex
+matches, together with whatever the given optimistic regex matches
+after that. Returns (yep ...) on success and (nil) if the
+result would be too complicated to represent.
+
+(defn optimistic-regex-match optimistic-regex ...)
+Takes an optimistic regex and produces an optimized function that
+takes a starting position and a string and returns the ending position
+of the match.
+
+]
 
 
 \= ===== Comparison utilities ========================================

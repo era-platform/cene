@@ -8,11 +8,14 @@ var quinerInputPathType = jsnMap();
 var quinerInputPathDirectoryList = jsnMap();
 var quinerInputPathBlobUtf8 = jsnMap();
 // TODO: See if we actually need to do quines at JavaScript run time.
-// It's at least nice to have this around just in case.
+// It's at least nice to have `quinerQuine` around just in case.
 var quinerQuine = null;
+var quinerTopLevelVars = null;
 
 function quinerCallWithSyncJavaScriptMode( constructorTag ) {
-    var codeOfFiles = arrMap( quinerTextOfFiles, function ( text ) {
+    var codeOfFiles = arrMappend( quinerTextOfFiles,
+        function ( text ) {
+        
         return readAll( text );
     } );
     
@@ -73,11 +76,25 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
                 
                 // Do nothing.
             },
-            sloppyJavaScriptQuine: function ( constructorTag ) {
+            sloppyJavaScriptQuine:
+                function ( constructorTag, topLevelVars ) {
+                
                 return null;
             },
             onDependenciesComplete: function ( listener ) {
                 // Do nothing.
+            },
+            getTopLevelVar: function ( varName ) {
+                var k = "|" + varName;
+                if ( !hasOwn( quinerTopLevelVars, k ) )
+                    throw new Error();
+                return quinerTopLevelVars[ k ].get();
+            },
+            setTopLevelVar: function ( varName, val ) {
+                var k = "|" + varName;
+                if ( !hasOwn( quinerTopLevelVars, k ) )
+                    throw new Error();
+                return quinerTopLevelVars[ k ].set( val );
             }
         } );
     
@@ -85,83 +102,17 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
     usingDefNs.processCoreTypes( nss.definitionNs );
     ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
     
-    function runCode( code ) {
-        return !arrAny( code, function ( tryExpr ) {
-            if ( !tryExpr.ok ) {
-                console.error( tryExpr.msg );
-                return true;
-            }
-            
-            var deferred = [];
-            
-            function defer( body ) {
-                deferred.push( body );
-            }
-            function createNextMode( rawMode ) {
-                // NOTE: This comment is here in case we do a search
-                // for mode inside quotes.
-                //
-                // "mode"
-                //
-                return {
-                    type: "macro",
-                    finished: null,
-                    current: true,
-                    safe: [],
-                    defer: []
-                };
-            }
-            var rawMode = createNextMode( null );
-            var done = false;
-            usingDefNs.macroexpandTopLevel( nssGet( nss, "first" ),
-                rawMode,
-                usingDefNs.readerExprToStc( stcTrivialStxDetails(),
-                    tryExpr.val ) );
-            runTrampoline( rawMode, defer, createNextMode,
-                function () {
-                
-                done = true;
-            } );
-            while ( deferred.length !== 0 )
-                deferred.shift()();
-            if ( !done )
-                throw new Error( "Not done" );
-            
-            nss = nssGet( nss, "rest" );
-            return false;
-        } );
-    }
-    
-    if ( arrAll( codeOfFiles, function ( code ) {
-        return runCode( code );
-    } ) ) {
-        runAllDefs();
-    } else {
-        throw new Error();
-    }
-    
-    function createNextMode( rawMode ) {
-        return {
-            type: "js",
-            finished: null,
-            current: true,
-            safe: [],
-            defer: [],
-            managed: true
-        };
-    }
-    var rawMode = createNextMode( null );
-    var effects = new Stc(
-        JSON.stringify(
-            stcNameTupleTagAlreadySorted( constructorTag, [] ) ),
-        []
-    ).callStc( nss.definitionNs, new StcForeign( "mode", rawMode ) );
-    if ( !(effects instanceof StcForeign
-        && effects.purpose === "effects") )
-        throw new Error();
-    var effectsFunc = effects.foreignVal;
-    effectsFunc( rawMode );
-    runTrampoline( rawMode, defer, createNextMode, function () {
-        // Do nothing.
-    } );
+    runTopLevelMacLookupsSync( [].concat(
+        usingDefNs.topLevelTryExprsToMacLookupThreads( nss,
+            codeOfFiles ),
+        [ { type: "jsEffectsThread", macLookupEffectsOfJsEffects:
+            new Stc(
+                JSON.stringify(
+                    stcNameTupleTagAlreadySorted(
+                        constructorTag, [] ) ),
+                []
+            ).callStc( nss.definitionNs,
+                new StcForeign( "foreign",
+                    ceneApiUsingDefNs.ceneClient ) ) } ]
+    ) );
 }
