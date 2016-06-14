@@ -285,16 +285,17 @@ function stcNsRoot() {
     };
 }
 function stcNsGet( stringOrName, ns ) {
+    
+    // TODO: Determine a good value for this.
+    var maxRepetitions = 1000;
+    
     return ns.shadows.has( stringOrName ) ?
         ns.shadows.get( stringOrName ) : {
             name:
                 (ns.name[ 0 ] === "get"
-                    && ns.name[ 2 ] <= 1000
-                    // TODO: See if we should do a deep check here. We
-                    // effectively collapse deep names only when
-                    // they're made of strings.
+                    && ns.name[ 2 ] + 1 <= maxRepetitions
                     && nameCompare( ns.name[ 1 ], stringOrName ) ===
-                        0 ) ?
+                        0) ?
                     [ "get", stringOrName, ns.name[ 2 ] + 1,
                         ns.name[ 3 ] ] :
                     [ "get", stringOrName, 1, ns.name ],
@@ -339,11 +340,6 @@ Stc.prototype.callStc = function ( definitionNs, arg ) {
     // every single function call, so we do an early check to see if
     // we already have access to the definition we would have blocked
     // on.
-    //
-    // TODO: Look up the function implementation from `namespaceDefs`
-    // /functions/<tupleTag>/staccato, at least when there's no entry
-    // in `functionDefs`.
-    //
     var func = staccatoDeclarationState.functionDefs[ self.tupleTag ];
     if ( func !== void 0 )
         return func( self.projNames, arg );
@@ -498,16 +494,15 @@ function runTopLevelMacLookupsSync( originalThreads ) {
         };
         var monad = macLookupThen( macLookupRet( null ),
             function ( ignored ) {
-        // TODO: See if this thread() call needs to be
-        // surrounded by currentlyMode().
-        return macLookupThen( thread( rawMode ),
+        return macLookupThen(
+            currentlyMode( rawMode, function () {
+                return thread( rawMode );
+            } ),
             function ( ignored ) {
             
             runPuts( rawMode );
             arrEach( rawMode.defer, function ( thread ) {
                 addMacroThread( function ( rawMode ) {
-                    // TODO: See if this thread() call needs to be
-                    // surrounded by currentlyMode().
                     return macLookupThen( thread( rawMode ),
                         function ( effects ) {
                         
@@ -1146,7 +1141,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
     }
     
-    function stcAddEffectfulMacro(
+    function stcAddMacro(
         definitionNs, rawMode, name, macroFunctionImpl ) {
         
         collectPut( rawMode,
@@ -1200,10 +1195,8 @@ function usingDefinitionNs( macroDefNs ) {
         
         var dummyMode = makeDummyMode();
         
-        // TODO: Rename this to `mac`.
-        function effectfulMac( name, body ) {
-            stcAddEffectfulMacro(
-                targetDefNs, dummyMode, name, body );
+        function mac( name, body ) {
+            stcAddMacro( targetDefNs, dummyMode, name, body );
         }
         function fun( name, body ) {
             var constructorTag = stcConstructorTag( targetDefNs,
@@ -1223,7 +1216,7 @@ function usingDefinitionNs( macroDefNs ) {
             processDefType( targetDefNs, dummyMode, name, [] );
         }
         
-        effectfulMac( "def-type",
+        mac( "def-type",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
@@ -1252,7 +1245,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        effectfulMac( "defn",
+        mac( "defn",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
@@ -1296,7 +1289,7 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Write documentation for this in
         // era-staccato-self-compiler.stc and/or
         // cene-design-goals.txt.
-        effectfulMac( "def-macro",
+        mac( "def-macro",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
@@ -1331,11 +1324,13 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: See if we should design a different approach to unit
-        // tests.
+        // tests. Perhaps they should allow asynchronous computation.
+        // Perhaps they should use a custom comparator. Perhaps the
+        // results should be installed as definitions somewhere.
         //
         // TODO: Make this expand multiple expressions concurrently.
         //
-        effectfulMac( "test",
+        mac( "test",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
@@ -1388,7 +1383,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        effectfulMac( "case",
+        mac( "case",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
@@ -1401,7 +1396,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        effectfulMac( "caselet",
+        mac( "caselet",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
@@ -1421,7 +1416,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        effectfulMac( "cast",
+        mac( "cast",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
@@ -1434,7 +1429,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        effectfulMac( "isa",
+        mac( "isa",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
@@ -1479,7 +1474,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        effectfulMac( "proj1",
+        mac( "proj1",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
@@ -1521,7 +1516,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        effectfulMac( "c",
+        mac( "c",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
@@ -1551,7 +1546,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        effectfulMac( "c-new",
+        mac( "c-new",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
@@ -1584,7 +1579,7 @@ function usingDefinitionNs( macroDefNs ) {
                 stcIstringNil.getProj( istringNil, "string" ) );
         }
         
-        effectfulMac( "err",
+        mac( "err",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
@@ -1602,7 +1597,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        effectfulMac( "str",
+        mac( "str",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
@@ -1624,7 +1619,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        effectfulMac( "fn",
+        mac( "fn",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
@@ -1637,7 +1632,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        effectfulMac( "let",
+        mac( "let",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
@@ -2150,10 +2145,9 @@ function usingDefinitionNs( macroDefNs ) {
                 return stcName.ofNow(
                     new StcForeign( "name", name ) );
             } ) ) );
-        // TODO: Rename this to `stcAddMacro`.
         // TODO: Make this expand multiple subexpressions
         // concurrently.
-        stcAddEffectfulMacro( definitionNs, rawMode, tupleName,
+        stcAddMacro( definitionNs, rawMode, tupleName,
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
