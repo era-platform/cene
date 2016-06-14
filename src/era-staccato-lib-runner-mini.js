@@ -287,7 +287,7 @@ function stcNsRoot() {
 function stcNsGet( stringOrName, ns ) {
     
     // TODO: Determine a good value for this.
-    var maxRepetitions = 1001;
+    var maxRepetitions = 1000;
     
     return ns.shadows.has( stringOrName ) ?
         ns.shadows.get( stringOrName ) : {
