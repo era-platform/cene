@@ -494,16 +494,15 @@ function runTopLevelMacLookupsSync( originalThreads ) {
         };
         var monad = macLookupThen( macLookupRet( null ),
             function ( ignored ) {
-        // TODO: See if this thread() call needs to be
-        // surrounded by currentlyMode().
-        return macLookupThen( thread( rawMode ),
+        return macLookupThen(
+            currentlyMode( rawMode, function () {
+                return thread( rawMode );
+            } ),
             function ( ignored ) {
             
             runPuts( rawMode );
             arrEach( rawMode.defer, function ( thread ) {
                 addMacroThread( function ( rawMode ) {
-                    // TODO: See if this thread() call needs to be
-                    // surrounded by currentlyMode().
                     return macLookupThen( thread( rawMode ),
                         function ( effects ) {
                         
