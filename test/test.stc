@@ -50,8 +50,7 @@
     (nope/nil))
   (nope/nil))
 
-\= TODO: Make this work. We need to fix a bug in era-avl.js.
-\;rm(test
+(test
   (table-get str.woo
     (table-shadow str.woo (yep/nope/nil)
     /table-empty/cmp-struct string /cmp-string))

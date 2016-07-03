@@ -1321,7 +1321,7 @@ AvlBranch_.prototype.init_ = function ( key, val, branches ) {
     this.key_ = key;
     this.val_ = val;
     this.branches_ = branches;
-    this.compare_ = branches[ -1 ].compare_;
+    this.compare_ = branches[ -1 ].branch.compare_;
     return this;
 };
 function safeCompare_( yoke, compare, ka, kb, then ) {
@@ -1777,7 +1777,7 @@ function avlMerge_( yoke, processBoth, a, b, then ) {
             balancedChanges[ aVsB ], mergedChanges.left,
             function ( yoke, aChange ) {
         return combineBranchChanges( yoke,
-            { "-1": b.branches_[ -aVsB ], "1": b.branches[ aVsB ] },
+            { "-1": b.branches_[ -aVsB ], "1": b.branches_[ aVsB ] },
             { "-1": balancedChanges[ -aVsB ],
                 "1": balancedChanges[ aVsB ] },
             { "-1": null, "1": mergedChanges.right },
@@ -1900,7 +1900,7 @@ AvlBranch_.prototype.mapShortFoldAsc = function ( yoke,
     if ( maybeThisResult === null )
         return then( yoke, state, null );
     
-    return self.branches[ 1 ].branch.mapShortFoldAsc( yoke,
+    return self.branches_[ 1 ].branch.mapShortFoldAsc( yoke,
         state, body,
         function ( yoke, state, maybeBiggerResult ) {
     return runWaitOne( yoke, function ( yoke ) {
@@ -1912,10 +1912,10 @@ AvlBranch_.prototype.mapShortFoldAsc = function ( yoke,
         self.key_, maybeThisResult, {
             "-1": { branch: maybeLesserResult.val,
                 maxDepthAdvantage:
-                    self.branches[ -1 ].maxDepthAdvantage },
+                    self.branches_[ -1 ].maxDepthAdvantage },
             "1": { branch: maybeBiggerResult.val,
                 maxDepthAdvantage:
-                    self.branches[ 1 ].maxDepthAdvantage }
+                    self.branches_[ 1 ].maxDepthAdvantage }
         } ) } );
     
     } );
