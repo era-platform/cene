@@ -2306,6 +2306,23 @@ of the match.
 
 \= ===== Comparison utilities ========================================
 
+\= Compares two names. For inequal names, the result will be in a
+\= format user-level code does not know how to deconstruct. For equal
+\= names, the result will be (nil).
+(defn name-metacompare a b
+  (case (call-cmp (cmp-name) (proj1 name a) (proj1 name b))
+    yep result result
+    err.\;qq[Called name-metacompare with non-name values]))
+
+\= Compares two strings. For inequal strings, the result will be in a
+\= format user-level code does not know how to deconstruct. For equal
+\= strings, the result will be (nil).
+(defn string-metacompare a b
+  (case (call-cmp (cmp-string) (proj1 string a) (proj1 string b))
+    yep result result
+    err.\;qq[Called string-metacompare with non-string values]))
+
+
 (def-type comparable compare val)
 
 (defn comparable-compare a b

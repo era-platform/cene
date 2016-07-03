@@ -9,6 +9,15 @@ It will likely turn out to be simpler to add a static type system, in the long r
 
 \= A "cmp" is a binary relation such that, wherever it is defined, it answers whether or not the given values are indistinguishable. (There is no "custom" sense of indistinguishability allowed here. If there is any Cene code at all that can distinguish the two values, they are not indistinguishable.)
 \=
+\= TODO: Document the fact that (call-cmp ...) returns one of these results:
+\=
+\=   - (cmp-result-incomparable (nope/nil) (nope/nil))
+\=   - (cmp-result-incomparable (yep/nil) (nope/nil))  ; representing that the first input is in the domain of this relation but the second one isn't
+\=   - (cmp-result-incomparable (nope/nil) (yep/nil))
+\=   - (yep/nil)  ; representing equality
+\=   - (yep <a foreign value representing "less than">)
+\=   - (yep <a foreign value representing "greater than">)
+\=
 (cmp-default <cmp-for-trying-first> <cmp-for-trying-second>)
 (cmp-give-up)
 (cmp-string)
