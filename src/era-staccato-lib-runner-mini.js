@@ -344,6 +344,8 @@ var staccatoDeclarationState = {};
 staccatoDeclarationState.namespaceDefs = jsnMap();
 staccatoDeclarationState.functionDefs = {};
 
+var nextCmpRank = 1;
+
 function prettifyTupleTag( tupleTag ) {
     return JSON.stringify(
         JSON.parse( tupleTag )[ 1 ][ 3 ][ 1 ][ 3 ][ 1 ] );
@@ -458,7 +460,7 @@ function StcCmpDefault( first, second ) {
     this.first = first;
     this.second = second;
 }
-StcCmpDefault.prototype.cmpRank = 1;
+StcCmpDefault.prototype.cmpRank = nextCmpRank++;
 StcCmpDefault.prototype.callStc = function ( definitionNs, arg ) {
     throw new Error();
 };
@@ -533,7 +535,7 @@ StcCmpDefault.prototype.pretty = function () {
 function StcCmpGiveUp() {
     // We do nothing.
 }
-StcCmpGiveUp.prototype.cmpRank = 2;
+StcCmpGiveUp.prototype.cmpRank = nextCmpRank++;
 StcCmpGiveUp.prototype.callStc = function ( definitionNs, arg ) {
     throw new Error();
 };
@@ -554,7 +556,7 @@ function StcCmpStruct( expectedTupleTag, projCmps ) {
     this.expectedTupleTag = expectedTupleTag;
     this.projCmps = projCmps;
 }
-StcCmpStruct.prototype.cmpRank = 3;
+StcCmpStruct.prototype.cmpRank = nextCmpRank++;
 StcCmpStruct.prototype.callStc = function ( definitionNs, arg ) {
     throw new Error();
 };
@@ -632,7 +634,7 @@ StcCmpStruct.prototype.pretty = function () {
 function StcCmpCmp() {
     // We do nothing.
 }
-StcCmpCmp.prototype.cmpRank = 4;
+StcCmpCmp.prototype.cmpRank = nextCmpRank++;
 StcCmpCmp.prototype.callStc = function ( definitionNs, arg ) {
     throw new Error();
 };
@@ -656,6 +658,78 @@ StcCmpCmp.prototype.cmpThis = function ( definitionNs, other ) {
 };
 StcCmpCmp.prototype.pretty = function () {
     return "(cmp-cmp)";
+};
+function StcCmpName() {
+    // We do nothing.
+}
+StcCmpName.prototype.cmpRank = nextCmpRank++;
+StcCmpName.prototype.callStc = function ( definitionNs, arg ) {
+    throw new Error();
+};
+StcCmpName.prototype.cmp = function ( definitionNs, a, b ) {
+    var incomparable = stcIncomparable( definitionNs,
+        a instanceof StcForeign && a.purpose === "name",
+        b instanceof StcForeign && b.purpose === "name" );
+    if ( incomparable !== null )
+        return macLookupRet( incomparable );
+    
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    
+    var result = nameCompare( a.foreignVal, b.foreignVal );
+    if ( result < 0 )
+        return macLookupRet(
+            stcYep.ofNow( new StcForeign( "lt", null ) ) );
+    if ( 0 < result )
+        return macLookupRet(
+            stcYep.ofNow( new StcForeign( "gt", null ) ) );
+    
+    var stcNil = stcType( definitionNs, "nil" );
+    
+    return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
+};
+StcCmpName.prototype.cmpThis = function ( definitionNs, other ) {
+    var stcNil = stcType( definitionNs, "nil" );
+    return macLookupRet( stcNil.ofNow() );
+};
+StcCmpName.prototype.pretty = function () {
+    return "(cmp-name)";
+};
+function StcCmpString() {
+    // We do nothing.
+}
+StcCmpString.prototype.cmpRank = nextCmpRank++;
+StcCmpString.prototype.callStc = function ( definitionNs, arg ) {
+    throw new Error();
+};
+StcCmpString.prototype.cmp = function ( definitionNs, a, b ) {
+    var incomparable = stcIncomparable( definitionNs,
+        a instanceof StcForeign && a.purpose === "string",
+        b instanceof StcForeign && b.purpose === "string" );
+    if ( incomparable !== null )
+        return macLookupRet( incomparable );
+    
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    
+    // NOTE: We compare by UTF-16 encoding for efficiency, but we
+    // don't expose it to user code because that would commit us to
+    // the complexity of UTF-16.
+    if ( a.foreignVal < b.foreignVal )
+        return macLookupRet(
+            stcYep.ofNow( new StcForeign( "lt", null ) ) );
+    if ( b.foreignVal < a.foreignVal )
+        return macLookupRet(
+            stcYep.ofNow( new StcForeign( "gt", null ) ) );
+    
+    var stcNil = stcType( definitionNs, "nil" );
+    
+    return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
+};
+StcCmpString.prototype.cmpThis = function ( definitionNs, other ) {
+    var stcNil = stcType( definitionNs, "nil" );
+    return macLookupRet( stcNil.ofNow() );
+};
+StcCmpString.prototype.pretty = function () {
+    return "(cmp-string)";
 };
 
 function stcIsCmp( x ) {
@@ -708,6 +782,16 @@ function compareStc( a, b ) {
             
         } else if ( entry.a instanceof StcCmpCmp
             && entry.b instanceof StcCmpCmp ) {
+            
+            // Do nothing.
+            
+        } else if ( entry.a instanceof StcCmpName
+            && entry.b instanceof StcCmpName ) {
+            
+            // Do nothing.
+            
+        } else if ( entry.a instanceof StcCmpString
+            && entry.b instanceof StcCmpString ) {
             
             // Do nothing.
             
@@ -2121,6 +2205,16 @@ function usingDefinitionNs( macroDefNs ) {
             return new StcCmpCmp();
         } );
         
+        // TODO: Add documentation of this somewhere.
+        fun( "cmp-name", function ( ignored ) {
+            return new StcCmpName();
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "cmp-string", function ( ignored ) {
+            return new StcCmpString();
+        } );
+        
         fun( "call-cmp", function ( cmp ) {
             return stcFnPure( function ( a ) {
                 return new StcFn( function ( b ) {
@@ -2129,54 +2223,11 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "string-metacompare", function ( a ) {
-            return stcFnPure( function ( b ) {
-                var aParsed = parseString( a );
-                var bParsed = parseString( b );
-                
-                // NOTE: We compare by UTF-16 encoding for efficiency,
-                // but we don't expose it to user code because that
-                // would commit us to the complexity of UTF-16.
-                if ( aParsed < bParsed )
-                    return new StcForeign( "lt", null );
-                if ( bParsed < aParsed )
-                    return new StcForeign( "gt", null );
-                return stcNil.ofNow();
-            } );
-        } );
-        
         fun( "string-append", function ( a ) {
             return stcFnPure( function ( b ) {
                 return stcString.ofNow(
                     new StcForeign( "string",
                         parseString( a ) + parseString( b ) ) );
-            } );
-        } );
-        
-        fun( "name-metacompare", function ( a ) {
-            return stcFnPure( function ( b ) {
-                if ( a.tupleTag !== stcName.getTupleTag() )
-                    throw new Error();
-                var aInternal = stcName.getProj( a, "val" );
-                if ( !(aInternal instanceof StcForeign
-                    && aInternal.purpose === "name") )
-                    throw new Error();
-                
-                if ( b.tupleTag !== stcName.getTupleTag() )
-                    throw new Error();
-                var bInternal = stcName.getProj( a, "val" );
-                if ( !(bInternal instanceof StcForeign
-                    && bInternal.purpose === "name") )
-                    throw new Error();
-                
-                var result = nameCompare(
-                    aInternal.foreignVal, bInternal.foreignVal );
-                
-                if ( result < 0 )
-                    return new StcForeign( "lt", null );
-                if ( 0 < result )
-                    return new StcForeign( "gt", null );
-                return stcNil.ofNow();
             } );
         } );
         
