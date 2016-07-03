@@ -30,11 +30,6 @@
 \= A reference to a string. The value inside is in a format user-level
 \= code does not know how to deconstruct.
 
-\= (defn string-metacompare a b ...)
-\= Compares two strings. For inequal strings, the result will be in a
-\= format user-level code does not know how to deconstruct. For equal
-\= strings, the result will be (nil).
-
 \= (defn string-append a b ...)
 \= Concatenates two strings.
 
@@ -53,6 +48,9 @@
 \= strings, and the list must not have duplicates. The order of the
 \= list will be ignored.
 
+\= TODO: Figure out where to put this extensive documentation now that
+\= `name-metacompare` is implemented in era-staccato-lib.stc.
+\=
 \= (defn name-metacompare a b ...)
 \= Compares two names. For inequal names, the result will be in a
 \= format user-level code does not know how to deconstruct. For equal
