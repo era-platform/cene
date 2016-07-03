@@ -2295,7 +2295,7 @@ function usingDefinitionNs( macroDefNs ) {
         
         // TODO: Add documentation of this somewhere.
         fun( "table-get", function ( key ) {
-            return stcFnPure( function ( table ) {
+            return new StcFn( function ( table ) {
                 if ( !(table instanceof StcForeign
                     && table.purpose === "table") )
                     throw new Error();
@@ -2322,7 +2322,7 @@ function usingDefinitionNs( macroDefNs ) {
         
         // TODO: Add documentation of this somewhere.
         fun( "table-default", function ( first ) {
-            return stcFnPure( function ( second ) {
+            return new StcFn( function ( second ) {
                 if ( !(first instanceof StcForeign
                     && first.purpose === "table") )
                     throw new Error();
