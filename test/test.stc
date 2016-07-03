@@ -28,3 +28,24 @@
 (test
   (list (nil) (nil))
   (cons (nil) /cons (nil) /nil))
+
+(test
+  (cmp-struct cons cmp-struct.nil cmp-struct.nil)
+  (cmp-struct cons cmp-struct.nil cmp-struct.nil))
+
+(test
+  (call-cmp (cmp-struct cons cmp-struct.nil cmp-struct.nil)
+    (cons (nil) /nil)
+    (cons (nil) /nil))
+  (yep/nil))
+
+(test
+  (case
+    (proj1 yep /call-cmp
+      (cmp-default cmp-struct.nil (cmp-struct yep cmp-struct.nil))
+      (nil)
+      (yep/nil))
+    nil
+    (yep/nil)
+    (nope/nil))
+  (nope/nil))

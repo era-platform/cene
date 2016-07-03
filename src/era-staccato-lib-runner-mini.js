@@ -211,6 +211,10 @@ function stcTypeArr(
             return;
         projNamesToSortedIndices[ "|" + stringy ] = i;
     } );
+    var unsortedProjNames = arrMap( projNames, function ( name, i ) {
+        return { i: projNamesToSortedIndices[ "|" + name ],
+            name: name };
+    } );
     var tupleTag = JSON.stringify( stcNameTupleTagAlreadySorted(
         tupleName,
         arrMap( sortedProjNames, function ( entry ) {
@@ -222,7 +226,7 @@ function stcTypeArr(
     var result = {};
     result.type = "stcType";
     result.tupleName = tupleName;
-    result.unsortedProjNames = projNames;
+    result.unsortedProjNames = unsortedProjNames;
     result.sortedProjNames = sortedProjNames;
     result.getTupleTag = function () {
         return tupleTag;
@@ -325,10 +329,50 @@ function stcType( definitionNs, tupleStringyName, var_args ) {
         [].slice.call( arguments, 2 ) );
 }
 
+function macLookupRet( result ) {
+    return { type: "ret", val: result };
+}
+function macLookupGet( name, err ) {
+    return { type: "get", name: name, err: err };
+}
+function macLookupThen( macLookupEffects, then ) {
+    return { type: "then", first: macLookupEffects, then: then };
+}
+
 
 var staccatoDeclarationState = {};
 staccatoDeclarationState.namespaceDefs = jsnMap();
 staccatoDeclarationState.functionDefs = {};
+
+function prettifyTupleTag( tupleTag ) {
+    return JSON.stringify(
+        JSON.parse( tupleTag )[ 1 ][ 3 ][ 1 ][ 3 ][ 1 ] );
+}
+
+function stcIncomparable(
+    definitionNs, leftComparable, rightComparable ) {
+    
+    if ( leftComparable && rightComparable )
+        return null;
+    
+    var stcNil = stcType( definitionNs, "nil" );
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    var stcNope = stcType( definitionNs, "nope", "val" );
+    var stcCmpResultIncomparable =
+        stcType( definitionNs, "cmp-result-incomparable",
+            "left-is-comparable", "right-is-comparable" );
+    
+    var nil = stcNil.ofNow();
+    
+    function fromBoolean( b ) {
+        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
+    }
+    
+    return stcCmpResultIncomparable.ofNow(
+        fromBoolean( leftComparable ),
+        fromBoolean( rightComparable ) );
+}
+
 function Stc( tupleTag, opt_projNames ) {
     this.tupleTag = tupleTag;
     this.projNames = opt_projNames || [];
@@ -363,10 +407,14 @@ Stc.prototype.callStc = function ( definitionNs, arg ) {
         return func( self.projNames, arg );
     } );
 };
+Stc.prototype.cmp = function ( definitionNs, a, b ) {
+    throw new Error();
+};
+Stc.prototype.cmpThis = function ( definitionNs, other ) {
+    throw new Error();
+};
 Stc.prototype.pretty = function () {
-    return "(" +
-        JSON.stringify(
-            JSON.parse( this.tupleTag )[ 1 ][ 3 ][ 1 ][ 3 ][ 1 ] ) +
+    return "(" + prettifyTupleTag( this.tupleTag ) +
         arrMap( this.projNames, function ( elem, i ) {
             return " " + elem.pretty();
         } ).join( "" ) + ")";
@@ -378,6 +426,12 @@ StcFn.prototype.callStc = function ( definitionNs, arg ) {
     var func = this.func;
     return func( arg );
 };
+StcFn.prototype.cmp = function ( definitionNs, a, b ) {
+    throw new Error();
+};
+StcFn.prototype.cmpThis = function ( definitionNs, other ) {
+    throw new Error();
+};
 StcFn.prototype.pretty = function () {
     return "(fn)";
 };
@@ -388,30 +442,280 @@ function StcForeign( purpose, foreignVal ) {
 StcForeign.prototype.callStc = function ( definitionNs, arg ) {
     throw new Error();
 };
+StcForeign.prototype.cmp = function ( definitionNs, a, b ) {
+    throw new Error();
+};
+StcForeign.prototype.cmpThis = function ( definitionNs, other ) {
+    throw new Error();
+};
 StcForeign.prototype.pretty = function () {
     return "(foreign " + this.purpose + " " +
         JSON.stringify( this.foreignVal ) + ")";
 };
+function StcCmpDefault( first, second ) {
+    if ( !(stcIsCmp( first ) && stcIsCmp( second )) )
+        throw new Error();
+    this.first = first;
+    this.second = second;
+}
+StcCmpDefault.prototype.cmpRank = 1;
+StcCmpDefault.prototype.callStc = function ( definitionNs, arg ) {
+    throw new Error();
+};
+StcCmpDefault.prototype.cmp = function ( definitionNs, a, b ) {
+    var self = this;
+    
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    var stcCmpResultIncomparable =
+        stcType( definitionNs, "cmp-result-incomparable",
+            "left-is-comparable", "right-is-comparable" );
+    
+    function toBoolean( b ) {
+        return b.tupleTag === stcYep.getTupleTag();
+    }
+    
+    return macLookupThen( self.first.cmp( definitionNs, a, b ),
+        function ( firstResult ) {
+    
+    if ( firstResult.tupleTag !==
+        stcCmpResultIncomparable.getTupleTag() )
+        return macLookupRet( firstResult );
+    
+    return macLookupThen( self.second.cmp( definitionNs, a, b ),
+        function ( secondResult ) {
+    
+    if ( secondResult.tupleTag ===
+        stcCmpResultIncomparable.getTupleTag()
+        && !(
+            (toBoolean( stcCmpResultIncomparable.getProj(
+                secondResult, "left-is-comparable" ) )
+                && !toBoolean( stcCmpResultIncomparable.getProj(
+                    firstResult, "left-is-comparable" ) ))
+            || (toBoolean( stcCmpResultIncomparable.getProj(
+                secondResult, "right-is-comparable" ) )
+                && !toBoolean( stcCmpResultIncomparable.getProj(
+                    firstResult, "right-is-comparable" ) ))
+        ) )
+        return macLookupRet( firstResult );
+    
+    if ( toBoolean( stcCmpResultIncomparable.getProj( firstResult,
+        "left-is-comparable" ) ) )
+        return macLookupRet(
+            stcYep.ofNow( new StcForeign( "lt", null ) ) );
+    if ( toBoolean( stcCmpResultIncomparable.getProj( firstResult,
+        "right-is-comparable" ) ) )
+        return macLookupRet(
+            stcYep.ofNow( new StcForeign( "gt", null ) ) );
+    return macLookupRet( secondResult );
+    
+    } );
+    
+    } );
+};
+StcCmpDefault.prototype.cmpThis = function ( definitionNs, other ) {
+    var self = this;
+    var stcNil = stcType( definitionNs, "nil" );
+    
+    return macLookupThen(
+        self.first.cmpThis( definitionNs, other.first ),
+        function ( firstResult ) {
+        
+        if ( firstResult.tupleTag !== stcNil.getTupleTag() )
+            return macLookupRet( firstResult );
+        
+        return self.second.cmpThis( definitionNs, other.second );
+    } );
+};
+StcCmpDefault.prototype.pretty = function () {
+    return "(cmp-default " +
+        this.first.pretty() + " " + this.second.pretty() + ")";
+};
+function StcCmpGiveUp() {
+    // We do nothing.
+}
+StcCmpGiveUp.prototype.cmpRank = 2;
+StcCmpGiveUp.prototype.callStc = function ( definitionNs, arg ) {
+    throw new Error();
+};
+StcCmpGiveUp.prototype.cmp = function ( definitionNs, a, b ) {
+    return macLookupRet(
+        stcIncomparable( definitionNs, false, false ) );
+};
+StcCmpGiveUp.prototype.cmpThis = function ( definitionNs, other ) {
+    var stcNil = stcType( definitionNs, "nil" );
+    return macLookupRet( stcNil.ofNow() );
+};
+StcCmpGiveUp.prototype.pretty = function () {
+    return "(cmp-give-up)";
+};
+function StcCmpStruct( expectedTupleTag, projCmps ) {
+    // NOTE: We don't name this field `tupleTag` because that would
+    // complicate the usual "x.tupleTag === y" tests we do.
+    this.expectedTupleTag = expectedTupleTag;
+    this.projCmps = projCmps;
+}
+StcCmpStruct.prototype.cmpRank = 3;
+StcCmpStruct.prototype.callStc = function ( definitionNs, arg ) {
+    throw new Error();
+};
+StcCmpStruct.prototype.cmp = function ( definitionNs, a, b ) {
+    var self = this;
+    
+    var incomparable = stcIncomparable( definitionNs,
+        a.tupleTag === self.expectedTupleTag,
+        b.tupleTag === self.expectedTupleTag );
+    if ( incomparable !== null )
+        return macLookupRet( incomparable );
+    
+    var stcNil = stcType( definitionNs, "nil" );
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    
+    var n = self.projCmps.length;
+    return loop( 0 );
+    function loop( i ) {
+        if ( i <= n )
+            return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
+        var projCmp = self.projCmps[ i ];
+        return macLookupThen(
+            projCmp.cmp.cmp( definitionNs,
+                a.projNames[ projCmp.i ],
+                b.projNames[ projCmp.i ] ),
+            function ( cmpResult ) {
+            
+            if ( cmpResult.tupleTag !== stcNil.getTupleTag() )
+                return macLookupRet( cmpResult );
+            return loop( i + 1 );
+        } );
+    }
+};
+StcCmpStruct.prototype.cmpThis = function ( definitionNs, other ) {
+    var self = this;
+    
+    if ( self.expectedTupleTag < other.expectedTupleTag )
+        return macLookupRet( new StcForeign( "lt", null ) );
+    if ( other.expectedTupleTag < self.expectedTupleTag )
+        return macLookupRet( new StcForeign( "gt", null ) );
+    
+    var stcNil = stcType( definitionNs, "nil" );
+    var n = self.projCmps.length;
+    for ( var i = 0; i < n; i++ ) {
+        var selfI = self.projCmps[ i ].i;
+        var otherI = other.projCmps[ i ].i;
+        if ( selfI < otherI )
+            return macLookupRet( new StcForeign( "lt", null ) );
+        if ( otherI < selfI )
+            return macLookupRet( new StcForeign( "gt", null ) );
+    }
+    return loopOverCmps( 0 );
+    function loopOverCmps( i ) {
+        if ( i <= n )
+            return macLookupRet( stcNil.ofNow() );
+        var selfCmp = self.projCmps[ i ].cmp;
+        var otherCmp = other.projCmps[ i ].cmp;
+        return macLookupThen(
+            selfCmp.cmp.cmpThis( definitionNs, otherCmp ),
+            function ( cmpResult ) {
+            
+            if ( cmpResult.tupleTag !== stcNil.getTupleTag() )
+                return macLookupRet( cmpResult );
+            return loopOverCmps( i + 1 );
+        } );
+    }
+};
+StcCmpStruct.prototype.pretty = function () {
+    return "(cmp-struct " +
+        prettifyTupleTag( this.expectedTupleTag ) +
+        arrMap( this.projCmps, function ( projCmp, i ) {
+            return " " + projCmp.i + ":" + projCmp.cmp.pretty();
+        } ).join( "" ) + ")";
+};
+function StcCmpCmp() {
+    // We do nothing.
+}
+StcCmpCmp.prototype.cmpRank = 4;
+StcCmpCmp.prototype.callStc = function ( definitionNs, arg ) {
+    throw new Error();
+};
+StcCmpCmp.prototype.cmp = function ( definitionNs, a, b ) {
+    var incomparable =
+        stcIncomparable( definitionNs, stcIsCmp( a ), stcIsCmp( b ) );
+    if ( incomparable !== null )
+        return macLookupRet( incomparable );
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    if ( a.cmpRank < b.cmpRank )
+        return macLookupRet(
+            stcYep.ofNow( new StcForeign( "lt", null ) ) );
+    if ( b.cmpRank < a.cmpRank )
+        return macLookupRet(
+            stcYep.ofNow( new StcForeign( "gt", null ) ) );
+    return a.cmpThis( definitionNs, b );
+};
+StcCmpCmp.prototype.cmpThis = function ( definitionNs, other ) {
+    var stcNil = stcType( definitionNs, "nil" );
+    return macLookupRet( stcNil.ofNow() );
+};
+StcCmpCmp.prototype.pretty = function () {
+    return "(cmp-cmp)";
+};
 
+function stcIsCmp( x ) {
+    return x.cmpRank !== void 0;
+}
 function compareStc( a, b ) {
     var incomparableAtBest = false;
     var queue = [ { a: a, b: b } ];
     while ( queue.length !== 0 ) {
         var entry = queue.shift();
-        if ( !(entry.a instanceof Stc && entry.b instanceof Stc) ) {
-            incomparableAtBest = true;
-            continue;
-        }
-        if ( entry.a.tupleTag !== entry.b.tupleTag )
+        if ( entry.a instanceof Stc && entry.b instanceof Stc ) {
+            if ( entry.a.tupleTag !== entry.b.tupleTag )
+                return false;
+            var n = entry.a.projNames.length;
+            if ( n !== entry.b.projNames.length )
+                throw new Error();
+            for ( var i = 0; i < n; i++ )
+                queue.push( {
+                    a: entry.a.projNames[ i ],
+                    b: entry.b.projNames[ i ]
+                } );
+            
+        } else if ( entry.a instanceof StcCmpDefault
+            && entry.b instanceof StcCmpDefault ) {
+            
+            queue.push( { a: entry.a.first, b: entry.b.first } );
+            queue.push( { a: entry.a.second, b: entry.b.second } );
+            
+        } else if ( entry.a instanceof StcCmpGiveUp
+            && entry.b instanceof StcCmpGiveUp ) {
+            
+            // Do nothing.
+            
+        } else if ( entry.a instanceof StcCmpStruct
+            && entry.b instanceof StcCmpStruct ) {
+            
+            if ( entry.a.expectedTupleTag !==
+                entry.b.expectedTupleTag )
+                return false;
+            var n = entry.a.projCmps.length;
+            if ( n !== entry.b.projCmps.length )
+                throw new Error();
+            for ( var i = 0; i < n; i++ ) {
+                var entryA = entry.a.projCmps[ i ];
+                var entryB = entry.b.projCmps[ i ];
+                if ( entryA.i !== entryB.i )
+                    return false;
+                queue.push( { a: entryA.cmp, b: entryB.cmp } );
+            }
+            
+        } else if ( entry.a instanceof StcCmpCmp
+            && entry.b instanceof StcCmpCmp ) {
+            
+            // Do nothing.
+            
+        } else if ( stcIsCmp( entry.a ) && stcIsCmp( entry.b ) ) {
             return false;
-        var n = entry.a.projNames.length;
-        if ( n !== entry.b.projNames.length )
-            throw new Error();
-        for ( var i = 0; i < n; i++ )
-            queue.push( {
-                a: entry.a.projNames[ i ],
-                b: entry.b.projNames[ i ]
-            } );
+        } else {
+            incomparableAtBest = true;
+        }
     }
     return incomparableAtBest ? null : true;
 }
@@ -460,15 +764,6 @@ function macLookupThenRunEffects( rawMode, effects ) {
     } );
 }
 
-function macLookupRet( result ) {
-    return { type: "ret", val: result };
-}
-function macLookupGet( name, err ) {
-    return { type: "get", name: name, err: err };
-}
-function macLookupThen( macLookupEffects, then ) {
-    return { type: "then", first: macLookupEffects, then: then };
-}
 function runTopLevelMacLookupsSync( originalThreads ) {
     
     function currentlyMode( rawMode, body ) {
@@ -714,8 +1009,8 @@ function runTopLevelMacLookupsSync( originalThreads ) {
 
 function stcExecute( definitionNs, expr ) {
     return Function(
-        "definitionNs", "Stc", "StcFn", "StcForeign", "macLookupRet",
-        "macLookupThen",
+        "definitionNs", "Stc", "StcFn", "StcForeign", "StcCmpStruct",
+        "macLookupRet", "macLookupThen",
         
         // NOTE: When the code we generate for this has local
         // variables, we consistently prefix them with "stcLocal_" or
@@ -723,8 +1018,8 @@ function stcExecute( definitionNs, expr ) {
         // variables in the original code.
         "return " + expr + ";"
         
-    )( definitionNs, Stc, StcFn, StcForeign, macLookupRet,
-        macLookupThen );
+    )( definitionNs, Stc, StcFn, StcForeign, StcCmpStruct,
+        macLookupRet, macLookupThen );
 }
 
 function addBogusFunctionStaccatoDefinition(
@@ -1151,7 +1446,7 @@ function usingDefinitionNs( macroDefNs ) {
                     return stcFnPure( function ( definitionNs ) {
                         return stcFnPure( function ( myStxDetails ) {
                             return stcFnPure( function ( body ) {
-                                return stcFnPure( function ( then ) {
+                                return new StcFn( function ( then ) {
                                     if ( !(mode instanceof StcForeign
                                         && mode.purpose === "mode"
                                         && mode.foreignVal.current
@@ -1178,6 +1473,17 @@ function usingDefinitionNs( macroDefNs ) {
                 } );
             } ) );
     }
+    function stcAddPureMacro(
+        definitionNs, rawMode, name, macroFunctionImpl ) {
+        
+        stcAddMacro( definitionNs, rawMode, name,
+            function ( nss, rawMode, myStxDetails, body, then ) {
+            
+            return macLookupRet(
+                macroFunctionImpl( nss, rawMode,
+                    myStxDetails, body, then ) );
+        } );
+    }
     
     function makeDummyMode() {
         return {
@@ -1196,6 +1502,9 @@ function usingDefinitionNs( macroDefNs ) {
         var dummyMode = makeDummyMode();
         
         function mac( name, body ) {
+            stcAddPureMacro( targetDefNs, dummyMode, name, body );
+        }
+        function effectfulMac( name, body ) {
             stcAddMacro( targetDefNs, dummyMode, name, body );
         }
         function fun( name, body ) {
@@ -1355,7 +1664,7 @@ function usingDefinitionNs( macroDefNs ) {
                     function ( a ) {
                 var bNss = nssGet( nss, "b" );
                 return macroexpand( nssGet( bNss, "unique" ), rawMode,
-                    stcCons.getProj( body, "car" ),
+                    stcCons.getProj( body1, "car" ),
                     nssGet( bNss, "outbox" ).uniqueNs,
                     function ( rawMode, expandedB ) {
                 return macLookupThen(
@@ -1702,6 +2011,122 @@ function usingDefinitionNs( macroDefNs ) {
                     } );
                 } );
             }
+        } );
+        
+        // TODO: Make this expand multiple subexpressions
+        // concurrently.
+        // TODO: Add documentation of this somewhere.
+        effectfulMac( "cmp-struct",
+            function ( nss, rawMode, myStxDetails, body, then ) {
+            
+            if ( body.tupleTag !== stcCons.getTupleTag() )
+                throw new Error();
+            var tupleName =
+                stxToMaybeName( stcCons.getProj( body, "car" ) );
+            if ( tupleName === null )
+                throw new Error();
+            
+            return macLookupThen(
+                getType( nss.definitionNs, tupleName ),
+                function ( type ) {
+                
+                return macLookupRet( new StcForeign( "effects",
+                    function ( rawMode ) {
+                    
+                    return loop( nss, rawMode, type, 0, null,
+                        stcCons.getProj( body, "cdr" ) );
+                } ) );
+            } );
+            
+            function loop( nss, rawMode, type, i, revProjVals,
+                remainingBody ) {
+                
+                var n = type.unsortedProjNames.length;
+                if ( n <= i )
+                    return next( rawMode, type,
+                        revProjVals, remainingBody );
+                
+                if ( remainingBody.tupleTag !==
+                    stcCons.getTupleTag() )
+                    throw new Error(
+                        "Expected more arguments to " +
+                        JSON.stringify( tupleName ) );
+                
+                var firstNss = nssGet( nss, "first" );
+                
+                return macroexpand( nssGet( firstNss, "unique" ),
+                    rawMode,
+                    stcCons.getProj( remainingBody, "car" ),
+                    nssGet( firstNss, "outbox" ).uniqueNs,
+                    function ( rawMode, projVal ) {
+                    
+                    return loop( nssGet( nss, "rest" ), rawMode, type,
+                        i + 1,
+                        { first:
+                            { i: type.unsortedProjNames[ i ].i,
+                                cmp: projVal },
+                            rest: revProjVals },
+                        stcCons.getProj( remainingBody, "cdr" ) );
+                } );
+            }
+            
+            function next(
+                rawMode, type, revProjVals, remainingBody ) {
+                
+                if ( remainingBody.tupleTag ===
+                    stcCons.getTupleTag() )
+                    throw new Error();
+                
+                var projVals = revJsListToArr( revProjVals );
+                
+                var result = "macLookupRet( " +
+                    "new StcCmpStruct( " +
+                        JSON.stringify( type.getTupleTag() ) + ", " +
+                        "[ " +
+                        
+                        arrMap( projVals, function ( entry, i ) {
+                            return "{ " +
+                                "i: " +
+                                    JSON.stringify( entry.i ) + ", " +
+                                "cmp: stcLocal_proj" + i + " " +
+                            "}";
+                        } ).join( ", " ) +
+                    " ] ) )";
+                for ( var i = projVals.length - 1; 0 <= i; i-- )
+                    result = "macLookupThen( " +
+                        projVals[ i ].cmp + ", " +
+                        "function ( stcLocal_proj" + i + " ) {\n" +
+                    
+                    "return " + result + ";\n" +
+                    "} )";
+                return macLookupThenRunEffects( rawMode,
+                    then( result ) );
+            }
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "cmp-default", function ( first ) {
+            return stcFnPure( function ( second ) {
+                return new StcCmpDefault( first, second );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "cmp-give-up", function ( ignored ) {
+            return new StcCmpGiveUp();
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "cmp-cmp", function ( ignored ) {
+            return new StcCmpCmp();
+        } );
+        
+        fun( "call-cmp", function ( cmp ) {
+            return stcFnPure( function ( a ) {
+                return new StcFn( function ( b ) {
+                    return cmp.cmp( macroDefNs, a, b );
+                } );
+            } );
         } );
         
         fun( "string-metacompare", function ( a ) {
@@ -2140,14 +2565,14 @@ function usingDefinitionNs( macroDefNs ) {
                 stcNsGet( constructorName,
                     stcNsGet( "constructors", definitionNs ) ) ),
             stcArrayToConsList( arrMap( type.unsortedProjNames,
-                function ( name ) {
+                function ( entry ) {
                 
                 return stcName.ofNow(
-                    new StcForeign( "name", name ) );
+                    new StcForeign( "name", entry.name ) );
             } ) ) );
         // TODO: Make this expand multiple subexpressions
         // concurrently.
-        stcAddMacro( definitionNs, rawMode, tupleName,
+        stcAddPureMacro( definitionNs, rawMode, tupleName,
             function ( nss, rawMode, myStxDetails, body, then ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
@@ -2254,9 +2679,13 @@ function usingDefinitionNs( macroDefNs ) {
             [ "proj-name", "var", "proj-pattern" ] );
         
         // These constructors are needed for interpreting the results
-        // of certain built-in operators, namely `isa` for now.
+        // of certain built-in operators, namely `isa` and the cmp
+        // operations.
         type( "yep", [ "val" ] );
         type( "nope", [ "val" ] );
+        // TODO: Add documentation for this somewhere.
+        type( "cmp-result-incomparable",
+            [ "left-is-comparable", "right-is-comparable" ] );
         
         // These s-expression constructors are needed so that macros
         // can parse their s-expression arguments. The `cons` and
