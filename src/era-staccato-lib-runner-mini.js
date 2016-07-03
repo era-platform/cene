@@ -2215,10 +2215,140 @@ function usingDefinitionNs( macroDefNs ) {
             return new StcCmpString();
         } );
         
+        // TODO: Add documentation of this somewhere.
         fun( "call-cmp", function ( cmp ) {
             return stcFnPure( function ( a ) {
                 return new StcFn( function ( b ) {
                     return cmp.cmp( macroDefNs, a, b );
+                } );
+            } );
+        } );
+        
+        var macLookupYoke = {
+            bounce: function ( then ) {
+                return then( macLookupYoke );
+            }
+        };
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "table-empty", function ( keyCmp ) {
+            if ( !stcIsCmp( keyCmp ) )
+                throw new Error();
+            
+            return new StcForeign( "table", {
+                keyCmp: keyCmp,
+                contents: avlMap( function ( yoke, a, b, then ) {
+                    return macLookupThen(
+                        keyCmp.cmp( macroDefNs, a, b ),
+                        function ( cmpResult ) {
+                        
+                        if ( cmpResult.tupleTag !==
+                            stcYep.getTupleTag() )
+                            throw new Error();
+                        var internal =
+                            stcYep.getProj( cmpResult, "val" );
+                        
+                        if ( internal.tupleTag ===
+                            stcNil.getTupleTag() )
+                            return then( yoke, 0 );
+                        if ( internal instanceof StcForeign
+                            && internal.purpose === "lt" )
+                            return then( yoke, -1 );
+                        if ( internal instanceof StcForeign
+                            && internal.purpose === "gt" )
+                            return then( yoke, 1 );
+                        
+                        throw new Error();
+                    } );
+                } )
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "table-shadow", function ( key ) {
+            return stcFnPure( function ( maybeVal ) {
+                return new StcFn( function ( table ) {
+                    if ( !(table instanceof StcForeign
+                        && table.purpose === "table") )
+                        throw new Error();
+                    
+                    if ( maybeVal.tupleTag === stcNil.getTupleTag() )
+                        return table.foreignVal.contents.minusEntry( macLookupYoke,
+                            key, next );
+                    if ( maybeVal.tupleTag === stcYep.getTupleTag() )
+                        return table.foreignVal.contents.plusEntry( macLookupYoke,
+                            key,
+                            stcYep.getProj( maybeVal, "val" ),
+                            next );
+                    throw new Error();
+                    
+                    function next( yoke, contents ) {
+                        return macLookupRet(
+                            new StcForeign( "table", {
+                                keyCmp: table.foreignVal.keyCmp,
+                                contents: contents
+                            } ) );
+                    }
+                } );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "table-get", function ( key ) {
+            return stcFnPure( function ( table ) {
+                if ( !(table instanceof StcForeign
+                    && table.purpose === "table") )
+                    throw new Error();
+                
+                return table.foreignVal.contents.getMaybe( macLookupYoke,
+                    key,
+                    function ( yoke, maybeResult ) {
+                    
+                    return macLookupRet( maybeResult === null ?
+                        stcNil.ofNow() :
+                        stcYep.ofNow( maybeResult.val ) );
+                } );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "table-key-cmp", function ( table ) {
+            if ( !(table instanceof StcForeign
+                && table.purpose === "table") )
+                throw new Error();
+            
+            return table.foreignVal.keyCmp;
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "table-default", function ( first ) {
+            return stcFnPure( function ( second ) {
+                if ( !(first instanceof StcForeign
+                    && first.purpose === "table") )
+                    throw new Error();
+                if ( !(second instanceof StcForeign
+                    && second.purpose === "table") )
+                    throw new Error();
+                
+                return macLookupThen(
+                    first.foreignVal.keyCmp.cmpThis( macroDefNs,
+                        second.foreignVal.keyCmp ),
+                    function ( cmpsMatch ) {
+                    
+                    if ( cmpsMatch.tupleTag !== stcNil.getTupleTag() )
+                        throw new Error();
+                
+                return first.foreignVal.contents.plus( macLookupYoke,
+                    second.foreignVal.contents,
+                    function ( yoke, contents ) {
+                
+                return macLookupRet( new StcForeign( "table", {
+                    keyCmp: first.foreignVal.keyCmp,
+                    contents: contents
+                } ) );
+                
+                } );
+                
                 } );
             } );
         } );

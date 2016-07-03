@@ -62,6 +62,7 @@ function runCeneSync(
         readInternalFiles( [
             "src/era-misc-strmap-avl.js",
             "src/era-misc.js",
+            "src/era-avl.js",
             "src/era-reader.js",
             "src/era-staccato-lib-runner-mini.js",
             "src/era-cene-api.js"
@@ -258,6 +259,7 @@ function runCeneSync(
                     readInternalFiles( [
                         "src/era-misc-strmap-avl.js",
                         "src/era-misc.js",
+                        "src/era-avl.js",
                         "src/era-reader.js",
                         "src/era-staccato-lib-runner-mini.js",
                         "src/era-cene-api.js",
