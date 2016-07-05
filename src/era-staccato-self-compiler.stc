@@ -1926,8 +1926,8 @@
           /ns-get-string str.macros target-definition-ns)
           function)
       /fn - next))
-  \= TODO: Implement this macro, and add it here:
-  \= def-macro
+  \= TODO: Implement these macros, and add them here:
+  \= def-macro cmp-struct
   \= TODO: Also consider adding the `test` macro used in test.stc.
   /c def-macro str.case (core-mac-case)
   /c def-macro str.cast (core-mac-cast)
@@ -1982,10 +1982,20 @@
           (procure-name mode /c get target-definition-ns)
           def)
       /fn - next))
-  /c def-foreign str.string-metacompare
+  /c def-foreign str.cmp-default
+  /c def-foreign str.cmp-give-up
+  /c def-foreign str.cmp-cmp
+  /c def-foreign str.cmp-name
+  /c def-foreign str.cmp-string
+  /c def-foreign str.call-cmp
+  /c def-foreign str.table-empty
+  /c def-foreign str.table-shadow
+  /c def-foreign str.table-get
+  /c def-foreign str.table-key-cmp
+  /c def-foreign str.table-default
   /c def-foreign str.string-append
   /c def-foreign str.make-tuple-tag
-  /c def-foreign str.name-metacompare
+  /c def-foreign str.function-implementation-opaque
   /c def-foreign str.macro-stx-details
   /c def-foreign str.ns-get-name
   /c def-foreign str.ns-get-string
