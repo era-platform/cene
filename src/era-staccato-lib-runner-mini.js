@@ -388,7 +388,7 @@ Stc.prototype.callStc = function ( definitionNs, arg ) {
     // on.
     var func = staccatoDeclarationState.functionDefs[ self.tupleTag ];
     if ( func !== void 0 )
-        return func( self.projNames, arg );
+        return func( self, arg );
     
     var staccatoName =
         stcNsGet( "staccato",
@@ -399,14 +399,15 @@ Stc.prototype.callStc = function ( definitionNs, arg ) {
             throw new Error(
                 "No such function definition: " + self.tupleTag );
         } ),
-        function ( ignored ) {
+        function ( def ) {
         
-        // TODO: Look up the function implementation from
-        // `namespaceDefs` /functions/<tupleTag>/staccato, at least
-        // when there's no entry in `functionDefs`.
-        var func =
-            staccatoDeclarationState.functionDefs[ self.tupleTag ];
-        return func( self.projNames, arg );
+        if ( !(def instanceof StcForeign
+            && def.purpose === "native-definition") )
+            throw new Error();
+        
+        var func = def.foreignVal;
+        staccatoDeclarationState.functionDefs[ self.tupleTag ] = func;
+        return func( self, arg );
     } );
 };
 Stc.prototype.cmp = function ( definitionNs, a, b ) {
@@ -1106,34 +1107,27 @@ function stcExecute( definitionNs, expr ) {
         macLookupRet, macLookupThen );
 }
 
-function addBogusFunctionStaccatoDefinition(
-    defNs, rawMode, tupleTagName ) {
+function addFunctionNativeDefinition(
+    defNs, rawMode, tupleTagName, impl ) {
     
     collectPut( rawMode,
         stcNsGet( "staccato",
             stcNsGet( tupleTagName,
                 stcNsGet( "functions", defNs ) ) ),
-        new StcForeign( "native-definition", null ) );
+        new StcForeign( "native-definition", impl ) );
 }
 function stcAddDefun( nss, rawMode, name, argName, body ) {
     var tupleTagName = stcNameTupleTagAlreadySorted( name, [] );
-    var tupleTag = JSON.stringify( tupleTagName );
     var innerFunc = stcExecute( nss.definitionNs,
         "function ( " + stcIdentifier( argName ) + " ) { " +
             "return " + body + "; " +
         "}" );
-    // TODO: Add a real entry to `namespaceDefs`. This Cene language
-    // implementation is naive and doesn't do a full Staccato
-    // desugaring, so we can't create a `stc-def` exposing Staccato
-    // code, but let's at least create an appropriate
-    // `stc-def-foreign`.
-    addBogusFunctionStaccatoDefinition( nss.definitionNs, rawMode,
-        tupleTagName );
-    staccatoDeclarationState.functionDefs[ tupleTag ] =
-        function ( projectionVals, argVal ) {
+    addFunctionNativeDefinition( nss.definitionNs, rawMode,
+        tupleTagName,
+        function ( funcVal, argVal ) {
         
         return innerFunc( argVal );
-    };
+    } );
 }
 
 function stcErr( msg ) {
@@ -1596,16 +1590,12 @@ function usingDefinitionNs( macroDefNs ) {
                 stcConstructorName( targetDefNs, name ) );
             var tupleTagName =
                 stcNameTupleTagAlreadySorted( constructorTag, [] );
-            var tupleTag = JSON.stringify( tupleTagName );
-            // TODO: Add a real entry to `namespaceDefs`. We should
-            // create an appropriate `stc-def-foreign`.
-            addBogusFunctionStaccatoDefinition(
-                targetDefNs, dummyMode, tupleTagName );
-            staccatoDeclarationState.functionDefs[ tupleTag ] =
-                function ( projectionVals, argVal ) {
+            addFunctionNativeDefinition(
+                targetDefNs, dummyMode, tupleTagName,
+                function ( funcVal, argVal ) {
                 
                 return macLookupRet( body( argVal ) );
-            };
+            } );
             processDefType( targetDefNs, dummyMode, name, [] );
         }
         
@@ -2389,6 +2379,17 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        // TODO: Add documentation of this somewhere.
+        // NOTE: This is the only way to establish a function behavior
+        // for a struct that has more than zero projections.
+        fun( "function-implementation-opaque", function ( impl ) {
+            return new StcForeign( "native-definition",
+                function ( funcVal, argVal ) {
+                
+                return callStcMulti( impl, funcVal, argVal );
+            } );
+        } );
+        
         fun( "macro-stx-details", function ( mode ) {
             return stcFnPure( function ( uniqueNs ) {
                 return stcFnPure( function ( definitionNs ) {
@@ -2821,6 +2822,10 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: See if we should keep the ones marked "sugar".
         type( "return", [ "val" ] );
         type( "call", [ "func", "arg" ] );
+        // TODO: See if we'll still need `stc-def-foreign` now that
+        // we're using `new StcForeign( "native-definition", ... )`.
+        // In fact, maybe we don't need any of these Staccato code
+        // constructors.
         type( "stc-def-foreign", [ "tuple-tag", "foreign" ] );
         type( "stc-def",
             [ "tuple-name", "opt-proj-pattern", "case-list" ] );
