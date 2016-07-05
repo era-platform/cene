@@ -251,7 +251,7 @@ function stcTypeArr(
             } );
         
         var result = "macLookupRet( " +
-            "new Stc( " + JSON.stringify( tupleTag ) + ", [ " +
+            "new Stc( " + jsStr( tupleTag ) + ", [ " +
                 arrMap( projectionVals, function ( entry, i ) {
                     return "stcLocal_proj" + i;
                 } ).join( ", " ) +
@@ -1132,7 +1132,7 @@ function stcAddDefun( nss, rawMode, name, argName, body ) {
 
 function stcErr( msg ) {
     return "(function () { " +
-        "throw new Error( " + JSON.stringify( msg ) + " ); " +
+        "throw new Error( " + jsStr( msg ) + " ); " +
     "})()";
 }
 
@@ -1329,8 +1329,7 @@ function usingDefinitionNs( macroDefNs ) {
             
             return then( rawMode, "if ( " +
                 "stcLocal_matchSubject.tupleTag === " +
-                    JSON.stringify( pattern.type.getTupleTag() ) +
-                    " " +
+                    jsStr( pattern.type.getTupleTag() ) + " " +
             ") return (function () { " +
                 arrMap( pattern.type.sortedProjNames,
                     function ( entry, i ) {
@@ -1415,8 +1414,7 @@ function usingDefinitionNs( macroDefNs ) {
                     "function ( stcLocal_matchSubject ) { " +
                     
                     "if ( stcLocal_matchSubject.tupleTag === " +
-                        JSON.stringify(
-                            pattern.type.getTupleTag() ) + " " +
+                        jsStr( pattern.type.getTupleTag() ) + " " +
                     ") return (function () { " +
                         arrMap( pattern.type.sortedProjNames,
                             function ( entry, i ) {
@@ -1846,8 +1844,7 @@ function usingDefinitionNs( macroDefNs ) {
                             "function ( stcLocal_body ) {\n" +
                         "    \n" +
                         "    return stcLocal_body.tupleTag === " +
-                                JSON.stringify(
-                                    type.getTupleTag() ) + " ? " +
+                                jsStr( type.getTupleTag() ) + " ? " +
                                 stcYep.of( stcNil.of() ) + " : " +
                                 stcNope.of( stcNil.of() ) + ";\n" +
                         "} )" ) );
@@ -1994,7 +1991,7 @@ function usingDefinitionNs( macroDefNs ) {
                         stcString.of(
                             "macLookupRet( " +
                                 "new StcForeign( \"string\", " +
-                                    JSON.stringify(
+                                    jsStr(
                                         stxToDefiniteString(
                                             stcCons.getProj(
                                                 body, "car" ) ) ) +
@@ -2155,7 +2152,7 @@ function usingDefinitionNs( macroDefNs ) {
                 
                 var result = "macLookupRet( " +
                     "new StcCmpStruct( " +
-                        JSON.stringify( type.getTupleTag() ) + ", " +
+                        jsStr( type.getTupleTag() ) + ", " +
                         "[ " +
                         
                         arrMap( projVals, function ( entry, i ) {

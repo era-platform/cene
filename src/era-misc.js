@@ -128,25 +128,37 @@ function sameTwo( a, b ) {
         a !== a ? b !== b :  // NaN
         a === b;
 }
+function jsStrContentAllowingQuotes( string ) {
+    return string.
+        replace( /\\/g, "\\\\" ).replace( /\n/g, "\\n" ).
+        replace( /\r/g, "\\r" ).replace( /\t/g, "\\t" ).
+        replace( /\x08/g, "\\b" ).replace( /\f/g, "\\f" ).
+        replace( /\0/g, "\\0" ).replace( /\v/g, "\\v" ).
+        replace( /[^\u0020-\u007E]/g, function ( c ) {
+            var code = c.charCodeAt( 0 ).toString( 16 ).toUpperCase();
+            var n = code.length;
+            return n <= 2 ?
+                "\\x" + ("00" + code).substr( n ) :
+                "\\u" + ("0000" + code).substr( n );
+        } );
+}
+function jsStrDoubleQuoted( string ) {
+    return "\"" +
+        jsStrContentAllowingQuotes( string ).replace( /"/g, "\\\"" ) +
+        "\"";
+}
+function jsStrSingleQuoted( string ) {
+    return "'" +
+        jsStrContentAllowingQuotes( string ).replace( /'/g, "\\'" ) +
+        "'";
+}
 function jsStr( string ) {
-    // NOTE: Unlike JSON.stringify(), this will limit its output to
-    // ASCII characters, and it will be a valid JavaScript string
-    // (whereas a JSON string can contain U+2028 LINE SEPARATOR and
-    // U+2029 PARAGRAPH SEPARATOR).
-    return "\"" + arrMap( string.split( /\\/ ), function ( part ) {
-        return part.replace( /\"/g, "\\\"" ).replace( /\n/g, "\\n" ).
-            replace( /\r/g, "\\r" ).replace( /\t/g, "\\t" ).
-            replace( /\x08/g, "\\b" ).replace( /\f/g, "\\f" ).
-            replace( /\0/g, "\\0" ).replace( /\v/g, "\\v" ).
-            replace( /[^\x20-\x7E]/g, function ( cha ) {
-                var code =
-                    cha.charCodeAt( 0 ).toString( 16 ).toUpperCase();
-                var n = code.length;
-                return n <= 2 ?
-                    "\\x" + ("00" + code).substr( n ) :
-                    "\\u" + ("0000" + code).substr( n );
-            } );
-    } ).join( "\\\\" ) + "\"";
+    var doubleQuoteCount = (string.match( /\"/g ) || []).length;
+    var singleQuoteCount = (string.match( /'/g ) || []).length;
+    return singleQuoteCount < doubleQuoteCount ?
+        jsStrSingleQuoted( string ) :
+        // We use double quotes by default.
+        jsStrDoubleQuoted( string );
 }
 
 // TODO: Put utilities like these in lathe.js.

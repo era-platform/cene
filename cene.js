@@ -33,6 +33,30 @@ function arrEachAsyncNodeExn( arr, asyncFunc, then ) {
     }
 }
 
+// TODO: Put a utility like this in lathe.js.
+function jsJsn( x ) {
+    if ( typeof x === "string" )
+        return _.jsStr( x );
+    if ( _.likeArray( x ) )
+        return "[" + _.arrMap( x, function ( item ) {
+            return jsJsn( item );
+        } ).join( "," ) + "]";
+    if ( x === null )
+        return "null";
+    if ( typeof x === "number" ) {
+        if ( x !== x )
+            return "0/0";
+        if ( x === -1 / 0 )
+            return "-1/0";
+        if ( x === 1 / 0 )
+            return "1/0";
+        if ( 1 / x === -1 / 0 )
+            return "-0";
+        return JSON.stringify( x );
+    }
+    throw new Error();
+}
+
 
 function runCeneSync(
     files, testFiles, displayTimeInfo, cliArgs, inRoot, outRoot ) {
@@ -270,8 +294,8 @@ function runCeneSync(
                 function addMap( map, mapName ) {
                     map.each( function ( k, v ) {
                         quine += "" + mapName + ".set( " +
-                            JSON.stringify( k ) + ", " +
-                            JSON.stringify( v ) + " );\n"
+                            _.jsStr( k ) + ", " +
+                            _.jsStr( v ) + " );\n"
                     } );
                 }
                 addMap( memoInputPathType, "quinerInputPathType" );
@@ -282,12 +306,12 @@ function runCeneSync(
                 
                 $stc.arrEach( textOfFiles, function ( text ) {
                     quine += "quinerTextOfFiles.push( " +
-                        JSON.stringify( text ) + " );\n";
+                        _.jsStr( text ) + " );\n";
                 } );
                 
                 quine +=
                     "quinerCliArguments = " +
-                        JSON.stringify( cliArgs ) + ";\n" +
+                        jsJsn( cliArgs ) + ";\n" +
                     "quinerQuine = quine;\n" +
                     "quinerTopLevelVars = topLevelVars;\n" +
                     "\n" +
@@ -300,12 +324,12 @@ function runCeneSync(
                     "\"strict mode\";\n" +
                     "(function ( topLevelVars ) {\n" +
                     "\n" +
-                    "var quine = " + JSON.stringify( quine ) + ";\n" +
+                    "var quine = " + _.jsStr( quine ) + ";\n" +
                     "var quiner = " +
                         "Function( \"quine\", \"topLevelVars\", " +
                             "quine )( quine, topLevelVars );\n" +
                     "quiner.quinerCallWithSyncJavaScriptMode( " +
-                        JSON.stringify( constructorTag ) + " );\n" +
+                        jsJsn( constructorTag ) + " );\n" +
                     "\n" +
                     "})( {\n" +
                     $stc.arrMap( topLevelVars, function ( va ) {
@@ -322,7 +346,7 @@ function runCeneSync(
                         Function( "" + va + " = arguments[ 0 ];" );
                         
                         return (
-                            "" + JSON.stringify( "|" + va ) + ": " +
+                            "" + _.jsStr( "|" + va ) + ": " +
                                 "{\n" +
                             "    get: function () {\n" +
                             "        return " + va + ";\n" +
