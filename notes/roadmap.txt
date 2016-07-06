@@ -1,0 +1,35 @@
+Cene tasks, in roughly highest-priority-first order:
+
+- Oops! We need to revisit how cmp-struct works. If the first projection comparison is only defined on the left, I guess we still need to test the other projections to see if they're also defined on the left.
+
+- Change (then-effects a /fn - b) into (join-effects a b). Implement (get-current-modality) with a callback, and update its documentation.
+
+- These are all sort of the same task:
+
+  - Finish implementing the cmp, combine, merge, and table operations designed in tables.txt. Actually, we can probably make combines and merges into the same kind of thing somehow.
+
+  - Design a way to do threshold reads on mergeable state (like the way LVars do).
+
+  - Consider how to make multimethods and other extensible definition state work. Some ideas are described in the "Implementing Blade" note in old-roadmap-notes.txt, but those might be obsolete if we do something with lifelines or LVar-like threshold reads instead.
+
+  - Implement a live service API as described in the "Implementing Blade" note in old-roadmap-notes.txt. This basically amounts to implementing lifelines.
+
+- Design and implement a better unit test framework. The unit tests can now use cmp values to do their comparisons, at least. We probably want to have control over the order unit test results are reported in.
+
+- Decide whether to make string operations effectful (to account for the memoization effects of an underlying finger tree) or to support memoization as an implicit effect (which we already seem to have done in the act of definition lookup). We should probably make the primitives monadic for flexibility, but then also define an effect that obtains a pure way to run those effects.
+
+- Implement proper error handling using a `do-what-you-think-is-best` operation instead of just terminating outright. Let people write something like (err a b c \;qq[message]) to call `do-what-you-think-is-best` using a parameter consisting of (list a b c), `str.\;qq[message]`, and an empty struct tagged with a name unique to this source code location.
+
+- Design and implement a rich document format (ideally making the HTML ecosystem, plain text program code, and UI toolkits obsolete). A killer feature will be to have good support for keyboard navigation (if only for accessibility), selecting paren-unbalanced snippets, copying, and pasting.
+
+- Design and implement an approach to user-facing content localization. This is for arbitrary snippets of code, not just strings.
+
+- Design and implement an approach to programmer-facing identifier and comment/whitespace localization.
+
+- Write better documentation.
+
+- Implement a multi-backend compiler of Cene in Cene.
+
+- Do a dead code elimination pass in the compiler.
+
+- Devote some effort to polish and style.

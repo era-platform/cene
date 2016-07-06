@@ -1,0 +1,385 @@
+These are select notes that I've been keeping privately in Evernote for a while. Some of Cene's design process has involved referring back to these (particularly "Implementing Blade") and trying to polish the rough concepts expressed here.
+
+I figured I would eventually write documentation polished enough that these were unnecessary, and yet I frequently want to refer to upcoming goals in terms of what parts of my notes they fulfill. That makes it hard to document my goals publicly!
+
+So, here's a dump of my notes. They don't all make sense, and you can even see them trail off into disorganized sentence fragments. Hopefully they at least shed a light on the trains of thought I've been riding.
+
+
+
+Era side effect model
+Written 2014-12-23
+---------------------
+
+Effects to sender (A-uthor)
+Effects to society (R-ighteous)
+Effects to receiver (E-ngager)
+
+If
+
+
+
+The Twelve-Factor App
+Written 2015-03-26
+---------------------
+
+http://12factor.net/
+
+It would be interesting to build a programming language around these ideas. Take them further: Make the entire development process accessible to an end user.
+
+
+
+Trees in computation
+Written 2015-11-04 to 06
+------------------------
+
+In many cases, these trees are actually (not-so-subtle) graphs, but they look like trees locally.
+
+syntax tree
+call tree
+thread ancestry tree
+reentrant continuation tree / cactus stacks
+backtracking search tree
+dependency tree
+revision tree
+file tree
+inheritance hierarchy
+reclaimable object graph
+cache hierarchy
+namespace hierarchy
+region containment in region-based memory management
+
+The twelve-factor app suggests a particular use of file trees (and by extension, revision trees) for organizing source code for software as a service. In a twelve-factor app, the code as it exists in the file tree has a manifest that a common build system (like npm) can understand. This determines what dependencies for it to fetch during a build. After a build has been completed, it may sit around for a while on a build server before being deployed. When it is deployed, it's combined with a config (a set of environment variables), which may have URL references to backing services. That's the first time the code can access custom network locations. In some common way (e.g. npm again), this deploy launches a set of OS processes, all of which are designed in a crash-only way. In the context of a deploy, an administrator can run admin commands, which spawn dedicated processes to do their work while the app continues to run.
+
+App = Map Version (SerializableDependencyIO (UrlConfig -> (CrashOnlyProcessIO (), AdminCommand -> AdminProcessIO ())))
+
+Not mentioned in the twelve-factor app stuff, databases and database migrations seem to be essential aspects of this kind of web app. Going by some top GitHub results for [database migration], the way database migrations are dealt with is pretty consistent:
+
+http://umigrate.readthedocs.org/projects/db-migrate/en/latest/
+http://flywaydb.org/documentation/
+
+The database stores hashes of the migrations that have been applied, perhaps with some additional metadata about success/failure, and the administrator uses admin commands to manage these. In some projects, the web app tries to apply all outstanding migrations as it starts up.
+
+Things that sit around in a repo:
+
+* Code for run time processes.
+* Dependency declarations.
+* Sample configuration options.
+* Notes and instructions.
+* Software licenses.
+* Database migrations.
+* Tests (and potentially, proofs).
+* Admin commands.
+* IDE settings.
+* Usage reports that could be used as baselines for tests (Kartik's stuff).
+* Translations.
+
+---
+
+Hmm... An interesting approach to config would be to have certain "external objects" in a program that must have names that are unique among names in the entire program. Then these names can be keys in a config data structure.
+
+Anyway, it sounds like a programming language meant for present-day workflows should provide certain operations:
+
+* Build a file tree, obtaining dependencies from a package repository service, but otherwise isolating the build logic from the outside world. The programmer/admin may want to be able to predict where dependencies end up so they can diagnose problems with them.
+* Invoke a built file tree upon a configuration environment.
+
+
+
+Era UI syntax
+Written 2015-10-09 to 17
+------------------------
+
+Hierarchical syntax is useful for conceiving of a program as an inductive structure, reinforcing the idea (if not the fact) that we can read the whole thing eventually. It's useful for relating a program's code content to its behavioral content, if both of these have some hierarchy to them.
+
+However, a perfect hierarchy is imperfect. As a physical medium, the planar space in which the hierarchy is displayed is not divided so cleanly into subregions as the hierarchy would suggest. The people reading or maintaining the code are not separate systems from the code itself, and to define those people's relation to the code is to hem them in and deny them their own identity. It's not that we should think in an out-of-the-box, anti-formalistic way, but that we will. It will be useful to us for countering the oppressive systems we mistakenly build for ourselves.
+
+To blur the boundaries of the hierarchy, we can consider each piece of it to represent a constraint set. Two pieces together just represent the union of their sets, plus an association between the two representations of the boundary.
+
+Much of the time, the constraints may recreate the decisively formalized parent-child connections we're used to, and algorithms may abide by this formalism unquestioningly. However, there's more to it than parent-child connections. For instance, multiple independent hierarchies may be overlaid upon each other (if it makes sense to do so), some constraints may represent suggestions or defeasible rules rather than decisive ones, and some constraints may have a rather subjective meaning.
+
+Names act as bridges between the constraints. There are global, serializable names, which will always carry some risk of overlap, but this risk can be minimized by associating names with cryptographic identities. Then there are local names, used for expressing links between constraints without any intent of the name being useful outside that context. Even local names need some way to ensure their uniqueness.
+
+There are multiple kinds of local names. For every hole in the syntactic hierarchy, whether an omitted ancestor line or an omitted descendant line, some local names may refer unambiguously to that hole. For every notion of identity or equivalence that a syntactic hierarchy can be subjected to in the meta-layer, some local names may derive their identity from that identification method. For instance, a macroexpansion can by hygienic by having all its local variable names derive their identities from the uniqueness of this specific call to the macro.
+
+---
+
+Concentric hierarchies
+
+These days, we tend to deal with syntax in a rooted tree shape. This is a variation of flat text, where delimiters have been added to give it structure; modifications within a pair of delimiters are unlikely to affect the behavior outside them.
+
+Very occasionally we deal with quasiquotation, a delimiter of a higher order, which lets us isolate subtrees, i.e. branches with holes in them where other branches would go. If quasiquotation is unfamiliar, consider literal syntax. Certain literal syntaxes like strings, numbers, and identifiers are usually not justified in terms of the rest of a programming language's syntax, but instead are considered external concepts that the code is supposed to deal with on their own terms. If we ignore these foreign objects and look again at the code-with-holes-in-it that remains, it's shaped like a branch with branches missing from it, just like quasiquotation.
+
+We can go even further than quasiquotation. If a run of text with a run-of-text-shaped hole at the end is a branch, and if a branch with branch-shaped holes in it is a subtree, then the next level is a subtree with subtree-shaped holes in it, like an expression where some of the operators have unknown meaning. Each level gets more difficult to appreciate than the last, but the infinite regress of levels is easy to capture.
+
+To formalize this regress, we can consider posets and DAGs. Posets are themselves DAGs.
+
+Suppose we start with a connected DAG, and we want to ascribe a hierarchy to it. The containment relation between its nonempty sub-DAGs is a poset, and a poset is a DAG itself. If we choose any connected sub-DAG of that poset, and if we ensure that no two elements of our sub-DAG have a common child in the poset, then we've chosen a hierarchy; each of our chosen DAG's vertices represents one of the nonempty sub-DAGs of the original DAG, and none of them overlap. Since the hierarchy on one DAG is another DAG, we can repeat the process to ascribe hierarchy to the hierarchy, over and over.
+
+
+hierarchy: (wind-embed maybe-unique-subhierarchies)
+maybe-unique-subhierarchies: ...an embedded structure that somehow contains maybe-unique-subhierarchy entries in well-defined places...
+maybe-unique-subhierarchy: (unique-out-in maybe-uniqueness-var maybe-uniqueness-var subhierarchy)
+subhierarchy: (wind var var-winding subhierarchy)
+subhierarchy: (unwind var var-winding subhierarchy)
+subhierarchy: (unwind-embed-out-in maybe-uniqueness-var maybe-uniqueness-var maybe-unique-subhierarchies)
+var-winding: (defined-elsewhere)
+var-winding: (name-positionally-derived-from var)
+maybe-uniqueness-var: (uniqueness-var-nil)
+maybe-uniqueness-var: (uniqueness-var-yep var)
+
+Winding means you're starting a scope. Winding again means you're starting a hole in that scope. Winding again means you're starting a hole in that hole. Unwinding means you're finishing what you started.
+ 
+(TODO: See if technically the formal model allows more than this does. For instance, maybe it allows us to have a node colored A with two lines of descendants, one colored AABBAACCAA and one colored AACCAABBAA, with a hierarchy ascribed so that the discontinuous regions B and C are direct children of region A. On the other hand, maybe that's not possible. If that doesn't work, maybe adding a line of ancestors colored AABBAACCAA would be a counterexample that works instead.)
+
+TODO: Oooh, we could use a notion of "relative name"... which could be any data, but which could in particular be a syntactic location.
+
+TODO: What if the missing piece for making shared stateful agents in Tenerezza is that we need the agent to be able to have its own secret cryptographic identity? It would be sort of seeded by both participants, but instead of either participant being able to invoke the identity on their own, they would need to successfully play some game with each other.
+
+---
+---
+
+An older take on concentric hierarchy:
+
+We could come up with several ways of delimiting regions of this structure, but one of the most interesting delimited regions is the subtree. It's a partial branch that omits any number of child branches.
+
+If a delimiter is any more complicated than that, it really just delimits the same thing as a collection of disconnected subtrees. And usually these collections can be refactored to be connected, without changing the tree's topology much. To do this, wherever we have subtree-shaped holes in between the disconnected components, we replace these with operator calls where the operator expression is a branch-shaped hole.
+
+Those are the syntactic hierarchies. Then there's a staging hierarchy, which is mostly abstract and uninspectable until it actually happens. (It's the hierarchy of calls that occur at run time.) A single branch of syntax may be instantiated as a program zero, one, or more times, and each time may be interpreted in a different way. Usually, the syntactic hierarchy acts as a blueprint for creating the staging hierarchy. When staged programming is involved, this staging hierarchy may lend some of its structure as a root to build new syntactic hierarchies, which may then be instantiated.
+
+---
+
+An s-expression syntax for all of this
+
+A concrete syntax is already special: The syntactic representation itself acts as a way to uniquely identify each substructure inside, given that we can uniquely identify the root node in some way. Because of this, instead of writing out a set of tuples, we can often nest tuples inside each other like expressions.
+
+codebase: (let-in-hole var node)
+codebase: (let-in-hole-and-uniqueness var node)
+var: ...
+hole: (hole)
+node: (let-out-hole var hole)
+node: (let-out-hole-and-uniqueness var hole)
+node: (let-in-uninstall-uniqueness var node)
+node: (let-out-uninstall-uniqueness var node)
+node: (in-install-uniqueness name node)
+node: (out-install-uniqueness name node)
+node: (let-in-name var node)
+node: (let-out-name var node)
+node: (unlet-out var node)
+node: (unlet-in var node)
+node: (node-cons node node)
+node: (node-nil)
+node: (root-exprs root-expr root-expr)
+root-expr: (expr-tuple tuple-name expr-env)
+tuple-name: name, almost...
+expr-env: (expr-env-nil)
+expr-env: (expr-env-cons tuple-projection-name expr expr-env)
+tuple-projection-name: ...
+expr: (root-expr root-expr)
+expr: (name name)
+expr: (parent)
+name: (local var)
+name: (derive name path)
+path: ...
+
+TODO: Crypto.
+
+---
+
+Okay, maybe higher notions of nesting are a good idea. A macro call should put things out of scope for its macroexpansion, but then put them back in scope for its parameters, even though that makes the scope a disconnected region. Maybe.
+
+
+
+What to do with a language
+Written 2015-11-16
+--------------------------
+
+If I dominate storage or compute resources, I should be able to rent them out.
+
+Ah! Hm. We could do the twelve-factor app recursively. If I have some computational technique to share with someone, then I'm effectively deploying the knowledge of that technique to them and suggesting that they use it. If they reply to me, they're deploying something back. A traditional Web server is a deploy that sends more deploys to people's browsers.
+
+The twelve-factor app's "config" can be simplified: Everything in the config except the external service URLs can be abstracted behind a service URL. The service URLs represent the things that are too late-bound to be serialized in the codebase. The build is a suspension of a running service with running-service-shaped holes in it.
+
+The twelve-factor app's admin commands can be simplified: They're just another API. That said, there remains a question of how an admin can pull the plug on (or invade in other ways) storage resources and computation resources that are in use by the running service.
+
+One way to invade compute resources is to wind them down and hibernate them.
+
+Ah... Of course. The physical hardware is like a running service. All those thoughts about communicating with the language runtime are applicable, but the runtime doesn't need to be a wishy-washy abstract machine (e.g. doing backtracking, speculative execution, etc.): The program communicates with the hardware. Specifically, it communicates with the hardware that hosts its memory.
+
+I think Tenerezza should be updated a bit. Even a Staccato program can limp along with ambiguous or meaningless values, especially if it invokes functions that don't have exactly one definition, so sets are a normal thing. Set subtraction can be removed to eliminate the burden of tracking equality-checking permissions; this will also let us follow the open world assumption.
+
+We should demote Tenerezza code's access to the hardware so that it's not treated as a first-class service handle. That way, it can be purely functional by cheating: We never have to worry about whether two calls to the same hardware handle return identical results, because we never make two calls to the same handle; they're distinguished by the source location from which we call them.
+
+
+-
+
+
+
+Era status report
+Written 2015-11-17
+------------------
+
+Blade
+
+The Era project has contained several sub-experiments: The Era module system, the Era reader, Penknife, raw Staccato, macro-capable Staccato, the hypothetical Tenerezza, and along the way, several hypothetical forays into using the calculus of structures together with computation or dependent types. This is a status report.
+
+Although the Era module system has a partial implementation that can evaluate a (hopefully) strongly normalizing language, it is currently best represented by the calculus of structures formulation in era-tacit.js. It faces a seemingly fundamental challenge: For information hiding, a single module import query can correspond to multiple potential implementations. If an author publishes a module implementation and then wants to publish a contradictory module implementation that responds to the same import, then the import can become ambiguous. This is like a cryptocurrency double-spending concern. While the module system already assumes a cryptosystem capable of key generation and code signing, it doesn't yet assume a centralized bank or blockchain-syncing scheme that could support this.
+
+The Era reader is doing spectacularly. I already enjoy using it, and even its performance is doing pretty well thanks to some recent optimizations. Currently, its most serious future-compatibility-breaking issue is a lack of Unicode support, especially left-to-right text support. The syntax isn't quite stable in other minor ways, and some minor tweaks may occur if friction is observed in practice.
+
+Penknife is a project where I explored the potential of making variable aliasing into a dynamic operation, thus being able to enforce linearity and build data flow graphs in certain ways. It also served as a nice testing ground for quasiquotation and coroutines. However, it was too inefficient, the issue of how to deal with namespaces was unclear, and it was too complex for me to want to maintain it, so I've let it languish. Penknife is likely to be a dead project until and unless I some new idea makes me want to use expressive imperative programming and REPL interaction again.
+
+Staccato, as originally conceived, seems to be languishing in OVERuse. I originally started to pursue it because I was tired of writing continuation-passing style cooperative multitasking by hand in JavaScript, and I wanted to experiment with a small language that had a well-defined CPS transform and could enforce that each step of the computation was a cheap operation. As it turns out, programming with explicit naming of all cheap fragments was too cumbersome for me, and I ended up layering gensym-based sugars and macros over it. These syntaxes actually make it surprisingly pleasant to do pure FP with explicit CPS, so I'm not even sure I like the concept that my pure code will be arbitrarily sequentialized in a CPS transform anymore; I'd prefer the flexibility of being able to run my code through a concurrent implementation or a partial evaluator. Finally, I've hacked up a drastic optimization of this layer of macros by skipping over the CPS transform and multitasking support altogether.
+
+That said, I have new ideas for how raw Staccato can be useful. I can indeed pursue partial evaluation and concurrency: Segments of the stack can be rewritten concurrently, becoming partially evaluated versions of themselves. I don't know how well this will play out in practice, but it at least frees me from the certainty that I'm on the wrong track.
+
+Tenerezza was a minor variant of Staccato. It took Staccato's technique of cheap time steps and integrated it with ideas of computation on sets, two-way communication channels, and trap doors to talk to the language implementation. Unfortunately, Tenerezza's operation for set subtraction means that all data must support equality checks (a requirement in conflict with data encapsulation), and its bulk collection operations put strain on the idea that the Staccato-style "cheap steps" are really that cheap at all.
+
+If I just reimagine that Staccato is a language where every value is a nondeterministic superposition of possible values, then I get most of Tenerezza's set computation. I don't get a set difference operator, but I hardly want one. Tenerezza's two-way channels break referential transparency, so I may want to reimagine those anyway.
+
+Referential transparency! At a low level where sequences of cheap steps matter, things are nondeterministic already. There's no telling if the runtime will have enough resources or interest to let us live past the current cheap step. There's no telling whether the computation state might have already been corrupted or invasively modified. Yet, at a high level, we can still do functional programming with a semblance of referential transparency. If we add an operator that specifically talks to the language runtime, then it can be nondeterministic at a low level, while still appearing to support referential transparency at a high level. The high-level meaning can be "Do whatever the runtime thinks we should do," and the programmer can often trust these judgments to be consistent.
+
+
+
+
+
+
+and then if I add trap doors. I get most of Tenerezza.
+
+Well, if I ju
+
+
+has one issue that's kept me from bothering to implement it: et difference is one of its built-in operators, it needs to be able to check set elements for deep equality. Not only does this create a certain pervasive lack of data encapsulation, but it mean
+
+'s biggest issue is an un is sort of stalled on the dilemma of how to check elements of a set for equality. I think that works against data encapsulation, and Staccato's approach is otherwise surprisingly compatible with the kind of data encapsulation I'm looking for.
+
+
+a blackboardEvery stack frame can be treated as something that's trying to rewrite itself o
+
+'m able to do some similar optimization for  I may revisit the idea of cheap steps once I'm able to implement it efficiently.
+
+
+he concept of this desugaring process still appeals to me, so I think I'll continue using these macros as though they could desugar to raw Staccato
+
+In fact, the layer of syntaxes I'm using now makes it surprisingly pleasant to program in CPS. Staccato's concepts would still be useful to me if only they were efficient, and I'm considerinI had an efficient implementation, so I think I'll keep going with the layer of macros that I've ended up using.
+
+
+
+It would be a good idea to upgrade it for Unicode, namely by parameterizing it over a source of Unicode character information and giving it right-to-left equivalents of its latin escape sequences. How should hexadecimal Unicode scalar escapes look in right-to-left code?
+
+T
+
+
+
+Untitled
+Written 2015-11-17
+------------------
+
+The pieces of Era are quickly floating together.
+
+The Era module system runs across the difficulty of how to enforce uniqueness of definitions. Meanwhile, Tenerezza runs across the difficulty of how to support a set-difference operator (which checks the equality of elements) without disturbing the elements' own data encapsulation. Staccato, meanwhile, has lured me into a style of programming that's much more pure than I expected, and I'm discovering new potential for interpreting a Staccato program using abstract interpretation or nondeterminism. But a nondeterministic interpretation of Staccato comes close to just being Tenerezza without the set difference operator, and it has another nice property in that it doesn't require definitions to be unique; multiple definitions just add to the nondeterminism.
+
+An awkward point about Tenerezza is that it sacrifices referential transparency.
+
+(
+
+
+
+The macro system I'm designing for Staccato is basically a direct continuation of my designs for Blade in 2010.
+
+
+
+
+
+As I design namespacing and macro systems for Staccato, I realize 
+
+
+
+Implementing Blade
+Written 2015-11-18 to 24
+------------------------
+
+Blade has referential transparency, but it has side effects. To preserve referential transparency, they're always "get" side effects so that dead code can be safely eliminated without discarding any externally visible behavior. These "get" side effects include allocating more time and space with which to run the program, looking up function implementations, looking up proper ways to behave (e.g. in case of an error), and giving hints to the language runtime that should usually have no semantic consequences.
+
+Although hints to the language runtime should have no semantic consequences, they may have an impact on aspects of the computation that are glossed over in the high-level semantics, such as performance. A performance impact can be severe in itself. A language runtime might offer a hint API that achieves nondeterminism by strangling the current program of all computational resources, taking a snapshot of the computation state, modifying it, creating a new Blade program that reconstructs this state, and running that program. If programmers write hints with that kind of API in mind, they should pay close attention and not assume that the language semantics will be similar to standard Blade.
+
+Blade programs use those "get" effects to do all input-related side effects. As a matter of convention, to represent external service inputs whose identities remain constant while the values they carry change, Blade programs pass around a modality value, representing a time or location. If the modality given is not the current modality (e.g. the current time), there's an error.
+
+To perform output, Blade programs build up a commutative set-writer monad. As a matter of convention, to represent external service outputs whose identities remain constant while the values they carry change, the program can bundle these service identities together with their corresponding output values when writing outputs to the monad.
+
+A common pattern is for an output to include a callback that takes a new current modality as its parameter. This way, the program can proceed into the future, where it can observe the causal outcomes of prior side effects, and it can continue to interact with the same services it did before.
+
+That summarizes Blade's overall approach to side effects.
+
+The language supports two kinds of side-effectful programs:
+
+* A Blade program that acts as a syntax, reading source code, reading definitions, and establishing more definitions.
+
+* A Blade program that acts as a long-running service, interacting with other services over time.
+
+=== Syntax effects
+
+A Blade macro is defined by a curried function that takes a modality, a shared namespace, a private namespace, and an s-expression (comprised of foreign values, lists, and string literals with interpolated s-expressions) and produces a set-writer monad that results in a raw Staccato expression. Every function call blocks as the definition of the function is retrieved.
+
+(derive-ns parent-ns key-ns): Look up a sub-namespace of the first namespace, indexed by the unique identity of the second namespace.
+
+(string-ns ns string): Look up a sub-namespace of the given namespace, indexed by the given string.
+
+(shadowing-ns parent-ns key-ns child-ns): Create a namespace similar to the first namespace, including having the same unique identity, but where the sub-namespace indexed by the unique identity of the second namespace is replaced with the third namespace.
+
+(shadowing-string-ns parent-ns string child-ns): Create a namespace similar to the first namespace,including having the same unique identity, but where the sub-namespace indexed by the given string is replaced with the second namespace.
+
+(ns-get modality ns): Look up a defined Staccato value on the given namespace. This is an error if more or less than one defined value exist to be retrieved this way.
+
+(ns-set ns val): Monadically, establish a defined Staccato value on the given namespace. This side effect is an error if two conflicting definitions are given. This side effect is an error if any causal ancestor of the current modality has read this definition, even indirectly by way of some other definition.
+
+(restrict ns (on-noted modality)): Monadically, begin a concurrent thread that has a new current modality and cannot define anything outside the given namespace. The thread's result will be run as a monad, and the monad's result will be ignored.
+
+(ns-contribute parent-ns key-ns val): Monadically, establish a defined contribution on the first namespace comprised of ("key-ns", "val"), indexed by the unique identity of "key-ns". This side effect is an error if two contributions with conflicting keys are given. This side effect is an error if any causal ancestor of the current modality has read this definition, even indirectly by way of some other definition.
+
+(ns-get-contribution modality parent-ns key-ns): Look up one contribution on the given namespace as a (key namespace, Staccato value) pair. This is an error if more or less than one defined value exist to be retrieved this way.
+
+(ns-contribute-seal ns): Monadically, establish a defined continuation seal on the namespace.
+
+(ns-get-contributions-owa modality ns): Look up all contributions on the given namespace as a lazy, open-world-assumption set of (key namespace, Staccato value) pairs. This is an error if more or less than one defined value exist for any of the contributions.
+
+(ns-get-contributions-cwa modality ns): Look up all contributions on the given namespace as an eager, closed-world-assumption set of (key namespace, Staccato value) pairs. This is an error if more or less than one defined value exist for any of the contributions.
+
+=== Long-running service effects
+
+A Blade long-running service is defined as a curried function that takes a modality and a configuration and produces a set-writer monad whose result will be ignored. The configuration is an arbitrary value, and it will often contain references to external services. One of the foreign references is often a lifeline. A lifeline authorizes access to side effects into the future, up to a specific expiration date. Another of the foreign references is often a persistent database.
+
+(continuously-do-what-you-think-is-right modality val): Return the best value we can, considering the given value. The modality represents the hardware (physical location) and moment in time at which the judgment occurs.
+
+(delay lifeline duration (on-ready modality)): Monadically, spawn a monadic computation that will take effect at a time corresponding to the current modality plus the given duration. This side effect is an error if the given duration is nonpositive or is not supported by the given lifeline.
+
+(lifeline-max a b): Return the lifeline that is the less restrictive of the two given lifelines.
+
+(lifeline-min-time lifeline time): Return the given lifeline or a lifeline that's valid until the given time, whichever is more restrictive.
+
+(lifeline-expiration lifeline): Return the time at which the given lifeline expires.
+
+(time-minus a b): Return the duration that passes between a and b.
+
+(duration-negate duration): Return the negation of the given duration.
+
+(duration-zero ignored): Return a zero duration.
+
+(duration-plus a b): Return the sum of the two given durations.
+
+(duration-compare a b): Compare the two given durations.
+
+(time-plus-duration time duration): Return the time that is the sum of the given time and the given duration.
+
+Example of an RDP-like service: (c my-rdp-service duration demand): Monadically, obtain another service handle "response-handle" that will return the RDP response value if called via (c response-handle modality) at a modality corresponding to to the original current modality plus the given duration.
+
+Persistent databases
+
+There are multiple idioms for managing reliable state resources from a Blade long-running service.
+
+Certain state resources may be partitioned into multiple state resources using namespacing.
+
+Certain state resources may provide inputs that correspond to well-behaved functions of an output history. The function must have some minimum duration in the past before which it can't observe inputs. (TODO: RDP's state resources additionally have some maximum duration in the past before which they can't observe inputs. See if we should enforce that, too.)
+
+
+If a state resource supports atomic updates, then the input it provides will give status information (whether an update can be proposed now)naturally, sometimes it won't be available for applying new updates,
+
+TODO: Figure out how a Blade long-running service would interact with a persistent database. We may even want a new side effect framework dedicated to database migrations.
