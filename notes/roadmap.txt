@@ -2,7 +2,7 @@ Cene tasks, in roughly highest-priority-first order:
 
 - Oops! We need to revisit how cmp-struct works. If the first projection comparison is only defined on the left, I guess we still need to test the other projections to see if they're also defined on the left.
 
-- Change (then-effects a /fn - b) into (join-effects a b). Implement (get-current-modality) with a callback, and update its documentation.
+- Change (bind-effects a /fn - b) into (join-effects a b), and update the things that use it.
 
 - These are all sort of the same task:
 
@@ -13,6 +13,8 @@ Cene tasks, in roughly highest-priority-first order:
   - Consider how to make multimethods and other extensible definition state work. Some ideas are described in the "Implementing Blade" note in old-roadmap-notes.txt, but those might be obsolete if we do something with lifelines or LVar-like threshold reads instead.
 
   - Implement a live service API as described in the "Implementing Blade" note in old-roadmap-notes.txt. This basically amounts to implementing lifelines.
+
+  - Once we have these things figured out, delete the promise operation designs documented in era-staccato-self-compiler.stc.
 
 - Design and implement a better unit test framework. The unit tests can now use cmp values to do their comparisons, at least. We probably want to have control over the order unit test results are reported in.
 

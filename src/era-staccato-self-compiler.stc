@@ -246,19 +246,26 @@
 \= computed, it is defined directly in the given `out-ns`. The given
 \= modality must be the current one.
 
-\= TODO: See if we should add this. Currently we're using monads only
-\= for collecting outputs from subcomputations, rather than using them
-\= as a convenience to avoid passing around modalities, namespaces,
-\= etc. as inputs to subcomputations.
+\= TODO: Implement this.
 \=
-\= TODO: On the other hand, if we don't add this, all our monadic
-\= built-ins have `(nil)` as their result value. See if we should
-\= redesign everything to use an opaque set collection rather than a
-\= commutative monad.
+\= TODO: Redesign our commutative monadic effects to be an opaque set
+\= rather than having intermediate results.
 \=
-\= (defn get-current-modality ...)
+\= TODO: Redesign all our effectful primitives, such as
+\= `compile-expression`, so that they don't take a `mode` parameter.
 \=
-\= Constructs a monad with the current modality as its result value.
+\= (defn get-current-modality body ...)
+\= body (fn mode ...)
+\=
+\= Constructs a monad. If invoked, it calls the callback in the
+\= same tick with the current modality, and it performs the callback's
+\= monadic side effects.
+
+\= TODO: Don't actually implement the below promise operations. Use
+\= namespaces as promises; we can already do this for macros now.
+\= Delete these designs once we've settled on some more details about
+\= how namespaces, tables, LVars, and lifelines work. (See
+\= roadmap.txt.)
 
 \= (defn new-promise then ...)
 \= then (fn mode promise ...)
