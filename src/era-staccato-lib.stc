@@ -15,7 +15,7 @@
 \= def-type defn case caselet cast isa proj1 c c-new err fn let
 
 
-\= ===== Lists and boolean tags ======================================
+\= ===== Lists, boolean tags, and macro utilities ====================
 
 \= TODO: Put the commented-out types in a separate file so the
 \= non-mini runner can see them, since it doesn't have them built in.
@@ -87,6 +87,33 @@
 (defn foldr list state combiner
   (foldl state rev.list /fn state elem /c combiner elem state))
 
+(defn macro-name mode definition-ns name
+  (let - assert-current-modality.mode
+  /case name
+    name - name
+    
+    string -
+    (procure-name mode
+    /ns-get-string str.name
+    /ns-get-string name
+    /ns-get-string str.macro-names definition-ns)
+    
+    err.\;qq[Expected a name value of type name or string]))
+
+(def-macro list mode unique-ns definition-ns my-stx-details args then
+  (let s (fn it /stx my-stx-details it)
+  /let mac
+    (fn str rest
+      (cons (c s /foreign/macro-name mode definition-ns str) rest))
+  /let outbox (ns-get-string str.outbox unique-ns)
+  /join-effects (later/fn mode /c then /procure-defined mode outbox)
+  /compile-expression mode
+    (ns-get-string str.unique unique-ns)
+    definition-ns
+    (foldr args (c s /c mac str.nil /nil) /fn first rest
+      (c s /c mac str.cons /cons first /cons rest /nil))
+    outbox))
+
 (defn append past rest
   (rev-append rev.past rest))
 
@@ -100,7 +127,7 @@
 (defn keep list check
   (mappend list /fn elem
     (case (c check elem) yep -
-      (cons elem /nil)
+      list.elem
       (nil))))
 
 (defn any list check
@@ -1737,7 +1764,7 @@
     /fn lazy-next
     /c done /ftree-deep meta
       (ftree-digits-swap polarity
-      /ftree-digits (cons element /nil) (cons new-element /nil))
+      /ftree-digits list.element list.new-element)
       lazy-next)
   /case tree ftree-deep meta digits lazy-next
     (cast meta ftree-meta lazy-ops measure plus
@@ -1751,14 +1778,13 @@
       (fn -
         (ftree-deep meta
           (ftree-digits-swap polarity
-          /ftree-digits w-digits
-            (append t-digits /cons new-element /nil))
+          /ftree-digits w-digits (append t-digits list.new-element))
           lazy-next))
     /cast t-digits cons d0 t-digits (c not-four-digits /nil)
     /cast t-digits cons d1 t-digits (c not-four-digits /nil)
     /cast t-digits cons d2 t-digits (c not-four-digits /nil)
     /cast t-digits cons d3 t-digits (c not-four-digits /nil)
-    /let d012 (cons d0 /cons d1 /cons d2 /nil)
+    /let d012 (list d0 d1 d2)
     /let new-node (ftree-node (c plus /map d012 measure) d012)
     \= NOTE: This `make-lazy` call isn't constant-time, so it's
     \= impure. It does have the same space footprint before and after.
@@ -1769,7 +1795,7 @@
     /fn lazy-next
     /c done /ftree-deep meta
       (ftree-digits-swap polarity
-      /ftree-digits w-digits (cons d3 /cons new-element /nil))
+      /ftree-digits w-digits (list d3 new-element))
       lazy-next)
     err.\;qq[
       Expected a tree value of type ftree-empty, ftree-single, or
@@ -1835,13 +1861,13 @@
       err.\;qq[Expected a meta value of type ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
       err.\;qq[Expected a lazy-ops value of type lazy-ops]
-    /c done /cons (c plus /nil) /nil)
+    /c done /list/c plus /nil)
   /case tree ftree-single meta element
     (cast meta ftree-meta lazy-ops measure plus
       err.\;qq[Expected a meta value of type ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
       err.\;qq[Expected a lazy-ops value of type lazy-ops]
-    /c done /cons (c measure element) /nil)
+    /c done /list/c measure element)
   /case tree ftree-deep meta digits lazy-next
     (cast meta ftree-meta lazy-ops measure plus
       err.\;qq[Expected a meta value of type ftree-meta]
@@ -1854,7 +1880,7 @@
           err.\;qq[Expected a digits value of type ftree-digits]
         /foldl summary t-digits /fn summary digit
           (c plus /list-order-swap polarity
-          /cons summary /cons (c measure digit) /nil)))
+          /list summary (c measure digit))))
     /c then (c force lazy-next) /fn lazy-next
     /c then (c-new ftree-get-summary-stack lazy-next)
     /fn parent-summary-stack
@@ -1914,7 +1940,7 @@
       err.\;qq[Expected a lazy-ops value of type lazy-ops]
     /let summary-so-far
       (c plus /list-order-swap polarity
-      /cons (c measure element) /cons summary-so-far /nil)
+      /list (c measure element) summary-so-far)
     /c done /case (c test-is-early summary-so-far) yep -
       ftree-split-iter-result-fell-off.summary-so-far
     /ftree-split-iter-result-completed ftree-empty.meta tree)
@@ -1949,7 +1975,7 @@
               err.\;qq[Internal error]
             /let summary-so-far
               (c plus /list-order-swap polarity
-              /cons (c measure elem) /cons summary-so-far /nil)
+              /list (c measure elem) summary-so-far)
             /case (c test-is-early summary-so-far) yep -
               (nope/ftree-split-iter-state
                 summary-so-far (cons elem rev-before) after)
@@ -2031,10 +2057,9 @@
   /case b ftree-empty meta
     (ftree-push-list a (yep/nil) middle)
   /case a ftree-single meta element
-    (ftree-push-list b (nope/nil)
-    /rev-append middle /cons element /nil)
+    (ftree-push-list b (nope/nil) /rev-append middle list.element)
   /case b ftree-single meta element
-    (ftree-push-list a (yep/nil) /append middle /cons element /nil)
+    (ftree-push-list a (yep/nil) /append middle list.element)
   /cast a ftree-deep a-meta a-digits a-lazy-next
     err.\;qq[
       Expected an a value of type ftree-empty, ftree-single, or
@@ -2203,8 +2228,7 @@
       (ftree-append-with-middle a (nil) b)
     /c then (c maybe-plus a-elem b-elem) /fn plus-result
     /cast plus-result yep elem (ftree-append-with-middle a (nil) b)
-    /ftree-append-with-middle
-      a-diminished (cons elem /nil) b-diminished)
+    /ftree-append-with-middle a-diminished list.elem b-diminished)
   /fn ftree
   /c done /bftree fix-ftree-ops ftree))
 

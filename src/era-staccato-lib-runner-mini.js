@@ -1667,8 +1667,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Write documentation for this in
-        // era-staccato-self-compiler.stc and/or
+        // TODO: Write documentation for this in docs.md and/or
         // cene-design-goals.txt.
         mac( "def-macro",
             function ( nss, rawMode, myStxDetails, body, then ) {
@@ -2579,12 +2578,12 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Document this in era-staccato-self-compiler.stc
-        // and/or cene-design-goals.txt. It's a (later/fn mode ...)
-        // monadic side effect that runs the inner effects in a future
-        // mode. This has two purposes: Multiples of these can be
-        // concurrent with each other, and their errors will not
-        // retroactively invalidate effects from the current mode.
+        // TODO: Document this in docs.md and/or
+        // cene-design-goals.txt. It's a (later/fn mode ...) monadic
+        // side effect that runs the inner effects in a future mode.
+        // This has two purposes: Multiples of these can be concurrent
+        // with each other, and their errors will not retroactively
+        // invalidate effects from the current mode.
         fun( "later", function ( body ) {
             return new StcForeign( "effects", function ( rawMode ) {
                 collectDefer( rawMode, function ( rawMode ) {

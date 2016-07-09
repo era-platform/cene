@@ -398,8 +398,7 @@ function runCeneSync(
 }
 
 var preludeFiles = _.arrMap( [
-    "src/era-staccato-lib.stc",
-    "src/era-staccato-self-compiler.stc"
+    "src/era-staccato-lib.stc"
 ], function ( path ) {
     return $path.resolve( __dirname, path );
 } );
@@ -502,7 +501,6 @@ if ( args.test_era ) tasks.push( function ( then ) {
 if ( args.build_staccato ) tasks.push( function ( then ) {
     arrEachAsyncNodeExn( [
         { dir: "src/", name: "era-staccato-lib.stc" },
-        { dir: "src/", name: "era-staccato-self-compiler.stc" },
         { dir: "test/", name: "test.stc" }
     ], function ( i, file, then ) {
         ltf.readTextFile(
