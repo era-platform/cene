@@ -2,7 +2,7 @@ Cene tasks, in roughly highest-priority-first order:
 
 - Oops! We need to revisit how cmp-struct works. If the first projection comparison is only defined on the left, I guess we still need to test the other projections to see if they're also defined on the left.
 
-- Change (bind-effects a /fn - b) into (join-effects a b), and update the things that use it.
+- Change (bind-effects a /fn - b) into (join-effects a b) and (no-effects result) into (no-effects), and update the things that use them.
 
 - These are all sort of the same task:
 

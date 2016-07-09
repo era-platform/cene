@@ -2536,6 +2536,29 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        fun( "join-effects", function ( a ) {
+            return stcFnPure( function ( b ) {
+                if ( !(a instanceof StcForeign
+                    && a.purpose === "effects") )
+                    throw new Error();
+                var aFunc = a.foreignVal;
+                if ( !(b instanceof StcForeign
+                    && b.purpose === "effects") )
+                    throw new Error();
+                var bFunc = b.foreignVal;
+                
+                return new StcForeign( "effects",
+                    function ( rawMode ) {
+                    
+                    return macLookupThen( aFunc( rawMode ),
+                        function ( ignored ) {
+                        
+                        return bFunc( rawMode );
+                    } );
+                } );
+            } );
+        } );
+        
         fun( "bind-effects", function ( monad ) {
             return stcFnPure( function ( then ) {
                 if ( !(monad instanceof StcForeign
