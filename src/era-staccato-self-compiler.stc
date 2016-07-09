@@ -220,6 +220,10 @@
 \= Constructs a monad that, if invoked, does nothing. The monad's
 \= result value is the given value.
 
+\= (defn join-effects a b ...)
+\= Constructs a monad that, if invoked, performs the effects of both
+\= of the given monads.
+
 \= (defn bind-effects monad then ...)
 \= then (fn result ...)
 \= Constructs a monad that, if invoked, calls the callback with the
@@ -246,19 +250,26 @@
 \= computed, it is defined directly in the given `out-ns`. The given
 \= modality must be the current one.
 
-\= TODO: See if we should add this. Currently we're using monads only
-\= for collecting outputs from subcomputations, rather than using them
-\= as a convenience to avoid passing around modalities, namespaces,
-\= etc. as inputs to subcomputations.
+\= TODO: Implement this.
 \=
-\= TODO: On the other hand, if we don't add this, all our monadic
-\= built-ins have `(nil)` as their result value. See if we should
-\= redesign everything to use an opaque set collection rather than a
-\= commutative monad.
+\= TODO: Redesign our commutative monadic effects to be an opaque set
+\= rather than having intermediate results.
 \=
-\= (defn get-current-modality ...)
+\= TODO: Redesign all our effectful primitives, such as
+\= `compile-expression`, so that they don't take a `mode` parameter.
 \=
-\= Constructs a monad with the current modality as its result value.
+\= (defn get-current-modality body ...)
+\= body (fn mode ...)
+\=
+\= Constructs a monad. If invoked, it calls the callback in the
+\= same tick with the current modality, and it performs the callback's
+\= monadic side effects.
+
+\= TODO: Don't actually implement the below promise operations. Use
+\= namespaces as promises; we can already do this for macros now.
+\= Delete these designs once we've settled on some more details about
+\= how namespaces, tables, LVars, and lifelines work. (See
+\= roadmap.txt.)
 
 \= (defn new-promise then ...)
 \= then (fn mode promise ...)
@@ -1130,6 +1141,8 @@
 (defn compile-save-root val
   (stc-save-root str.sr val))
 
+\= TODO: Refactor this to take an out-ns parameter like
+\= `compile-expression` does.
 (defn compile mode unique-ns definition-ns stx
   \= Macroexpands the given `stx`, allowing the macro calls to
   \= monadically install definitions and produce a desugarable
@@ -1478,9 +1491,9 @@
     no-effects.state))
 
 (defn each-effects rest body
-  (bind-effects
+  (join-effects
     (foldl-effects (nil) rest /fn state elem
-      (bind-effects (c body elem)
+      (join-effects (c body elem)
       /no-effects/nil))
   /no-effects/nil))
 
@@ -1575,7 +1588,7 @@
 
 (defn compile-def-type mode definition-ns name projection-list
   (let constructor-name (constructor-name mode definition-ns name)
-  /bind-effects
+  /join-effects
     (procure-put-defined
       (ns-get-string str.projection-list
       /ns-get-name constructor-name
@@ -1583,14 +1596,12 @@
     /map projection-list /fn projection-name
       (projection-name
         mode definition-ns constructor-name projection-name))
-  /fn -
-  /bind-effects
+  /join-effects
     (procure-put-defined
       (ns-get-string str.function
       /ns-get-name (macro-name mode definition-ns name)
       /ns-get-name str.macros definition-ns)
     /constructor-macro name projection-list)
-  /fn -
   /no-effects/compile-ret-tuple mode definition-ns str.nil /nil))
 
 (defn core-mac-def-type
@@ -1638,7 +1649,7 @@
   /bind-effects
     (compile mode unique-ns definition-ns /c s /c mac str.fn args)
   /fn body
-  /bind-effects
+  /join-effects
     (each-effects
       (staccato-desugar-def-including-self
       /staccato-desugar-fn
@@ -1669,7 +1680,6 @@
         /ns-get-name tuple-tag
         /ns-get-name str.functions definition-ns)
         def))
-  /fn -
   /compile-def-type mode definition-ns function-name /nil))
 
 (defn core-mac-fn mode unique-ns definition-ns my-stx-details args
@@ -1909,23 +1919,22 @@
   \= Define all the inherited constructors. Their names are inherited
   \= metacircularly, but their projection list metadata and macros are
   \= defined from scratch here.
-  /bind-effects
+  /join-effects
     (each-effects inherited-types /fn type
       (cast type type-declaration name proj-list
         err.\;qq[Internal error]
       /compile-def-type mode target-definition-ns name proj-list))
-  /fn -
   
   /let def-macro
     (fn name function next
-      (bind-effects
+      (join-effects
         (procure-put-defined
           (procure-name mode
           /ns-get-string str.function
           /ns-get-name (macro-name mode target-definition-ns name)
           /ns-get-string str.macros target-definition-ns)
           function)
-      /fn - next))
+        next))
   \= TODO: Implement these macros, and add them here:
   \= def-macro cmp-struct
   \= TODO: Also consider adding the `test` macro used in test.stc.
@@ -1951,9 +1960,8 @@
   \= implementations (which will usually be `stc-def-foreign` values).
   /let def-foreign
     (fn name next
-      (bind-effects
+      (join-effects
         (compile-def-type mode target-definition-ns name /nil)
-      /fn -
       /let constructor-name (constructor-name mode ns name)
       /let constructor-tag
         (procure-name mode
@@ -1977,11 +1985,11 @@
           
           err.\;qq[
             Expected a def value of type stc-def-foreign or stc-def])
-      /bind-effects
+      /join-effects
         (procure-put-defined
           (procure-name mode /c get target-definition-ns)
           def)
-      /fn - next))
+        next))
   /c def-foreign str.cmp-default
   /c def-foreign str.cmp-give-up
   /c def-foreign str.cmp-cmp
@@ -2005,6 +2013,7 @@
   /c def-foreign str.procure-defined
   /c def-foreign str.procure-put-defined
   /c def-foreign str.no-effects
+  /c def-foreign str.join-effects
   /c def-foreign str.bind-effects
   /c def-foreign str.assert-current-modality
   /c def-foreign str.compile-expression
@@ -2020,8 +2029,7 @@
     (fn str rest
       (cons (c s /foreign/macro-name mode definition-ns str) rest))
   /let outbox (ns-get-string str.outbox unique-ns)
-  /bind-effects (later/fn mode /c then /procure-defined mode outbox)
-  /fn -
+  /join-effects (later/fn mode /c then /procure-defined mode outbox)
   /compile-expression mode
     (ns-get-string str.unique unique-ns)
     definition-ns
