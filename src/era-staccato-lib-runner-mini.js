@@ -1138,10 +1138,21 @@ function runTopLevelMacLookupsSync( originalThreads ) {
         // procedure instead.
         setTimeout( function () {
             var err = thread.monad.first.err;
-            err();
-            throw new Error(
-                "Encountered a `macLookupGet` that didn't throw an " +
-                "error." );
+            
+            // TODO: Throwing an error and then catching it and
+            // logging it like this is a little odd. See if we should
+            // refactor this. For a while, we just threw an error, but
+            // that made Node.js terminate with whatever error was
+            // thrown first, which wasn't usually the most helpful
+            // one.
+            try {
+                err();
+                throw new Error(
+                    "Encountered a `macLookupGet` that didn't " +
+                    "throw an error." );
+            } catch ( e ) {
+                console.error( e );
+            }
         }, 0 );
     }
     
