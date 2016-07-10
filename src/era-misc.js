@@ -162,6 +162,11 @@ function jsStr( string ) {
 }
 
 // TODO: Put utilities like these in lathe.js.
+function jsJson( json ) {
+    return JSON.stringify( json ).
+        replace( /\u2028/g, "\\u2028" )
+        replace( /\u2029/g, "\\u2029" );
+}
 function getUnicodeCodePointAtCodeUnitIndex( string, codeUnitIndex ) {
     function inRange( min, pastMax ) {
         return function ( n ) {

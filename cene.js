@@ -95,6 +95,7 @@ function runCeneSync(
         "\n" +
         "return {\n" +
         "    readAll: readAll,\n" +
+        "    jsJson: jsJson,\n" +
         "    arrMap: arrMap,\n" +
         "    arrMappend: arrMappend,\n" +
         "    arrEach: arrEach,\n" +
@@ -294,8 +295,8 @@ function runCeneSync(
                 function addMap( map, mapName ) {
                     map.each( function ( k, v ) {
                         quine += "" + mapName + ".set( " +
-                            _.jsStr( k ) + ", " +
-                            _.jsStr( v ) + " );\n"
+                            $stc.jsJson( k ) + ", " +
+                            $stc.jsJson( v ) + " );\n"
                     } );
                 }
                 addMap( memoInputPathType, "quinerInputPathType" );
