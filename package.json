@@ -1,6 +1,6 @@
 {
   "name": "cene",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "A programming language for metacircular compilers on the JavaScript platform.",
   "homepage": "https://github.com/rocketnia/era-cene",
   "author": {
