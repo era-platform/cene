@@ -1,3 +1,12 @@
+# Cene language reference
+
+
+
+## Built-in definitions
+
+(**TODO**: Add documentation for all the other primitives defined in era-staccato-lib-runner-mini.js and era-cene-api.js. Some of this documentation has already been written in cene-design-goals.txt.)
+
+-
 ```
 (def-type string val)
 ```
@@ -27,12 +36,12 @@ A reference to a fully qualified name. The value inside is in a format user-leve
 ```
 Takes a name for the constructor and a list of names for the projections, and returns the name used to dynamically tag a tuple of that combination of names. The projection name list must be made out of `(cons car cdr)` and `(nil)` values, with elements that are strings, and the list must not have duplicates. The order of the list will be ignored.
 
-**TODO**: Figure out where to put this extensive documentation now that `name-metacompare` is implemented in era-staccato-lib.stc.
-
 -
 ```
 (defn name-metacompare a b ...)
 ```
+(**TODO**: Figure out where to put this extensive documentation now that `name-metacompare` is implemented in era-staccato-lib.stc. It's not a built-in definition anymore.)
+
 Compares two names. For inequal names, the result will be in a format user-level code does not know how to deconstruct. For equal names, the result will be (nil).
 
 Names are somewhat useful for access control, and they're opaque external tokens to an extent, but they're not entirely opaque. They can be compared for equality.
@@ -155,20 +164,20 @@ Returns `(nil)`. The given modality must be the current one. If it isn't, this c
 ```
 Constructs a monad that, if invoked, macroexpands the given `stx` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce a desugarable Staccato expression. If the expression is successfully computed, it is defined directly in the given `out-ns`. The given modality must be the current one.
 
-**TODO**: Implement this.
-
-**TODO**: Redesign our commutative monadic effects to be an opaque set rather than having intermediate results.
-
-**TODO**: Redesign all our effectful primitives, such as `compile-expression`, so that they don't take a `mode` parameter.
-
 -
 ```
 (defn get-current-modality body ...)
 body (fn mode ...)
 ```
+(**TODO**: Implement this.)
+
+(**TODO**: Redesign all our effectful primitives, such as `compile-expression`, so that they don't take a `mode` parameter.)
+
 Constructs a monad. If invoked, it calls the callback in the same tick with the current modality, and it performs the callback's monadic side effects.
 
-**TODO**: Don't actually implement the below promise operations. Use namespaces as promises; we can already do this for macros now. Delete these designs once we've settled on some more details about how namespaces, tables, LVars, and lifelines work. (See roadmap.txt.)
+-
+
+(**TODO**: Don't actually implement the below promise operations. Use namespaces as promises; we can already do this for macros now. Delete these designs once we've settled on some more details about how namespaces, tables, LVars, and lifelines work. (See roadmap.txt.))
 
 -
 ```
@@ -190,73 +199,84 @@ Constructs a monad. If invoked, it calls the callback in a later tick with the t
 ```
 Constructs a monad. If invoked, it installs the given value as the fulfillment value of the promise, or it causes an error if a fulfillment value has already been installed for the promise. (The meaning of "already" may depend on how the current modality works. For modalities that are temporal in the concrete sense of a wall clock, it has its usual meaning.)
 
--
 
--
 
--
+## Definition namespace layout
 
-Yes, we're using deterministic, referentially transparent side effects during macroexpansion. Since a macro will necessarily need to *read* existing definitions in order for its implementation code to do anything at all, we're allowing other blocking reads by way of `procure-defined`. For referential transparency, the corresponding `procure-put-defined` writes are performed in a commutative monad. If two or more conflicting writes are performed, all definitions that depended on reading those writes will be retroactively updated. Usually, conflicting definitions are an error. However, at a REPL, definitions from a newer command may take the place of definitions from an older command without error. Errors or updates may cascade through several layers of other definitions that depended on them.
+During macroexpansion, Cene code may interact with the definition namespace by using the referentially transparent operation `procure-defined` and the monadic operation `procure-put-defined`. (Putting two definitions into one name is an error.) Even the built-in definitions reside in the definition namespace.
 
-Common definitions are stored like so, where slashes represent `ns-get-string` except where marked as `ns-get-name`:
+The namespace is also how qualified names are derived.
+
+Definitions and qualified names are located in the definition namespace at the following paths, where slashes represent names derived by `ns-get-string` except where marked as `ns-get-name`:
 
 ```
-  <definition-ns>/constructor-names/<constructor name string>/name
-    = No defined value, but the proper identity to use for the
-      constructor in generated code.
+<definition-ns>/constructor-names/<constructor name string>/name
+  = No defined value, but the proper identity to use for the
+    constructor in macro-generated Cene code.
 
-  <definition-ns>/constructors/<ns-get-name: constructor identity>/
-    tag
-    = No defined value, but the identity to use for the constructor
-      in raw Staccato code.
-  <definition-ns>/constructors/<ns-get-name: constructor identity>/
-    projection-list
-    = An ordered list of projection name strings. Projections
-      should only be treated as an ordered list in manually
-      keyboarded code and in macros catering to manually keyboarded
-      code.
-  <definition-ns>/constructors/<ns-get-name: constructor identity>/
-    projection-names/<projection name string>/name
-    = No defined value, but the proper identity to use for the
-      projection in everything except manually keyboarded code.
+<definition-ns>/constructors/<ns-get-name: constructor identity>/tag
+  = No defined value, but the identity to use for the constructor in
+    fully compiled code.
+<definition-ns>/constructors/<ns-get-name: constructor identity>/
+  projection-list
+  = An ordered list of projection name strings. Projections should
+    only be treated as an ordered list in manually keyboarded code and
+    in macros that take manually keyboarded code as input.
+<definition-ns>/constructors/<ns-get-name: constructor identity>/
+  projection-names/<projection name string>/name
+  = No defined value, but the proper identity to use for the
+    projection in everything except manually keyboarded code.
 
-  <definition-ns>/macro-names/<macro name string>/name
-    = No defined value, but the proper identity to use for the
-      macro in everything except manually keyboarded code.
+<definition-ns>/macro-names/<macro name string>/name
+  = No defined value, but the proper identity to use for the macro in
+    everything except manually keyboarded code.
 
-  <definition-ns>/macros/<ns-get-name: macro identity>/function
-    = A value that can be invoked with the arguments of a macro
-      call.
+<definition-ns>/macros/<ns-get-name: macro identity>/function
+  = A value that can be invoked with the arguments of a macro call, as
+    described below.
 
-  <definition-ns>/functions/<ns-get-name: `make-tuple-tag` result>/
-    staccato
-    = An s-expression that can be compiled as a raw, sugarless
-      Staccato function definition.
+<definition-ns>/functions/<ns-get-name: `make-tuple-tag` result>/
+  staccato
+  = A value that can be invoked with a value of the specified tuple
+    tag (constructor tag and projection tags) to coerce it into a
+    callable value. Usually, it only takes one or two of these
+    coercions to get to a value the runtime innately knows how to
+    call, e.g. because the value contains fully compiled code in a
+    format the host platform can execute directly.
 ```
 
-The usual definition forms generate several definitions all at once:
+The usual definition forms generate various definitions (plus potential intermediate definitions using names the Cene program doesn't know how to obtain):
 
-## `(def-type ...)`
+#### `(def-type ...)`
   * The constructor name information desired.
-  * A macro so that the construction is easy to do.
-  * The name information for that macro.
-  * Constructor name information for a callable value which implements that macro.
-  * A function implementation for that callable value.
+  * A macro so that it's easy to construct and call values with this constructor. The macro implementation is a value user-level code doesn't know how to deconstruct, but it may be called as a macro.
 
-## `(defn ...)`
-  * The function implementation desired.
+#### `(defn ...)`
   * Constructor name information for a first-class representation of the function.
-  * A macro so that the function is easy to call. (Fortunately, every (defn ...) macro can reuse the same callable value constructor and function implementation.)
-  * The name information for that macro.
+  * A macro so that it's easy to construct and call values with this constructor. The macro implementation is a value user-level code doesn't know how to deconstruct, but it may be called as a macro.
+  * The function implementation desired. The function implementation is a value user-level code doesn't know how to deconstruct, and when called with an appropriate structure, it returns a callable value user-level code doesn't know how to deconstruct.
 
-A macro's `mode` parameter is the current modality. A modality must be passed to certain effectful primitives as a way to give the effects something to be deterministic by. (The terms "mode" and "modality" might be idiosyncrasies of this codebase. A more standard term is "world-passing style.")
+#### `(def-macro ...)`
+  * The macro desired.
 
-A macro's `unique-ns` parameter is a namespace. It's useful in the way that gensyms are typically useful in other macro-capable languages, but the uniqueness is achieved by playing along: If the macro compiles more than one subexpression, each subexpression should be given a `unique-ns` derived in different ways from this one.
 
-A macro's `definition-ns` parameter is a namespace. If the macro needs to install any definitions or look up any definitions, this is the namespace for that purpose. It should usually be passed as-is to any compiled subexpressions, except when defining a macro that's local to a certain subexpression.
 
-A macro's `my-stx-details` parameter is a collection of source location information. There's no direct way to deconstruct this value, but it conveys information about this macro invocation, so the macro can use it to receive attribution for any `stx` values it creates.
+## Parameters to a macro
+
+When a macro is expanded, its implementation function is called with several arguments: `mode unique-ns definition-ns my-stx-details args then`
+
+`mode`: The current modality. A modality must be passed to certain effectful primitives as a way to give the effects something to be deterministic by. (The terms "mode" and "modality" might be idiosyncrasies of this codebase. A more standard term is "world-passing style.")
+
+`unique-ns`: A namespace that is supposedly used exclusively for this macroexpansion. It's useful in the way that gensyms are typically useful in other macro-capable languages, but the uniqueness is achieved by playing along: If the macro compiles more than one subexpression, each subexpression should be given a `unique-ns` derived in different ways from each other.
+
+`definition-ns`: A namespace that is supposedly shared across all nearby macroexpansions. If the macro needs to install any definitions or look up any definitions, this is the namespace for that purpose. It should usually be passed as-is to any compiled subexpressions, except when a macro needs to establish a local definition scope.
+
+`my-stx-details`: A collection of source location information. This is a value user-level code doesn't know how to deconstruct, but it conveys information about this macro invocation, so the macro can attach it to the `stx` values it creates in order to receive proper attribution for them.
 
 (**TODO**: Figure out what the format of source location information actually is. For now, this is sort of just an unspecified area, but at least a language implementation can use this to hold filenames and line numbers in practice. An implementation should be able to treat this as a completely empty data structure; it's not needed for any variable scoping purposes.)
 
-A macro's `args` parameter is a list of `(stx stx-details s-expr)` values. The list is built out of `(cons car cdr)` and `(nil)` values.
+`args`: The cons list of `(stx stx-details s-expr)` values that correspond to the subexpressions at the macro call site.
+
+`then`: A callable value that takes compiled code (the result of `compile-expression`) and returns a monadic effect. Invoking this effect causes the compiled code to be used as the macro result. The macro must invoke this effect exactly once, or else there's an error. The effect doesn't necessarily need to be invoked right away; the macro can use `later` to invoke more effects in a future tick.
+
+The macro's return value is a monadic effect, which will be invoked by the macroexpander.
