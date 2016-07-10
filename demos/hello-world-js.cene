@@ -20,9 +20,8 @@
     (fn str rest
       (cons (c s /foreign/macro-name mode definition-ns str) rest))
   /let outbox (ns-get-string str.outbox unique-ns)
-  /bind-effects (later/fn mode /c then /procure-defined mode outbox)
-  /fn -
-  /bind-effects
+  /join-effects (later/fn mode /c then /procure-defined mode outbox)
+  /join-effects
     (output-path-blob-utf-8
       (output-path-get (cli-output-directory mode)
         str.\;qq[hello-world.js])
@@ -36,7 +35,6 @@
         /ns-get-string str.constructor-names definition-ns)
       /ns-get-string str.constructors definition-ns)
     /nil)
-  /fn -
   /compile-expression mode
     (ns-get-string str.unique unique-ns)
     definition-ns

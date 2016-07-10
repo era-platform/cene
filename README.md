@@ -52,11 +52,10 @@ Since Cene makes continuation-passing style so much more palatable, Cene's **sid
     /fn item then
       \= We invoke a copy recursively, and in the meantime we proceed
       \= with other effects in the loop.
-      (bind-effects
+      (join-effects
         (c-new copy-paths mode
           (input-path-get in item)
           (output-path-get out item))
-      /fn -
         then))
     
     \= If it's a blob, we read the blob as UTF-8 text and write it to

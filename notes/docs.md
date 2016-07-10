@@ -184,39 +184,24 @@
 \= (defn procure-put-defined ns value ...)
 \= Constructs a monad that, if invoked, installs a definition so that
 \= the given namespace has a defined Staccato value, namely the given
-\= one. The monad's result value is `(nil)`. If the definition cannot
-\= be installed, the program is in error; other computations that
-\= depend on the defined value may or may not be canceled or
-\= retroactively voided.
+\= one. If the definition cannot be installed, the program is in
+\= error; other computations that depend on the defined value may or
+\= may not be canceled or retroactively voided.
 
-\= (defn no-effects val ...)
-\= Constructs a monad that, if invoked, does nothing. The monad's
-\= result value is the given value.
+\= (defn no-effects ignored ...)
+\= Constructs a monad that, if invoked, does nothing.
 
 \= (defn join-effects a b ...)
 \= Constructs a monad that, if invoked, performs the effects of both
 \= of the given monads.
 
-\= (defn bind-effects monad then ...)
-\= then (fn result ...)
-\= Constructs a monad that, if invoked, calls the callback with the
-\= given monad's result value, obtains a monad as the result of that
-\= function, and performs the effects of both monads. The monad's
-\= result value is the result value of the monad returned by the
-\= callback.
-
 \= (defn assert-current-modality mode ...)
 \= Returns `(nil)`. The given modality must be the current one. If it
 \= isn't, this causes an error.
 
-\= TODO: See if we want to keep this. It's just here so that we can
-\= use the naive JavaScript transpiling approach in
-\= era-staccato-lib-runner-mini.js rather than doing desugaring in
-\= between.
-\=
 \= (defn compile-expression
 \=   mode unique-ns definition-ns stx out-ns ...)
-\= Constructs a monad that, if executed, macroexpands the given `stx`
+\= Constructs a monad that, if invoked, macroexpands the given `stx`
 \= in a later tick, allowing the macro calls to monadically install
 \= definitions over the course of any number of ticks and produce a
 \= desugarable Staccato expression. If the expression is successfully
@@ -247,28 +232,28 @@
 \= (defn new-promise then ...)
 \= then (fn mode promise ...)
 \=
-\= Constructs a monad with a result value of `(nil)`. If invoked, it
-\= calls the callback in a later tick with the then-current modality
-\= and a fresh promise value, and it performs the callback's monadic
-\= side effects. The promise is not yet fulfilled.
+\= Constructs a monad. If invoked, it calls the callback in a later
+\= tick with the then-current modality and a fresh promise value, and
+\= it performs the callback's monadic side effects. The promise is not
+\= yet fulfilled.
 
 \= (defn promise-fulfillment promise then ...)
 \= then (fn mode fulfillment ...)
 \=
-\= Constructs a monad with a result value of `(nil)`. If invoked, it
-\= calls the callback in a later tick with the then-current modality
-\= and the promise's fulfillment value, and it performs the callback's
-\= monadic side effects. If the promise is never actually fulfilled,
-\= this callback will not be called.
+\= Constructs a monad. If invoked, it calls the callback in a later
+\= tick with the then-current modality and the promise's fulfillment
+\= value, and it performs the callback's monadic side effects. If the
+\= promise is never actually fulfilled, this callback will not be
+\= called.
 
 \= (defn promise-put-fulfillment promise fulfillment ...)
 \=
-\= Constructs a monad with a result value of `(nil)`. If invoked, it
-\= installs the given value as the fulfillment value of the promise,
-\= or it causes an error if a fulfillment value has already been
-\= installed for the promise. (The meaning of "already" may depend on
-\= how the current modality works. For modalities that are temporal in
-\= the concrete sense of a wall clock, it has its usual meaning.)
+\= Constructs a monad. If invoked, it installs the given value as the
+\= fulfillment value of the promise, or it causes an error if a
+\= fulfillment value has already been installed for the promise. (The
+\= meaning of "already" may depend on how the current modality works.
+\= For modalities that are temporal in the concrete sense of a wall
+\= clock, it has its usual meaning.)
 
 
 
