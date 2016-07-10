@@ -413,6 +413,9 @@ Stc.prototype.callStc = function ( definitionNs, arg ) {
 Stc.prototype.cmp = function ( definitionNs, a, b ) {
     throw new Error();
 };
+Stc.prototype.cmpHas = function ( definitionNs, x ) {
+    throw new Error();
+};
 Stc.prototype.cmpThis = function ( definitionNs, other ) {
     throw new Error();
 };
@@ -432,6 +435,9 @@ StcFn.prototype.callStc = function ( definitionNs, arg ) {
 StcFn.prototype.cmp = function ( definitionNs, a, b ) {
     throw new Error();
 };
+StcFn.prototype.cmpHas = function ( definitionNs, x ) {
+    throw new Error();
+};
 StcFn.prototype.cmpThis = function ( definitionNs, other ) {
     throw new Error();
 };
@@ -446,6 +452,9 @@ StcForeign.prototype.callStc = function ( definitionNs, arg ) {
     throw new Error();
 };
 StcForeign.prototype.cmp = function ( definitionNs, a, b ) {
+    throw new Error();
+};
+StcForeign.prototype.cmpHas = function ( definitionNs, x ) {
     throw new Error();
 };
 StcForeign.prototype.cmpThis = function ( definitionNs, other ) {
@@ -515,6 +524,21 @@ StcCmpDefault.prototype.cmp = function ( definitionNs, a, b ) {
     
     } );
 };
+StcCmpDefault.prototype.cmpHas = function ( definitionNs, x ) {
+    var self = this;
+    
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    
+    return macLookupThen( self.first.cmpHas( definitionNs, x ),
+        function ( firstResult ) {
+    
+    if ( firstResult.tupleTag === stcYep.getTupleTag() )
+        return macLookupRet( firstResult );
+    
+    return self.second.cmpHas( definitionNs, x );
+    
+    } );
+};
 StcCmpDefault.prototype.cmpThis = function ( definitionNs, other ) {
     var self = this;
     var stcNil = stcType( definitionNs, "nil" );
@@ -544,6 +568,12 @@ StcCmpGiveUp.prototype.cmp = function ( definitionNs, a, b ) {
     return macLookupRet(
         stcIncomparable( definitionNs, false, false ) );
 };
+StcCmpDefault.prototype.cmpHas = function ( definitionNs, x ) {
+    var stcNil = stcType( definitionNs, "nil" );
+    var stcNope = stcType( definitionNs, "nope", "val" );
+    
+    return macLookupRet( stcNope.ofNow( stcNil.of() ) );
+};
 StcCmpGiveUp.prototype.cmpThis = function ( definitionNs, other ) {
     var stcNil = stcType( definitionNs, "nil" );
     return macLookupRet( stcNil.ofNow() );
@@ -572,6 +602,13 @@ StcCmpStruct.prototype.cmp = function ( definitionNs, a, b ) {
     
     var stcNil = stcType( definitionNs, "nil" );
     var stcYep = stcType( definitionNs, "yep", "val" );
+    var stcCmpResultIncomparable =
+        stcType( definitionNs, "cmp-result-incomparable",
+            "left-is-comparable", "right-is-comparable" );
+    
+    function toBoolean( b ) {
+        return b.tupleTag === stcYep.getTupleTag();
+    }
     
     var n = self.projCmps.length;
     return loop( 0 );
@@ -585,7 +622,69 @@ StcCmpStruct.prototype.cmp = function ( definitionNs, a, b ) {
                 b.projNames[ projCmp.i ] ),
             function ( cmpResult ) {
             
-            if ( cmpResult.tupleTag !== stcNil.getTupleTag() )
+            if ( cmpResult.tupleTag === stcYep.getTupleTag()
+                && stcYep.getProj( cmpResult, "yep" ).tupleTag ===
+                    stcNil.getTupleTag() )
+                return loop( i + 1 );
+            
+            if ( cmpResult.tupleTag ===
+                stcCmpResultIncomparable.getTupleTag() ) {
+                
+                if ( toBoolean(
+                    stcCmpResultIncomparable.getProj( cmpResult,
+                        "left-is-comparable" ) ) ) {
+                    
+                    return loopOneSide( a, cmpResult, i + 1 );
+                    
+                } else if ( toBoolean(
+                    stcCmpResultIncomparable.getProj( cmpResult,
+                        "right-is-comparable" ) ) ) {
+                    
+                    return loopOneSide( b, cmpResult, i + 1 );
+                }
+            }
+            
+            return macLookupRet( cmpResult );
+        } );
+    }
+    function loopOneSide( x, resultIfComparable, i ) {
+        if ( i <= n )
+            return macLookupRet( resultIfComparable );
+        var projCmp = self.projCmps[ i ];
+        return macLookupThen(
+            projCmp.cmp.cmpHas( definitionNs,
+                x.projNames[ projCmp.i ] ),
+            function ( cmpResult ) {
+            
+            if ( !toBoolean( cmpResult ) )
+                return stcIncomparable( definitionNs, false, false );
+            
+            return loopOneSide( x, resultIfComparable, i + 1 );
+        } );
+    }
+};
+StcCmpStruct.prototype.cmpHas = function ( definitionNs, x ) {
+    var self = this;
+    
+    var stcNil = stcType( definitionNs, "nil" );
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    var stcNope = stcType( definitionNs, "nope", "val" );
+    
+    if ( x.tupleTag !== self.expectedTupleTag )
+        return macLookupRet( stcNope.ofNow( stcNil.ofNow() ) );
+    
+    var n = self.projCmps.length;
+    return loop( 0 );
+    function loop( i ) {
+        if ( i <= n )
+            return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
+        var projCmp = self.projCmps[ i ];
+        return macLookupThen(
+            projCmp.cmp.cmpHas( definitionNs,
+                x.projNames[ projCmp.i ] ),
+            function ( cmpResult ) {
+            
+            if ( cmpResult.tupleTag === stcNope.getTupleTag() )
                 return macLookupRet( cmpResult );
             return loop( i + 1 );
         } );
@@ -653,6 +752,19 @@ StcCmpCmp.prototype.cmp = function ( definitionNs, a, b ) {
             stcYep.ofNow( new StcForeign( "gt", null ) ) );
     return a.cmpThis( definitionNs, b );
 };
+StcCmpCmp.prototype.cmpHas = function ( definitionNs, x ) {
+    var stcNil = stcType( definitionNs, "nil" );
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    var stcNope = stcType( definitionNs, "nope", "val" );
+    
+    var nil = stcNil.ofNow();
+    
+    function fromBoolean( b ) {
+        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
+    }
+    
+    return macLookupRet( fromBoolean( stcIsCmp( x ) ) );
+};
 StcCmpCmp.prototype.cmpThis = function ( definitionNs, other ) {
     var stcNil = stcType( definitionNs, "nil" );
     return macLookupRet( stcNil.ofNow() );
@@ -687,6 +799,21 @@ StcCmpName.prototype.cmp = function ( definitionNs, a, b ) {
     var stcNil = stcType( definitionNs, "nil" );
     
     return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
+};
+StcCmpName.prototype.cmpHas = function ( definitionNs, x ) {
+    var stcNil = stcType( definitionNs, "nil" );
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    var stcNope = stcType( definitionNs, "nope", "val" );
+    
+    var nil = stcNil.ofNow();
+    
+    function fromBoolean( b ) {
+        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
+    }
+    
+    return macLookupRet(
+        fromBoolean(
+            x instanceof StcForeign && x.purpose === "name" ) );
 };
 StcCmpName.prototype.cmpThis = function ( definitionNs, other ) {
     var stcNil = stcType( definitionNs, "nil" );
@@ -724,6 +851,21 @@ StcCmpString.prototype.cmp = function ( definitionNs, a, b ) {
     var stcNil = stcType( definitionNs, "nil" );
     
     return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
+};
+StcCmpString.prototype.cmpHas = function ( definitionNs, x ) {
+    var stcNil = stcType( definitionNs, "nil" );
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    var stcNope = stcType( definitionNs, "nope", "val" );
+    
+    var nil = stcNil.ofNow();
+    
+    function fromBoolean( b ) {
+        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
+    }
+    
+    return macLookupRet(
+        fromBoolean(
+            x instanceof StcForeign && x.purpose === "string" ) );
 };
 StcCmpString.prototype.cmpThis = function ( definitionNs, other ) {
     var stcNil = stcType( definitionNs, "nil" );
@@ -2210,6 +2352,13 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        // TODO: Add documentation of this somewhere.
+        fun( "in-cmp", function ( cmp ) {
+            return new StcFn( function ( x ) {
+                return cmp.cmpHas( macroDefNs, x );
+            } );
+        } );
+        
         var macLookupYoke = {
             bounce: function ( then ) {
                 return then( macLookupYoke );
@@ -2258,23 +2407,35 @@ function usingDefinitionNs( macroDefNs ) {
                         && table.purpose === "table") )
                         throw new Error();
                     
-                    if ( maybeVal.tupleTag === stcNil.getTupleTag() )
-                        return table.foreignVal.contents.minusEntry( macLookupYoke,
-                            key, next );
-                    if ( maybeVal.tupleTag === stcYep.getTupleTag() )
-                        return table.foreignVal.contents.plusEntry( macLookupYoke,
-                            key,
-                            stcYep.getProj( maybeVal, "val" ),
-                            next );
-                    throw new Error();
-                    
-                    function next( yoke, contents ) {
-                        return macLookupRet(
-                            new StcForeign( "table", {
-                                keyCmp: table.foreignVal.keyCmp,
-                                contents: contents
-                            } ) );
-                    }
+                    return macLookupThen(
+                        table.foreignVal.keyCmp.cmpHas( macroDefNs,
+                            key ),
+                        function ( comparable ) {
+                        
+                        if ( comparable.tupleTag ===
+                            stcNope.getTupleTag() )
+                            throw new Error();
+                        
+                        if ( maybeVal.tupleTag ===
+                            stcNil.getTupleTag() )
+                            return table.foreignVal.contents.minusEntry( macLookupYoke,
+                                key, next );
+                        if ( maybeVal.tupleTag ===
+                            stcYep.getTupleTag() )
+                            return table.foreignVal.contents.plusEntry( macLookupYoke,
+                                key,
+                                stcYep.getProj( maybeVal, "val" ),
+                                next );
+                        throw new Error();
+                        
+                        function next( yoke, contents ) {
+                            return macLookupRet(
+                                new StcForeign( "table", {
+                                    keyCmp: table.foreignVal.keyCmp,
+                                    contents: contents
+                                } ) );
+                        }
+                    } );
                 } );
             } );
         } );
@@ -2286,13 +2447,23 @@ function usingDefinitionNs( macroDefNs ) {
                     && table.purpose === "table") )
                     throw new Error();
                 
-                return table.foreignVal.contents.getMaybe( macLookupYoke,
-                    key,
-                    function ( yoke, maybeResult ) {
+                return macLookupThen(
+                    table.foreignVal.keyCmp.cmpHas( macroDefNs,
+                        key ),
+                    function ( comparable ) {
                     
-                    return macLookupRet( maybeResult === null ?
-                        stcNil.ofNow() :
-                        stcYep.ofNow( maybeResult.val ) );
+                    if ( comparable.tupleTag ===
+                        stcNope.getTupleTag() )
+                        throw new Error();
+                    
+                    return table.foreignVal.contents.getMaybe( macLookupYoke,
+                        key,
+                        function ( yoke, maybeResult ) {
+                        
+                        return macLookupRet( maybeResult === null ?
+                            stcNil.ofNow() :
+                            stcYep.ofNow( maybeResult.val ) );
+                    } );
                 } );
             } );
         } );
