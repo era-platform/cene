@@ -28,6 +28,6 @@ Cene tasks, in roughly highest-priority-first order:
 
 - Implement a multi-backend compiler of Cene in Cene.
 
-- Do a dead code elimination pass in the compiler.
+- Have the compiler do a dead code elimination pass.
 
 - Devote some effort to polish and style.

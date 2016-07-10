@@ -375,6 +375,63 @@ function stcIncomparable(
         fromBoolean( rightComparable ) );
 }
 
+function stcCmpCmpables( definitionNs, a, b ) {
+    var stcCmpable = stcType( definitionNs, "cmpable", "cmp", "val" );
+    var stcNil = stcType( definitionNs, "nil" );
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    var stcCmpResultIncomparable =
+        stcType( definitionNs, "cmp-result-incomparable",
+            "left-is-comparable", "right-is-comparable" );
+    
+    function toBoolean( b ) {
+        return b.tupleTag === stcYep.getTupleTag();
+    }
+    
+    var aCmp = stcCmpable.getProj( a, "cmp" );
+    var bCmp = stcCmpable.getProj( b, "cmp" );
+    return macLookupThen( aCmp.cmpThis( definitionNs, bCmp ),
+        function ( cmpResult ) {
+        
+        if ( cmpResult.tupleTag === stcYep.getTupleTag()
+            && stcYep.getProj( cmpResult, "val" ).tupleTag ===
+                stcNil.getTupleTag() )
+            return aCmp.cmp( definitionNs,
+                stcCmpable.getProj( a, "val" ),
+                stcCmpable.getProj( b, "val" ) );
+        
+        if ( cmpResult.tupleTag ===
+            stcCmpResultIncomparable.getTupleTag() ) {
+            
+            if ( toBoolean(
+                stcCmpResultIncomparable.getProj( cmpResult,
+                    "left-is-comparable" ) ) ) {
+                
+                return oneSide( aCmp, a );
+                
+            } else if ( toBoolean(
+                stcCmpResultIncomparable.getProj( cmpResult,
+                    "right-is-comparable" ) ) ) {
+                
+                return oneSide( bCmp, b );
+            }
+        }
+        
+        return macLookupRet( cmpResult );
+        
+        function oneSide( cmp, x ) {
+            return macLookupThen(
+                cmp.cmpHas( definitionNs,
+                    stcCmpable.getProj( x, "val" ) ),
+                function ( valResult ) {
+                
+                return macLookupRet( toBoolean( valResult ) ?
+                    cmpResult :
+                    stcIncomparable( definitionNs, false, false ) );
+            } );
+        }
+    } );
+}
+
 function Stc( tupleTag, opt_projNames ) {
     this.tupleTag = tupleTag;
     this.projNames = opt_projNames || [];
@@ -657,7 +714,8 @@ StcCmpStruct.prototype.cmp = function ( definitionNs, a, b ) {
             function ( cmpResult ) {
             
             if ( !toBoolean( cmpResult ) )
-                return stcIncomparable( definitionNs, false, false );
+                return macLookupRet(
+                    stcIncomparable( definitionNs, false, false ) );
             
             return loopOneSide( x, resultIfComparable, i + 1 );
         } );
@@ -873,6 +931,179 @@ StcCmpString.prototype.cmpThis = function ( definitionNs, other ) {
 };
 StcCmpString.prototype.pretty = function () {
     return "(cmp-string)";
+};
+function StcCmpWithOwnMethod( cmpableGetMethod ) {
+    this.cmpableGetMethod = cmpableGetMethod;
+}
+StcCmpWithOwnMethod.prototype.cmpRank = nextCmpRank++;
+StcCmpWithOwnMethod.prototype.callStc = function ( definitionNs,
+    arg ) {
+    
+    throw new Error();
+};
+StcCmpWithOwnMethod.prototype.cmp = function ( definitionNs, a, b ) {
+    var stcCmpable = stcType( definitionNs, "cmpable", "cmp", "val" );
+    var stcNil = stcType( definitionNs, "nil" );
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    var stcNope = stcType( definitionNs, "nope", "val" );
+    var stcCmpResultIncomparable =
+        stcType( definitionNs, "cmp-result-incomparable",
+            "left-is-comparable", "right-is-comparable" );
+    
+    var nil = stcNil.ofNow();
+    
+    function fromBoolean( b ) {
+        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
+    }
+    function toBoolean( b ) {
+        return b.tupleTag === stcYep.getTupleTag();
+    }
+    
+    var getMethod =
+        stcCmpable.getProj( this.cmpableGetMethod, "val" );
+    
+    return macLookupThen( getMethod.stcCall( definitionNs, a ),
+        function ( maybeOwnMethodA ) {
+    return macLookupThen( getMethod.stcCall( definitionNs, b ),
+        function ( maybeOwnMethodB ) {
+    
+    var isYepA = maybeOwnMethodA.tupleTag === stcYep.getTupleTag();
+    var isYepB = maybeOwnMethodB.tupleTag === stcYep.getTupleTag();
+    var incomparable =
+        stcIncomparable( definitionNs, isYepA, isYepB );
+    if ( incomparable !== null ) {
+        if ( isYepA )
+            return oneSide( incomparable,
+                stcYep.getProj( maybeOwnMethodA, "val" ),
+                a );
+        else if ( isYepB )
+            return oneSide( incomparable,
+                stcYep.getProj( maybeOwnMethodB, "val" ),
+                b );
+        else
+            return macLookupRet( incomparable );
+    }
+    
+    var methodA = stcYep.getProj( maybeOwnMethodA, "val" );
+    var methodB = stcYep.getProj( maybeOwnMethodB, "val" );
+    
+    return macLookupThen(
+        new StcCmpCmp().cmp( definitionNs, methodA, methodB ),
+        function ( methodCmpResult ) {
+    
+    if ( methodCmpResult.tupleTag === stcYep.getTupleTag()
+        && stcYep.getProj( methodCmpResult, "val" ).tupleTag ===
+            stcNil.getTupleTag() )
+        return methodA.cmp( definitionNs, a, b );
+    
+    if ( methodCmpResult.tupleTag ===
+        stcCmpResultIncomparable.getTupleTag() ) {
+        
+        if ( toBoolean(
+            stcCmpResultIncomparable.getProj( methodCmpResult,
+                "left-is-comparable" ) ) ) {
+            
+            return oneSide( methodCmpResult, methodA, a );
+            
+        } else if ( toBoolean(
+            stcCmpResultIncomparable.getProj( methodCmpResult,
+                "right-is-comparable" ) ) ) {
+            
+            return oneSide( methodCmpResult, methodB, b );
+        }
+    }
+    
+    return macLookupRet( methodCmpResult );
+    
+    } );
+    } );
+    
+    } );
+    
+    function oneSide( cmpResult, method, x ) {
+        return macLookupThen( method.cmpHas( definitionNs, x ),
+            function ( valResult ) {
+            
+            return macLookupRet( toBoolean( valResult ) ?
+                cmpResult :
+                stcIncomparable( definitionNs, false, false ) );
+        } );
+    }
+};
+StcCmpWithOwnMethod.prototype.cmpHas = function ( definitionNs, x ) {
+    var stcCmpable = stcType( definitionNs, "cmpable", "cmp", "val" );
+    var stcNil = stcType( definitionNs, "nil" );
+    var stcYep = stcType( definitionNs, "yep", "val" );
+    var stcNope = stcType( definitionNs, "nope", "val" );
+    
+    var nil = stcNil.ofNow();
+    
+    function fromBoolean( b ) {
+        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
+    }
+    
+    return macLookupThen(
+        stcCmpable.getProj( this.cmpableGetMethod, "val"
+            ).stcCall( definitionNs, x ),
+        function ( maybeOwnMethod ) {
+    
+    if ( maybeOwnMethod.tupleTag === stcNil.getTupleTag() )
+        return macLookupRet( fromBoolean( false ) );
+    else if ( maybeOwnMethod.tupleTag === stcYep.getTupleTag() )
+        return stcYep.getProj( ownMethod, "val"
+            ).cmpHas( definitionNs, x );
+    else
+        throw new Error();
+    
+    } );
+};
+StcCmpWithOwnMethod.prototype.cmpThis = function ( definitionNs,
+    other ) {
+    
+    return stcCmpCmpables( definitionNs,
+        this.cmpableGetMethod,
+        other.cmpableGetMethod );
+};
+StcCmpWithOwnMethod.prototype.pretty = function () {
+    return "(cmp-with-own-method " +
+        this.cmpableGetMethod.pretty() + ")";
+};
+function StcCmpFix( cmpableUnwrap ) {
+    this.cmpableUnwrap = cmpableUnwrap;
+}
+StcCmpFix.prototype.cmpRank = nextCmpRank++;
+StcCmpFix.prototype.callStc = function ( definitionNs, arg ) {
+    throw new Error();
+};
+StcCmpFix.prototype.cmp = function ( definitionNs, a, b ) {
+    var stcCmpable = stcType( definitionNs, "cmpable", "cmp", "val" );
+    
+    return macLookupThen(
+        stcCmpable.getProj( this.cmpableUnwrap, "val"
+            ).callStc( definitionNs, this ),
+        function ( cmp ) {
+        
+        return cmp.cmp( definitionNs, a, b );
+    } );
+};
+StcCmpFix.prototype.cmpHas = function ( definitionNs, x ) {
+    var stcCmpable = stcType( definitionNs, "cmpable", "cmp", "val" );
+    
+    return macLookupThen(
+        stcCmpable.getProj( this.cmpableUnwrap, "val"
+            ).callStc( definitionNs, this ),
+        function ( cmp ) {
+        
+        return cmp.cmpHas( definitionNs, x );
+    } );
+};
+StcCmpFix.prototype.cmpThis = function ( definitionNs, other ) {
+    return stcCmpCmpables( definitionNs,
+        this.cmpableUnwrap,
+        other.cmpableUnwrap );
+};
+StcCmpFix.prototype.pretty = function () {
+    return "(cmp-fix " + this.cmpableUnwrap.pretty() + ")";
 };
 
 function stcIsCmp( x ) {
@@ -1307,6 +1538,7 @@ function usingDefinitionNs( macroDefNs ) {
     var stcString = stcType( macroDefNs, "string", "val" );
     var stcName = stcType( macroDefNs, "name", "val" );
     var stcForeign = stcType( macroDefNs, "foreign", "val" );
+    var stcCmpable = stcType( macroDefNs, "cmpable", "cmp", "val" );
     
     function callStcMulti( func, var_args ) {
         var args = arguments;
@@ -1736,7 +1968,7 @@ function usingDefinitionNs( macroDefNs ) {
         function effectfulMac( name, body ) {
             stcAddMacro( targetDefNs, dummyMode, name, body );
         }
-        function fun( name, body ) {
+        function effectfulFun( name, body ) {
             var constructorTag = stcConstructorTag( targetDefNs,
                 stcConstructorName( targetDefNs, name ) );
             var tupleTagName =
@@ -1745,9 +1977,14 @@ function usingDefinitionNs( macroDefNs ) {
                 targetDefNs, dummyMode, tupleTagName,
                 function ( funcVal, argVal ) {
                 
-                return macLookupRet( body( argVal ) );
+                return body( argVal );
             } );
             processDefType( targetDefNs, dummyMode, name, [] );
+        }
+        function fun( name, body ) {
+            effectfulFun( name, function ( argVal ) {
+                return macLookupRet( body( argVal ) );
+            } );
         }
         
         mac( "def-type",
@@ -2111,6 +2348,23 @@ function usingDefinitionNs( macroDefNs ) {
                 stcIstringNil.getProj( istringNil, "string" ) );
         }
         
+        function assertValidCmpable( x, then ) {
+            if ( x.tupleTag !== stcCmpable.getTupleTag() )
+                throw new Error();
+            
+            var cmp = stcCmpable.getProj( x, "cmp" );
+            var val = stcCmpable.getProj( x, "val" );
+            
+            return macLookupThen( cmp.cmpHas( macroDefNs, val ),
+                function ( has ) {
+                
+                if ( has.tupleTag === stcNope.getTupleTag() )
+                    throw new Error();
+                
+                return then();
+            } );
+        }
+        
         mac( "err",
             function ( nss, rawMode, myStxDetails, body, then ) {
             
@@ -2352,6 +2606,23 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Add documentation of this somewhere.
         fun( "cmp-string", function ( ignored ) {
             return new StcCmpString();
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        effectfulFun( "cmp-with-own-method",
+            function ( cmpableGetMethod ) {
+            
+            return assertValidCmpable( cmpableGetMethod, function () {
+                return macLookupRet(
+                    new StcCmpWithOwnMethod( cmpableGetMethod ) );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        effectfulFun( "cmp-fix", function ( cmpableUnwrap ) {
+            return assertValidCmpable( cmpableUnwrap, function () {
+                return macLookupRet( new StcCmpFix( cmpableUnwrap ) );
+            } );
         } );
         
         // TODO: Add documentation of this somewhere.
@@ -3053,6 +3324,12 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Add documentation for this somewhere.
         type( "cmp-result-incomparable",
             [ "left-is-comparable", "right-is-comparable" ] );
+        
+        // This constructor is needed for constructing the input to
+        // certain operations, namely `cmp-with-own-method` and
+        // `cmp-fix`.
+        // TODO: Add documentation for this somewhere.
+        type( "cmpable", [ "cmp", "val" ] );
         
         // These s-expression constructors are needed so that macros
         // can parse their s-expression arguments. The `cons` and
