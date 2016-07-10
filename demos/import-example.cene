@@ -37,7 +37,7 @@
         err.\;qq[Internal error]
       /folding (ns-get-string str.rest unique-ns)
       /fn mode
-      /bind-effects (c launch-rest mode) /fn -
+      /join-effects (c launch-rest mode)
       /let first-ns (ns-get-string str.first unique-ns)
       /compile-expression mode
         (ns-get-string str.unique first-ns)
@@ -46,10 +46,9 @@
         (ns-get-string str.outbox first-ns)))
     folding unique-ns launch-rest
     err.\;qq[Internal error]
-  /bind-effects (c launch-rest mode) /fn -
+  /join-effects (c launch-rest mode)
   /let outbox (ns-get-string str.outbox unique-ns)
-  /bind-effects (later/fn mode /c then /procure-defined mode outbox)
-  /fn -
+  /join-effects (later/fn mode /c then /procure-defined mode outbox)
   /compile-expression mode
     (ns-get-string str.unique unique-ns)
     definition-ns
@@ -67,14 +66,12 @@
     (fn str rest
       (cons (c s /foreign/macro-name mode definition-ns str) rest))
   /let outbox (ns-get-string str.outbox unique-ns)
-  /bind-effects (later/fn mode /c then /procure-defined mode outbox)
-  /fn -
-  /bind-effects
+  /join-effects (later/fn mode /c then /procure-defined mode outbox)
+  /join-effects
     (output-path-blob-utf-8
       (output-path-get (cli-output-directory mode)
         str.\;qq[hello-world.txt])
     /hello-world/nil)
-  /fn -
   /compile-expression mode
     (ns-get-string str.unique unique-ns)
     definition-ns

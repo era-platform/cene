@@ -2529,9 +2529,9 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "no-effects", function ( val ) {
+        fun( "no-effects", function ( ignored ) {
             return new StcForeign( "effects", function ( rawMode ) {
-                return macLookupRet( val );
+                return macLookupRet( stcNil.ofNow() );
             } );
         } );
         
@@ -2553,26 +2553,6 @@ function usingDefinitionNs( macroDefNs ) {
                         function ( ignored ) {
                         
                         return bFunc( rawMode );
-                    } );
-                } );
-            } );
-        } );
-        
-        fun( "bind-effects", function ( monad ) {
-            return stcFnPure( function ( then ) {
-                if ( !(monad instanceof StcForeign
-                    && monad.purpose === "effects") )
-                    throw new Error();
-                var argFunc = monad.foreignVal;
-                
-                return new StcForeign( "effects",
-                    function ( rawMode ) {
-                    
-                    return macLookupThen( argFunc( rawMode ),
-                        function ( arg ) {
-                        
-                        return macLookupThenRunEffects( rawMode,
-                            then.callStc( arg ) );
                     } );
                 } );
             } );
