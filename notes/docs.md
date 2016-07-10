@@ -72,9 +72,10 @@ An interpolated string s-expression that consists of a string with no interpolat
 
 -
 ```
-(**TODO**: Use this.)
 (def-type istring-cons string-past interpolated istring-rest)
 ```
+(**TODO**: Use this.)
+
 An interpolated string s-expression that consists of a string, a single interpolated value to go after that string, and a remaining interpolated string s-expression to go after that.
 
 -
@@ -201,49 +202,59 @@ Constructs a monad. If invoked, it installs the given value as the fulfillment v
 
 
 
-## Definition namespace layout
+## Layout of the definition namespace
 
 During macroexpansion, Cene code may interact with the definition namespace by using the referentially transparent operation `procure-defined` and the monadic operation `procure-put-defined`. (Putting two definitions into one name is an error.) Even the built-in definitions reside in the definition namespace.
 
-The namespace is also how qualified names are derived.
+The namespace also has standard places to find fully qualified names for various concepts. These are just like any other name, but the specific location to obtain them from is standardized.
 
-Definitions and qualified names are located in the definition namespace at the following paths, where slashes represent names derived by `ns-get-string` except where marked as `ns-get-name`:
+In the following namespace paths, slashes represent names derived by `ns-get-string` or `ns-get-name` (usually `ns-get-name` unless noted by `<string: ...>`), and the initial `.` represents the definition namespace:
 
+-
 ```
-<definition-ns>/constructor-names/<constructor name string>/name
-  = No defined value, but the proper identity to use for the
-    constructor in macro-generated Cene code.
-
-<definition-ns>/constructors/<ns-get-name: constructor identity>/tag
-  = No defined value, but the identity to use for the constructor in
-    fully compiled code.
-<definition-ns>/constructors/<ns-get-name: constructor identity>/
-  projection-list
-  = An ordered list of projection name strings. Projections should
-    only be treated as an ordered list in manually keyboarded code and
-    in macros that take manually keyboarded code as input.
-<definition-ns>/constructors/<ns-get-name: constructor identity>/
-  projection-names/<projection name string>/name
-  = No defined value, but the proper identity to use for the
-    projection in everything except manually keyboarded code.
-
-<definition-ns>/macro-names/<macro name string>/name
-  = No defined value, but the proper identity to use for the macro in
-    everything except manually keyboarded code.
-
-<definition-ns>/macros/<ns-get-name: macro identity>/function
-  = A value that can be invoked with the arguments of a macro call, as
-    described below.
-
-<definition-ns>/functions/<ns-get-name: `make-tuple-tag` result>/
-  staccato
-  = A value that can be invoked with a value of the specified tuple
-    tag (constructor tag and projection tags) to coerce it into a
-    callable value. Usually, it only takes one or two of these
-    coercions to get to a value the runtime innately knows how to
-    call, e.g. because the value contains fully compiled code in a
-    format the host platform can execute directly.
+./constructor-names/<string: constructor name>/name
 ```
+
+A name: The proper identity to use for the constructor in macro-generated Cene code.
+
+-
+```
+./constructors/<constructor identity>/tag
+```
+A name: The identity to use for the constructor in fully compiled code.
+
+-
+```
+./constructors/<constructor identity>/projection-list
+```
+A defined value: An ordered list of projection name strings. Projections should only be treated as an ordered list in manually keyboarded code and in macros that take manually keyboarded code as input.
+
+-
+```
+./constructors/<constructor identity>/projection-names/
+  <string: projection name>/name
+```
+A name: The proper identity to use for the projection in everything except manually keyboarded code.
+
+-
+```
+./macro-names/<string: macro name>/name
+```
+A name: The proper identity to use for the macro in everything except manually keyboarded code.
+
+-
+```
+./macros/<macro identity>/function
+```
+A defined value: A value that can be invoked with the arguments of a macro call, as described below.
+
+-
+```
+./functions/<`make-tuple-tag` result>/staccato
+```
+A defined value: A value that can be invoked with a value of the specified tuple tag (constructor tag and projection tags) to coerce it into a callable value. Usually, it only takes one or two of these coercions to get to a value the runtime innately knows how to call, e.g. because the value contains fully compiled code in a format the host platform can execute directly.
+
+-
 
 The usual definition forms generate various definitions (plus potential intermediate definitions using names the Cene program doesn't know how to obtain):
 
