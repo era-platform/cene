@@ -3,28 +3,33 @@
 ```
 A reference to a string. The value inside is in a format user-level code does not know how to deconstruct.
 
+-
 ```
 (defn string-append a b ...)
 ```
 Concatenates two strings.
 
+-
 ```
 macro (str \;qq[example string])
 ```
 Obtains a first-class string value with the given literal text.
 
+-
 ```
 (def-type name val)
 ```
 A reference to a fully qualified name. The value inside is in a format user-level code does not know how to deconstruct.
 
+-
 ```
 (defn make-tuple-tag tuple-name proj-names)
 ```
 Takes a name for the constructor and a list of names for the projections, and returns the name used to dynamically tag a tuple of that combination of names. The projection name list must be made out of `(cons car cdr)` and `(nil)` values, with elements that are strings, and the list must not have duplicates. The order of the list will be ignored.
 
-TODO: Figure out where to put this extensive documentation now that `name-metacompare` is implemented in era-staccato-lib.stc.
+**TODO**: Figure out where to put this extensive documentation now that `name-metacompare` is implemented in era-staccato-lib.stc.
 
+-
 ```
 (defn name-metacompare a b ...)
 ```
@@ -36,7 +41,7 @@ Macros would be less expressive if they had to treat names as uncomparable value
 
 If macros couldn't check names for equality, one thing a macro couldn't do... is to associate a variable binding site with a variable usage site. For instance, it couldn't act as a Staccato desugarer. It couldn't act as a compiler of some other DSL, unless that DSL completely forewent the namespace system and just used string names everywhere. So people who have adventurous new syntaxes to try would want to build new namespace systems for them, and this macro system would have complicated the Staccato language for no purpose that couldn't have been accomplished with an exhaustive suite of built-in syntaxes.
 
-(TODO: Do nominal types already support an equality check? James Cheney's "Simple Nominal Type Theory" presents systems with and without equality checks. If this is very common, maybe we can rationalize this decision in terms of standard practice too.)
+(**TODO**: Do nominal types already support an equality check? James Cheney's "Simple Nominal Type Theory" presents systems with and without equality checks. If this is very common, maybe we can rationalize this decision in terms of standard practice too.)
 
 So, macros will be able to compare names for equality. As long as they can do that, we could promote better efficiency by permitting ordered comparisons instead of just equality checks. That way, names could be lookup keys in AVL trees and other efficiently indexed data structures.
 
@@ -50,47 +55,56 @@ In the process, a lot of ugliness may arise: If concatenation of encapsulated AV
 
 For now, we can start small, merely providing a single metacomparator over names (`name-metacompare`), rather than aiming for efficiency and general computation. As long as we have that, we can use inefficient association lists to track free variables (`free-vars-object`).
 
+-
 ```
 (def-type istring-nil string)
 ```
 An interpolated string s-expression that consists of a string with no interpolations.
 
+-
 ```
-(TODO: Use this.)
+(**TODO**: Use this.)
 (def-type istring-cons string-past interpolated istring-rest)
 ```
 An interpolated string s-expression that consists of a string, a single interpolated value to go after that string, and a remaining interpolated string s-expression to go after that.
 
+-
 ```
 (def-type foreign val)
 ```
 An s-expression that consists of an embedded value of any type, but usually a name. The program may not know of a way to encode the name as serializable data, but it can still be passed to `(compile ...)`.
 
+-
 ```
 (def-type stx stx-details s-expr)
 ```
 An s-expression tagged with source location information.
 
+-
 ```
 (defn macro-stx-details mode unique-ns definition-ns stx ...)
 ```
 Constructs a syntax details object that refers to a macro's input, so that the macro's output can be associated with it. The `stx` must be a located cons list whose first element is a string or foreign name referring to a macro.
 
+-
 ```
 (defn ns-get-name name ns ...)
 ```
 Obtains a sub-namespace determined by the given namespace, using the given name as a "folder name." Usually, distinct "folder names" will yield distinct sub-namespaces, but sometimes the interpreter may be configured so that this isn't the case.
 
+-
 ```
 (defn ns-get-string string ns ...)
 ```
 Obtains a sub-namespace determined by the first namespace, using the given string as a "folder name." Usually, distinct "folder names" will yield distinct sub-namespaces, but sometimes the interpreter may be configured so that this isn't the case.
 
+-
 ```
 (defn ns-shadow-name name sub-ns ns ...)
 ```
 Creates a new namespace that behaves like the second namespace in almost every way, except when the given name is requested as a "folder name", in which case the first namespace is returned instead.
 
+-
 ```
 (defn ns-shadow-string string sub-ns ns ...)
 ```
@@ -98,76 +112,89 @@ Creates a new namespace that behaves like the second namespace in almost every w
 
 The `ns-shadow-name` and `ns-shadow-string` functions can be used to establish local macros. A namespace created this way even works the same way as the old one when it's used in a `procure-...` primitive. This way, we can imagine that the namespace's own identity is stored under an entry somewhere in the namespace, just using a key that we don't have the ability to construct.
 
+-
 ```
 (defn procure-name mode ns ...)
 ```
 Uses the given namespace to obtain a first-class name value. The given modality must be the current one.
 
+-
 ```
 (defn procure-defined mode ns ...)
 ```
 Blocks until the given namespace has a defined Staccato value and then returns it. The given modality must be the current one.
 
+-
 ```
 (defn procure-put-defined ns value ...)
 ```
 Constructs a monad that, if invoked, installs a definition so that the given namespace has a defined Staccato value, namely the given one. If the definition cannot be installed, the program is in error; other computations that depend on the defined value may or may not be canceled or retroactively voided.
 
+-
 ```
 (defn no-effects ignored ...)
 ```
 Constructs a monad that, if invoked, does nothing.
 
+-
 ```
 (defn join-effects a b ...)
 ```
 Constructs a monad that, if invoked, performs the effects of both of the given monads.
 
+-
 ```
 (defn assert-current-modality mode ...)
 ```
 Returns `(nil)`. The given modality must be the current one. If it isn't, this causes an error.
 
+-
 ```
 (defn compile-expression
   mode unique-ns definition-ns stx out-ns ...)
 ```
 Constructs a monad that, if invoked, macroexpands the given `stx` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce a desugarable Staccato expression. If the expression is successfully computed, it is defined directly in the given `out-ns`. The given modality must be the current one.
 
-TODO: Implement this.
+**TODO**: Implement this.
 
-TODO: Redesign our commutative monadic effects to be an opaque set rather than having intermediate results.
+**TODO**: Redesign our commutative monadic effects to be an opaque set rather than having intermediate results.
 
-TODO: Redesign all our effectful primitives, such as `compile-expression`, so that they don't take a `mode` parameter.
+**TODO**: Redesign all our effectful primitives, such as `compile-expression`, so that they don't take a `mode` parameter.
 
+-
 ```
 (defn get-current-modality body ...)
 body (fn mode ...)
 ```
 Constructs a monad. If invoked, it calls the callback in the same tick with the current modality, and it performs the callback's monadic side effects.
 
-TODO: Don't actually implement the below promise operations. Use namespaces as promises; we can already do this for macros now. Delete these designs once we've settled on some more details about how namespaces, tables, LVars, and lifelines work. (See roadmap.txt.)
+**TODO**: Don't actually implement the below promise operations. Use namespaces as promises; we can already do this for macros now. Delete these designs once we've settled on some more details about how namespaces, tables, LVars, and lifelines work. (See roadmap.txt.)
 
+-
 ```
 (defn new-promise then ...)
 then (fn mode promise ...)
 ```
 Constructs a monad. If invoked, it calls the callback in a later tick with the then-current modality and a fresh promise value, and it performs the callback's monadic side effects. The promise is not yet fulfilled.
 
+-
 ```
 (defn promise-fulfillment promise then ...)
 then (fn mode fulfillment ...)
 ```
 Constructs a monad. If invoked, it calls the callback in a later tick with the then-current modality and the promise's fulfillment value, and it performs the callback's monadic side effects. If the promise is never actually fulfilled, this callback will not be called.
 
+-
 ```
 (defn promise-put-fulfillment promise fulfillment ...)
 ```
 Constructs a monad. If invoked, it installs the given value as the fulfillment value of the promise, or it causes an error if a fulfillment value has already been installed for the promise. (The meaning of "already" may depend on how the current modality works. For modalities that are temporal in the concrete sense of a wall clock, it has its usual meaning.)
 
+-
 
+-
 
-
+-
 
 Yes, we're using deterministic, referentially transparent side effects during macroexpansion. Since a macro will necessarily need to *read* existing definitions in order for its implementation code to do anything at all, we're allowing other blocking reads by way of `procure-defined`. For referential transparency, the corresponding `procure-put-defined` writes are performed in a commutative monad. If two or more conflicting writes are performed, all definitions that depended on reading those writes will be retroactively updated. Usually, conflicting definitions are an error. However, at a REPL, definitions from a newer command may take the place of definitions from an older command without error. Errors or updates may cascade through several layers of other definitions that depended on them.
 
@@ -209,18 +236,14 @@ Common definitions are stored like so, where slashes represent `ns-get-string` e
 
 The usual definition forms generate several definitions all at once:
 
-```
-(def-type ...)
-```
+## `(def-type ...)`
   * The constructor name information desired.
   * A macro so that the construction is easy to do.
   * The name information for that macro.
   * Constructor name information for a callable value which implements that macro.
   * A function implementation for that callable value.
 
-```
-(defn ...)
-```
+## `(defn ...)`
   * The function implementation desired.
   * Constructor name information for a first-class representation of the function.
   * A macro so that the function is easy to call. (Fortunately, every (defn ...) macro can reuse the same callable value constructor and function implementation.)
@@ -234,6 +257,6 @@ A macro's `definition-ns` parameter is a namespace. If the macro needs to instal
 
 A macro's `my-stx-details` parameter is a collection of source location information. There's no direct way to deconstruct this value, but it conveys information about this macro invocation, so the macro can use it to receive attribution for any `stx` values it creates.
 
-(TODO: Figure out what the format of source location information actually is. For now, this is sort of just an unspecified area, but at least a language implementation can use this to hold filenames and line numbers in practice. An implementation should be able to treat this as a completely empty data structure; it's not needed for any variable scoping purposes.)
+(**TODO**: Figure out what the format of source location information actually is. For now, this is sort of just an unspecified area, but at least a language implementation can use this to hold filenames and line numbers in practice. An implementation should be able to treat this as a completely empty data structure; it's not needed for any variable scoping purposes.)
 
 A macro's `args` parameter is a list of `(stx stx-details s-expr)` values. The list is built out of `(cons car cdr)` and `(nil)` values.
