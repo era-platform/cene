@@ -2794,36 +2794,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "ns-get-name", function ( name ) {
-            return stcFnPure( function ( ns ) {
-                if ( !(name instanceof StcForeign
-                    && name.purpose === "name") )
-                    throw new Error();
-                
-                if ( !(ns instanceof StcForeign
-                    && ns.purpose === "ns") )
-                    throw new Error();
-                
-                return new StcForeign( "ns",
-                    stcNsGet( name.foreignVal, ns.foreignVal ) );
-            } );
-        } );
-        
-        fun( "ns-get-string", function ( string ) {
-            return stcFnPure( function ( ns ) {
-                var stringParsed = parseString( string );
-                
-                if ( !(ns instanceof StcForeign
-                    && ns.purpose === "ns") )
-                    throw new Error();
-                
-                return new StcForeign( "ns",
-                    stcNsGet( stringParsed, ns.foreignVal ) );
-            } );
-        } );
-        
-        // TODO: Document this somewhere. Deprecate `ns-get-name` and
-        // `ns-get-string` in favor of this.
+        // TODO: Document this somewhere.
         fun( "procure-sub-ns", function ( cmp ) {
             return stcFnPure( function ( key ) {
                 return new StcFn( function ( ns ) {
@@ -2834,61 +2805,20 @@ function usingDefinitionNs( macroDefNs ) {
                         if ( stcNope.tags( valid ) )
                             throw new Error();
                         
-                        return new StcForeign( "ns",
-                            stcNsGet( key.toName(), ns.foreignVal ) );
+                        return macLookupRet(
+                            new StcForeign( "ns",
+                                stcNsGet( key.toName(),
+                                    ns.foreignVal ) ) );
                     } );
                 } );
             } );
         } );
         
-        fun( "ns-shadow-name", function ( name ) {
-            return stcFnPure( function ( subNs ) {
-                return stcFnPure( function ( ns ) {
-                    if ( !(name instanceof StcForeign
-                        && name.purpose === "name") )
-                        throw new Error();
-                    
-                    if ( !(subNs instanceof StcForeign
-                        && subNs.purpose === "ns") )
-                        throw new Error();
-                    
-                    if ( !(ns instanceof StcForeign
-                        && ns.purpose === "ns") )
-                        throw new Error();
-                    
-                    return new StcForeign( "ns",
-                        stcNsShadow( name.foreignVal,
-                            subNs.foreignVal, ns.foreignVal ) );
-                } );
-            } );
-        } );
-        
-        fun( "ns-shadow-string", function ( string ) {
-            return stcFnPure( function ( subNs ) {
-                return stcFnPure( function ( ns ) {
-                    var stringParsed = parseString( string );
-                    
-                    if ( !(subNs instanceof StcForeign
-                        && subNs.purpose === "ns") )
-                        throw new Error();
-                    
-                    if ( !(ns instanceof StcForeign
-                        && ns.purpose === "ns") )
-                        throw new Error();
-                    
-                    return new StcForeign( "ns",
-                        stcNsShadow( stringParsed,
-                            subNs.foreignVal, ns.foreignVal ) );
-                } );
-            } );
-        } );
-        
-        // TODO: Document this somewhere. Deprecate `ns-shadow-name`
-        // and `ns-shadow-string` in favor of this.
+        // TODO: Document this somewhere.
         fun( "shadow-procure-sub-ns", function ( cmp ) {
             return stcFnPure( function ( key ) {
                 return stcFnPure( function ( subNs ) {
-                    return stcFnPure( function ( ns ) {
+                    return new StcFn( function ( ns ) {
                         return macLookupThen(
                             cmp.cmpHas( macroDefNs, key ),
                             function ( valid ) {
@@ -2904,9 +2834,9 @@ function usingDefinitionNs( macroDefNs ) {
                                 && ns.purpose === "ns") )
                                 throw new Error();
                             
-                            return new StcForeign( "ns",
-                                stcNsShadow( key.toName(),
-                                    subNs.foreignVal, ns.foreignVal ) );
+                            return macLookupRet(
+                                new StcForeign( "ns",
+                                    stcNsShadow( key.toName(), subNs.foreignVal, ns.foreignVal ) ) );
                         } );
                     } );
                 } );
