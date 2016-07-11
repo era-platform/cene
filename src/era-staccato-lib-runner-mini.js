@@ -232,12 +232,11 @@ function stcTypeArr(
         return tupleTag;
     };
     result.tags = function ( x ) {
-        return x.tupleTag === tupleTag;
+        return x instanceof Stc && x.tupleTag === tupleTag;
     };
     result.getProj = function ( stc, projStringyName ) {
-        if ( !(stc instanceof Stc) )
-            throw new Error();
-        if ( stc.tupleTag !== tupleTag )
+        if ( !(stc instanceof Stc
+            && stc.tupleTag === tupleTag) )
             throw new Error();
         var i = projNamesToSortedIndices[ "|" + projStringyName ];
         if ( i === void 0 )
@@ -637,8 +636,9 @@ StcCmpGiveUp.prototype.pretty = function () {
     return "(cmp-give-up)";
 };
 function StcCmpStruct( expectedTupleTag, projCmps ) {
-    // NOTE: We don't name this field `tupleTag` because that would
-    // complicate the usual "x.tupleTag === y" tests we do.
+    // NOTE: We originally didn't name this field `tupleTag` because
+    // we were doing some naive `x.tupleTag === y` checks. We might as
+    // well leave it this way to avoid confusion.
     this.expectedTupleTag = expectedTupleTag;
     this.projCmps = projCmps;
 }
@@ -650,8 +650,8 @@ StcCmpStruct.prototype.cmp = function ( definitionNs, a, b ) {
     var self = this;
     
     var incomparable = stcIncomparable( definitionNs,
-        a.tupleTag === self.expectedTupleTag,
-        b.tupleTag === self.expectedTupleTag );
+        a instanceof Stc && a.tupleTag === self.expectedTupleTag,
+        b instanceof Stc && b.tupleTag === self.expectedTupleTag );
     if ( incomparable !== null )
         return macLookupRet( incomparable );
     
@@ -723,7 +723,7 @@ StcCmpStruct.prototype.cmpHas = function ( definitionNs, x ) {
     var stcYep = stcType( definitionNs, "yep", "val" );
     var stcNope = stcType( definitionNs, "nope", "val" );
     
-    if ( x.tupleTag !== self.expectedTupleTag )
+    if ( !(x instanceof Stc && x.tupleTag === self.expectedTupleTag) )
         return macLookupRet( stcNope.ofNow( stcNil.ofNow() ) );
     
     var n = self.projCmps.length;
@@ -1702,7 +1702,8 @@ function usingDefinitionNs( macroDefNs ) {
                 function ( rawMode, processedTail ) {
             
             return then( rawMode, "if ( " +
-                "stcLocal_matchSubject.tupleTag === " +
+                "stcLocal_matchSubject instanceof Stc " +
+                "&& stcLocal_matchSubject.tupleTag === " +
                     jsStr( pattern.type.getTupleTag() ) + " " +
             ") return (function () { " +
                 arrMap( pattern.type.sortedProjNames,
@@ -1786,8 +1787,10 @@ function usingDefinitionNs( macroDefNs ) {
                 "macLookupThen( " + expandedSubject + ", " +
                     "function ( stcLocal_matchSubject ) { " +
                     
-                    "if ( stcLocal_matchSubject.tupleTag === " +
-                        jsStr( pattern.type.getTupleTag() ) + " " +
+                    "if ( stcLocal_matchSubject instanceof Stc " +
+                        "&& stcLocal_matchSubject.tupleTag === " +
+                            jsStr( pattern.type.getTupleTag() ) +
+                        " " +
                     ") return (function () { " +
                         arrMap( pattern.type.sortedProjNames,
                             function ( entry, i ) {
@@ -2197,8 +2200,9 @@ function usingDefinitionNs( macroDefNs ) {
                         "macLookupThen( " + expandedBody + ", " +
                             "function ( stcLocal_body ) {\n" +
                         "    \n" +
-                        "    return stcLocal_body.tupleTag === " +
-                                jsStr( type.getTupleTag() ) + " ? " +
+                        "    return stcLocal_body instanceof Stc " +
+                                "&& stcLocal_body.tupleTag === " +
+                                    jsStr( type.getTupleTag() ) + " ? " +
                                 stcYep.of( stcNil.of() ) + " : " +
                                 stcNope.of( stcNil.of() ) + ";\n" +
                         "} )" ) );
