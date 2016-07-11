@@ -1256,7 +1256,7 @@ function runTopLevelMacLookupsSync( originalThreads ) {
             runPuts( rawMode );
             arrEach( rawMode.defer, function ( thread ) {
                 addMacroThread( function ( rawMode ) {
-                    return macLookupThen( thread( rawMode ),
+                    return macLookupThen( thread(),
                         function ( effects ) {
                         
                         return currentlyMode( rawMode, function () {
@@ -1902,31 +1902,25 @@ function usingDefinitionNs( macroDefNs ) {
         
         collectPut( rawMode,
             getMacroFunctionNamespace( definitionNs, name ),
-            stcFnPure( function ( mode ) {
-                return stcFnPure( function ( uniqueNs ) {
-                    return stcFnPure( function ( definitionNs ) {
-                        return stcFnPure( function ( myStxDetails ) {
-                            return stcFnPure( function ( body ) {
-                                return new StcFn( function ( then ) {
-                                    if ( !(mode instanceof StcForeign
-                                        && mode.purpose === "mode"
-                                        && mode.foreignVal.current
-                                        && mode.foreignVal.type === "macro") )
-                                        throw new Error();
-                                    if ( !(uniqueNs instanceof StcForeign
-                                        && uniqueNs.purpose === "ns") )
-                                        throw new Error();
-                                    if ( !(definitionNs instanceof StcForeign
-                                        && definitionNs.purpose === "ns") )
-                                        throw new Error();
-                                    
-                                    return macroFunctionImpl( {
-                                        definitionNs: definitionNs.foreignVal,
-                                        uniqueNs: uniqueNs.foreignVal
-                                    }, mode.foreignVal, myStxDetails, body, function ( code ) {
-                                        return then.callStc( macroDefNs,
-                                            new StcForeign( "compiled-code", code ) );
-                                    } );
+            stcFnPure( function ( uniqueNs ) {
+                return stcFnPure( function ( definitionNs ) {
+                    return stcFnPure( function ( myStxDetails ) {
+                        return stcFnPure( function ( body ) {
+                            return new StcFn( function ( then ) {
+                                if ( !(uniqueNs instanceof StcForeign
+                                    && uniqueNs.purpose === "ns") )
+                                    throw new Error();
+                                if ( !(definitionNs instanceof
+                                        StcForeign
+                                    && definitionNs.purpose === "ns") )
+                                    throw new Error();
+                                
+                                return macroFunctionImpl( {
+                                    definitionNs: definitionNs.foreignVal,
+                                    uniqueNs: uniqueNs.foreignVal
+                                }, myStxDetails, body, function ( code ) {
+                                    return then.callStc( macroDefNs,
+                                        new StcForeign( "compiled-code", code ) );
                                 } );
                             } );
                         } );
@@ -1938,11 +1932,10 @@ function usingDefinitionNs( macroDefNs ) {
         definitionNs, rawMode, name, macroFunctionImpl ) {
         
         stcAddMacro( definitionNs, rawMode, name,
-            function ( nss, rawMode, myStxDetails, body, then ) {
+            function ( nss, myStxDetails, body, then ) {
             
             return macLookupRet(
-                macroFunctionImpl( nss, rawMode,
-                    myStxDetails, body, then ) );
+                macroFunctionImpl( nss, myStxDetails, body, then ) );
         } );
     }
     
@@ -1987,9 +1980,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         }
         
-        mac( "def-type",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "def-type", function ( nss, myStxDetails, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2016,9 +2007,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        mac( "defn",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "defn", function ( nss, myStxDetails, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2059,9 +2048,7 @@ function usingDefinitionNs( macroDefNs ) {
         
         // TODO: Write documentation for this in docs.md and/or
         // cene-design-goals.txt.
-        mac( "def-macro",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "def-macro", function ( nss, myStxDetails, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2100,9 +2087,7 @@ function usingDefinitionNs( macroDefNs ) {
         //
         // TODO: Make this expand multiple expressions concurrently.
         //
-        mac( "test",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "test", function ( nss, myStxDetails, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2153,9 +2138,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        mac( "case",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "case", function ( nss, myStxDetails, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             return new StcForeign( "effects", function ( rawMode ) {
@@ -2166,9 +2149,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        mac( "caselet",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "caselet", function ( nss, myStxDetails, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2186,9 +2167,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        mac( "cast",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "cast", function ( nss, myStxDetails, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             return new StcForeign( "effects", function ( rawMode ) {
@@ -2199,9 +2178,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        mac( "isa",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "isa", function ( nss, myStxDetails, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2243,9 +2220,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        mac( "proj1",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "proj1", function ( nss, myStxDetails, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2285,9 +2260,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        mac( "c",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "c", function ( nss, myStxDetails, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             
@@ -2315,9 +2288,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        mac( "c-new",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "c-new", function ( nss, myStxDetails, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             var tupleName =
@@ -2365,9 +2336,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         }
         
-        mac( "err",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "err", function ( nss, myStxDetails, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             if ( stcCons.getProj( body, "cdr" ).tupleTag ===
@@ -2383,9 +2352,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        mac( "str",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "str", function ( nss, myStxDetails, body, then ) {
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
             if ( stcCons.getProj( body, "cdr" ).tupleTag ===
@@ -2405,9 +2372,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        mac( "fn",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "fn", function ( nss, myStxDetails, body, then ) {
             return new StcForeign( "effects", function ( rawMode ) {
                 return processFn( nss, rawMode, body,
                     function ( rawMode, processedFn ) {
@@ -2418,9 +2383,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        mac( "let",
-            function ( nss, rawMode, myStxDetails, body, then ) {
-            
+        mac( "let", function ( nss, myStxDetails, body, then ) {
             return new StcForeign( "effects", function ( rawMode ) {
                 return loop(
                     rawMode, 0, body, nssGet( nss, "bindings" ), "",
@@ -2494,7 +2457,7 @@ function usingDefinitionNs( macroDefNs ) {
         // concurrently.
         // TODO: Add documentation of this somewhere.
         effectfulMac( "cmp-struct",
-            function ( nss, rawMode, myStxDetails, body, then ) {
+            function ( nss, myStxDetails, body, then ) {
             
             if ( body.tupleTag !== stcCons.getTupleTag() )
                 throw new Error();
@@ -3012,16 +2975,19 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Document this in docs.md and/or
-        // cene-design-goals.txt. It's a (later/fn mode ...) monadic
-        // side effect that runs the inner effects in a future mode.
-        // This has two purposes: Multiples of these can be concurrent
-        // with each other, and their errors will not retroactively
+        // cene-design-goals.txt. It's a (later ...) monadic side
+        // effect that runs the inner effects in a future mode. This
+        // has two purposes: Multiples of these can be concurrent with
+        // each other, and their errors will not retroactively
         // invalidate effects from the current mode.
-        fun( "later", function ( body ) {
+        fun( "later", function ( effects ) {
+            if ( !(effects instanceof StcForeign
+                && effects.purpose === "effects") )
+                throw new Error();
+            
             return new StcForeign( "effects", function ( rawMode ) {
-                collectDefer( rawMode, function ( rawMode ) {
-                    return body.callStc( macroDefNs,
-                        new StcForeign( "mode", rawMode ) );
+                collectDefer( rawMode, function () {
+                    return macLookupRet( effects );
                 } );
                 return macLookupRet( stcNil.ofNow() );
             } );
@@ -3035,48 +3001,48 @@ function usingDefinitionNs( macroDefNs ) {
             return stcNil.ofNow();
         } );
         
-        fun( "compile-expression", function ( mode ) {
-            return stcFnPure( function ( uniqueNs ) {
-                return stcFnPure( function ( definitionNs ) {
-                    return stcFnPure( function ( stx ) {
-                        return stcFnPure( function ( outNs ) {
-                            if ( !(mode instanceof StcForeign
-                                && mode.purpose === "mode"
-                                && mode.foreignVal.current
-                                && mode.foreignVal.type === "macro") )
+        fun( "compile-expression", function ( uniqueNs ) {
+            return stcFnPure( function ( definitionNs ) {
+                return stcFnPure( function ( stx ) {
+                    return stcFnPure( function ( outNs ) {
+                        if ( !(uniqueNs instanceof StcForeign
+                            && uniqueNs.purpose === "ns") )
+                            throw new Error();
+                        
+                        if ( !(definitionNs instanceof StcForeign
+                            && definitionNs.purpose === "ns") )
+                            throw new Error();
+                        
+                        if ( !(outNs instanceof StcForeign
+                            && outNs.purpose === "ns") )
+                            throw new Error();
+                        
+                        return new StcForeign( "effects",
+                            function ( rawMode ) {
+                            
+                            if ( !(rawMode.current
+                                && rawMode.type === "macro") )
                                 throw new Error();
                             
-                            if ( !(uniqueNs instanceof StcForeign
-                                && uniqueNs.purpose === "ns") )
-                                throw new Error();
-                            
-                            if ( !(definitionNs instanceof StcForeign
-                                && definitionNs.purpose === "ns") )
-                                throw new Error();
-                            
-                            if ( !(outNs instanceof StcForeign
-                                && outNs.purpose === "ns") )
-                                throw new Error();
-                            
-                            return new StcForeign( "effects",
-                                function ( rawMode ) {
+                            return macroexpand( {
+                                definitionNs: definitionNs.foreignVal,
+                                uniqueNs: uniqueNs.foreignVal
+                            }, rawMode, stx, outNs.foreignVal,
+                                function ( rawMode, result ) {
                                 
-                                // NOTE: This uses object identity.
-                                if ( mode.foreignVal !== rawMode )
-                                    throw new Error();
-                                
-                                return macroexpand( {
-                                    definitionNs: definitionNs.foreignVal,
-                                    uniqueNs: uniqueNs.foreignVal
-                                }, rawMode, stx, outNs.foreignVal,
-                                    function ( rawMode, result ) {
-                                    
-                                    return macLookupRet( null );
-                                } );
+                                return macLookupRet( null );
                             } );
                         } );
                     } );
                 } );
+            } );
+        } );
+        
+        fun( "get-mode", function ( body ) {
+            return new StcForeign( "effects", function ( rawMode ) {
+                return macLookupThenRunEffects( rawMode,
+                    body.callStc( macroDefNs,
+                        new StcForeign( "mode", rawMode ) ) );
             } );
         } );
         
@@ -3097,7 +3063,7 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function macroexpand( nss, rawMode, locatedExpr, outNs, then ) {
-        collectDefer( rawMode, function ( rawMode ) {
+        collectDefer( rawMode, function () {
             var identifier = stxToMaybeName( locatedExpr );
             if ( identifier !== null )
                 return macLookupRet( new StcForeign( "effects",
@@ -3139,7 +3105,6 @@ function usingDefinitionNs( macroDefNs ) {
                 function ( macroFunction ) {
             
             return callStcMulti( macroFunction,
-                new StcForeign( "mode", rawMode ),
                 new StcForeign( "ns", nss.uniqueNs ),
                 new StcForeign( "ns", nss.definitionNs ),
                 stcTrivialStxDetails(),
@@ -3155,7 +3120,7 @@ function usingDefinitionNs( macroDefNs ) {
             
             } );
         } );
-        collectDefer( rawMode, function ( rawMode ) {
+        collectDefer( rawMode, function () {
             return macLookupThen(
                 macLookupGet( outNs.name, function () {
                     if ( locatedExpr.tupleTag !==
@@ -3207,7 +3172,7 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Make this expand multiple subexpressions
         // concurrently.
         stcAddPureMacro( definitionNs, rawMode, tupleName,
-            function ( nss, rawMode, myStxDetails, body, then ) {
+            function ( nss, myStxDetails, body, then ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
                 return loop( rawMode, 0, null, body,

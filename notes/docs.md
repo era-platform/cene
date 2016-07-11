@@ -160,21 +160,18 @@ Returns `(nil)`. The given modality must be the current one. If it isn't, this c
 
 -
 ```
-(defn compile-expression
-  mode unique-ns definition-ns stx out-ns ...)
+(defn compile-expression unique-ns definition-ns stx out-ns ...)
 ```
-Constructs a monad that, if invoked, macroexpands the given `stx` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce a desugarable Staccato expression. If the expression is successfully computed, it is defined directly in the given `out-ns`. The given modality must be the current one.
+Constructs a monad that, if invoked, macroexpands the given `stx` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce a desugarable Staccato expression. If the expression is successfully computed, it is defined directly in the given `out-ns`.
 
 -
 ```
-(defn get-current-modality body ...)
+(defn get-mode body ...)
 body (fn mode ...)
 ```
-(**TODO**: Implement this.)
-
-(**TODO**: Redesign all our effectful primitives, such as `compile-expression`, so that they don't take a `mode` parameter.)
-
 Constructs a monad. If invoked, it calls the callback in the same tick with the current modality, and it performs the callback's monadic side effects.
+
+A modality must be passed to certain effectful primitives as a way to give the effects something to be deterministic by. (The terms "mode" and "modality" might be idiosyncrasies of this codebase. A more standard term is "world-passing style.")
 
 -
 
@@ -183,16 +180,16 @@ Constructs a monad. If invoked, it calls the callback in the same tick with the 
 -
 ```
 (defn new-promise then ...)
-then (fn mode promise ...)
+then (fn promise ...)
 ```
-Constructs a monad. If invoked, it calls the callback in a later tick with the then-current modality and a fresh promise value, and it performs the callback's monadic side effects. The promise is not yet fulfilled.
+Constructs a monad. If invoked, it calls the callback in a later tick with a fresh promise value, and it performs the callback's monadic side effects. The promise is not yet fulfilled.
 
 -
 ```
 (defn promise-fulfillment promise then ...)
-then (fn mode fulfillment ...)
+then (fn fulfillment ...)
 ```
-Constructs a monad. If invoked, it calls the callback in a later tick with the then-current modality and the promise's fulfillment value, and it performs the callback's monadic side effects. If the promise is never actually fulfilled, this callback will not be called.
+Constructs a monad. If invoked, it calls the callback in a later tick with the promise's fulfillment value, and it performs the callback's monadic side effects. If the promise is never actually fulfilled, this callback will not be called.
 
 -
 ```
@@ -274,9 +271,7 @@ The usual definition forms generate various definitions (plus potential intermed
 
 ## Parameters to a macro
 
-When a macro is expanded, its implementation function is called with several arguments: `mode unique-ns definition-ns my-stx-details args then`
-
-`mode`: The current modality. A modality must be passed to certain effectful primitives as a way to give the effects something to be deterministic by. (The terms "mode" and "modality" might be idiosyncrasies of this codebase. A more standard term is "world-passing style.")
+When a macro is expanded, its implementation function is called with several arguments: `unique-ns definition-ns my-stx-details args then`
 
 `unique-ns`: A namespace that is supposedly used exclusively for this macroexpansion. It's useful in the way that gensyms are typically useful in other macro-capable languages, but the uniqueness is achieved by playing along: If the macro compiles more than one subexpression, each subexpression should be given a `unique-ns` derived in different ways from each other.
 

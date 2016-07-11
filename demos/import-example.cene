@@ -19,63 +19,44 @@
 \= read from demos/import-example-src/import-example-src.cene.
 
 
-(def-macro import
-  mode unique-ns definition-ns my-stx-details args then
-  
-  (let s (fn it /stx my-stx-details it)
-  /let mac
-    (fn str rest
-      (cons (c s /foreign/macro-name mode definition-ns str) rest))
+(def-macro import unique-ns definition-ns my-stx-details args then
+  (basic-nil-macro unique-ns definition-ns my-stx-details then
+  /fn unique-ns s mac
+  /get-mode/fn mode
   /cast
     (foldr
       (read-all-force/input-path-blob-utf-8 mode
       /input-path-get (cli-input-directory mode)
         str.\;qq[import-example-src.cene])
-      (folding unique-ns /fn mode /no-effects/nil)
+      (folding unique-ns /no-effects/nil)
     /fn expr state
       (cast state folding unique-ns launch-rest
         err.\;qq[Internal error]
       /folding (ns-get-string str.rest unique-ns)
-      /fn mode
-      /join-effects (c launch-rest mode)
+      /join-effects launch-rest
       /let first-ns (ns-get-string str.first unique-ns)
-      /compile-expression mode
+      /compile-expression
         (ns-get-string str.unique first-ns)
         definition-ns
         expr
         (ns-get-string str.outbox first-ns)))
     folding unique-ns launch-rest
     err.\;qq[Internal error]
-  /join-effects (c launch-rest mode)
-  /let outbox (ns-get-string str.outbox unique-ns)
-  /join-effects (later/fn mode /c then /procure-defined mode outbox)
-  /compile-expression mode
-    (ns-get-string str.unique unique-ns)
-    definition-ns
-    (c s /c mac str.nil /nil)
-    outbox))
+    
+    launch-rest))
 
 (import)
 
 \= Now that we've imported that file, the (hello-world -) function is
 \= available for use.
 
-(def-macro go mode unique-ns definition-ns my-stx-details args then
-  (let s (fn it /stx my-stx-details it)
-  /let mac
-    (fn str rest
-      (cons (c s /foreign/macro-name mode definition-ns str) rest))
-  /let outbox (ns-get-string str.outbox unique-ns)
-  /join-effects (later/fn mode /c then /procure-defined mode outbox)
-  /join-effects
-    (output-path-blob-utf-8
-      (output-path-get (cli-output-directory mode)
-        str.\;qq[hello-world.txt])
-    /hello-world/nil)
-  /compile-expression mode
-    (ns-get-string str.unique unique-ns)
-    definition-ns
-    (c s /c mac str.nil /nil)
-    outbox))
+(def-macro go unique-ns definition-ns my-stx-details args then
+  (basic-nil-macro unique-ns definition-ns my-stx-details then
+  /fn unique-ns s mac
+  /get-mode/fn mode
+  /output-path-blob-utf-8
+    (output-path-get (cli-output-directory mode)
+      str.\;qq[hello-world.txt])
+  /hello-world/nil))
 
 (go)
