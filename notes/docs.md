@@ -175,28 +175,6 @@ A modality must be passed to certain effectful primitives as a way to give the e
 
 -
 
-(**TODO**: Don't actually implement the below promise operations. Use namespaces as promises; we can already do this for macros now. Delete these designs once we've settled on some more details about how namespaces, tables, LVars, and lifelines work. (See roadmap.txt.))
-
--
-```
-(defn new-promise then ...)
-then (fn promise ...)
-```
-Constructs a monad. If invoked, it calls the callback in a later tick with a fresh promise value, and it performs the callback's monadic side effects. The promise is not yet fulfilled.
-
--
-```
-(defn promise-fulfillment promise then ...)
-then (fn fulfillment ...)
-```
-Constructs a monad. If invoked, it calls the callback in a later tick with the promise's fulfillment value, and it performs the callback's monadic side effects. If the promise is never actually fulfilled, this callback will not be called.
-
--
-```
-(defn promise-put-fulfillment promise fulfillment ...)
-```
-Constructs a monad. If invoked, it installs the given value as the fulfillment value of the promise, or it causes an error if a fulfillment value has already been installed for the promise. (The meaning of "already" may depend on how the current modality works. For modalities that are temporal in the concrete sense of a wall clock, it has its usual meaning.)
-
 
 
 ## Layout of the definition namespace
