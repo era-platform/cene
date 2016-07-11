@@ -95,12 +95,12 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     
     function eachConsList( list, body ) {
         for ( var e = list;
-            e.tupleTag === stcCons.getTupleTag();
+            stcCons.tags( e );
             e = stcCons.getProj( e, "cdr" )
         ) {
             body( stcCons.getProj( e, "car" ) );
         }
-        if ( e.tupleTag !== stcNil.getTupleTag() )
+        if ( !stcNil.tags( e ) )
             throw new Error();
     }
     function mapConsListToArr( list, func ) {
@@ -252,7 +252,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         }
         
         function parseString( string ) {
-            if ( string.tupleTag !== stcString.getTupleTag() )
+            if ( !stcString.tags( string ) )
                 throw new Error();
             var stringInternal = stcString.getProj( string, "val" );
             if ( !(stringInternal instanceof StcForeign
@@ -268,14 +268,12 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                     toValidUnicode( string ) ) );
         }
         function parsePossiblyEncapsulatedString( string ) {
-            if ( string.tupleTag === stcString.getTupleTag() ) {
+            if ( stcString.tags( string ) ) {
                 var result = parseString( string );
                 return function () {
                     return result;
                 };
-            } else if ( string.tupleTag ===
-                stcEncapsulatedString.getTupleTag() ) {
-                
+            } else if ( stcEncapsulatedString.tags( string ) ) {
                 var stringInternal =
                     stcEncapsulatedString.getProj( string, "val" );
                 if ( !(stringInternal instanceof StcForeign
@@ -497,8 +495,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                         && mode.foreignVal.type === "macro") )
                         throw new Error();
                     
-                    if ( constructorTag.tupleTag !==
-                        stcName.getTupleTag() )
+                    if ( !stcName.tags( constructorTag ) )
                         throw new Error();
                     var constructorTagInternal =
                         stcName.getProj( constructorTag, "val" );
