@@ -48,7 +48,7 @@ Names are somewhat useful for access control, and they're opaque external tokens
 
 Macros would be less expressive if they had to treat names as uncomparable values, and what benefit would that bring? The macros would still have a range of expression close to that anyway: A macro could still dive into one of its syntax parameters and extract names from there into its own bag of tricks, so names wouldn't really be secrets between macros. A macro could still reconstruct a syntax parameter while inserting two occurrences of any name it likes, just to ensure that the two occurrences are equal. A macro could still do a hackish equality assertion by defining something by one name and looking up the definition by another. A macro could still do a hackish *inequality* assertion by installing two definitions under the (supposedly) two names.
 
-If macros couldn't check names for equality, one thing a macro couldn't do... is to associate a variable binding site with a variable usage site. For instance, it couldn't act as a Staccato desugarer. It couldn't act as a compiler of some other DSL, unless that DSL completely forewent the namespace system and just used string names everywhere. So people who have adventurous new syntaxes to try would want to build new namespace systems for them, and this macro system would have complicated the Staccato language for no purpose that couldn't have been accomplished with an exhaustive suite of built-in syntaxes.
+If macros couldn't check names for equality, one thing a macro couldn't do... is to associate a variable binding site with a variable usage site. It couldn't act as a compiler of some other DSL, unless that DSL completely forewent the namespace system and just used string names everywhere. So people who have adventurous new syntaxes to try would want to build new namespace systems for them, and this macro system would have complicated the Cene language for no purpose that couldn't have been accomplished with an exhaustive suite of built-in syntaxes.
 
 (**TODO**: Do nominal types already support an equality check? James Cheney's "Simple Nominal Type Theory" presents systems with and without equality checks. If this is very common, maybe we can rationalize this decision in terms of standard practice too.)
 
@@ -132,13 +132,13 @@ Uses the given namespace to obtain a first-class name value. The given modality 
 ```
 (defn procure-defined mode ns ...)
 ```
-Blocks until the given namespace has a defined Staccato value and then returns it. The given modality must be the current one.
+Blocks until the given namespace has a defined value and then returns it. The given modality must be the current one.
 
 -
 ```
 (defn procure-put-defined ns value ...)
 ```
-Constructs a monad that, if invoked, installs a definition so that the given namespace has a defined Staccato value, namely the given one. If the definition cannot be installed, the program is in error; other computations that depend on the defined value may or may not be canceled or retroactively voided.
+Constructs a monad that, if invoked, installs a definition so that the given namespace has a defined value, namely the given one. If the definition cannot be installed, the program is in error; other computations that depend on the defined value may or may not be canceled or retroactively voided.
 
 -
 ```
@@ -162,7 +162,7 @@ Returns `(nil)`. The given modality must be the current one. If it isn't, this c
 ```
 (defn compile-expression unique-ns definition-ns stx out-ns ...)
 ```
-Constructs a monad that, if invoked, macroexpands the given `stx` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce a desugarable Staccato expression. If the expression is successfully computed, it is defined directly in the given `out-ns`.
+Constructs a monad that, if invoked, macroexpands the given `stx` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce a fully compiled expression. If the expression is successfully computed, it is defined directly in the given `out-ns`.
 
 -
 ```
@@ -225,7 +225,7 @@ A defined value: A value that can be invoked with the arguments of a macro call,
 
 -
 ```
-./functions/<`make-tuple-tag` result>/staccato
+./functions/<`make-tuple-tag` result>/call
 ```
 A defined value: A value that can be invoked with a value of the specified tuple tag (constructor tag and projection tags) to coerce it into a callable value. Usually, it only takes one or two of these coercions to get to a value the runtime innately knows how to call, e.g. because the value contains fully compiled code in a format the host platform can execute directly.
 

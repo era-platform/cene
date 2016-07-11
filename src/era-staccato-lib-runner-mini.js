@@ -1,17 +1,7 @@
 // era-staccato-lib-runner-mini.js
 // Copyright 2015, 2016 Ross Angle. Released under the MIT License.
 //
-// This is alternative JavaScript code to support running
-// era-staccato-lib.stc. Most of it comes from
-// era-staccato-lib-runner.js.
-//
-// The distinction of this file is that it processes a "mini" version
-// of Staccato, which actually does not have most of the distinctive
-// run time characteristics that make Staccato a worthwhile language.
-// This "mini" Staccato dialect is effectively just for generating
-// JavaScript.
-//
-// See era-staccato.js for more information about what Staccato is.
+// This file implements the main Cene runtime and built-in operators.
 
 
 var stcNextGensymI = 0;
@@ -446,12 +436,12 @@ Stc.prototype.callStc = function ( definitionNs, arg ) {
     if ( func !== void 0 )
         return func( self, arg );
     
-    var staccatoName =
-        stcNsGet( "staccato",
+    var callName =
+        stcNsGet( "call",
             stcNsGet( JSON.parse( self.tupleTag ),
                 stcNsGet( "functions", definitionNs ) ) ).name;
     return macLookupThen(
-        macLookupGet( staccatoName, function () {
+        macLookupGet( callName, function () {
             throw new Error(
                 "No such function definition: " + self.tupleTag );
         } ),
@@ -505,6 +495,14 @@ function StcForeign( purpose, foreignVal ) {
     this.foreignVal = foreignVal;
 }
 StcForeign.prototype.callStc = function ( definitionNs, arg ) {
+    var self = this;
+    
+    if ( self.purpose === "native-definition" )
+        return macLookupRet( new StcFn( function ( argVal ) {
+            var func = self.foreignVal;
+            return func( arg, argVal );
+        } ) );
+    
     throw new Error();
 };
 StcForeign.prototype.cmp = function ( definitionNs, a, b ) {
@@ -1487,7 +1485,7 @@ function addFunctionNativeDefinition(
     defNs, rawMode, tupleTagName, impl ) {
     
     collectPut( rawMode,
-        stcNsGet( "staccato",
+        stcNsGet( "call",
             stcNsGet( tupleTagName,
                 stcNsGet( "functions", defNs ) ) ),
         new StcForeign( "native-definition", impl ) );
