@@ -231,10 +231,12 @@ function stcTypeArr(
     result.getTupleTag = function () {
         return tupleTag;
     };
+    result.tags = function ( x ) {
+        return x instanceof Stc && x.tupleTag === tupleTag;
+    };
     result.getProj = function ( stc, projStringyName ) {
-        if ( !(stc instanceof Stc) )
-            throw new Error();
-        if ( stc.tupleTag !== tupleTag )
+        if ( !(stc instanceof Stc
+            && stc.tupleTag === tupleTag) )
             throw new Error();
         var i = projNamesToSortedIndices[ "|" + projStringyName ];
         if ( i === void 0 )
@@ -384,7 +386,7 @@ function stcCmpCmpables( definitionNs, a, b ) {
             "left-is-comparable", "right-is-comparable" );
     
     function toBoolean( b ) {
-        return b.tupleTag === stcYep.getTupleTag();
+        return stcYep.tags( b );
     }
     
     var aCmp = stcCmpable.getProj( a, "cmp" );
@@ -392,16 +394,13 @@ function stcCmpCmpables( definitionNs, a, b ) {
     return macLookupThen( aCmp.cmpThis( definitionNs, bCmp ),
         function ( cmpResult ) {
         
-        if ( cmpResult.tupleTag === stcYep.getTupleTag()
-            && stcYep.getProj( cmpResult, "val" ).tupleTag ===
-                stcNil.getTupleTag() )
+        if ( stcYep.tags( cmpResult )
+            && stcNil.tags( stcYep.getProj( cmpResult, "val" ) ) )
             return aCmp.cmp( definitionNs,
                 stcCmpable.getProj( a, "val" ),
                 stcCmpable.getProj( b, "val" ) );
         
-        if ( cmpResult.tupleTag ===
-            stcCmpResultIncomparable.getTupleTag() ) {
-            
+        if ( stcCmpResultIncomparable.tags( cmpResult ) ) {
             if ( toBoolean(
                 stcCmpResultIncomparable.getProj( cmpResult,
                     "left-is-comparable" ) ) ) {
@@ -540,21 +539,19 @@ StcCmpDefault.prototype.cmp = function ( definitionNs, a, b ) {
             "left-is-comparable", "right-is-comparable" );
     
     function toBoolean( b ) {
-        return b.tupleTag === stcYep.getTupleTag();
+        return stcYep.tags( b );
     }
     
     return macLookupThen( self.first.cmp( definitionNs, a, b ),
         function ( firstResult ) {
     
-    if ( firstResult.tupleTag !==
-        stcCmpResultIncomparable.getTupleTag() )
+    if ( !stcCmpResultIncomparable.tags( firstResult ) )
         return macLookupRet( firstResult );
     
     return macLookupThen( self.second.cmp( definitionNs, a, b ),
         function ( secondResult ) {
     
-    if ( secondResult.tupleTag ===
-        stcCmpResultIncomparable.getTupleTag()
+    if ( stcCmpResultIncomparable.tags( secondResult )
         && !(
             (toBoolean( stcCmpResultIncomparable.getProj(
                 secondResult, "left-is-comparable" ) )
@@ -589,7 +586,7 @@ StcCmpDefault.prototype.cmpHas = function ( definitionNs, x ) {
     return macLookupThen( self.first.cmpHas( definitionNs, x ),
         function ( firstResult ) {
     
-    if ( firstResult.tupleTag === stcYep.getTupleTag() )
+    if ( stcYep.tags( firstResult ) )
         return macLookupRet( firstResult );
     
     return self.second.cmpHas( definitionNs, x );
@@ -604,7 +601,7 @@ StcCmpDefault.prototype.cmpThis = function ( definitionNs, other ) {
         self.first.cmpThis( definitionNs, other.first ),
         function ( firstResult ) {
         
-        if ( firstResult.tupleTag !== stcNil.getTupleTag() )
+        if ( !stcNil.tags( firstResult ) )
             return macLookupRet( firstResult );
         
         return self.second.cmpThis( definitionNs, other.second );
@@ -639,8 +636,9 @@ StcCmpGiveUp.prototype.pretty = function () {
     return "(cmp-give-up)";
 };
 function StcCmpStruct( expectedTupleTag, projCmps ) {
-    // NOTE: We don't name this field `tupleTag` because that would
-    // complicate the usual "x.tupleTag === y" tests we do.
+    // NOTE: We originally didn't name this field `tupleTag` because
+    // we were doing some naive `x.tupleTag === y` checks. We might as
+    // well leave it this way to avoid confusion.
     this.expectedTupleTag = expectedTupleTag;
     this.projCmps = projCmps;
 }
@@ -652,8 +650,8 @@ StcCmpStruct.prototype.cmp = function ( definitionNs, a, b ) {
     var self = this;
     
     var incomparable = stcIncomparable( definitionNs,
-        a.tupleTag === self.expectedTupleTag,
-        b.tupleTag === self.expectedTupleTag );
+        a instanceof Stc && a.tupleTag === self.expectedTupleTag,
+        b instanceof Stc && b.tupleTag === self.expectedTupleTag );
     if ( incomparable !== null )
         return macLookupRet( incomparable );
     
@@ -664,7 +662,7 @@ StcCmpStruct.prototype.cmp = function ( definitionNs, a, b ) {
             "left-is-comparable", "right-is-comparable" );
     
     function toBoolean( b ) {
-        return b.tupleTag === stcYep.getTupleTag();
+        return stcYep.tags( b );
     }
     
     var n = self.projCmps.length;
@@ -679,14 +677,11 @@ StcCmpStruct.prototype.cmp = function ( definitionNs, a, b ) {
                 b.projNames[ projCmp.i ] ),
             function ( cmpResult ) {
             
-            if ( cmpResult.tupleTag === stcYep.getTupleTag()
-                && stcYep.getProj( cmpResult, "yep" ).tupleTag ===
-                    stcNil.getTupleTag() )
+            if ( stcYep.tags( cmpResult )
+                && stcNil.tags( stcYep.getProj( cmpResult, "yep" ) ) )
                 return loop( i + 1 );
             
-            if ( cmpResult.tupleTag ===
-                stcCmpResultIncomparable.getTupleTag() ) {
-                
+            if ( stcCmpResultIncomparable.tags( cmpResult ) ) {
                 if ( toBoolean(
                     stcCmpResultIncomparable.getProj( cmpResult,
                         "left-is-comparable" ) ) ) {
@@ -728,7 +723,7 @@ StcCmpStruct.prototype.cmpHas = function ( definitionNs, x ) {
     var stcYep = stcType( definitionNs, "yep", "val" );
     var stcNope = stcType( definitionNs, "nope", "val" );
     
-    if ( x.tupleTag !== self.expectedTupleTag )
+    if ( !(x instanceof Stc && x.tupleTag === self.expectedTupleTag) )
         return macLookupRet( stcNope.ofNow( stcNil.ofNow() ) );
     
     var n = self.projCmps.length;
@@ -742,7 +737,7 @@ StcCmpStruct.prototype.cmpHas = function ( definitionNs, x ) {
                 x.projNames[ projCmp.i ] ),
             function ( cmpResult ) {
             
-            if ( cmpResult.tupleTag === stcNope.getTupleTag() )
+            if ( stcNope.tags( cmpResult ) )
                 return macLookupRet( cmpResult );
             return loop( i + 1 );
         } );
@@ -776,7 +771,7 @@ StcCmpStruct.prototype.cmpThis = function ( definitionNs, other ) {
             selfCmp.cmp.cmpThis( definitionNs, otherCmp ),
             function ( cmpResult ) {
             
-            if ( cmpResult.tupleTag !== stcNil.getTupleTag() )
+            if ( !stcNil.tags( cmpResult ) )
                 return macLookupRet( cmpResult );
             return loopOverCmps( i + 1 );
         } );
@@ -956,7 +951,7 @@ StcCmpWithOwnMethod.prototype.cmp = function ( definitionNs, a, b ) {
         return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
     }
     function toBoolean( b ) {
-        return b.tupleTag === stcYep.getTupleTag();
+        return stcYep.tags( b );
     }
     
     var getMethod =
@@ -967,8 +962,8 @@ StcCmpWithOwnMethod.prototype.cmp = function ( definitionNs, a, b ) {
     return macLookupThen( getMethod.stcCall( definitionNs, b ),
         function ( maybeOwnMethodB ) {
     
-    var isYepA = maybeOwnMethodA.tupleTag === stcYep.getTupleTag();
-    var isYepB = maybeOwnMethodB.tupleTag === stcYep.getTupleTag();
+    var isYepA = stcYep.tags( maybeOwnMethodA );
+    var isYepB = stcYep.tags( maybeOwnMethodB );
     var incomparable =
         stcIncomparable( definitionNs, isYepA, isYepB );
     if ( incomparable !== null ) {
@@ -991,14 +986,11 @@ StcCmpWithOwnMethod.prototype.cmp = function ( definitionNs, a, b ) {
         new StcCmpCmp().cmp( definitionNs, methodA, methodB ),
         function ( methodCmpResult ) {
     
-    if ( methodCmpResult.tupleTag === stcYep.getTupleTag()
-        && stcYep.getProj( methodCmpResult, "val" ).tupleTag ===
-            stcNil.getTupleTag() )
+    if ( stcYep.tags( methodCmpResult )
+        && stcNil.tags( stcYep.getProj( methodCmpResult, "val" ) ) )
         return methodA.cmp( definitionNs, a, b );
     
-    if ( methodCmpResult.tupleTag ===
-        stcCmpResultIncomparable.getTupleTag() ) {
-        
+    if ( stcCmpResultIncomparable.tags( methodCmpResult ) ) {
         if ( toBoolean(
             stcCmpResultIncomparable.getProj( methodCmpResult,
                 "left-is-comparable" ) ) ) {
@@ -1047,9 +1039,9 @@ StcCmpWithOwnMethod.prototype.cmpHas = function ( definitionNs, x ) {
             ).stcCall( definitionNs, x ),
         function ( maybeOwnMethod ) {
     
-    if ( maybeOwnMethod.tupleTag === stcNil.getTupleTag() )
+    if ( stcNil.tags( maybeOwnMethod ) )
         return macLookupRet( fromBoolean( false ) );
-    else if ( maybeOwnMethod.tupleTag === stcYep.getTupleTag() )
+    else if ( stcYep.tags( maybeOwnMethod ) )
         return stcYep.getProj( ownMethod, "val"
             ).cmpHas( definitionNs, x );
     else
@@ -1556,7 +1548,7 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function parseString( string ) {
-        if ( string.tupleTag !== stcString.getTupleTag() )
+        if ( !stcString.tags( string ) )
             throw new Error();
         var stringInternal = stcString.getProj( string, "val" );
         if ( !(stringInternal instanceof StcForeign
@@ -1566,19 +1558,19 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function stxToMaybeName( stx ) {
-        if ( stx.tupleTag !== stcStx.getTupleTag() )
+        if ( !stcStx.tags( stx ) )
             return null;
         var sExpr = stcStx.getProj( stx, "s-expr" );
-        if ( sExpr.tupleTag === stcForeign.getTupleTag() ) {
+        if ( stcForeign.tags( sExpr ) ) {
             var name = stcForeign.getProj( sExpr, "val" );
-            if ( name.tupleTag !== stcName.getTupleTag() )
+            if ( !stcName.tags( name ) )
                 throw new Error();
             var nameInternal = stcName.getProj( name, "val" );
             if ( !(nameInternal instanceof StcForeign
                 && nameInternal.purpose === "name") )
                 throw new Error();
             return nameInternal.foreignVal;
-        } else if ( sExpr.tupleTag === stcIstringNil.getTupleTag() ) {
+        } else if ( stcIstringNil.tags( sExpr ) ) {
             return parseString(
                 stcIstringNil.getProj( sExpr, "string" ) );
         } else {
@@ -1589,7 +1581,7 @@ function usingDefinitionNs( macroDefNs ) {
     function stcConsListToArray( stc ) {
         var result = [];
         for ( var currentStc = stc;
-            currentStc.tupleTag === stcCons.getTupleTag();
+            stcCons.tags( currentStc );
             currentStc = stcCons.getProj( currentStc, "cdr" )
         ) {
             result.push( stcCons.getProj( currentStc, "car" ) );
@@ -1623,8 +1615,7 @@ function usingDefinitionNs( macroDefNs ) {
                     arrMap( stcConsListToArray( projList ),
                         function ( projName ) {
                         
-                        if ( projName.tupleTag !==
-                            stcName.getTupleTag() )
+                        if ( !stcName.tags( projName ) )
                             throw new Error();
                         var projNameInternal =
                             stcName.getProj( projName, "val" );
@@ -1637,7 +1628,7 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function extractPattern( definitionNs, body ) {
-        if ( body.tupleTag !== stcCons.getTupleTag() )
+        if ( !stcCons.tags( body ) )
             throw new Error();
         var tupleNameExpr = stcCons.getProj( body, "car" );
         var tupleName = stxToMaybeName( tupleNameExpr );
@@ -1654,8 +1645,7 @@ function usingDefinitionNs( macroDefNs ) {
             var localVars = [];
             var n = type.sortedProjNames.length;
             for ( var i = 0; i < n; i++ ) {
-                if ( remainingBody.tupleTag !==
-                    stcCons.getTupleTag() )
+                if ( !stcCons.tags( remainingBody ) )
                     throw new Error();
                 var localVar = stxToMaybeName(
                     stcCons.getProj( remainingBody, "car" ) );
@@ -1679,10 +1669,10 @@ function usingDefinitionNs( macroDefNs ) {
         nss, rawMode, maybeVa, matchSubject, body, then ) {
         
         function processTail( nss, rawMode, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
-            if ( body1.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body1 ) )
                 return macroexpand( nssGet( nss, "unique" ), rawMode,
                     stcCons.getProj( body, "car" ),
                     nssGet( nss, "outbox" ).uniqueNs,
@@ -1696,8 +1686,7 @@ function usingDefinitionNs( macroDefNs ) {
                 extractPattern( nss.definitionNs, body ),
                 function ( pattern ) {
             
-            if ( pattern.remainingBody.tupleTag !==
-                stcCons.getTupleTag() )
+            if ( !stcCons.tags( pattern.remainingBody ) )
                 throw new Error();
             
             var thenNss = nssGet( nss, "then" );
@@ -1713,7 +1702,8 @@ function usingDefinitionNs( macroDefNs ) {
                 function ( rawMode, processedTail ) {
             
             return then( rawMode, "if ( " +
-                "stcLocal_matchSubject.tupleTag === " +
+                "stcLocal_matchSubject instanceof Stc " +
+                "&& stcLocal_matchSubject.tupleTag === " +
                     jsStr( pattern.type.getTupleTag() ) + " " +
             ") return (function () { " +
                 arrMap( pattern.type.sortedProjNames,
@@ -1766,15 +1756,14 @@ function usingDefinitionNs( macroDefNs ) {
             extractPattern( nss.definitionNs, body ),
             function ( pattern ) {
         
-        if ( pattern.remainingBody.tupleTag !==
-            stcCons.getTupleTag() )
+        if ( !stcCons.tags( pattern.remainingBody ) )
             throw new Error();
         var remainingBody1 =
             stcCons.getProj( pattern.remainingBody, "cdr" );
-        if ( remainingBody1.tupleTag !== stcCons.getTupleTag() )
+        if ( !stcCons.tags( remainingBody1 ) )
             throw new Error();
         var remainingBody2 = stcCons.getProj( remainingBody1, "cdr" );
-        if ( remainingBody2.tupleTag === stcCons.getTupleTag() )
+        if ( stcCons.tags( remainingBody2 ) )
             throw new Error();
         
         var onCastErrNss = nssGet( nss, "on-cast-err" );
@@ -1798,8 +1787,10 @@ function usingDefinitionNs( macroDefNs ) {
                 "macLookupThen( " + expandedSubject + ", " +
                     "function ( stcLocal_matchSubject ) { " +
                     
-                    "if ( stcLocal_matchSubject.tupleTag === " +
-                        jsStr( pattern.type.getTupleTag() ) + " " +
+                    "if ( stcLocal_matchSubject instanceof Stc " +
+                        "&& stcLocal_matchSubject.tupleTag === " +
+                            jsStr( pattern.type.getTupleTag() ) +
+                        " " +
                     ") return (function () { " +
                         arrMap( pattern.type.sortedProjNames,
                             function ( entry, i ) {
@@ -1824,10 +1815,10 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function processFn( nss, rawMode, body, then ) {
-        if ( body.tupleTag !== stcCons.getTupleTag() )
+        if ( !stcCons.tags( body ) )
             throw new Error();
         var body1 = stcCons.getProj( body, "cdr" );
-        if ( body1.tupleTag !== stcCons.getTupleTag() )
+        if ( !stcCons.tags( body1 ) )
             return macroexpand( nssGet( nss, "unique" ), rawMode,
                 stcCons.getProj( body, "car" ),
                 nssGet( nss, "outbox" ).uniqueNs,
@@ -1849,12 +1840,12 @@ function usingDefinitionNs( macroDefNs ) {
     function mapConsListToArr( list, func ) {
         var result = [];
         for ( var e = list;
-            e.tupleTag === stcCons.getTupleTag();
+            stcCons.tags( e );
             e = stcCons.getProj( e, "cdr" )
         ) {
             result.push( func( stcCons.getProj( e, "car" ) ) );
         }
-        if ( e.tupleTag !== stcNil.getTupleTag() )
+        if ( !stcNil.tags( e ) )
             throw new Error();
         return result;
     }
@@ -1870,8 +1861,8 @@ function usingDefinitionNs( macroDefNs ) {
     function macroexpandConsListToArr( nss, rawMode, list, then ) {
         return go( nss, rawMode, list, null );
         function go( currentNss, rawMode, e, revResult ) {
-            if ( e.tupleTag !== stcCons.getTupleTag() ) {
-                if ( e.tupleTag !== stcNil.getTupleTag() )
+            if ( !stcCons.tags( e ) ) {
+                if ( !stcNil.tags( e ) )
                     throw new Error();
                 
                 return then( rawMode, revJsListToArr( revResult ) );
@@ -1981,7 +1972,7 @@ function usingDefinitionNs( macroDefNs ) {
         }
         
         mac( "def-type", function ( nss, myStxDetails, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
             
@@ -2008,10 +1999,10 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "defn", function ( nss, myStxDetails, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
-            if ( body1.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body1 ) )
                 throw new Error();
             
             var name =
@@ -2049,10 +2040,10 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Write documentation for this in docs.md and/or
         // cene-design-goals.txt.
         mac( "def-macro", function ( nss, myStxDetails, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
-            if ( body1.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body1 ) )
                 throw new Error();
             
             var name =
@@ -2088,13 +2079,13 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Make this expand multiple expressions concurrently.
         //
         mac( "test", function ( nss, myStxDetails, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
-            if ( body1.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body1 ) )
                 throw new Error();
             var body2 = stcCons.getProj( body1, "cdr" );
-            if ( body2.tupleTag === stcCons.getTupleTag() )
+            if ( stcCons.tags( body2 ) )
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
@@ -2139,7 +2130,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "case", function ( nss, myStxDetails, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
             return new StcForeign( "effects", function ( rawMode ) {
                 return stcCaseletForRunner( nss, rawMode, null,
@@ -2150,10 +2141,10 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "caselet", function ( nss, myStxDetails, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
-            if ( body1.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body1 ) )
                 throw new Error();
             var va = stxToMaybeName( stcCons.getProj( body, "car" ) );
             if ( va === null )
@@ -2168,7 +2159,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "cast", function ( nss, myStxDetails, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
             return new StcForeign( "effects", function ( rawMode ) {
                 return stcCast( nss, rawMode,
@@ -2179,13 +2170,13 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "isa", function ( nss, myStxDetails, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
-            if ( body1.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body1 ) )
                 throw new Error();
             var body2 = stcCons.getProj( body1, "cdr" );
-            if ( body2.tupleTag === stcCons.getTupleTag() )
+            if ( stcCons.tags( body2 ) )
                 throw new Error();
             var tupleNameExpr = stcCons.getProj( body, "car" );
             var tupleName = stxToMaybeName( tupleNameExpr );
@@ -2209,8 +2200,9 @@ function usingDefinitionNs( macroDefNs ) {
                         "macLookupThen( " + expandedBody + ", " +
                             "function ( stcLocal_body ) {\n" +
                         "    \n" +
-                        "    return stcLocal_body.tupleTag === " +
-                                jsStr( type.getTupleTag() ) + " ? " +
+                        "    return stcLocal_body instanceof Stc " +
+                                "&& stcLocal_body.tupleTag === " +
+                                    jsStr( type.getTupleTag() ) + " ? " +
                                 stcYep.of( stcNil.of() ) + " : " +
                                 stcNope.of( stcNil.of() ) + ";\n" +
                         "} )" ) );
@@ -2221,13 +2213,13 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "proj1", function ( nss, myStxDetails, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
-            if ( body1.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body1 ) )
                 throw new Error();
             var body2 = stcCons.getProj( body1, "cdr" );
-            if ( body2.tupleTag === stcCons.getTupleTag() )
+            if ( stcCons.tags( body2 ) )
                 throw new Error();
             
             var va = stcStx.ofNow( myStxDetails,
@@ -2261,7 +2253,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "c", function ( nss, myStxDetails, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
@@ -2289,7 +2281,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "c-new", function ( nss, myStxDetails, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
             var tupleName =
                 stxToMaybeName( stcCons.getProj( body, "car" ) );
@@ -2310,17 +2302,17 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         function stxToDefiniteString( stx ) {
-            if ( stx.tupleTag !== stcStx.getTupleTag() )
+            if ( !stcStx.tags( stx ) )
                 throw new Error();
             var istringNil = stcStx.getProj( stx, "s-expr" );
-            if ( istringNil.tupleTag !== stcIstringNil.getTupleTag() )
+            if ( !stcIstringNil.tags( istringNil ) )
                 throw new Error();
             return parseString(
                 stcIstringNil.getProj( istringNil, "string" ) );
         }
         
         function assertValidCmpable( x, then ) {
-            if ( x.tupleTag !== stcCmpable.getTupleTag() )
+            if ( !stcCmpable.tags( x ) )
                 throw new Error();
             
             var cmp = stcCmpable.getProj( x, "cmp" );
@@ -2329,7 +2321,7 @@ function usingDefinitionNs( macroDefNs ) {
             return macLookupThen( cmp.cmpHas( macroDefNs, val ),
                 function ( has ) {
                 
-                if ( has.tupleTag === stcNope.getTupleTag() )
+                if ( stcNope.tags( has ) )
                     throw new Error();
                 
                 return then();
@@ -2337,10 +2329,9 @@ function usingDefinitionNs( macroDefNs ) {
         }
         
         mac( "err", function ( nss, myStxDetails, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
-            if ( stcCons.getProj( body, "cdr" ).tupleTag ===
-                stcCons.getTupleTag() )
+            if ( stcCons.tags( stcCons.getProj( body, "cdr" ) ) )
                 throw new Error();
             return new StcForeign( "effects", function ( rawMode ) {
                 return macLookupThenRunEffects( rawMode,
@@ -2353,10 +2344,9 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "str", function ( nss, myStxDetails, body, then ) {
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
-            if ( stcCons.getProj( body, "cdr" ).tupleTag ===
-                stcCons.getTupleTag() )
+            if ( stcCons.tags( stcCons.getProj( body, "cdr" ) ) )
                 throw new Error();
             return new StcForeign( "effects", function ( rawMode ) {
                 return macLookupThenRunEffects( rawMode,
@@ -2398,13 +2388,11 @@ function usingDefinitionNs( macroDefNs ) {
                 rawMode, i, remainingBody, bindingsNss,
                 obscureVarsCode, then ) {
                 
-                if ( remainingBody.tupleTag !==
-                    stcCons.getTupleTag() )
+                if ( !stcCons.tags( remainingBody ) )
                     throw new Error();
                 var remainingBody1 =
                     stcCons.getProj( remainingBody, "cdr" );
-                if ( remainingBody1.tupleTag !==
-                    stcCons.getTupleTag() ) {
+                if ( !stcCons.tags( remainingBody1 ) ) {
                     var bodyNss = nssGet( nss, "body" );
                     return macroexpand( nssGet( bodyNss, "unique" ),
                         rawMode,
@@ -2459,7 +2447,7 @@ function usingDefinitionNs( macroDefNs ) {
         effectfulMac( "cmp-struct",
             function ( nss, myStxDetails, body, then ) {
             
-            if ( body.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( body ) )
                 throw new Error();
             var tupleName =
                 stxToMaybeName( stcCons.getProj( body, "car" ) );
@@ -2486,8 +2474,7 @@ function usingDefinitionNs( macroDefNs ) {
                     return next( rawMode, type,
                         revProjVals, remainingBody );
                 
-                if ( remainingBody.tupleTag !==
-                    stcCons.getTupleTag() )
+                if ( !stcCons.tags( remainingBody ) )
                     throw new Error(
                         "Expected more arguments to " +
                         JSON.stringify( tupleName ) );
@@ -2513,8 +2500,7 @@ function usingDefinitionNs( macroDefNs ) {
             function next(
                 rawMode, type, revProjVals, remainingBody ) {
                 
-                if ( remainingBody.tupleTag ===
-                    stcCons.getTupleTag() )
+                if ( stcCons.tags( remainingBody ) )
                     throw new Error();
                 
                 var projVals = revJsListToArr( revProjVals );
@@ -2622,14 +2608,12 @@ function usingDefinitionNs( macroDefNs ) {
                         keyCmp.cmp( macroDefNs, a, b ),
                         function ( cmpResult ) {
                         
-                        if ( cmpResult.tupleTag !==
-                            stcYep.getTupleTag() )
+                        if ( !stcYep.tags( cmpResult ) )
                             throw new Error();
                         var internal =
                             stcYep.getProj( cmpResult, "val" );
                         
-                        if ( internal.tupleTag ===
-                            stcNil.getTupleTag() )
+                        if ( stcNil.tags( internal ) )
                             return then( yoke, 0 );
                         if ( internal instanceof StcForeign
                             && internal.purpose === "lt" )
@@ -2657,16 +2641,13 @@ function usingDefinitionNs( macroDefNs ) {
                             key ),
                         function ( comparable ) {
                         
-                        if ( comparable.tupleTag ===
-                            stcNope.getTupleTag() )
+                        if ( stcNope.tags( comparable ) )
                             throw new Error();
                         
-                        if ( maybeVal.tupleTag ===
-                            stcNil.getTupleTag() )
+                        if ( stcNil.tags( maybeVal ) )
                             return table.foreignVal.contents.minusEntry( macLookupYoke,
                                 key, next );
-                        if ( maybeVal.tupleTag ===
-                            stcYep.getTupleTag() )
+                        if ( stcYep.tags( maybeVal ) )
                             return table.foreignVal.contents.plusEntry( macLookupYoke,
                                 key,
                                 stcYep.getProj( maybeVal, "val" ),
@@ -2697,8 +2678,7 @@ function usingDefinitionNs( macroDefNs ) {
                         key ),
                     function ( comparable ) {
                     
-                    if ( comparable.tupleTag ===
-                        stcNope.getTupleTag() )
+                    if ( stcNope.tags( comparable ) )
                         throw new Error();
                     
                     return table.foreignVal.contents.getMaybe( macLookupYoke,
@@ -2737,7 +2717,7 @@ function usingDefinitionNs( macroDefNs ) {
                         second.foreignVal.keyCmp ),
                     function ( cmpsMatch ) {
                     
-                    if ( cmpsMatch.tupleTag !== stcNil.getTupleTag() )
+                    if ( !stcNil.tags( cmpsMatch ) )
                         throw new Error();
                 
                 return first.foreignVal.contents.plus( macLookupYoke,
@@ -2814,7 +2794,7 @@ function usingDefinitionNs( macroDefNs ) {
         
         fun( "ns-get-name", function ( name ) {
             return stcFnPure( function ( ns ) {
-                if ( name.tupleTag !== stcName.getTupleTag() )
+                if ( !stcName.tags( name ) )
                     throw new Error();
                 var nameInternal = stcName.getProj( name, "val" );
                 if ( !(nameInternal instanceof StcForeign
@@ -2847,7 +2827,7 @@ function usingDefinitionNs( macroDefNs ) {
         fun( "ns-shadow-name", function ( name ) {
             return stcFnPure( function ( subNs ) {
                 return stcFnPure( function ( ns ) {
-                    if ( name.tupleTag !== stcName.getTupleTag() )
+                    if ( !stcName.tags( name ) )
                         throw new Error();
                     var nameInternal = stcName.getProj( name, "val" );
                     if ( !(nameInternal instanceof StcForeign
@@ -3079,10 +3059,10 @@ function usingDefinitionNs( macroDefNs ) {
                                     identifier ) + " )" ) );
                     return macLookupRet( stcNil.ofNow() );
                 } ) );
-            if ( locatedExpr.tupleTag !== stcStx.getTupleTag() )
+            if ( !stcStx.tags( locatedExpr ) )
                 throw new Error();
             var sExpr = stcStx.getProj( locatedExpr, "s-expr" );
-            if ( sExpr.tupleTag !== stcCons.getTupleTag() )
+            if ( !stcCons.tags( sExpr ) )
                 throw new Error();
             var macroNameStx = stcCons.getProj( sExpr, "car" );
             var macroName = stxToMaybeName( macroNameStx );
@@ -3123,12 +3103,11 @@ function usingDefinitionNs( macroDefNs ) {
         collectDefer( rawMode, function () {
             return macLookupThen(
                 macLookupGet( outNs.name, function () {
-                    if ( locatedExpr.tupleTag !==
-                        stcStx.getTupleTag() )
+                    if ( !stcStx.tags( locatedExpr ) )
                         throw new Error();
                     var sExpr =
                         stcStx.getProj( locatedExpr, "s-expr" );
-                    if ( sExpr.tupleTag !== stcCons.getTupleTag() )
+                    if ( !stcCons.tags( sExpr ) )
                         throw new Error();
                     var macroNameStx =
                         stcCons.getProj( sExpr, "car" );
@@ -3186,8 +3165,7 @@ function usingDefinitionNs( macroDefNs ) {
                     return next( rawMode,
                         revProjVals, remainingBody );
                 
-                if ( remainingBody.tupleTag !==
-                    stcCons.getTupleTag() )
+                if ( !stcCons.tags( remainingBody ) )
                     throw new Error(
                         "Expected more arguments to " +
                         JSON.stringify( tupleName ) );
