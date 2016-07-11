@@ -1,17 +1,7 @@
 // era-staccato-lib-runner-mini.js
 // Copyright 2015, 2016 Ross Angle. Released under the MIT License.
 //
-// This is alternative JavaScript code to support running
-// era-staccato-lib.stc. Most of it comes from
-// era-staccato-lib-runner.js.
-//
-// The distinction of this file is that it processes a "mini" version
-// of Staccato, which actually does not have most of the distinctive
-// run time characteristics that make Staccato a worthwhile language.
-// This "mini" Staccato dialect is effectively just for generating
-// JavaScript.
-//
-// See era-staccato.js for more information about what Staccato is.
+// This file implements the main Cene runtime and built-in operators.
 
 
 var stcNextGensymI = 0;
@@ -446,12 +436,12 @@ Stc.prototype.callStc = function ( definitionNs, arg ) {
     if ( func !== void 0 )
         return func( self, arg );
     
-    var staccatoName =
-        stcNsGet( "staccato",
+    var callName =
+        stcNsGet( "call",
             stcNsGet( JSON.parse( self.tupleTag ),
                 stcNsGet( "functions", definitionNs ) ) ).name;
     return macLookupThen(
-        macLookupGet( staccatoName, function () {
+        macLookupGet( callName, function () {
             throw new Error(
                 "No such function definition: " + self.tupleTag );
         } ),
@@ -505,6 +495,14 @@ function StcForeign( purpose, foreignVal ) {
     this.foreignVal = foreignVal;
 }
 StcForeign.prototype.callStc = function ( definitionNs, arg ) {
+    var self = this;
+    
+    if ( self.purpose === "native-definition" )
+        return macLookupRet( new StcFn( function ( argVal ) {
+            var func = self.foreignVal;
+            return func( arg, argVal );
+        } ) );
+    
     throw new Error();
 };
 StcForeign.prototype.cmp = function ( definitionNs, a, b ) {
@@ -1487,7 +1485,7 @@ function addFunctionNativeDefinition(
     defNs, rawMode, tupleTagName, impl ) {
     
     collectPut( rawMode,
-        stcNsGet( "staccato",
+        stcNsGet( "call",
             stcNsGet( tupleTagName,
                 stcNsGet( "functions", defNs ) ) ),
         new StcForeign( "native-definition", impl ) );
@@ -1527,8 +1525,6 @@ function usingDefinitionNs( macroDefNs ) {
     var stcNope = stcType( macroDefNs, "nope", "val" );
     var stcStx =
         stcType( macroDefNs, "stx", "stx-details", "s-expr" );
-    var stcString = stcType( macroDefNs, "string", "val" );
-    var stcName = stcType( macroDefNs, "name", "val" );
     var stcForeign = stcType( macroDefNs, "foreign", "val" );
     var stcCmpable = stcType( macroDefNs, "cmpable", "cmp", "val" );
     
@@ -1548,13 +1544,10 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function parseString( string ) {
-        if ( !stcString.tags( string ) )
+        if ( !(string instanceof StcForeign
+            && string.purpose === "string") )
             throw new Error();
-        var stringInternal = stcString.getProj( string, "val" );
-        if ( !(stringInternal instanceof StcForeign
-            && stringInternal.purpose === "string") )
-            throw new Error();
-        return stringInternal.foreignVal;
+        return string.foreignVal;
     }
     
     function stxToMaybeName( stx ) {
@@ -1563,13 +1556,10 @@ function usingDefinitionNs( macroDefNs ) {
         var sExpr = stcStx.getProj( stx, "s-expr" );
         if ( stcForeign.tags( sExpr ) ) {
             var name = stcForeign.getProj( sExpr, "val" );
-            if ( !stcName.tags( name ) )
+            if ( !(name instanceof StcForeign
+                && name.purpose === "name") )
                 throw new Error();
-            var nameInternal = stcName.getProj( name, "val" );
-            if ( !(nameInternal instanceof StcForeign
-                && nameInternal.purpose === "name") )
-                throw new Error();
-            return nameInternal.foreignVal;
+            return name.foreignVal;
         } else if ( stcIstringNil.tags( sExpr ) ) {
             return parseString(
                 stcIstringNil.getProj( sExpr, "string" ) );
@@ -1615,14 +1605,10 @@ function usingDefinitionNs( macroDefNs ) {
                     arrMap( stcConsListToArray( projList ),
                         function ( projName ) {
                         
-                        if ( !stcName.tags( projName ) )
+                        if ( !(projName instanceof StcForeign
+                            && projName.purpose === "name") )
                             throw new Error();
-                        var projNameInternal =
-                            stcName.getProj( projName, "val" );
-                        if ( !(projNameInternal instanceof StcForeign
-                            && projNameInternal.purpose === "name") )
-                            throw new Error();
-                        return projNameInternal.foreignVal;
+                        return projName.foreignVal;
                     } ) ) );
         } );
     }
@@ -2224,10 +2210,8 @@ function usingDefinitionNs( macroDefNs ) {
             
             var va = stcStx.ofNow( myStxDetails,
                 stcForeign.ofNow(
-                    stcName.ofNow(
-                        new StcForeign( "name",
-                            nssGet(
-                                nss, "var" ).uniqueNs.name ) ) ) );
+                    new StcForeign( "name",
+                        nssGet( nss, "var" ).uniqueNs.name ) ) );
             return new StcForeign( "effects", function ( rawMode ) {
                 return stcCast( nssGet( nss, "cast" ), rawMode,
                     stcCons.getProj( body1, "car" ),
@@ -2238,13 +2222,11 @@ function usingDefinitionNs( macroDefNs ) {
                             stcArrayToConsList( [
                                 stcStx.ofNow( myStxDetails,
                                     stcForeign.ofNow(
-                                        stcName.ofNow(
-                                            new StcForeign( "name",
-                                                stcMacroName( macroDefNs, "err" ) ) ) ) ),
+                                        new StcForeign( "name",
+                                            stcMacroName( macroDefNs, "err" ) ) ) ),
                                 stcStx.ofNow( myStxDetails,
                                     stcIstringNil.ofNow(
-                                        stcString.ofNow(
-                                            new StcForeign( "string", "Internal error" ) ) ) )
+                                        new StcForeign( "string", "Internal error" ) ) )
                             ] ) ),
                         va
                     ] ),
@@ -2351,14 +2333,11 @@ function usingDefinitionNs( macroDefNs ) {
             return new StcForeign( "effects", function ( rawMode ) {
                 return macLookupThenRunEffects( rawMode,
                     then(
-                        stcString.of(
-                            "macLookupRet( " +
-                                "new StcForeign( \"string\", " +
-                                    jsStr(
-                                        stxToDefiniteString(
-                                            stcCons.getProj(
-                                                body, "car" ) ) ) +
-                                " ) )" ) ) );
+                        "macLookupRet( " +
+                            "new StcForeign( \"string\", " +
+                                jsStr(
+                                    stxToDefiniteString( stcCons.getProj( body, "car" ) ) ) +
+                            " ) )" ) );
             } );
         } );
         
@@ -2737,9 +2716,8 @@ function usingDefinitionNs( macroDefNs ) {
         
         fun( "string-append", function ( a ) {
             return stcFnPure( function ( b ) {
-                return stcString.ofNow(
-                    new StcForeign( "string",
-                        parseString( a ) + parseString( b ) ) );
+                return new StcForeign( "string",
+                    parseString( a ) + parseString( b ) );
             } );
         } );
         
@@ -2760,14 +2738,13 @@ function usingDefinitionNs( macroDefNs ) {
                             throw new Error();
                         return projStringyName;
                     } );
-                return stcName.ofNow(
-                    new StcForeign( "name",
-                        stcNameTupleTagAlreadySorted(
-                            stcConstructorTag( macroDefNs,
-                                tupleStringyName ),
-                            projStringyNames.sort( function ( a, b ) {
-                                return nameCompare( a, b );
-                            } ) ) ) );
+                return new StcForeign( "name",
+                    stcNameTupleTagAlreadySorted(
+                        stcConstructorTag( macroDefNs,
+                            tupleStringyName ),
+                        projStringyNames.sort( function ( a, b ) {
+                            return nameCompare( a, b );
+                        } ) ) );
             } );
         } );
         
@@ -2794,11 +2771,8 @@ function usingDefinitionNs( macroDefNs ) {
         
         fun( "ns-get-name", function ( name ) {
             return stcFnPure( function ( ns ) {
-                if ( !stcName.tags( name ) )
-                    throw new Error();
-                var nameInternal = stcName.getProj( name, "val" );
-                if ( !(nameInternal instanceof StcForeign
-                    && nameInternal.purpose === "name") )
+                if ( !(name instanceof StcForeign
+                    && name.purpose === "name") )
                     throw new Error();
                 
                 if ( !(ns instanceof StcForeign
@@ -2806,8 +2780,7 @@ function usingDefinitionNs( macroDefNs ) {
                     throw new Error();
                 
                 return new StcForeign( "ns",
-                    stcNsGet( nameInternal.foreignVal,
-                        ns.foreignVal ) );
+                    stcNsGet( name.foreignVal, ns.foreignVal ) );
             } );
         } );
         
@@ -2827,11 +2800,8 @@ function usingDefinitionNs( macroDefNs ) {
         fun( "ns-shadow-name", function ( name ) {
             return stcFnPure( function ( subNs ) {
                 return stcFnPure( function ( ns ) {
-                    if ( !stcName.tags( name ) )
-                        throw new Error();
-                    var nameInternal = stcName.getProj( name, "val" );
-                    if ( !(nameInternal instanceof StcForeign
-                        && nameInternal.purpose === "name") )
+                    if ( !(name instanceof StcForeign
+                        && name.purpose === "name") )
                         throw new Error();
                     
                     if ( !(subNs instanceof StcForeign
@@ -2843,7 +2813,7 @@ function usingDefinitionNs( macroDefNs ) {
                         throw new Error();
                     
                     return new StcForeign( "ns",
-                        stcNsShadow( nameInternal.foreignVal,
+                        stcNsShadow( name.foreignVal,
                             subNs.foreignVal, ns.foreignVal ) );
                 } );
             } );
@@ -2881,8 +2851,7 @@ function usingDefinitionNs( macroDefNs ) {
                     && ns.purpose === "ns") )
                     throw new Error();
                 
-                return stcName.ofNow(
-                    new StcForeign( "name", ns.foreignVal.name ) );
+                return new StcForeign( "name", ns.foreignVal.name );
             } );
         } );
         
@@ -3145,8 +3114,7 @@ function usingDefinitionNs( macroDefNs ) {
             stcArrayToConsList( arrMap( type.unsortedProjNames,
                 function ( entry ) {
                 
-                return stcName.ofNow(
-                    new StcForeign( "name", entry.name ) );
+                return new StcForeign( "name", entry.name );
             } ) ) );
         // TODO: Make this expand multiple subexpressions
         // concurrently.
@@ -3212,53 +3180,6 @@ function usingDefinitionNs( macroDefNs ) {
                 definitionNs, dummyMode, tupleName, projNames );
         }
         
-        // These constructors are needed so that macros can generate
-        // raw Staccato code.
-        // TODO: See if we should keep the ones marked "sugar".
-        type( "return", [ "val" ] );
-        type( "call", [ "func", "arg" ] );
-        // TODO: See if we'll still need `stc-def-foreign` now that
-        // we're using `new StcForeign( "native-definition", ... )`.
-        // In fact, maybe we don't need any of these Staccato code
-        // constructors.
-        type( "stc-def-foreign", [ "tuple-tag", "foreign" ] );
-        type( "stc-def",
-            [ "tuple-name", "opt-proj-pattern", "case-list" ] );
-        type( "stc-let-case", [ "var", "case-list" ] );
-        type( "stc-match", [
-            "tuple-name", "opt-proj-pattern", "get-expr", "case-list"
-            ] );
-        type( "stc-any", [ "get-expr" ] );
-        type( "stc-let-bindings-nil", [] );
-        type( "stc-let-bindings-cons",
-            [ "var", "get-expr", "let-bindings-expr" ] );
-        type( "stc-proj-nil", [] );
-        type( "stc-proj-cons",
-            [ "proj-name", "get-expr", "proj-expr" ] );
-        // sugar
-        type( "stc-let-def", [ "def", "get-expr" ] );
-        type( "stc-let", [ "let-bindings-expr", "get-expr" ] );
-        type( "stc-local", [ "var" ] );
-        type( "stc-foreign", [ "foreign" ] );
-        type( "stc-do-what-you-think-is-best", [] );
-        type( "stc-tuple", [ "tuple-name", "proj-expr" ] );
-        // sugar
-        type( "stc-save-root", [ "save-root", "get-expr" ] );
-        // sugar
-        type( "stc-save", [
-            "save-root", "call-tuple-name",
-            "call-func", "tuple-name", "opt-proj-pattern",
-            "call-arg", "var", "arg" ] );
-        // sugar
-        type( "stc-fn",
-            [ "tuple-name", "opt-proj-pattern", "case-list" ] );
-        // sugar
-        type( "stc-proj-pattern-omitted", [ "namespace" ] );
-        type( "stc-proj-pattern", [ "proj-pattern" ] );
-        type( "stc-proj-pattern-nil", [] );
-        type( "stc-proj-pattern-cons",
-            [ "proj-name", "var", "proj-pattern" ] );
-        
         // These constructors are needed for interpreting the results
         // of certain built-in operators, namely `isa` and the cmp
         // operations.
@@ -3314,17 +3235,14 @@ function usingDefinitionNs( macroDefNs ) {
         } else if ( readerExpr.type === "stringNil" ) {
             return stcStx.ofNow( myStxDetails,
                 stcIstringNil.ofNow(
-                    stcString.ofNow(
-                        new StcForeign( "string",
-                            readerStringNilToString(
-                                readerExpr ) ) ) ) );
+                    new StcForeign( "string",
+                        readerStringNilToString( readerExpr ) ) ) );
         } else if ( readerExpr.type === "stringCons" ) {
             return stcStx.ofNow( myStxDetails,
                 stcIstringCons.ofNow(
-                    stcString.ofNow(
-                        new StcForeign( "string",
-                            readerStringListToString(
-                                readerExpr.string ) ) ),
+                    new StcForeign( "string",
+                        readerStringListToString(
+                            readerExpr.string ) ),
                     readerExprToStc( myStxDetails,
                         readerExpr.interpolation ),
                     stcStx.getProj(

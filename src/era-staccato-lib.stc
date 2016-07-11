@@ -89,10 +89,8 @@
 
 (defn macro-name mode definition-ns name
   (let - assert-current-modality.mode
-  /case name
-    name - name
-    
-    string -
+  /case (in-cmp (cmp-name/nil) name) yep - name
+  /case (in-cmp (cmp-string/nil) name) yep -
     (procure-name mode
     /ns-get-string str.name
     /ns-get-string name
@@ -2359,7 +2357,7 @@ of the match.
 \= format user-level code does not know how to deconstruct. For equal
 \= names, the result will be (nil).
 (defn name-metacompare a b
-  (case (call-cmp (cmp-name) (proj1 name a) (proj1 name b))
+  (case (call-cmp (cmp-name/nil) a b)
     yep result result
     err.\;qq[Called name-metacompare with non-name values]))
 
@@ -2367,7 +2365,7 @@ of the match.
 \= format user-level code does not know how to deconstruct. For equal
 \= strings, the result will be (nil).
 (defn string-metacompare a b
-  (case (call-cmp (cmp-string) (proj1 string a) (proj1 string b))
+  (case (call-cmp (cmp-string/nil) a b)
     yep result result
     err.\;qq[Called string-metacompare with non-string values]))
 

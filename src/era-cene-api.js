@@ -7,8 +7,6 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     
     var stcCons = stcType( macroDefNs, "cons", "car", "cdr" );
     var stcNil = stcType( macroDefNs, "nil" );
-    var stcString = stcType( macroDefNs, "string", "val" );
-    var stcName = stcType( macroDefNs, "name", "val" );
     var stcForeign = stcType( macroDefNs, "foreign", "val" );
     var stcAssoc = stcType( macroDefNs, "assoc", "key", "value" );
     var stcEncapsulatedString =
@@ -252,23 +250,20 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         }
         
         function parseString( string ) {
-            if ( !stcString.tags( string ) )
+            if ( !(string instanceof StcForeign
+                && string.purpose === "string") )
                 throw new Error();
-            var stringInternal = stcString.getProj( string, "val" );
-            if ( !(stringInternal instanceof StcForeign
-                && stringInternal.purpose === "string") )
-                throw new Error();
-            return stringInternal.foreignVal;
+            return string.foreignVal;
         }
         function unparseNonUnicodeString( string ) {
             if ( typeof string !== "string" )
                 throw new Error();
-            return stcString.ofNow(
-                new StcForeign( "string",
-                    toValidUnicode( string ) ) );
+            return new StcForeign( "string",
+                toValidUnicode( string ) );
         }
         function parsePossiblyEncapsulatedString( string ) {
-            if ( stcString.tags( string ) ) {
+            if ( string instanceof StcForeign
+                && string.purpose === "string" ) {
                 var result = parseString( string );
                 return function () {
                     return result;
@@ -495,14 +490,8 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                         && mode.foreignVal.type === "macro") )
                         throw new Error();
                     
-                    if ( !stcName.tags( constructorTag ) )
-                        throw new Error();
-                    var constructorTagInternal =
-                        stcName.getProj( constructorTag, "val" );
-                    if ( !(constructorTagInternal instanceof
-                            StcForeign
-                        && constructorTagInternal.purpose ===
-                            "name") )
+                    if ( !(constructorTag instanceof StcForeign
+                        && constructorTag.purpose === "name") )
                         throw new Error();
                     
                     var dedupVars = [];
@@ -520,7 +509,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                         new StcForeign( "encapsulated-string",
                             function () {
                                 return apiOps.sloppyJavaScriptQuine(
-                                    constructorTagInternal.foreignVal,
+                                    constructorTag.foreignVal,
                                     dedupVars );
                             } ) );
                 } );
