@@ -99,83 +99,63 @@ function stcMacroName( definitionNs, stringyName ) {
             stcNsGet( "macro-names", definitionNs ) ) ).name;
 }
 
-function nameCompare( a, b ) {
-    if ( typeof a === "string" ) {
-        if ( typeof b === "string" ) {
-            return a < b ? -1 : b < a ? 1 : 0;
-        } else if ( b[ 0 ] === "tuple-tag" ) {
-            return -1;
-        } else if ( b[ 0 ] === "root" ) {
-            // NOTE: We let strings come before the root name because
-            // that ordering remains stable even if we implement the
-            // root name as a `get` name.
-            return -1;
-        } else if ( b[ 0 ] === "get" ) {
-            return -1;
-        } else {
-            throw new Error();
-        }
-    } else if ( a[ 0 ] === "tuple-tag" ) {
-        if ( typeof b === "string" ) {
-            return 1;
-        } else if ( b[ 0 ] === "tuple-tag" ) {
-            var compareTupleNames = nameCompare( a[ 1 ], b[ 1 ] );
-            if ( compareTupleNames !== 0 )
-                return compareTupleNames;
-            if ( a[ 2 ].length < b[ 2 ].length )
-                return -1;
-            if ( b[ 2 ].length < a[ 2 ].length )
-                return 1;
-            return (arrAny( a[ 2 ], function ( aProj, i ) {
-                var bProj = b[ i ];
-                var compareProjNames = nameCompare( aProj, bProj );
-                return compareProjNames === 0 ? false :
-                    { val: compareProjNames };
-            } ) || { val: 0 }).val;
-        } else if ( b[ 0 ] === "root" ) {
-            return -1;
-        } else if ( b[ 0 ] === "get" ) {
-            return -1;
-        } else {
-            throw new Error();
-        }
-    } else if ( a[ 0 ] === "root" ) {
-        if ( typeof b === "string" ) {
-            return 1;
-        } else if ( b[ 0 ] === "tuple-tag" ) {
-            return 1;
-        } else if ( b[ 0 ] === "root" ) {
-            return 0;
-        } else if ( b[ 0 ] === "get" ) {
-            return -1;
-        } else {
-            throw new Error();
-        }
-    } else if ( a[ 0 ] === "get" ) {
-        if ( typeof b === "string" ) {
-            return 1;
-        } else if ( b[ 0 ] === "tuple-tag" ) {
-            return 1;
-        } else if ( b[ 0 ] === "root" ) {
-            return 1;
-        } else if ( b[ 0 ] === "get" ) {
-            // NOTE: This ends up ordering the names in a very
-            // arbitrary way. If we needed any ordering in particular,
-            // it probably wouldn't be this one, but for now an
-            // arbitrary order is fine.
-            var compareLatestSegments = nameCompare( a[ 1 ], b[ 1 ] );
-            if ( compareLatestSegments !== 0 )
-                return compareLatestSegments;
-            var compareRepetitions = a[ 2 ] - b[ 2 ];
-            if ( compareRepetitions !== 0 )
-                return compareRepetitions;
-            return nameCompare( a[ 3 ], b[ 3 ] );
-        } else {
-            throw new Error();
-        }
-    } else {
+function jsnCompare( a, b ) {
+    function rank( x ) {
+        var result = 0;
+        if ( x === null )
+            return result;
+        result++;
+        if ( typeof x === "number" && x < 0 )
+            return result;
+        result++;
+        if ( x === 0 && 1 / x === 1 / -0 )
+            return result;
+        result++;
+        if ( x !== x )
+            return result;
+        result++;
+        if ( x === 0 && 1 / x === 1 / 0 )
+            return result;
+        result++;
+        if ( typeof x === "number" && 0 < x )
+            return result;
+        result++;
+        if ( typeof x === "string" )
+            return result;
+        result++;
+        if ( isArray( x ) )
+            return result;
+        
         throw new Error();
     }
+    function compareByBuiltIn( a, b ) {
+        if ( a < b )
+            return -1;
+        if ( b < a )
+            return 1;
+        return 0;
+    }
+    var compareByRank = compareByBuiltIn( rank( a ), rank( b ) );
+    if ( compareByRank !== 0 )
+        return compareByRank;
+    if ( typeof a === "string" || typeof a == "number" )
+        return compareByBuiltIn( a, b );
+    if ( isArray( a ) ) {
+        // We compare by lexicographic order.
+        for ( var i = 0, n = a.length, bn = b.length; i < n; i++ ) {
+            if ( bn <= i )
+                return 1;
+            var compareElem = compareByBuiltIn( a[ i ], b[ i ] );
+            if ( compareElem !== 0 )
+                return compareElem;
+        }
+        return -1;
+    }
+    throw new Error();
+}
+
+function nameCompare( a, b ) {
+    return jsnCompare( a, b );
 }
 
 function stcTypeArr(
@@ -465,6 +445,13 @@ Stc.prototype.cmpHas = function ( definitionNs, x ) {
 Stc.prototype.cmpThis = function ( definitionNs, other ) {
     throw new Error();
 };
+Stc.prototype.toName = function () {
+    // TODO: See if we can avoid this JSON.parse().
+    return [ "struct", JSON.parse( this.tupleTag ) ].concat(
+        arrMap( this.projNames, function ( projName ) {
+            return projName.toName();
+        } ) );
+};
 Stc.prototype.pretty = function () {
     return "(" + prettifyTupleTag( this.tupleTag ) +
         arrMap( this.projNames, function ( elem, i ) {
@@ -485,6 +472,9 @@ StcFn.prototype.cmpHas = function ( definitionNs, x ) {
     throw new Error();
 };
 StcFn.prototype.cmpThis = function ( definitionNs, other ) {
+    throw new Error();
+};
+StcFn.prototype.toName = function () {
     throw new Error();
 };
 StcFn.prototype.pretty = function () {
@@ -512,6 +502,12 @@ StcForeign.prototype.cmpHas = function ( definitionNs, x ) {
     throw new Error();
 };
 StcForeign.prototype.cmpThis = function ( definitionNs, other ) {
+    throw new Error();
+};
+StcForeign.prototype.toName = function () {
+    if ( this.purpose === "string" || this.purpose === "name" )
+        return this.foreignVal;
+    
     throw new Error();
 };
 StcForeign.prototype.pretty = function () {
@@ -605,6 +601,10 @@ StcCmpDefault.prototype.cmpThis = function ( definitionNs, other ) {
         return self.second.cmpThis( definitionNs, other.second );
     } );
 };
+StcCmpDefault.prototype.toName = function () {
+    return [ "cmp-default",
+        this.first.toName(), this.second.toName() ];
+};
 StcCmpDefault.prototype.pretty = function () {
     return "(cmp-default " +
         this.first.pretty() + " " + this.second.pretty() + ")";
@@ -629,6 +629,9 @@ StcCmpDefault.prototype.cmpHas = function ( definitionNs, x ) {
 StcCmpGiveUp.prototype.cmpThis = function ( definitionNs, other ) {
     var stcNil = stcType( definitionNs, "nil" );
     return macLookupRet( stcNil.ofNow() );
+};
+StcCmpGiveUp.prototype.toName = function () {
+    return [ "cmp-give-up" ];
 };
 StcCmpGiveUp.prototype.pretty = function () {
     return "(cmp-give-up)";
@@ -775,6 +778,13 @@ StcCmpStruct.prototype.cmpThis = function ( definitionNs, other ) {
         } );
     }
 };
+StcCmpStruct.prototype.toName = function () {
+    // TODO: See if we can avoid this JSON.parse().
+    return [ "cmp-struct", JSON.parse( this.expectedTupleTag )
+        ].concat( arrMap( this.projCmps, function ( projCmp ) {
+            return [ projCmp.i, projCmp.cmp.toName() ];
+        } ) );
+};
 StcCmpStruct.prototype.pretty = function () {
     return "(cmp-struct " +
         prettifyTupleTag( this.expectedTupleTag ) +
@@ -819,6 +829,9 @@ StcCmpCmp.prototype.cmpHas = function ( definitionNs, x ) {
 StcCmpCmp.prototype.cmpThis = function ( definitionNs, other ) {
     var stcNil = stcType( definitionNs, "nil" );
     return macLookupRet( stcNil.ofNow() );
+};
+StcCmpCmp.prototype.toName = function () {
+    return [ "cmp-cmp" ];
 };
 StcCmpCmp.prototype.pretty = function () {
     return "(cmp-cmp)";
@@ -869,6 +882,9 @@ StcCmpName.prototype.cmpHas = function ( definitionNs, x ) {
 StcCmpName.prototype.cmpThis = function ( definitionNs, other ) {
     var stcNil = stcType( definitionNs, "nil" );
     return macLookupRet( stcNil.ofNow() );
+};
+StcCmpCmp.prototype.toName = function () {
+    return [ "cmp-name" ];
 };
 StcCmpName.prototype.pretty = function () {
     return "(cmp-name)";
@@ -921,6 +937,9 @@ StcCmpString.prototype.cmpHas = function ( definitionNs, x ) {
 StcCmpString.prototype.cmpThis = function ( definitionNs, other ) {
     var stcNil = stcType( definitionNs, "nil" );
     return macLookupRet( stcNil.ofNow() );
+};
+StcCmpCmp.prototype.toName = function () {
+    return [ "cmp-string" ];
 };
 StcCmpString.prototype.pretty = function () {
     return "(cmp-string)";
@@ -1054,6 +1073,9 @@ StcCmpWithOwnMethod.prototype.cmpThis = function ( definitionNs,
         this.cmpableGetMethod,
         other.cmpableGetMethod );
 };
+StcCmpWithOwnMethod.prototype.toName = function () {
+    return [ "cmp-with-own-method", this.cmpableGetMethod.toName() ];
+};
 StcCmpWithOwnMethod.prototype.pretty = function () {
     return "(cmp-with-own-method " +
         this.cmpableGetMethod.pretty() + ")";
@@ -1091,6 +1113,9 @@ StcCmpFix.prototype.cmpThis = function ( definitionNs, other ) {
     return stcCmpCmpables( definitionNs,
         this.cmpableUnwrap,
         other.cmpableUnwrap );
+};
+StcCmpFix.prototype.toName = function () {
+    return [ "cmp-fix", this.cmpableUnwrap.toName() ];
 };
 StcCmpFix.prototype.pretty = function () {
     return "(cmp-fix " + this.cmpableUnwrap.pretty() + ")";
@@ -2797,6 +2822,25 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        // TODO: Document this somewhere. Deprecate `ns-get-name` and
+        // `ns-get-string` in favor of this.
+        fun( "procure-sub-ns", function ( cmp ) {
+            return stcFnPure( function ( key ) {
+                return new StcFn( function ( ns ) {
+                    return macLookupThen(
+                        cmp.cmpHas( macroDefNs, key ),
+                        function ( valid ) {
+                        
+                        if ( stcNope.tags( valid ) )
+                            throw new Error();
+                        
+                        return new StcForeign( "ns",
+                            stcNsGet( key.toName(), ns.foreignVal ) );
+                    } );
+                } );
+            } );
+        } );
+        
         fun( "ns-shadow-name", function ( name ) {
             return stcFnPure( function ( subNs ) {
                 return stcFnPure( function ( ns ) {
@@ -2835,6 +2879,36 @@ function usingDefinitionNs( macroDefNs ) {
                     return new StcForeign( "ns",
                         stcNsShadow( stringParsed,
                             subNs.foreignVal, ns.foreignVal ) );
+                } );
+            } );
+        } );
+        
+        // TODO: Document this somewhere. Deprecate `ns-shadow-name`
+        // and `ns-shadow-string` in favor of this.
+        fun( "shadow-procure-sub-ns", function ( cmp ) {
+            return stcFnPure( function ( key ) {
+                return stcFnPure( function ( subNs ) {
+                    return stcFnPure( function ( ns ) {
+                        return macLookupThen(
+                            cmp.cmpHas( macroDefNs, key ),
+                            function ( valid ) {
+                            
+                            if ( stcNope.tags( valid ) )
+                                throw new Error();
+                            
+                            if ( !(subNs instanceof StcForeign
+                                && subNs.purpose === "ns") )
+                                throw new Error();
+                            
+                            if ( !(ns instanceof StcForeign
+                                && ns.purpose === "ns") )
+                                throw new Error();
+                            
+                            return new StcForeign( "ns",
+                                stcNsShadow( key.toName(),
+                                    subNs.foreignVal, ns.foreignVal ) );
+                        } );
+                    } );
                 } );
             } );
         } );
