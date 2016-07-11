@@ -14,32 +14,23 @@
 \= fin/hello-world-js/hello-world.js.
 
 
-(def-macro go mode unique-ns definition-ns my-stx-details args then
-  (let s (fn it /stx my-stx-details it)
-  /let mac
-    (fn str rest
-      (cons (c s /foreign/macro-name mode definition-ns str) rest))
-  /let outbox (ns-get-string str.outbox unique-ns)
-  /join-effects (later/fn mode /c then /procure-defined mode outbox)
-  /join-effects
-    (output-path-blob-utf-8
-      (output-path-get (cli-output-directory mode)
-        str.\;qq[hello-world.js])
-    /sloppy-javascript-quine mode
+(def-macro go unique-ns definition-ns my-stx-details args then
+  (basic-nil-macro unique-ns definition-ns my-stx-details then
+  /fn unique-ns s mac
+  /get-mode/fn mode
+  /output-path-blob-utf-8
+    (output-path-get (cli-output-directory mode)
+      str.\;qq[hello-world.js])
+  /sloppy-javascript-quine mode
+    (procure-name mode
+    /ns-get-string str.tag
+    /ns-get-name
       (procure-name mode
-      /ns-get-string str.tag
-      /ns-get-name
-        (procure-name mode
-        /ns-get-string str.name
-        /ns-get-string str.js-main
-        /ns-get-string str.constructor-names definition-ns)
-      /ns-get-string str.constructors definition-ns)
-    /nil)
-  /compile-expression mode
-    (ns-get-string str.unique unique-ns)
-    definition-ns
-    (c s /c mac str.nil /nil)
-    outbox))
+      /ns-get-string str.name
+      /ns-get-string str.js-main
+      /ns-get-string str.constructor-names definition-ns)
+    /ns-get-string str.constructors definition-ns)
+  /nil))
 
 (go)
 

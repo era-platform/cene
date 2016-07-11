@@ -100,19 +100,44 @@
     
     err.\;qq[Expected a name value of type name or string]))
 
-(def-macro list mode unique-ns definition-ns my-stx-details args then
-  (let s (fn it /stx my-stx-details it)
+(def-type basic-macro-result effects expression)
+
+(defn basic-macro unique-ns definition-ns my-stx-details then body
+  (get-mode/fn mode
+  /let s (fn it /stx my-stx-details it)
   /let mac
     (fn str rest
       (cons (c s /foreign/macro-name mode definition-ns str) rest))
   /let outbox (ns-get-string str.outbox unique-ns)
-  /join-effects (later/fn mode /c then /procure-defined mode outbox)
-  /compile-expression mode
-    (ns-get-string str.unique unique-ns)
-    definition-ns
-    (foldr args (c s /c mac str.nil /nil) /fn first rest
-      (c s /c mac str.cons /cons first /cons rest /nil))
-    outbox))
+  /join-effects
+    (later/get-mode/fn mode /c then /procure-defined mode outbox)
+  /cast (c body (ns-get-string str.body unique-ns) s mac)
+    basic-macro-result effects expression
+    err.\;qq[Expected a body result of type basic-macro-result]
+  /join-effects effects
+  /compile-expression (ns-get-string str.compilation unique-ns)
+    definition-ns expression outbox))
+
+(defn basic-pure-macro
+  unique-ns definition-ns my-stx-details then body
+  
+  (basic-macro unique-ns definition-ns my-stx-details then
+  /fn unique-ns s mac
+  /basic-macro-result (no-effects/nil) /c body unique-ns s mac))
+
+(defn basic-nil-macro
+  unique-ns definition-ns my-stx-details then body
+  
+  (basic-macro unique-ns definition-ns my-stx-details then
+  /fn unique-ns s mac
+  /basic-macro-result (c body unique-ns s mac)
+  /c s /c mac str.nil /nil))
+
+(def-macro list unique-ns definition-ns my-stx-details args then
+  (basic-pure-macro unique-ns definition-ns my-stx-details then
+  /fn unique-ns s mac
+  /foldr args (c s /c mac str.nil /nil) /fn first rest
+    (c s /c mac str.cons /cons first /cons rest /nil)))
 
 (defn append past rest
   (rev-append rev.past rest))

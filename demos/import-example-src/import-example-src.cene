@@ -1,25 +1,14 @@
 \= import-example-src.cene
 \= Copyright 2016 Ross Angle. Released under the MIT License.
 
-(def-macro inner-go
-  mode unique-ns definition-ns my-stx-details args then
-  
-  (let s (fn it /stx my-stx-details it)
-  /let mac
-    (fn str rest
-      (cons (c s /foreign/macro-name mode definition-ns str) rest))
-  /let outbox (ns-get-string str.outbox unique-ns)
-  /join-effects (later/fn mode /c then /procure-defined mode outbox)
-  /join-effects
-    (output-path-blob-utf-8
-      (output-path-get (cli-output-directory mode)
-        str.\;qq[hello-world-inner.txt])
-      str.\;qq[Hello world inner\n])
-  /compile-expression mode
-    (ns-get-string str.unique unique-ns)
-    definition-ns
-    (c s /c mac str.nil /nil)
-    outbox))
+(def-macro inner-go unique-ns definition-ns my-stx-details args then
+  (basic-nil-macro unique-ns definition-ns my-stx-details then
+  /fn unique-ns s mac
+  /get-mode/fn mode
+  /output-path-blob-utf-8
+    (output-path-get (cli-output-directory mode)
+      str.\;qq[hello-world-inner.txt])
+    str.\;qq[Hello world inner\n]))
 
 (inner-go)
 

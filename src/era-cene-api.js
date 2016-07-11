@@ -120,14 +120,10 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     }
     function simpleEffects( body ) {
         return new StcForeign( "effects", function ( rawMode ) {
-            collectDefer( rawMode, function ( rawMode1 ) {
+            collectDefer( rawMode, function () {
                 body();
                 return macLookupRet( new StcForeign( "effects",
-                    function ( rawMode2 ) {
-                    
-                    // NOTE: This uses object identity.
-                    if ( rawMode1 !== rawMode2 )
-                        throw new Error();
+                    function ( rawMode ) {
                     
                     // Do nothing.
                     
