@@ -52,6 +52,5 @@
 
 (test
   (table-get str.woo
-    (table-shadow str.woo (yep/nope/nil)
-    /table-empty/cmp-struct string /cmp-string))
+    (table-shadow str.woo (yep/nope/nil) /table-empty/cmp-string/nil))
   (yep/nope/nil))

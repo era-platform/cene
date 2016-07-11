@@ -22,15 +22,15 @@ def-type (cmp-result-incomparable left-is-comparable right-is-comparable)
 def-type (cmpable cmp val)
   \= A value tagged with a cmp that applies to it.
 (cmp-default <cmp-for-trying-first> <cmp-for-trying-second>)
-(cmp-give-up)
-(cmp-string)
-  \= NOTE: Unlike most of these, (cmp-string) can distinguish values that might not have been distinguishable any other way.
-(cmp-name)
-  \= NOTE: Unlike most of these, (cmp-name) can distinguish values that might not have been distinguishable any other way.
-(cmp-cmp)
-  \= NOTE: Unlike most of these, (cmp-cmp) can distinguish values that might not have been distinguishable any other way. For instance, it can distinguish between (cmp-default a b) and (cmp-default b a).
-(cmp-merge)
-(cmp-combine)
+(cmp-give-up <ignored>)
+(cmp-string <ignored>)
+  \= NOTE: Unlike most of these, (cmp-string/nil) can distinguish values that might not have been distinguishable any other way.
+(cmp-name <ignored>)
+  \= NOTE: Unlike most of these, (cmp-name/nil) can distinguish values that might not have been distinguishable any other way.
+(cmp-cmp <ignored>)
+  \= NOTE: Unlike most of these, (cmp-cmp/nil) can distinguish values that might not have been distinguishable any other way. For instance, it can distinguish between (cmp-default a b) and (cmp-default b a).
+(cmp-merge <ignored>)
+(cmp-combine <ignored>)
 (cmp-struct cons <car-cmp> <cdr-cmp>)
 (cmp-by-own-method <cmpable-get-method>)
   \= Given a cmpable function, returns a cmp that works by invoking that function with each value to get `(yep <cmp>)` or `(nil)`, verifying that the two `<cmp>` values are the same, and then proceeding to invoke that value.

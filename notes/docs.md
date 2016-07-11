@@ -8,12 +8,6 @@
 
 -
 ```
-(def-type string val)
-```
-A reference to a string. The value inside is in a format user-level code does not know how to deconstruct.
-
--
-```
 (defn string-append a b ...)
 ```
 Concatenates two strings.
@@ -23,12 +17,6 @@ Concatenates two strings.
 macro (str \;qq[example string])
 ```
 Obtains a first-class string value with the given literal text.
-
--
-```
-(def-type name val)
-```
-A reference to a fully qualified name. The value inside is in a format user-level code does not know how to deconstruct.
 
 -
 ```
