@@ -3212,53 +3212,6 @@ function usingDefinitionNs( macroDefNs ) {
                 definitionNs, dummyMode, tupleName, projNames );
         }
         
-        // These constructors are needed so that macros can generate
-        // raw Staccato code.
-        // TODO: See if we should keep the ones marked "sugar".
-        type( "return", [ "val" ] );
-        type( "call", [ "func", "arg" ] );
-        // TODO: See if we'll still need `stc-def-foreign` now that
-        // we're using `new StcForeign( "native-definition", ... )`.
-        // In fact, maybe we don't need any of these Staccato code
-        // constructors.
-        type( "stc-def-foreign", [ "tuple-tag", "foreign" ] );
-        type( "stc-def",
-            [ "tuple-name", "opt-proj-pattern", "case-list" ] );
-        type( "stc-let-case", [ "var", "case-list" ] );
-        type( "stc-match", [
-            "tuple-name", "opt-proj-pattern", "get-expr", "case-list"
-            ] );
-        type( "stc-any", [ "get-expr" ] );
-        type( "stc-let-bindings-nil", [] );
-        type( "stc-let-bindings-cons",
-            [ "var", "get-expr", "let-bindings-expr" ] );
-        type( "stc-proj-nil", [] );
-        type( "stc-proj-cons",
-            [ "proj-name", "get-expr", "proj-expr" ] );
-        // sugar
-        type( "stc-let-def", [ "def", "get-expr" ] );
-        type( "stc-let", [ "let-bindings-expr", "get-expr" ] );
-        type( "stc-local", [ "var" ] );
-        type( "stc-foreign", [ "foreign" ] );
-        type( "stc-do-what-you-think-is-best", [] );
-        type( "stc-tuple", [ "tuple-name", "proj-expr" ] );
-        // sugar
-        type( "stc-save-root", [ "save-root", "get-expr" ] );
-        // sugar
-        type( "stc-save", [
-            "save-root", "call-tuple-name",
-            "call-func", "tuple-name", "opt-proj-pattern",
-            "call-arg", "var", "arg" ] );
-        // sugar
-        type( "stc-fn",
-            [ "tuple-name", "opt-proj-pattern", "case-list" ] );
-        // sugar
-        type( "stc-proj-pattern-omitted", [ "namespace" ] );
-        type( "stc-proj-pattern", [ "proj-pattern" ] );
-        type( "stc-proj-pattern-nil", [] );
-        type( "stc-proj-pattern-cons",
-            [ "proj-name", "var", "proj-pattern" ] );
-        
         // These constructors are needed for interpreting the results
         // of certain built-in operators, namely `isa` and the cmp
         // operations.
