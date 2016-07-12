@@ -35,7 +35,7 @@ function stcCallArr( func, argsArr ) {
                     "function ( stcLocal_arg ) {\n" +
             "        \n" +
             "        return stcLocal_result.callStc( " +
-                        "definitionNs, stcLocal_arg );\n" +
+                        "rt.defNs, stcLocal_arg );\n" +
             "    } );\n" +
             "} )";
     } );
@@ -1475,9 +1475,9 @@ function runTopLevelMacLookupsSync( originalThreads ) {
     } );
 }
 
-function stcExecute( definitionNs, expr ) {
+function stcExecute( rt, expr ) {
     return Function(
-        "definitionNs", "Stc", "StcFn", "StcForeign", "StcCmpStruct",
+        "rt", "Stc", "StcFn", "StcForeign", "StcCmpStruct",
         "macLookupRet", "macLookupThen",
         
         // NOTE: When the code we generate for this has local
@@ -1486,7 +1486,7 @@ function stcExecute( definitionNs, expr ) {
         // variables in the original code.
         "return " + expr + ";"
         
-    )( definitionNs, Stc, StcFn, StcForeign, StcCmpStruct,
+    )( rt, Stc, StcFn, StcForeign, StcCmpStruct,
         macLookupRet, macLookupThen );
 }
 
@@ -1499,14 +1499,13 @@ function addFunctionNativeDefinition(
                 stcNsGet( "functions", defNs ) ) ),
         new StcForeign( "native-definition", impl ) );
 }
-function stcAddDefun( nss, rawMode, name, argName, body ) {
+function stcAddDefun( rt, defNs, rawMode, name, argName, body ) {
     var tupleTagName = stcNameTupleTagAlreadySorted( name, [] );
-    var innerFunc = stcExecute( nss.definitionNs,
+    var innerFunc = stcExecute( rt,
         "function ( " + stcIdentifier( argName ) + " ) { " +
             "return " + body + "; " +
         "}" );
-    addFunctionNativeDefinition( nss.definitionNs, rawMode,
-        tupleTagName,
+    addFunctionNativeDefinition( defNs, rawMode, tupleTagName,
         function ( funcVal, argVal ) {
         
         return innerFunc( argVal );
@@ -1519,8 +1518,8 @@ function stcErr( msg ) {
     "})()";
 }
 
-function evalStcForTest( definitionNs, expr ) {
-    return stcExecute( definitionNs, expr );
+function evalStcForTest( rt, expr ) {
+    return stcExecute( rt, expr );
 }
 
 function usingDefinitionNs( macroDefNs ) {
@@ -1536,6 +1535,9 @@ function usingDefinitionNs( macroDefNs ) {
         stcType( macroDefNs, "stx", "stx-details", "s-expr" );
     var stcForeign = stcType( macroDefNs, "foreign", "val" );
     var stcCmpable = stcType( macroDefNs, "cmpable", "cmp", "val" );
+    
+    var rt = {};
+    rt.defNs = macroDefNs;
     
     function callStcMulti( func, var_args ) {
         var args = arguments;
@@ -2014,7 +2016,7 @@ function usingDefinitionNs( macroDefNs ) {
                 return processFn( nss, rawMode, body1,
                     function ( rawMode, processedFn ) {
                     
-                    stcAddDefun( nss, rawMode,
+                    stcAddDefun( rt, nss.definitionNs, rawMode,
                         stcConstructorTag( nss.definitionNs,
                             stcConstructorName(
                                 nss.definitionNs, name ) ),
@@ -2049,8 +2051,7 @@ function usingDefinitionNs( macroDefNs ) {
             return new StcForeign( "effects", function ( rawMode ) {
                 return processFn( nss, rawMode, body1,
                     function ( rawMode, processedFn ) {
-                return macLookupThen(
-                    stcExecute( nss.definitionNs, processedFn ),
+                return macLookupThen( stcExecute( rt, processedFn ),
                     function ( executedFn ) {
                 
                 collectPut( rawMode,
@@ -2091,16 +2092,14 @@ function usingDefinitionNs( macroDefNs ) {
                     stcCons.getProj( body, "car" ),
                     nssGet( aNss, "outbox" ).uniqueNs,
                     function ( rawMode, expandedA ) {
-                return macLookupThen(
-                    evalStcForTest( nss.definitionNs, expandedA ),
+                return macLookupThen( evalStcForTest( rt, expandedA ),
                     function ( a ) {
                 var bNss = nssGet( nss, "b" );
                 return macroexpand( nssGet( bNss, "unique" ), rawMode,
                     stcCons.getProj( body1, "car" ),
                     nssGet( bNss, "outbox" ).uniqueNs,
                     function ( rawMode, expandedB ) {
-                return macLookupThen(
-                    evalStcForTest( nss.definitionNs, expandedB ),
+                return macLookupThen( evalStcForTest( rt, expandedB ),
                     function ( b ) {
                 
                 var match = compareStc( a, b );
