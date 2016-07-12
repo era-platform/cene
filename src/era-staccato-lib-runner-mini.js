@@ -347,7 +347,7 @@ function stcIncomparable(
         fromBoolean( rightComparable ) );
 }
 
-function stcCmpCmpables( definitionNs, a, b ) {
+function stcCmpAssertedValidCmpables( definitionNs, a, b ) {
     var stcCmpable = stcType( definitionNs, "cmpable", "cmp", "val" );
     var stcNil = stcType( definitionNs, "nil" );
     var stcYep = stcType( definitionNs, "yep", "val" );
@@ -364,40 +364,20 @@ function stcCmpCmpables( definitionNs, a, b ) {
     return macLookupThen( aCmp.cmpThis( definitionNs, bCmp ),
         function ( cmpResult ) {
         
-        if ( stcYep.tags( cmpResult )
-            && stcNil.tags( stcYep.getProj( cmpResult, "val" ) ) )
-            return aCmp.cmp( definitionNs,
+        if ( !stcNil.tags( cmpResult ) )
+            return macLookupRet( cmpResult );
+        
+        return macLookupThen(
+            aCmp.cmp( definitionNs,
                 stcCmpable.getProj( a, "val" ),
-                stcCmpable.getProj( b, "val" ) );
-        
-        if ( stcCmpResultIncomparable.tags( cmpResult ) ) {
-            if ( toBoolean(
-                stcCmpResultIncomparable.getProj( cmpResult,
-                    "left-is-comparable" ) ) ) {
-                
-                return oneSide( aCmp, a );
-                
-            } else if ( toBoolean(
-                stcCmpResultIncomparable.getProj( cmpResult,
-                    "right-is-comparable" ) ) ) {
-                
-                return oneSide( bCmp, b );
-            }
-        }
-        
-        return macLookupRet( cmpResult );
-        
-        function oneSide( cmp, x ) {
-            return macLookupThen(
-                cmp.cmpHas( definitionNs,
-                    stcCmpable.getProj( x, "val" ) ),
-                function ( valResult ) {
-                
-                return macLookupRet( toBoolean( valResult ) ?
-                    cmpResult :
-                    stcIncomparable( definitionNs, false, false ) );
-            } );
-        }
+                stcCmpable.getProj( b, "val" ) ),
+            function ( cmpResult ) {
+            
+            if ( !stcYep.tags( cmpResult ) )
+                throw new Error();
+            
+            return macLookupRet( stcYep.getProj( cmpResult, "val" ) );
+        } );
     } );
 }
 
@@ -811,7 +791,11 @@ StcCmpCmp.prototype.cmp = function ( definitionNs, a, b ) {
     if ( b.cmpRank < a.cmpRank )
         return macLookupRet(
             stcYep.ofNow( new StcForeign( "gt", null ) ) );
-    return a.cmpThis( definitionNs, b );
+    return macLookupThen( a.cmpThis( definitionNs, b ),
+        function ( cmpResult ) {
+        
+        return macLookupRet( stcYep.ofNow( cmpResult ) );
+    } );
 };
 StcCmpCmp.prototype.cmpHas = function ( definitionNs, x ) {
     var stcNil = stcType( definitionNs, "nil" );
@@ -1069,7 +1053,7 @@ StcCmpWithOwnMethod.prototype.cmpHas = function ( definitionNs, x ) {
 StcCmpWithOwnMethod.prototype.cmpThis = function ( definitionNs,
     other ) {
     
-    return stcCmpCmpables( definitionNs,
+    return stcCmpAssertedValidCmpables( definitionNs,
         this.cmpableGetMethod,
         other.cmpableGetMethod );
 };
@@ -1110,7 +1094,7 @@ StcCmpFix.prototype.cmpHas = function ( definitionNs, x ) {
     } );
 };
 StcCmpFix.prototype.cmpThis = function ( definitionNs, other ) {
-    return stcCmpCmpables( definitionNs,
+    return stcCmpAssertedValidCmpables( definitionNs,
         this.cmpableUnwrap,
         other.cmpableUnwrap );
 };
@@ -2600,70 +2584,55 @@ function usingDefinitionNs( macroDefNs ) {
             }
         };
         
+        var tableEmpty = new StcForeign( "table",
+            avlMap( function ( yoke, a, b, then ) {
+                return macLookupThen(
+                    stcCmpAssertedValidCmpables( macroDefNs,
+                        a, b ),
+                    function ( cmpResult ) {
+                    
+                    if ( stcNil.tags( cmpResult ) )
+                        return then( yoke, 0 );
+                    if ( cmpResult instanceof StcForeign
+                        && cmpResult.purpose === "lt" )
+                        return then( yoke, -1 );
+                    if ( cmpResult instanceof StcForeign
+                        && cmpResult.purpose === "gt" )
+                        return then( yoke, 1 );
+                    
+                    throw new Error();
+                } );
+            } ) );
+        
         // TODO: Add documentation of this somewhere.
-        fun( "table-empty", function ( keyCmp ) {
-            if ( !stcIsCmp( keyCmp ) )
-                throw new Error();
-            
-            return new StcForeign( "table", {
-                keyCmp: keyCmp,
-                contents: avlMap( function ( yoke, a, b, then ) {
-                    return macLookupThen(
-                        keyCmp.cmp( macroDefNs, a, b ),
-                        function ( cmpResult ) {
-                        
-                        if ( !stcYep.tags( cmpResult ) )
-                            throw new Error();
-                        var internal =
-                            stcYep.getProj( cmpResult, "val" );
-                        
-                        if ( stcNil.tags( internal ) )
-                            return then( yoke, 0 );
-                        if ( internal instanceof StcForeign
-                            && internal.purpose === "lt" )
-                            return then( yoke, -1 );
-                        if ( internal instanceof StcForeign
-                            && internal.purpose === "gt" )
-                            return then( yoke, 1 );
-                        
-                        throw new Error();
-                    } );
-                } )
-            } );
+        fun( "table-empty", function ( ignored ) {
+            return tableEmpty;
         } );
         
         // TODO: Add documentation of this somewhere.
-        fun( "table-shadow", function ( key ) {
+        fun( "table-shadow", function ( cmpableKey ) {
             return stcFnPure( function ( maybeVal ) {
                 return new StcFn( function ( table ) {
                     if ( !(table instanceof StcForeign
                         && table.purpose === "table") )
                         throw new Error();
                     
-                    return macLookupThen(
-                        table.foreignVal.keyCmp.cmpHas( macroDefNs,
-                            key ),
-                        function ( comparable ) {
-                        
-                        if ( stcNope.tags( comparable ) )
-                            throw new Error();
+                    return assertValidCmpable( cmpableKey,
+                        function () {
                         
                         if ( stcNil.tags( maybeVal ) )
-                            return table.foreignVal.contents.minusEntry( macLookupYoke,
-                                key, next );
+                            return table.foreignVal.minusEntry( macLookupYoke,
+                                cmpableKey, next );
                         if ( stcYep.tags( maybeVal ) )
-                            return table.foreignVal.contents.plusEntry( macLookupYoke,
-                                key,
+                            return table.foreignVal.plusEntry( macLookupYoke,
+                                cmpableKey,
                                 stcYep.getProj( maybeVal, "val" ),
                                 next );
                         throw new Error();
                         
                         function next( yoke, contents ) {
                             return macLookupRet(
-                                new StcForeign( "table", {
-                                    keyCmp: table.foreignVal.keyCmp,
-                                    contents: contents
-                                } ) );
+                                new StcForeign( "table", contents ) );
                         }
                     } );
                 } );
@@ -2671,22 +2640,15 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
-        fun( "table-get", function ( key ) {
+        fun( "table-get", function ( cmpableKey ) {
             return new StcFn( function ( table ) {
                 if ( !(table instanceof StcForeign
                     && table.purpose === "table") )
                     throw new Error();
                 
-                return macLookupThen(
-                    table.foreignVal.keyCmp.cmpHas( macroDefNs,
-                        key ),
-                    function ( comparable ) {
-                    
-                    if ( stcNope.tags( comparable ) )
-                        throw new Error();
-                    
-                    return table.foreignVal.contents.getMaybe( macLookupYoke,
-                        key,
+                return assertValidCmpable( cmpableKey, function () {
+                    return table.foreignVal.getMaybe( macLookupYoke,
+                        cmpableKey,
                         function ( yoke, maybeResult ) {
                         
                         return macLookupRet( maybeResult === null ?
@@ -2695,15 +2657,6 @@ function usingDefinitionNs( macroDefNs ) {
                     } );
                 } );
             } );
-        } );
-        
-        // TODO: Add documentation of this somewhere.
-        fun( "table-key-cmp", function ( table ) {
-            if ( !(table instanceof StcForeign
-                && table.purpose === "table") )
-                throw new Error();
-            
-            return table.foreignVal.keyCmp;
         } );
         
         // TODO: Add documentation of this somewhere.
@@ -2716,25 +2669,12 @@ function usingDefinitionNs( macroDefNs ) {
                     && second.purpose === "table") )
                     throw new Error();
                 
-                return macLookupThen(
-                    first.foreignVal.keyCmp.cmpThis( macroDefNs,
-                        second.foreignVal.keyCmp ),
-                    function ( cmpsMatch ) {
-                    
-                    if ( !stcNil.tags( cmpsMatch ) )
-                        throw new Error();
-                
-                return first.foreignVal.contents.plus( macLookupYoke,
-                    second.foreignVal.contents,
+                return first.foreignVal.plus( macLookupYoke,
+                    second.foreignVal,
                     function ( yoke, contents ) {
-                
-                return macLookupRet( new StcForeign( "table", {
-                    keyCmp: first.foreignVal.keyCmp,
-                    contents: contents
-                } ) );
-                
-                } );
-                
+                    
+                    return macLookupRet(
+                        new StcForeign( "table", contents ) );
                 } );
             } );
         } );
@@ -2795,49 +2735,40 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Document this somewhere.
-        fun( "procure-sub-ns", function ( cmp ) {
-            return stcFnPure( function ( key ) {
-                return new StcFn( function ( ns ) {
-                    return macLookupThen(
-                        cmp.cmpHas( macroDefNs, key ),
-                        function ( valid ) {
-                        
-                        if ( stcNope.tags( valid ) )
-                            throw new Error();
-                        
-                        return macLookupRet(
-                            new StcForeign( "ns",
-                                stcNsGet( key.toName(),
-                                    ns.foreignVal ) ) );
-                    } );
+        fun( "procure-sub-ns", function ( cmpableKey ) {
+            return new StcFn( function ( ns ) {
+                return assertValidCmpable( cmpableKey, function () {
+                    var key = stcCmpable.getProj( cmpableKey, "val" );
+                    return macLookupRet(
+                        new StcForeign( "ns",
+                            stcNsGet( key.toName(),
+                                ns.foreignVal ) ) );
                 } );
             } );
         } );
         
         // TODO: Document this somewhere.
-        fun( "shadow-procure-sub-ns", function ( cmp ) {
-            return stcFnPure( function ( key ) {
-                return stcFnPure( function ( subNs ) {
-                    return new StcFn( function ( ns ) {
-                        return macLookupThen(
-                            cmp.cmpHas( macroDefNs, key ),
-                            function ( valid ) {
-                            
-                            if ( stcNope.tags( valid ) )
-                                throw new Error();
-                            
-                            if ( !(subNs instanceof StcForeign
-                                && subNs.purpose === "ns") )
-                                throw new Error();
-                            
-                            if ( !(ns instanceof StcForeign
-                                && ns.purpose === "ns") )
-                                throw new Error();
-                            
-                            return macLookupRet(
-                                new StcForeign( "ns",
-                                    stcNsShadow( key.toName(), subNs.foreignVal, ns.foreignVal ) ) );
-                        } );
+        fun( "shadow-procure-sub-ns", function ( cmpableKey ) {
+            return stcFnPure( function ( subNs ) {
+                return new StcFn( function ( ns ) {
+                    return assertValidCmpable( cmpableKey,
+                        function () {
+                        
+                        if ( !(subNs instanceof StcForeign
+                            && subNs.purpose === "ns") )
+                            throw new Error();
+                        
+                        if ( !(ns instanceof StcForeign
+                            && ns.purpose === "ns") )
+                            throw new Error();
+                        
+                        var key =
+                            stcCmpable.getProj( cmpableKey, "val" );
+                        return macLookupRet(
+                            new StcForeign( "ns",
+                                stcNsShadow( key.toName(),
+                                    subNs.foreignVal,
+                                    ns.foreignVal ) ) );
                     } );
                 } );
             } );
@@ -3194,8 +3125,7 @@ function usingDefinitionNs( macroDefNs ) {
             [ "left-is-comparable", "right-is-comparable" ] );
         
         // This constructor is needed for constructing the input to
-        // certain operations, namely `cmp-with-own-method` and
-        // `cmp-fix`.
+        // certain operations.
         // TODO: Add documentation for this somewhere.
         type( "cmpable", [ "cmp", "val" ] );
         

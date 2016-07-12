@@ -51,6 +51,7 @@
   (nope/nil))
 
 (test
-  (table-get str.woo
-    (table-shadow str.woo (yep/nope/nil) /table-empty/cmp-string/nil))
+  (table-get (cmpable (cmp-string/nil) str.woo)
+    (table-shadow (cmpable (cmp-string/nil) str.woo) (yep/nope/nil)
+    /table-empty/nil))
   (yep/nope/nil))

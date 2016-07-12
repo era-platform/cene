@@ -21,16 +21,16 @@
 \= them in docs.md.
 
 (defn ns-get-string string ns
-  (procure-sub-ns (cmp-string/nil) string ns))
+  (procure-sub-ns (cmpable (cmp-string/nil) string) ns))
 
 (defn ns-get-name name ns
-  (procure-sub-ns (cmp-name/nil) name ns))
+  (procure-sub-ns (cmpable (cmp-name/nil) name) ns))
 
 (defn ns-shadow-string string sub-ns ns
-  (shadow-procure-sub-ns (cmp-string/nil) string sub-ns ns))
+  (shadow-procure-sub-ns (cmpable (cmp-string/nil) string) sub-ns ns))
 
 (defn ns-shadow-name name sub-ns ns
-  (shadow-procure-sub-ns (cmp-name/nil) name sub-ns ns))
+  (shadow-procure-sub-ns (cmpable (cmp-name/nil) name) sub-ns ns))
 
 
 \= ===== Lists, boolean tags, and macro utilities ====================
