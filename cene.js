@@ -464,9 +464,7 @@ argParser.addArgument( [ "args" ], {
 // Development interface
 argParser.addArgument( [ "-s", "--build-staccato" ], {
     action: "storeTrue",
-    help:
-        "Staccato: Compile dependencies of " +
-        "demos/staccato-runner-mini.html."
+    help: "Staccato: Compile dependencies of demos/cene.html."
 } );
 argParser.addArgument( [ "-E", "--test-era" ], {
     action: "storeTrue",
