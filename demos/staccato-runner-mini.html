@@ -127,11 +127,15 @@ window.onload = function () {
                 }
             } );
         
-        usingDefNs.stcAddCoreMacros( nss.definitionNs );
-        usingDefNs.processCoreTypes( nss.definitionNs );
-        ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
+        var namespaceDefs = jsnMap();
+        usingDefNs.stcAddCoreMacros(
+            namespaceDefs, nss.definitionNs );
+        usingDefNs.processCoreTypes(
+            namespaceDefs, nss.definitionNs );
+        ceneApiUsingDefNs.addCeneApi(
+            namespaceDefs, nss.definitionNs );
         
-        usingDefNs.runTopLevelTryExprsSync( nss,
+        usingDefNs.runTopLevelTryExprsSync( namespaceDefs, nss,
             [].concat( codeOfFiles, testCode ) );
         
         var stopMillis = new Date().getTime();
