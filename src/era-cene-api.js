@@ -193,7 +193,8 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         
         return wrapCene( new StcForeign( "js-effects", function () {
             return macLookupThen(
-                ceneThenUnwrapped.callStc( macroDefNs, valUnwrapped ),
+                ceneThenUnwrapped.callStc( usingDefNs.rt,
+                    valUnwrapped ),
                 function ( effects ) {
                 
                 return runJsEffects( effects );
@@ -207,7 +208,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         return wrapCene( new StcForeign( "js-effects", function () {
             deferAndRunMacLookup( function () {
                 return macLookupThen(
-                    ceneThenUnwrapped.callStc( macroDefNs,
+                    ceneThenUnwrapped.callStc( usingDefNs.rt,
                         valUnwrapped ),
                     function ( jsEffects ) {
                     
@@ -227,7 +228,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         } );
     } );
     
-    function addCeneApi( targetDefNs ) {
+    function addCeneApi( namespaceDefs, targetDefNs ) {
         var dummyMode = usingDefNs.makeDummyMode();
         
         function type( tupleName, projNames ) {
@@ -546,7 +547,8 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                         function ( intermediate ) {
                         
                         return macLookupThen(
-                            then.callStc( macroDefNs, intermediate ),
+                            then.callStc( usingDefNs.rt,
+                                intermediate ),
                             function ( jsEffects ) {
                             
                             return runJsEffects( jsEffects );
@@ -611,7 +613,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
             } );
         } );
         
-        usingDefNs.commitDummyMode( dummyMode );
+        usingDefNs.commitDummyMode( namespaceDefs, dummyMode );
     }
     
     return {

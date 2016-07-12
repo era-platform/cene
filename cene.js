@@ -372,11 +372,12 @@ function runCeneSync(
             }
         } );
     
-    usingDefNs.stcAddCoreMacros( nss.definitionNs );
-    usingDefNs.processCoreTypes( nss.definitionNs );
-    ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
+    var namespaceDefs = $stc.jsnMap();
+    usingDefNs.stcAddCoreMacros( namespaceDefs, nss.definitionNs );
+    usingDefNs.processCoreTypes( namespaceDefs, nss.definitionNs );
+    ceneApiUsingDefNs.addCeneApi( namespaceDefs, nss.definitionNs );
     
-    usingDefNs.runTopLevelTryExprsSync( nss,
+    usingDefNs.runTopLevelTryExprsSync( namespaceDefs, nss,
         [].concat( codeOfFiles, codeOfTestFiles ) );
     $stc.arrEach( onceDependenciesCompleteListeners,
         function ( listener ) {

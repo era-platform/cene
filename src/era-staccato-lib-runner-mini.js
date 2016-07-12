@@ -313,10 +313,6 @@ function macLookupThen( macLookupEffects, then ) {
 }
 
 
-var staccatoDeclarationState = {};
-staccatoDeclarationState.namespaceDefs = jsnMap();
-staccatoDeclarationState.functionDefs = {};
-
 var nextCmpRank = 1;
 
 function prettifyTupleTag( tupleTag ) {
@@ -391,7 +387,7 @@ Stc.prototype.callStc = function ( rt, arg ) {
     // every single function call, so we do an early check to see if
     // we already have access to the definition we would have blocked
     // on.
-    var func = staccatoDeclarationState.functionDefs[ self.tupleTag ];
+    var func = rt.functionDefs[ self.tupleTag ];
     if ( func !== void 0 )
         return func( rt, self, arg );
     
@@ -411,7 +407,7 @@ Stc.prototype.callStc = function ( rt, arg ) {
             throw new Error();
         
         var func = def.foreignVal;
-        staccatoDeclarationState.functionDefs[ self.tupleTag ] = func;
+        rt.functionDefs[ self.tupleTag ] = func;
         return func( rt, self, arg );
     } );
 };
@@ -1178,19 +1174,17 @@ function collectPut( rawMode, namespace, value ) {
 function collectDefer( rawMode, item ) {
     rawMode.defer.push( item );
 }
-function runPuts( rawMode ) {
+function runPuts( namespaceDefs, rawMode ) {
     var seenAlready = jsnMap();
     arrEach( rawMode.put, function ( put ) {
-        if ( staccatoDeclarationState.namespaceDefs.has(
-            put.namespace.name ) )
+        if ( namespaceDefs.has( put.namespace.name ) )
             throw new Error();
         if ( seenAlready.has( put.namespace.name ) )
             throw new Error();
         seenAlready.set( put.namespace.name, true );
     } );
     arrEach( rawMode.put, function ( put ) {
-        staccatoDeclarationState.namespaceDefs.set(
-            put.namespace.name, put.value );
+        namespaceDefs.set( put.namespace.name, put.value );
     } );
 }
 function runEffects( rawMode, effects ) {
@@ -1206,7 +1200,7 @@ function macLookupThenRunEffects( rawMode, effects ) {
     } );
 }
 
-function runTopLevelMacLookupsSync( originalThreads ) {
+function runTopLevelMacLookupsSync( namespaceDefs, originalThreads ) {
     
     function currentlyMode( rawMode, body ) {
         rawMode.current = true;
@@ -1237,7 +1231,7 @@ function runTopLevelMacLookupsSync( originalThreads ) {
             } ),
             function ( ignored ) {
             
-            runPuts( rawMode );
+            runPuts( namespaceDefs, rawMode );
             arrEach( rawMode.defer, function ( thread ) {
                 addMacroThread( function ( rawMode ) {
                     return macLookupThen( thread(),
@@ -1317,15 +1311,12 @@ function runTopLevelMacLookupsSync( originalThreads ) {
                         return then( thread.monad.first.val );
                     } ) );
             } else if ( thread.monad.first.type === "get" ) {
-                if ( staccatoDeclarationState.namespaceDefs.has(
-                    thread.monad.first.name ) ) {
-                    
+                if ( namespaceDefs.has( thread.monad.first.name ) ) {
                     return replaceThread(
                         currentlyThread( thread, function () {
                             return then(
-                                staccatoDeclarationState.
-                                    namespaceDefs.get(
-                                        thread.monad.first.name ) );
+                                namespaceDefs.get(
+                                    thread.monad.first.name ) );
                         } ) );
                 } else {
                     thread.failedAdvances++;
@@ -1521,8 +1512,12 @@ function usingDefinitionNs( macroDefNs ) {
     var stcForeign = stcType( macroDefNs, "foreign", "val" );
     var stcCmpable = stcType( macroDefNs, "cmpable", "cmp", "val" );
     
+    // NOTE: The "rt" stands for "runtime." This carries things that
+    // are relevant at run time.
+    // TODO: See if we should add `namespaceDefs` to this.
     var rt = {};
     rt.defNs = macroDefNs;
+    rt.functionDefs = {};
     
     function callStcMulti( rt, func, var_args ) {
         var args = arguments;
@@ -1917,13 +1912,13 @@ function usingDefinitionNs( macroDefNs ) {
             put: []
         };
     }
-    function commitDummyMode( rawMode ) {
+    function commitDummyMode( namespaceDefs, rawMode ) {
         if ( rawMode.type !== "dummy-mode" )
             throw new Error();
-        runPuts( rawMode );
+        runPuts( namespaceDefs, rawMode );
     }
     
-    function stcAddCoreMacros( targetDefNs ) {
+    function stcAddCoreMacros( namespaceDefs, targetDefNs ) {
         
         var dummyMode = makeDummyMode();
         
@@ -2937,7 +2932,7 @@ function usingDefinitionNs( macroDefNs ) {
             } ) );
         } );
         
-        commitDummyMode( dummyMode );
+        commitDummyMode( namespaceDefs, dummyMode );
     }
     
     function macroexpand( nss, rawMode, locatedExpr, outNs, then ) {
@@ -3100,7 +3095,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
     }
     
-    function processCoreTypes( definitionNs ) {
+    function processCoreTypes( namespaceDefs, definitionNs ) {
         
         var dummyMode = makeDummyMode();
         
@@ -3145,7 +3140,7 @@ function usingDefinitionNs( macroDefNs ) {
         type( "string", [ "val" ] );
         type( "name", [ "val" ] );
         
-        commitDummyMode( dummyMode );
+        commitDummyMode( namespaceDefs, dummyMode );
     }
     
     function readerExprToStc( myStxDetails, readerExpr ) {
@@ -3212,12 +3207,13 @@ function usingDefinitionNs( macroDefNs ) {
         } );
     }
     
-    function runTopLevelTryExprsSync( nss, tryExprs ) {
-        runTopLevelMacLookupsSync(
+    function runTopLevelTryExprsSync( namespaceDefs, nss, tryExprs ) {
+        runTopLevelMacLookupsSync( namespaceDefs,
             topLevelTryExprsToMacLookupThreads( nss, tryExprs ) );
     }
     
     return {
+        rt: rt,
         stcAddCoreMacros: stcAddCoreMacros,
         processCoreTypes: processCoreTypes,
         topLevelTryExprsToMacLookupThreads:
