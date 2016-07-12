@@ -89,6 +89,9 @@ def-type (cmpable cmp val)
   \= NOTE: To model a similar data structure where clients need to have the keys to see the values, simply define an encapsulated struct containing a table, and define only a subset of the table operations for that struct. except `table-map-combine` and `cmp-table`. (TODO: If we want ephemeron tables in Cene, we might need to add another table type like this.)
   \= TODO: Make sure we can model a data structure on
   \= TODO: Reconsider this. If this kind of table is something everyone can iterate over, even if they don't have all the keys, then how would we express a table where someone does need the keys to iterate?
+(defn table-zip a b func ...)
+  where (func maybe-a-val maybe-b-val)
+  \= Given two tables and a function to combine values, makes a new table by iterating over the tables' combined set of keys, calling the function with both tables' `(yep ...)` or `(nil)` values for the keys, and using the function's `(yep ...)` or `(nil)` result to determine the value for the final table. The function will never be called with `(nil)` and `(nil)`.
 
 \= NOTE: We can't have (cmp-map <cmpable-func> <result-cmp>) because it might call things equivalent that are distinguishable from each other, which would make a (merge-cmp ...) stop being commutative.
 

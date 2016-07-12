@@ -86,6 +86,14 @@ Constructs a syntax details object that refers to a macro's input, so that the m
 
 -
 ```
+(defn contributing-only-to ns effects ...)
+```
+(**TODO**: Implement this.)
+
+Monadically, schedules the effects to occur in a future tick where contributing to multimethods outside the given namespace is not allowed, but reading closed-world-assumption collections of contributions outside the given namespace is allowed.
+
+-
+```
 (defn ns-get-name name ns ...)
 ```
 Obtains a sub-namespace determined by the given namespace, using the given name as a "folder name." Usually, distinct "folder names" will yield distinct sub-namespaces, but sometimes the interpreter may be configured so that this isn't the case.
@@ -95,6 +103,14 @@ Obtains a sub-namespace determined by the given namespace, using the given name 
 (defn ns-get-string string ns ...)
 ```
 Obtains a sub-namespace determined by the first namespace, using the given string as a "folder name." Usually, distinct "folder names" will yield distinct sub-namespaces, but sometimes the interpreter may be configured so that this isn't the case.
+
+-
+```
+(defn procure-sub-ns-table ns table ...)
+```
+(**TODO**: Implement this, and reimplement `procure-sub-ns` in terms of this.)
+
+Makes a table with entries corresponding to the given table, except each value is a namespace uniquely determined by the given namespace and the entry's key. The entry's value is ignored.
 
 -
 ```
@@ -112,9 +128,23 @@ The `ns-shadow-name` and `ns-shadow-string` functions can be used to establish l
 
 -
 ```
+(defn shadow-procure-sub-ns-table table ns ...)
+```
+(**TODO**: Implement this, and reimplement `shadow-procure-sub-ns` in terms of this.)
+
+Creates a new namespace that behaves like the given namespace in almost every way, except when a key from the given table is requested as a "folder name", in which case the corresponding value of the table is returned instead. The values of the table must be namespaces.
+
+-
+```
 (defn procure-name mode ns ...)
 ```
 Uses the given namespace to obtain a first-class name value. The given modality must be the current one.
+
+-
+```
+(defn procure-put-defined ns value ...)
+```
+Constructs a monad that, if invoked, installs a definition so that the given namespace has a defined value, namely the given one. If the definition cannot be installed, the program is in error; other computations that depend on the defined value may or may not be canceled or retroactively voided.
 
 -
 ```
@@ -124,9 +154,30 @@ Blocks until the given namespace has a defined value and then returns it. The gi
 
 -
 ```
-(defn procure-put-defined ns value ...)
+(defn procure-contribute-element ns cmpable-key element ...)
 ```
-Constructs a monad that, if invoked, installs a definition so that the given namespace has a defined value, namely the given one. If the definition cannot be installed, the program is in error; other computations that depend on the defined value may or may not be canceled or retroactively voided.
+Monadically, contributes to the element contribution map on the namespace. If more than one element contribution is given for the same key, an error occurs; all listener contributors, element contributors, and ticks begun by these contributions are in error, and their ticks' side effects are invalidated. The current modality's ancestors must not have used `contributing-only-to` to disallow making element contributions to the given namespace.
+
+-
+```
+(defn procure-contribute-listener ns cmpable-key listener ...)
+(listener singleton-table)
+```
+(**TODO**: Implement this.)
+
+Monadically, contributes to the listener contribution map on the namespace. The listener will be called monadically in a different future tick each time an entry is contributed to the namespace's element contribution map. The listener is given a singleton table containing the entry contributed. If more than one listener contribution is given for the same key, an error occurs; all listener contributors, element contributors, and ticks begun by these contributions are in error, and their ticks' side effects are invalidated.
+
+This is a way to make frameworks that are extensible in the sense of the open-world assumption (OWA).
+
+-
+```
+(defn procure-contributed-elements mode ns ...)
+```
+(**TODO**: Implement this.)
+
+Gets the namespace's full element contribution map as a table. The given modality must be the current one, and its ancestors must have used `contributing-only-to` to disallow making contributions to the given namespace. During macroexpansion, this operation will not compute a result until at least all the original macroexpansion ticks have completed, since they are capable of contributing to any namespace.
+
+This is a way to make frameworks that are extensible in the sense of the closed-world assumption (CWA).
 
 -
 ```
@@ -160,6 +211,15 @@ body (fn mode ...)
 Constructs a monad. If invoked, it calls the callback in the same tick with the current modality, and it performs the callback's monadic side effects.
 
 A modality must be passed to certain effectful primitives as a way to give the effects something to be deterministic by. (The terms "mode" and "modality" might be idiosyncrasies of this codebase. A more standard term is "world-passing style.")
+
+-
+```
+(defn table-zip a b func ...)
+(func maybe-a-val maybe-b-val)
+```
+(**TODO**: Implement this.)
+
+Given two tables and a function to combine values, makes a new table by iterating over the tables' combined set of keys, calling the function with both tables' `(yep ...)` or `(nil)` values for the keys, and using the function's `(yep ...)` or `(nil)` result to determine the value for the final table. The function will never be called with `(nil)` and `(nil)`.
 
 -
 
