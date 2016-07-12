@@ -462,19 +462,17 @@ argParser.addArgument( [ "args" ], {
 } );
 
 // Development interface
-argParser.addArgument( [ "-s", "--build-staccato" ], {
+argParser.addArgument( [ "-c", "--demo-cene" ], {
     action: "storeTrue",
-    help: "Staccato: Compile dependencies of demos/cene.html."
+    help: "Cene: Compile dependencies of demos/cene.html."
 } );
 argParser.addArgument( [ "-E", "--test-era" ], {
     action: "storeTrue",
     help: "Era reader: Run unit tests."
 } );
-argParser.addArgument( [ "-S", "--test-mini-staccato" ], {
+argParser.addArgument( [ "-C", "--test-cene" ], {
     action: "storeTrue",
-    help:
-        "Mini Staccato, a subset of a macro-capable Staccato: Run " +
-        "a demo."
+    help: "Cene: Run a demo as a batch process."
 } );
 
 var args = argParser.parseArgs();
@@ -498,10 +496,10 @@ if ( args.test_era ) tasks.push( function ( then ) {
 } );
 
 
-if ( args.build_staccato ) tasks.push( function ( then ) {
+if ( args.demo_cene ) tasks.push( function ( then ) {
     arrEachAsyncNodeExn( [
         { dir: "src/", name: "era-cene-prelude.cene" },
-        { dir: "test/", name: "test.stc" }
+        { dir: "test/", name: "test.cene" }
     ], function ( i, file, then ) {
         ltf.readTextFile(
             $path.resolve( __dirname, file.dir + file.name ), "utf-8",
@@ -526,13 +524,13 @@ if ( args.build_staccato ) tasks.push( function ( then ) {
         if ( e ) return void then( e );
         
         console.log(
-            "Copied Staccato files to fin/ as JavaScript files." );
+            "Copied Cene files to fin/ as JavaScript files." );
         then();
     } );
 } );
 
-if ( args.test_mini_staccato ) tasks.push( function ( then ) {
-    runCeneSync( preludeFiles, [ "test/test.stc" ],
+if ( args.test_cene ) tasks.push( function ( then ) {
+    runCeneSync( preludeFiles, [ "test/test.cene" ],
         !!"displayTimeInfo", [], null, null );
     
     process.nextTick( function () {

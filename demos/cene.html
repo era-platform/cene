@@ -6,24 +6,25 @@
 cene.html (part of Era Cene)
 Copyright 2015, 2016 Ross Angle. Released under the MIT License.
 -->
-<title>Era Staccato demo</title>
+<title>Era Cene demo</title>
 </head>
 <body>
 <p><a href="https://github.com/rocketnia/era-cene"
     >View the Era Cene project on GitHub.</a></p>
 
-<p>This page merely loads Staccato without actually using it for much.
+<p>This page merely loads Cene without actually using it for much.
 Check the console to see if there are errors. If there aren't, great!
 Nothing to see here.</p>
 
-<p>This page loads the Staccato source code from a file called
-"fin/era-cene-prelude.cene.js" in the repo directory. To use this
-page, you must obtain era-cene-prelude.cene.js in one of two ways:</p>
+<p>This page loads the Cene source code from files called
+"fin/era-cene-prelude.cene.js" and "fin/test.cene.js" in the repo
+directory. To use this page, you must obtain these files in one of two
+ways:</p>
 
 <ul>
     <li>Install Node.js. From the repo directory, run the command
     "<kbd>npm install</kbd>" followed by the command
-    "<kbd>node cene.js --build-staccato</kbd>".</li>
+    "<kbd>node cene.js --demo-cene</kbd>".</li>
     <li>Check out the <code>gh-pages</code> branch, which contains the
     files automatically built by Travis CI.</li>
 </ul>
@@ -35,7 +36,7 @@ page, you must obtain era-cene-prelude.cene.js in one of two ways:</p>
 <script type="text/javascript" src="../buildlib/lathe.js"></script>
 <script type="text/javascript" src="../fin/era-cene-prelude.cene.js">
     </script>
-<script type="text/javascript" src="../fin/test.stc.js"></script>
+<script type="text/javascript" src="../fin/test.cene.js"></script>
 <script type="text/javascript" src="../src/era-misc-strmap-avl.js">
     </script>
 <script type="text/javascript" src="../src/era-misc.js"></script>
@@ -55,7 +56,7 @@ window.onload = function () {
         var files = [
             "era-cene-prelude.cene"
         ];
-        var testFile = "test.stc";
+        var testFile = "test.cene";
         
         function readFile( file ) {
             return rocketnia.eraFiles[ file ];
