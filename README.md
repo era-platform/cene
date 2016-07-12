@@ -38,7 +38,7 @@ Cene's **collapsed brackets** are a simple syntactic feature that allows deep co
 /do-thing-3 result-1 result-2)
 ```
 
-Since Cene makes continuation-passing style so much more palatable, Cene's **side effects** are monadic, with asynchronous callbacks if they're observable to the outside world. If they're not observable to the outside world, they use a world-passing style instead. Cene calls worlds "modes" to call to mind modal logic. (TODO: That's probably an incorrect usage. Just use the name "world" instead.)
+Since Cene makes continuation-passing style so much more palatable, Cene's **side effects** are monadic, with asynchronous callbacks if they're observable to the outside world. If they're not observable to the outside world, they use a world-passing style instead. Cene calls worlds "modes" to call to mind modal logic. (**TODO**: That's probably an incorrect usage. Just use the name "world" instead.)
 
 ```
 \= Copies one tree of UTF-8 files to another file tree recursively.
@@ -145,7 +145,7 @@ Cene is named for _-cene_, a suffix that refers to eras, since Cene is part of [
 
 The brand image I imagine for Cene will have layers: In the meta layer, cartoon characters weild a mallet and a marker over a holographic void of pinks, yellows, and greens. In the marker-drawn layer, deep dark gray and pure white are punctuated by stamp symbols, gears, and dotted lines in luminescent red. When the gears hatch, cartoon vines grow out of them in a calm, neutral green. These cartoon vines are the brand image I have in mind for the Era project's eventual OS/IDE/visual programming language, so they should appear only for Cene projects that implement modular, reactive, or UI functionality as building blocks for Era.
 
-Within Cene's implementation code, Cene is still largely going by the name Staccato or the abbreviation "stc." I named Staccato for a particular lambda-lifting desugaring phase that made all remaining functions take constant time. Programming in raw Staccato was tiresome, and eventually the shortcuts and optimizations I was using bypassed the desugaring phase altogether, so I renamed the project. (TODO: Finish renaming.)
+Within Cene's implementation code, Cene is still largely going by the abbreviation "stc," which stands for Staccato. I named Staccato for a particular lambda-lifting desugaring phase that made all remaining functions take constant time. Programming in raw Staccato was tiresome, and eventually the shortcuts and optimizations I was using bypassed the desugaring phase altogether, so I renamed the project. (**TODO**: Finish renaming.)
 
 ## About this project
 

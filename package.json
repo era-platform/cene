@@ -15,7 +15,7 @@
     "argparse": "*"
   },
   "scripts": {
-    "test": "node cene.js -sES"
+    "test": "node cene.js -cEC"
   },
   "main": "cene.js",
   "bin": "./cene.js"
