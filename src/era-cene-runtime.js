@@ -1,4 +1,4 @@
-// era-staccato-lib-runner-mini.js
+// era-cene-runtime.js
 // Copyright 2015, 2016 Ross Angle. Released under the MIT License.
 //
 // This file implements the main Cene runtime and built-in operators.

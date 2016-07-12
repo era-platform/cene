@@ -5,7 +5,7 @@
   "homepage": "https://github.com/rocketnia/era-cene",
   "author": {
     "name": "Ross Angle",
-    "url": "http://www.rocketnia.com/"
+    "url": "https://www.rocketnia.com/"
   },
   "engines": {
     "node": ">= 0.6.0",

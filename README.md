@@ -2,7 +2,7 @@
 
 [![Travis build](https://travis-ci.org/rocketnia/era-cene.svg?branch=master)](https://travis-ci.org/rocketnia/era-cene)
 
-[Run some Cene code in your browser, logging to the console.](https://rocketnia.github.io/era-cene/demos/staccato-runner-mini.html)
+[Run some Cene code in your browser, logging to the console.](https://rocketnia.github.io/era-cene/demos/cene.html)
 
 [Run some reader unit tests in your browser, logging to the console.](https://rocketnia.github.io/era-cene/demos/unit-tests.html)
 

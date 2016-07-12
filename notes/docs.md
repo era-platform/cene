@@ -4,7 +4,7 @@
 
 ## Built-in definitions
 
-(**TODO**: Add documentation for all the other primitives defined in era-staccato-lib-runner-mini.js and era-cene-api.js. Some of this documentation has already been written in cene-design-goals.txt.)
+(**TODO**: Add documentation for all the other primitives defined in era-cene-runtime.js and era-cene-api.js. Some of this documentation has already been written in cene-design-goals.txt.)
 
 -
 ```
@@ -28,7 +28,7 @@ Takes a name for the constructor and a list of names for the projections, and re
 ```
 (defn name-metacompare a b ...)
 ```
-(**TODO**: Figure out where to put this extensive documentation now that `name-metacompare` is implemented in era-staccato-lib.stc. It's not a built-in definition anymore.)
+(**TODO**: Figure out where to put this extensive documentation now that `name-metacompare` is implemented in era-cene-prelude.cene. It's not a built-in definition anymore.)
 
 Compares two names. For inequal names, the result will be in a format user-level code does not know how to deconstruct. For equal names, the result will be (nil).
 
