@@ -2,7 +2,7 @@
 \= Copyright 2015, 2016 Ross Angle. Released under the MIT License.
 \=
 \= These are some tests for Staccato. They depend on
-\= era-staccato-lib.stc as well as the `test` macro implemented in
+\= era-cene-prelude.cene as well as the `test` macro implemented in
 \= era-staccato-lib-runner.js.
 \=
 \= See era-staccato.js for more information about what Staccato is.

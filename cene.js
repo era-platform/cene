@@ -88,7 +88,7 @@ function runCeneSync(
             "src/era-misc.js",
             "src/era-avl.js",
             "src/era-reader.js",
-            "src/era-staccato-lib-runner-mini.js",
+            "src/era-cene-runtime.js",
             "src/era-cene-api.js"
         ] ) + "\n" +
         "\n" +
@@ -286,7 +286,7 @@ function runCeneSync(
                         "src/era-misc.js",
                         "src/era-avl.js",
                         "src/era-reader.js",
-                        "src/era-staccato-lib-runner-mini.js",
+                        "src/era-cene-runtime.js",
                         "src/era-cene-api.js",
                         "src/era-cene-quiner.js"
                     ] ) + "\n" +
@@ -400,7 +400,7 @@ function runCeneSync(
 }
 
 var preludeFiles = _.arrMap( [
-    "src/era-staccato-lib.stc"
+    "src/era-cene-prelude.cene"
 ], function ( path ) {
     return $path.resolve( __dirname, path );
 } );
@@ -502,7 +502,7 @@ if ( args.test_era ) tasks.push( function ( then ) {
 
 if ( args.build_staccato ) tasks.push( function ( then ) {
     arrEachAsyncNodeExn( [
-        { dir: "src/", name: "era-staccato-lib.stc" },
+        { dir: "src/", name: "era-cene-prelude.cene" },
         { dir: "test/", name: "test.stc" }
     ], function ( i, file, then ) {
         ltf.readTextFile(

@@ -17,8 +17,8 @@ Check the console to see if there are errors. If there aren't, great!
 Nothing to see here.</p>
 
 <p>This page loads the Staccato source code from a file called
-"fin/era-staccato-lib.stc.js" in the repo directory. To use this page,
-you must obtain era-staccato-lib.stc.js in one of two ways:</p>
+"fin/era-cene-prelude.cene.js" in the repo directory. To use this
+page, you must obtain era-cene-prelude.cene.js in one of two ways:</p>
 
 <ul>
     <li>Install Node.js. From the repo directory, run the command
@@ -34,7 +34,7 @@ you must obtain era-staccato-lib.stc.js in one of two ways:</p>
 >online</a>.</p>
 
 <script type="text/javascript" src="../buildlib/lathe.js"></script>
-<script type="text/javascript" src="../fin/era-staccato-lib.stc.js">
+<script type="text/javascript" src="../fin/era-cene-prelude.cene.js">
     </script>
 <script type="text/javascript" src="../fin/test.stc.js"></script>
 <script type="text/javascript" src="../src/era-misc-strmap-avl.js">
@@ -42,8 +42,8 @@ you must obtain era-staccato-lib.stc.js in one of two ways:</p>
 <script type="text/javascript" src="../src/era-misc.js"></script>
 <script type="text/javascript" src="../src/era-avl.js"></script>
 <script type="text/javascript" src="../src/era-reader.js"></script>
-<script type="text/javascript"
-    src="../src/era-staccato-lib-runner-mini.js"></script>
+<script type="text/javascript" src="../src/era-cene-runtime.js">
+    </script>
 <script type="text/javascript" src="../src/era-cene-api.js"></script>
 <script type="text/javascript">"use strict";
 
@@ -54,7 +54,7 @@ window.onload = function () {
         var startMillis = new Date().getTime();
         
         var files = [
-            "era-staccato-lib.stc"
+            "era-cene-prelude.cene"
         ];
         var testFile = "test.stc";
         

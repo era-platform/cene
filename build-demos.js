@@ -6,14 +6,14 @@
 var cene = require( "./cene" );
 
 cene.runCeneSync( [
-    "src/era-staccato-lib.stc",
+    "src/era-cene-prelude.cene",
     "demos/hello-world.cene"
 ], {
     out: "fin/hello-world"
 } );
 
 cene.runCeneSync( [
-    "src/era-staccato-lib.stc",
+    "src/era-cene-prelude.cene",
     "demos/hello-world-js.cene"
 ], {
     out: "fin/hello-world-js"
@@ -21,7 +21,7 @@ cene.runCeneSync( [
 require( "./fin/hello-world-js/hello-world" );
 
 cene.runCeneSync( [
-    "src/era-staccato-lib.stc",
+    "src/era-cene-prelude.cene",
     "demos/read-and-transform.cene"
 ], {
     in: "demos/read-and-transform-src",
@@ -29,7 +29,7 @@ cene.runCeneSync( [
 } );
 
 cene.runCeneSync( [
-    "src/era-staccato-lib.stc",
+    "src/era-cene-prelude.cene",
     "demos/import-example.cene"
 ], {
     in: "demos/import-example-src",
