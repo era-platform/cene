@@ -1,7 +1,5 @@
 \= era-cene-prelude.cene
 \= Copyright 2015, 2016 Ross Angle. Released under the MIT License.
-\=
-\= Many of these utilities have been ported from era-avl.js.
 
 
 \= ===== Former built-in operations ==================================
@@ -1150,7 +1148,7 @@
 \= ===== AVL trees ===================================================
 
 \= TODO: See if our use of binary bigints is less efficient than
-\= era-avl.js's use of unary bigints.
+\= era-avl.js's use of unary bigints in the main Era project.
 
 (def-type avl-leaf fixops compare)
 (def-type

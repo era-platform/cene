@@ -150,7 +150,7 @@ function jsnCompare( a, b ) {
             if ( compareElem !== 0 )
                 return compareElem;
         }
-        return -1;
+        return 0;
     }
     throw new Error();
 }
@@ -182,7 +182,9 @@ function stcTypeArr(
             return;
         projNamesToSortedIndices[ "|" + stringy ] = i;
     } );
-    var unsortedProjNames = arrMap( projNames, function ( name, i ) {
+    var unsortedProjNames = arrMap( projStringyNames,
+        function ( name, i ) {
+        
         return { i: projNamesToSortedIndices[ "|" + name ],
             name: name };
     } );
@@ -312,68 +314,22 @@ function macLookupThen( macLookupEffects, then ) {
     return { type: "then", first: macLookupEffects, then: then };
 }
 
+function fixYoke( yoke ) {
+    yoke.bounce = function ( then ) {
+        return then( yoke );
+    };
+    return yoke;
+}
+function macLookupYoke( rt ) {
+    return fixYoke( { rt: rt } );
+}
+
 
 var nextDexRank = 1;
 
 function prettifyTupleTag( tupleTag ) {
     return JSON.stringify(
         JSON.parse( tupleTag )[ 1 ][ 3 ][ 1 ][ 3 ][ 1 ] );
-}
-
-function stcIncomparable( rt, leftComparable, rightComparable ) {
-    if ( leftComparable && rightComparable )
-        return null;
-    
-    var stcNil = stcType( rt.defNs, "nil" );
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcNope = stcType( rt.defNs, "nope", "val" );
-    var stcDexResultIncomparable =
-        stcType( rt.defNs, "dex-result-incomparable",
-            "left-is-comparable", "right-is-comparable" );
-    
-    var nil = stcNil.ofNow();
-    
-    function fromBoolean( b ) {
-        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
-    }
-    
-    return stcDexResultIncomparable.ofNow(
-        fromBoolean( leftComparable ),
-        fromBoolean( rightComparable ) );
-}
-
-function stcDexAssertedValidDexables( rt, a, b ) {
-    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
-    var stcNil = stcType( rt.defNs, "nil" );
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcDexResultIncomparable =
-        stcType( rt.defNs, "dex-result-incomparable",
-            "left-is-comparable", "right-is-comparable" );
-    
-    function toBoolean( b ) {
-        return stcYep.tags( b );
-    }
-    
-    var aDex = stcDexable.getProj( a, "dex" );
-    var bDex = stcDexable.getProj( b, "dex" );
-    return macLookupThen( aDex.dexThis( rt, bDex ),
-        function ( dexResult ) {
-        
-        if ( !stcNil.tags( dexResult ) )
-            return macLookupRet( dexResult );
-        
-        return macLookupThen(
-            aDex.dex( rt,
-                stcDexable.getProj( a, "val" ),
-                stcDexable.getProj( b, "val" ) ),
-            function ( dexResult ) {
-            
-            if ( !stcYep.tags( dexResult ) )
-                throw new Error();
-            
-            return macLookupRet( stcYep.getProj( dexResult, "val" ) );
-        } );
-    } );
 }
 
 function Stc( tupleTag, opt_projNames ) {
@@ -411,13 +367,7 @@ Stc.prototype.callStc = function ( rt, arg ) {
         return func( rt, self, arg );
     } );
 };
-Stc.prototype.dex = function ( rt, a, b ) {
-    throw new Error();
-};
 Stc.prototype.dexHas = function ( rt, x ) {
-    throw new Error();
-};
-Stc.prototype.dexThis = function ( rt, other ) {
     throw new Error();
 };
 Stc.prototype.toName = function () {
@@ -440,13 +390,7 @@ StcFn.prototype.callStc = function ( rt, arg ) {
     var func = this.func;
     return func( rt, arg );
 };
-StcFn.prototype.dex = function ( rt, a, b ) {
-    throw new Error();
-};
 StcFn.prototype.dexHas = function ( rt, x ) {
-    throw new Error();
-};
-StcFn.prototype.dexThis = function ( rt, other ) {
     throw new Error();
 };
 StcFn.prototype.toName = function () {
@@ -470,18 +414,20 @@ StcForeign.prototype.callStc = function ( rt, arg ) {
     
     throw new Error();
 };
-StcForeign.prototype.dex = function ( rt, a, b ) {
-    throw new Error();
-};
 StcForeign.prototype.dexHas = function ( rt, x ) {
-    throw new Error();
-};
-StcForeign.prototype.dexThis = function ( rt, other ) {
     throw new Error();
 };
 StcForeign.prototype.toName = function () {
     if ( this.purpose === "string" || this.purpose === "name" )
         return this.foreignVal;
+    
+    if ( this.purpose === "table" ) {
+        var result = [ "table" ];
+        this.foreignVal.each( function ( k, v ) {
+            result.push( [ k, v ] );
+        } );
+        return result;
+    }
     
     throw new Error();
 };
@@ -499,54 +445,6 @@ StcDexDefault.prototype.dexRank = nextDexRank++;
 StcDexDefault.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcDexDefault.prototype.dex = function ( rt, a, b ) {
-    var self = this;
-    
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcDexResultIncomparable =
-        stcType( rt.defNs, "dex-result-incomparable",
-            "left-is-comparable", "right-is-comparable" );
-    
-    function toBoolean( b ) {
-        return stcYep.tags( b );
-    }
-    
-    return macLookupThen( self.first.dex( rt, a, b ),
-        function ( firstResult ) {
-    
-    if ( !stcDexResultIncomparable.tags( firstResult ) )
-        return macLookupRet( firstResult );
-    
-    return macLookupThen( self.second.dex( rt, a, b ),
-        function ( secondResult ) {
-    
-    if ( stcDexResultIncomparable.tags( secondResult )
-        && !(
-            (toBoolean( stcDexResultIncomparable.getProj(
-                secondResult, "left-is-comparable" ) )
-                && !toBoolean( stcDexResultIncomparable.getProj(
-                    firstResult, "left-is-comparable" ) ))
-            || (toBoolean( stcDexResultIncomparable.getProj(
-                secondResult, "right-is-comparable" ) )
-                && !toBoolean( stcDexResultIncomparable.getProj(
-                    firstResult, "right-is-comparable" ) ))
-        ) )
-        return macLookupRet( firstResult );
-    
-    if ( toBoolean( stcDexResultIncomparable.getProj( firstResult,
-        "left-is-comparable" ) ) )
-        return macLookupRet(
-            stcYep.ofNow( new StcForeign( "lt", null ) ) );
-    if ( toBoolean( stcDexResultIncomparable.getProj( firstResult,
-        "right-is-comparable" ) ) )
-        return macLookupRet(
-            stcYep.ofNow( new StcForeign( "gt", null ) ) );
-    return macLookupRet( secondResult );
-    
-    } );
-    
-    } );
-};
 StcDexDefault.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
@@ -560,19 +458,6 @@ StcDexDefault.prototype.dexHas = function ( rt, x ) {
     
     return self.second.dexHas( rt, x );
     
-    } );
-};
-StcDexDefault.prototype.dexThis = function ( rt, other ) {
-    var self = this;
-    var stcNil = stcType( rt.defNs, "nil" );
-    
-    return macLookupThen( self.first.dexThis( rt, other.first ),
-        function ( firstResult ) {
-        
-        if ( !stcNil.tags( firstResult ) )
-            return macLookupRet( firstResult );
-        
-        return self.second.dexThis( rt, other.second );
     } );
 };
 StcDexDefault.prototype.toName = function () {
@@ -590,18 +475,11 @@ StcDexGiveUp.prototype.dexRank = nextDexRank++;
 StcDexGiveUp.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcDexGiveUp.prototype.dex = function ( rt, a, b ) {
-    return macLookupRet( stcIncomparable( rt, false, false ) );
-};
-StcDexDefault.prototype.dexHas = function ( rt, x ) {
+StcDexGiveUp.prototype.dexHas = function ( rt, x ) {
     var stcNil = stcType( rt.defNs, "nil" );
     var stcNope = stcType( rt.defNs, "nope", "val" );
     
-    return macLookupRet( stcNope.ofNow( stcNil.of() ) );
-};
-StcDexGiveUp.prototype.dexThis = function ( rt, other ) {
-    var stcNil = stcType( rt.defNs, "nil" );
-    return macLookupRet( stcNil.ofNow() );
+    return macLookupRet( stcNope.ofNow( stcNil.ofNow() ) );
 };
 StcDexGiveUp.prototype.toName = function () {
     return [ "dex-give-up" ];
@@ -620,75 +498,6 @@ StcDexStruct.prototype.dexRank = nextDexRank++;
 StcDexStruct.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcDexStruct.prototype.dex = function ( rt, a, b ) {
-    var self = this;
-    
-    var incomparable = stcIncomparable( rt,
-        a instanceof Stc && a.tupleTag === self.expectedTupleTag,
-        b instanceof Stc && b.tupleTag === self.expectedTupleTag );
-    if ( incomparable !== null )
-        return macLookupRet( incomparable );
-    
-    var stcNil = stcType( rt.defNs, "nil" );
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcDexResultIncomparable =
-        stcType( rt.defNs, "dex-result-incomparable",
-            "left-is-comparable", "right-is-comparable" );
-    
-    function toBoolean( b ) {
-        return stcYep.tags( b );
-    }
-    
-    var n = self.projDexes.length;
-    return loop( 0 );
-    function loop( i ) {
-        if ( i <= n )
-            return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
-        var projDex = self.projDexes[ i ];
-        return macLookupThen(
-            projDex.dex.dex( rt,
-                a.projNames[ projDex.i ],
-                b.projNames[ projDex.i ] ),
-            function ( dexResult ) {
-            
-            if ( stcYep.tags( dexResult )
-                && stcNil.tags( stcYep.getProj( dexResult, "yep" ) ) )
-                return loop( i + 1 );
-            
-            if ( stcDexResultIncomparable.tags( dexResult ) ) {
-                if ( toBoolean(
-                    stcDexResultIncomparable.getProj( dexResult,
-                        "left-is-comparable" ) ) ) {
-                    
-                    return loopOneSide( a, dexResult, i + 1 );
-                    
-                } else if ( toBoolean(
-                    stcDexResultIncomparable.getProj( dexResult,
-                        "right-is-comparable" ) ) ) {
-                    
-                    return loopOneSide( b, dexResult, i + 1 );
-                }
-            }
-            
-            return macLookupRet( dexResult );
-        } );
-    }
-    function loopOneSide( x, resultIfComparable, i ) {
-        if ( i <= n )
-            return macLookupRet( resultIfComparable );
-        var projDex = self.projDexes[ i ];
-        return macLookupThen(
-            projDex.dex.dexHas( rt, x.projNames[ projDex.i ] ),
-            function ( dexResult ) {
-            
-            if ( !toBoolean( dexResult ) )
-                return macLookupRet(
-                    stcIncomparable( rt, false, false ) );
-            
-            return loopOneSide( x, resultIfComparable, i + 1 );
-        } );
-    }
-};
 StcDexStruct.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
@@ -702,7 +511,7 @@ StcDexStruct.prototype.dexHas = function ( rt, x ) {
     var n = self.projDexes.length;
     return loop( 0 );
     function loop( i ) {
-        if ( i <= n )
+        if ( n <= i )
             return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
         var projDex = self.projDexes[ i ];
         return macLookupThen(
@@ -712,39 +521,6 @@ StcDexStruct.prototype.dexHas = function ( rt, x ) {
             if ( stcNope.tags( dexResult ) )
                 return macLookupRet( dexResult );
             return loop( i + 1 );
-        } );
-    }
-};
-StcDexStruct.prototype.dexThis = function ( rt, other ) {
-    var self = this;
-    
-    if ( self.expectedTupleTag < other.expectedTupleTag )
-        return macLookupRet( new StcForeign( "lt", null ) );
-    if ( other.expectedTupleTag < self.expectedTupleTag )
-        return macLookupRet( new StcForeign( "gt", null ) );
-    
-    var stcNil = stcType( rt.defNs, "nil" );
-    var n = self.projDexes.length;
-    for ( var i = 0; i < n; i++ ) {
-        var selfI = self.projDexes[ i ].i;
-        var otherI = other.projDexes[ i ].i;
-        if ( selfI < otherI )
-            return macLookupRet( new StcForeign( "lt", null ) );
-        if ( otherI < selfI )
-            return macLookupRet( new StcForeign( "gt", null ) );
-    }
-    return loopOverDexes( 0 );
-    function loopOverDexes( i ) {
-        if ( i <= n )
-            return macLookupRet( stcNil.ofNow() );
-        var selfDex = self.projDexes[ i ].dex;
-        var otherDex = other.projDexes[ i ].dex;
-        return macLookupThen( selfDex.dex.dexThis( rt, otherDex ),
-            function ( dexResult ) {
-            
-            if ( !stcNil.tags( dexResult ) )
-                return macLookupRet( dexResult );
-            return loopOverDexes( i + 1 );
         } );
     }
 };
@@ -769,22 +545,6 @@ StcDexDex.prototype.dexRank = nextDexRank++;
 StcDexDex.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcDexDex.prototype.dex = function ( rt, a, b ) {
-    var incomparable =
-        stcIncomparable( rt, stcIsDex( a ), stcIsDex( b ) );
-    if ( incomparable !== null )
-        return macLookupRet( incomparable );
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    if ( a.dexRank < b.dexRank )
-        return macLookupRet(
-            stcYep.ofNow( new StcForeign( "lt", null ) ) );
-    if ( b.dexRank < a.dexRank )
-        return macLookupRet(
-            stcYep.ofNow( new StcForeign( "gt", null ) ) );
-    return macLookupThen( a.dexThis( rt, b ), function ( dexResult ) {
-        return macLookupRet( stcYep.ofNow( dexResult ) );
-    } );
-};
 StcDexDex.prototype.dexHas = function ( rt, x ) {
     var stcNil = stcType( rt.defNs, "nil" );
     var stcYep = stcType( rt.defNs, "yep", "val" );
@@ -798,10 +558,6 @@ StcDexDex.prototype.dexHas = function ( rt, x ) {
     
     return macLookupRet( fromBoolean( stcIsDex( x ) ) );
 };
-StcDexDex.prototype.dexThis = function ( rt, other ) {
-    var stcNil = stcType( rt.defNs, "nil" );
-    return macLookupRet( stcNil.ofNow() );
-};
 StcDexDex.prototype.toName = function () {
     return [ "dex-dex" ];
 };
@@ -814,27 +570,6 @@ function StcDexName() {
 StcDexName.prototype.dexRank = nextDexRank++;
 StcDexName.prototype.callStc = function ( rt, arg ) {
     throw new Error();
-};
-StcDexName.prototype.dex = function ( rt, a, b ) {
-    var incomparable = stcIncomparable( rt,
-        a instanceof StcForeign && a.purpose === "name",
-        b instanceof StcForeign && b.purpose === "name" );
-    if ( incomparable !== null )
-        return macLookupRet( incomparable );
-    
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    
-    var result = nameCompare( a.foreignVal, b.foreignVal );
-    if ( result < 0 )
-        return macLookupRet(
-            stcYep.ofNow( new StcForeign( "lt", null ) ) );
-    if ( 0 < result )
-        return macLookupRet(
-            stcYep.ofNow( new StcForeign( "gt", null ) ) );
-    
-    var stcNil = stcType( rt.defNs, "nil" );
-    
-    return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
 };
 StcDexName.prototype.dexHas = function ( rt, x ) {
     var stcNil = stcType( rt.defNs, "nil" );
@@ -851,11 +586,7 @@ StcDexName.prototype.dexHas = function ( rt, x ) {
         fromBoolean(
             x instanceof StcForeign && x.purpose === "name" ) );
 };
-StcDexName.prototype.dexThis = function ( rt, other ) {
-    var stcNil = stcType( rt.defNs, "nil" );
-    return macLookupRet( stcNil.ofNow() );
-};
-StcDexDex.prototype.toName = function () {
+StcDexName.prototype.toName = function () {
     return [ "dex-name" ];
 };
 StcDexName.prototype.pretty = function () {
@@ -867,29 +598,6 @@ function StcDexString() {
 StcDexString.prototype.dexRank = nextDexRank++;
 StcDexString.prototype.callStc = function ( rt, arg ) {
     throw new Error();
-};
-StcDexString.prototype.dex = function ( rt, a, b ) {
-    var incomparable = stcIncomparable( rt,
-        a instanceof StcForeign && a.purpose === "string",
-        b instanceof StcForeign && b.purpose === "string" );
-    if ( incomparable !== null )
-        return macLookupRet( incomparable );
-    
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    
-    // NOTE: We compare by UTF-16 encoding for efficiency, but we
-    // don't expose it to user code because that would commit us to
-    // the complexity of UTF-16.
-    if ( a.foreignVal < b.foreignVal )
-        return macLookupRet(
-            stcYep.ofNow( new StcForeign( "lt", null ) ) );
-    if ( b.foreignVal < a.foreignVal )
-        return macLookupRet(
-            stcYep.ofNow( new StcForeign( "gt", null ) ) );
-    
-    var stcNil = stcType( rt.defNs, "nil" );
-    
-    return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
 };
 StcDexString.prototype.dexHas = function ( rt, x ) {
     var stcNil = stcType( rt.defNs, "nil" );
@@ -906,11 +614,7 @@ StcDexString.prototype.dexHas = function ( rt, x ) {
         fromBoolean(
             x instanceof StcForeign && x.purpose === "string" ) );
 };
-StcDexString.prototype.dexThis = function ( rt, other ) {
-    var stcNil = stcType( rt.defNs, "nil" );
-    return macLookupRet( stcNil.ofNow() );
-};
-StcDexDex.prototype.toName = function () {
+StcDexString.prototype.toName = function () {
     return [ "dex-string" ];
 };
 StcDexString.prototype.pretty = function () {
@@ -922,90 +626,6 @@ function StcDexWithOwnMethod( dexableGetMethod ) {
 StcDexWithOwnMethod.prototype.dexRank = nextDexRank++;
 StcDexWithOwnMethod.prototype.callStc = function ( rt, arg ) {
     throw new Error();
-};
-StcDexWithOwnMethod.prototype.dex = function ( rt, a, b ) {
-    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
-    var stcNil = stcType( rt.defNs, "nil" );
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcNope = stcType( rt.defNs, "nope", "val" );
-    var stcDexResultIncomparable =
-        stcType( rt.defNs, "dex-result-incomparable",
-            "left-is-comparable", "right-is-comparable" );
-    
-    var nil = stcNil.ofNow();
-    
-    function fromBoolean( b ) {
-        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
-    }
-    function toBoolean( b ) {
-        return stcYep.tags( b );
-    }
-    
-    var getMethod =
-        stcDexable.getProj( this.dexableGetMethod, "val" );
-    
-    return macLookupThen( getMethod.stcCall( rt, a ),
-        function ( maybeOwnMethodA ) {
-    return macLookupThen( getMethod.stcCall( rt, b ),
-        function ( maybeOwnMethodB ) {
-    
-    var isYepA = stcYep.tags( maybeOwnMethodA );
-    var isYepB = stcYep.tags( maybeOwnMethodB );
-    var incomparable = stcIncomparable( rt, isYepA, isYepB );
-    if ( incomparable !== null ) {
-        if ( isYepA )
-            return oneSide( incomparable,
-                stcYep.getProj( maybeOwnMethodA, "val" ),
-                a );
-        else if ( isYepB )
-            return oneSide( incomparable,
-                stcYep.getProj( maybeOwnMethodB, "val" ),
-                b );
-        else
-            return macLookupRet( incomparable );
-    }
-    
-    var methodA = stcYep.getProj( maybeOwnMethodA, "val" );
-    var methodB = stcYep.getProj( maybeOwnMethodB, "val" );
-    
-    return macLookupThen( new StcDexDex().dex( rt, methodA, methodB ),
-        function ( methodDexResult ) {
-    
-    if ( stcYep.tags( methodDexResult )
-        && stcNil.tags( stcYep.getProj( methodDexResult, "val" ) ) )
-        return methodA.dex( rt, a, b );
-    
-    if ( stcDexResultIncomparable.tags( methodDexResult ) ) {
-        if ( toBoolean(
-            stcDexResultIncomparable.getProj( methodDexResult,
-                "left-is-comparable" ) ) ) {
-            
-            return oneSide( methodDexResult, methodA, a );
-            
-        } else if ( toBoolean(
-            stcDexResultIncomparable.getProj( methodDexResult,
-                "right-is-comparable" ) ) ) {
-            
-            return oneSide( methodDexResult, methodB, b );
-        }
-    }
-    
-    return macLookupRet( methodDexResult );
-    
-    } );
-    } );
-    
-    } );
-    
-    function oneSide( dexResult, method, x ) {
-        return macLookupThen( method.dexHas( rt, x ),
-            function ( valResult ) {
-            
-            return macLookupRet( toBoolean( valResult ) ?
-                dexResult :
-                stcIncomparable( rt, false, false ) );
-        } );
-    }
 };
 StcDexWithOwnMethod.prototype.dexHas = function ( rt, x ) {
     var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
@@ -1033,11 +653,6 @@ StcDexWithOwnMethod.prototype.dexHas = function ( rt, x ) {
     
     } );
 };
-StcDexWithOwnMethod.prototype.dexThis = function ( rt, other ) {
-    return stcDexAssertedValidDexables( rt,
-        this.dexableGetMethod,
-        other.dexableGetMethod );
-};
 StcDexWithOwnMethod.prototype.toName = function () {
     return [ "dex-with-own-method", this.dexableGetMethod.toName() ];
 };
@@ -1052,17 +667,6 @@ StcDexFix.prototype.dexRank = nextDexRank++;
 StcDexFix.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcDexFix.prototype.dex = function ( rt, a, b ) {
-    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
-    
-    return macLookupThen(
-        stcDexable.getProj( this.dexableUnwrap, "val"
-            ).callStc( rt, this ),
-        function ( dex ) {
-        
-        return dex.dex( rt, a, b );
-    } );
-};
 StcDexFix.prototype.dexHas = function ( rt, x ) {
     var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
     
@@ -1074,16 +678,62 @@ StcDexFix.prototype.dexHas = function ( rt, x ) {
         return dex.dexHas( rt, x );
     } );
 };
-StcDexFix.prototype.dexThis = function ( rt, other ) {
-    return stcDexAssertedValidDexables( rt,
-        this.dexableUnwrap,
-        other.dexableUnwrap );
-};
 StcDexFix.prototype.toName = function () {
     return [ "dex-fix", this.dexableUnwrap.toName() ];
 };
 StcDexFix.prototype.pretty = function () {
     return "(dex-fix " + this.dexableUnwrap.pretty() + ")";
+};
+function StcDexTable( dexVal ) {
+    this.dexVal = dexVal;
+}
+StcDexTable.prototype.dexRank = nextDexRank++;
+StcDexTable.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcDexTable.prototype.dexHas = function ( rt, x ) {
+    var self = this;
+    
+    var stcNil = stcType( rt.defNs, "nil" );
+    var stcYep = stcType( rt.defNs, "yep", "val" );
+    var stcNope = stcType( rt.defNs, "nope", "val" );
+    
+    var nil = stcNil.ofNow();
+    
+    function fromBoolean( b ) {
+        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
+    }
+    function toBoolean( b ) {
+        return stcYep.tags( b );
+    }
+    
+    if ( !(x instanceof StcForeign && x.purpose === "table") )
+        return macLookupRet( fromBoolean( false ) );
+    
+    var vals = [];
+    x.foreignVal.each( function ( k, v ) {
+        vals.push( v );
+    } );
+    var n = vals.length;
+    return loop( 0 );
+    function loop( i ) {
+        if ( n <= i )
+            return macLookupRet( fromBoolean( true ) );
+        return macLookupThen( self.dexVal.dexHas( rt, vals[ i ] ),
+            function ( dexResult ) {
+            
+            if ( !toBoolean( dexResult ) )
+                return macLookupRet( fromBoolean( false ) );
+            
+            return loop( i + 1 );
+        } );
+    }
+};
+StcDexTable.prototype.toName = function () {
+    return [ "dex-table", this.dexVal.toName() ];
+};
+StcDexTable.prototype.pretty = function () {
+    return "(dex-table " + this.dexVal.pretty() + ")";
 };
 
 function stcIsDex( x ) {
@@ -2545,10 +2195,45 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
+        effectfulFun( "dex-table", function ( rt, dexVal ) {
+            if ( !stcIsDex( dexVal ) )
+                throw new Error();
+            return macLookupRet( new StcDexTable( dexVal ) );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
         fun( "call-dex", function ( rt, dex ) {
             return stcFnPure( function ( rt, a ) {
                 return new StcFn( function ( rt, b ) {
-                    return dex.dex( rt, a, b );
+                    return macLookupThen( dex.dexHas( rt, a ),
+                        function ( hasA ) {
+                        
+                        if ( stcNope.tags( hasA ) )
+                            return macLookupRet( stcNil.ofNow() );
+                    
+                    return macLookupThen( dex.dexHas( rt, b ),
+                        function ( hasB ) {
+                        
+                        if ( stcNope.tags( hasB ) )
+                            return macLookupRet( stcNil.ofNow() );
+                    
+                    var result =
+                        nameCompare( a.toName(), b.toName() );
+                    if ( result < 0 )
+                        return macLookupRet(
+                            stcYep.ofNow(
+                                new StcForeign( "lt", null ) ) );
+                    if ( 0 < result )
+                        return macLookupRet(
+                            stcYep.ofNow(
+                                new StcForeign( "gt", null ) ) );
+                    
+                    return macLookupRet(
+                        stcYep.ofNow( stcNil.ofNow() ) );
+                    
+                    } );
+                    
+                    } );
                 } );
             } );
         } );
@@ -2560,38 +2245,9 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        function macLookupYoke( rt ) {
-            var result = {
-                rt: rt,
-                bounce: function ( then ) {
-                    return then( result );
-                }
-            };
-            return result;
-        }
-        
-        var tableEmpty = new StcForeign( "table",
-            avlMap( function ( yoke, a, b, then ) {
-                return macLookupThen(
-                    stcDexAssertedValidDexables( yoke.rt, a, b ),
-                    function ( dexResult ) {
-                    
-                    if ( stcNil.tags( dexResult ) )
-                        return then( yoke, 0 );
-                    if ( dexResult instanceof StcForeign
-                        && dexResult.purpose === "lt" )
-                        return then( yoke, -1 );
-                    if ( dexResult instanceof StcForeign
-                        && dexResult.purpose === "gt" )
-                        return then( yoke, 1 );
-                    
-                    throw new Error();
-                } );
-            } ) );
-        
         // TODO: Add documentation of this somewhere.
         fun( "table-empty", function ( rt, ignored ) {
-            return tableEmpty;
+            return new StcForeign( "table", jsnMap() );
         } );
         
         // TODO: Add documentation of this somewhere.
@@ -2606,19 +2262,15 @@ function usingDefinitionNs( macroDefNs ) {
                         function () {
                         
                         if ( stcNil.tags( maybeVal ) )
-                            return table.foreignVal.minusEntry( macLookupYoke( rt ),
-                                dexableKey, next );
-                        if ( stcYep.tags( maybeVal ) )
-                            return table.foreignVal.plusEntry( macLookupYoke( rt ),
-                                dexableKey,
-                                stcYep.getProj( maybeVal, "val" ),
-                                next );
-                        throw new Error();
-                        
-                        function next( yoke, contents ) {
                             return macLookupRet(
-                                new StcForeign( "table", contents ) );
-                        }
+                                new StcForeign( "table",
+                                    table.foreignVal.minusEntry( dexableKey.toName() ) ) );
+                        if ( stcYep.tags( maybeVal ) )
+                            return macLookupRet(
+                                new StcForeign( "table",
+                                    table.foreignVal.plusEntry( dexableKey.toName(),
+                                        stcYep.getProj( maybeVal, "val" ) ) ) );
+                        throw new Error();
                     } );
                 } );
             } );
@@ -2634,14 +2286,13 @@ function usingDefinitionNs( macroDefNs ) {
                 return assertValidDexable( rt, dexableKey,
                     function () {
                     
-                    return table.foreignVal.getMaybe( macLookupYoke( rt ),
-                        dexableKey,
-                        function ( yoke, maybeResult ) {
-                        
-                        return macLookupRet( maybeResult === null ?
-                            stcNil.ofNow() :
-                            stcYep.ofNow( maybeResult.val ) );
-                    } );
+                    var k = dexableKey.toName();
+                    if ( table.foreignVal.has( k ) )
+                        return macLookupRet(
+                            stcYep.ofNow(
+                                table.foreignVal.get( k ) ) );
+                    else
+                        return macLookupRet( stcNil.ofNow() );
                 } );
             } );
         } );
@@ -2656,13 +2307,10 @@ function usingDefinitionNs( macroDefNs ) {
                     && second.purpose === "table") )
                     throw new Error();
                 
-                return first.foreignVal.plus( macLookupYoke( rt ),
-                    second.foreignVal,
-                    function ( yoke, contents ) {
-                    
-                    return macLookupRet(
-                        new StcForeign( "table", contents ) );
-                } );
+                return macLookupRet(
+                    new StcForeign( "table",
+                        first.foreignVal.plus(
+                            second.foreignVal ) ) );
             } );
         } );
         
@@ -3109,9 +2757,6 @@ function usingDefinitionNs( macroDefNs ) {
         // operations.
         type( "yep", [ "val" ] );
         type( "nope", [ "val" ] );
-        // TODO: Add documentation for this somewhere.
-        type( "dex-result-incomparable",
-            [ "left-is-comparable", "right-is-comparable" ] );
         
         // This constructor is needed for constructing the input to
         // certain operations.

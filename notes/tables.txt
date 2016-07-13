@@ -13,9 +13,7 @@ This approach is at least as complex as certain static type systems already. In 
 \=
 \= TODO: Document the fact that (call-dex ...) returns one of these results:
 \=
-\=   - (dex-result-incomparable (nope/nil) (nope/nil))
-\=   - (dex-result-incomparable (yep/nil) (nope/nil))  ; representing that the first input is in the domain of this relation but the second one isn't
-\=   - (dex-result-incomparable (nope/nil) (yep/nil))
+\=   - (nil)  ; representing that one or both of the values are outside the domain
 \=   - (yep/nil)  ; representing equality
 \=   - (yep <a foreign value representing "secretly less than">)
 \=   - (yep <a foreign value representing "secretly greater than">)
@@ -25,7 +23,6 @@ This approach is at least as complex as certain static type systems already. In 
 \=   - (yep/yep/nil)  ; representing "visibly less than"; the inner "yep" means that the arguments were provided in the right order
 \=   - (yep/nope/nil)  ; representing "visibly greater than"
 \=
-def-type (dex-result-incomparable left-is-comparable right-is-comparable)
 def-type (dexable dex val)
   \= A value tagged with a dex that applies to it.
 (dex-default <dex-for-trying-first> <dex-for-trying-second>)
