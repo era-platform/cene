@@ -37,6 +37,14 @@
   (yep/nil))
 
 (test
+  (in-dex (dex-default dex-struct.nil dex-struct.nil) /nil)
+  (yep/nil))
+
+(test
+  (in-dex dex-struct.nil /nil)
+  (yep/nil))
+
+(test
   (case
     (proj1 yep /call-dex
       (dex-default dex-struct.nil (dex-struct yep dex-struct.nil))
