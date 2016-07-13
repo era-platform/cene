@@ -2,7 +2,7 @@ Cene tasks, in roughly highest-priority-first order:
 
 - Try to implement an example of an extensible framework (such as multimethods) by first following through on some existing designs:
 
-  - Finish implementing the dex, combine, merge, and table operations designed in tables.txt. Find better names for these, too.
+  - Finish implementing the dex, fuse, merge, and table operations designed in tables.txt. Find better names for these, too.
 
   - Finish implementing `contributing-only-to`, `procure-contribute-element`, `procure-contribute-listener`, and `procure-contributed-elements` as described in docs.md.
 
