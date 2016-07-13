@@ -2,7 +2,7 @@ Cene tasks, in roughly highest-priority-first order:
 
 - Try to implement an example of an extensible framework (such as multimethods) by first following through on some existing designs:
 
-  - Finish implementing the cmp, combine, merge, and table operations designed in tables.txt. Find better names for these, too.
+  - Finish implementing the dex, fuse, merge, and table operations designed in tables.txt.
 
   - Finish implementing `contributing-only-to`, `procure-contribute-element`, `procure-contribute-listener`, and `procure-contributed-elements` as described in docs.md.
 
@@ -10,7 +10,7 @@ Cene tasks, in roughly highest-priority-first order:
 
 - Cene's namespaces are going to have lots of functionality already, but see if we need to design any more LVar primitives according to the laws described in lvars.md.
 
-- Design and implement a better unit test framework. The unit tests can now use cmp values to do their comparisons, at least. We probably want to have control over the order unit test results are reported in.
+- Design and implement a better unit test framework. The unit tests can now use dex values to do their comparisons, at least. We probably want to have control over the order unit test results are reported in.
 
 - Decide whether to make string operations effectful (to account for the memoization effects of an underlying finger tree) or to support memoization as an implicit effect (which we already seem to have done in the act of definition lookup). We should probably make the primitives monadic for flexibility, but then also define an effect that obtains a pure way to run those effects.
 

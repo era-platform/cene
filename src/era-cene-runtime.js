@@ -313,7 +313,7 @@ function macLookupThen( macLookupEffects, then ) {
 }
 
 
-var nextCmpRank = 1;
+var nextDexRank = 1;
 
 function prettifyTupleTag( tupleTag ) {
     return JSON.stringify(
@@ -327,8 +327,8 @@ function stcIncomparable( rt, leftComparable, rightComparable ) {
     var stcNil = stcType( rt.defNs, "nil" );
     var stcYep = stcType( rt.defNs, "yep", "val" );
     var stcNope = stcType( rt.defNs, "nope", "val" );
-    var stcCmpResultIncomparable =
-        stcType( rt.defNs, "cmp-result-incomparable",
+    var stcDexResultIncomparable =
+        stcType( rt.defNs, "dex-result-incomparable",
             "left-is-comparable", "right-is-comparable" );
     
     var nil = stcNil.ofNow();
@@ -337,41 +337,41 @@ function stcIncomparable( rt, leftComparable, rightComparable ) {
         return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
     }
     
-    return stcCmpResultIncomparable.ofNow(
+    return stcDexResultIncomparable.ofNow(
         fromBoolean( leftComparable ),
         fromBoolean( rightComparable ) );
 }
 
-function stcCmpAssertedValidCmpables( rt, a, b ) {
-    var stcCmpable = stcType( rt.defNs, "cmpable", "cmp", "val" );
+function stcDexAssertedValidDexables( rt, a, b ) {
+    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
     var stcNil = stcType( rt.defNs, "nil" );
     var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcCmpResultIncomparable =
-        stcType( rt.defNs, "cmp-result-incomparable",
+    var stcDexResultIncomparable =
+        stcType( rt.defNs, "dex-result-incomparable",
             "left-is-comparable", "right-is-comparable" );
     
     function toBoolean( b ) {
         return stcYep.tags( b );
     }
     
-    var aCmp = stcCmpable.getProj( a, "cmp" );
-    var bCmp = stcCmpable.getProj( b, "cmp" );
-    return macLookupThen( aCmp.cmpThis( rt, bCmp ),
-        function ( cmpResult ) {
+    var aDex = stcDexable.getProj( a, "dex" );
+    var bDex = stcDexable.getProj( b, "dex" );
+    return macLookupThen( aDex.dexThis( rt, bDex ),
+        function ( dexResult ) {
         
-        if ( !stcNil.tags( cmpResult ) )
-            return macLookupRet( cmpResult );
+        if ( !stcNil.tags( dexResult ) )
+            return macLookupRet( dexResult );
         
         return macLookupThen(
-            aCmp.cmp( rt,
-                stcCmpable.getProj( a, "val" ),
-                stcCmpable.getProj( b, "val" ) ),
-            function ( cmpResult ) {
+            aDex.dex( rt,
+                stcDexable.getProj( a, "val" ),
+                stcDexable.getProj( b, "val" ) ),
+            function ( dexResult ) {
             
-            if ( !stcYep.tags( cmpResult ) )
+            if ( !stcYep.tags( dexResult ) )
                 throw new Error();
             
-            return macLookupRet( stcYep.getProj( cmpResult, "val" ) );
+            return macLookupRet( stcYep.getProj( dexResult, "val" ) );
         } );
     } );
 }
@@ -411,13 +411,13 @@ Stc.prototype.callStc = function ( rt, arg ) {
         return func( rt, self, arg );
     } );
 };
-Stc.prototype.cmp = function ( rt, a, b ) {
+Stc.prototype.dex = function ( rt, a, b ) {
     throw new Error();
 };
-Stc.prototype.cmpHas = function ( rt, x ) {
+Stc.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-Stc.prototype.cmpThis = function ( rt, other ) {
+Stc.prototype.dexThis = function ( rt, other ) {
     throw new Error();
 };
 Stc.prototype.toName = function () {
@@ -440,13 +440,13 @@ StcFn.prototype.callStc = function ( rt, arg ) {
     var func = this.func;
     return func( rt, arg );
 };
-StcFn.prototype.cmp = function ( rt, a, b ) {
+StcFn.prototype.dex = function ( rt, a, b ) {
     throw new Error();
 };
-StcFn.prototype.cmpHas = function ( rt, x ) {
+StcFn.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcFn.prototype.cmpThis = function ( rt, other ) {
+StcFn.prototype.dexThis = function ( rt, other ) {
     throw new Error();
 };
 StcFn.prototype.toName = function () {
@@ -470,13 +470,13 @@ StcForeign.prototype.callStc = function ( rt, arg ) {
     
     throw new Error();
 };
-StcForeign.prototype.cmp = function ( rt, a, b ) {
+StcForeign.prototype.dex = function ( rt, a, b ) {
     throw new Error();
 };
-StcForeign.prototype.cmpHas = function ( rt, x ) {
+StcForeign.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcForeign.prototype.cmpThis = function ( rt, other ) {
+StcForeign.prototype.dexThis = function ( rt, other ) {
     throw new Error();
 };
 StcForeign.prototype.toName = function () {
@@ -489,55 +489,55 @@ StcForeign.prototype.pretty = function () {
     return "(foreign " + this.purpose + " " +
         JSON.stringify( this.foreignVal ) + ")";
 };
-function StcCmpDefault( first, second ) {
-    if ( !(stcIsCmp( first ) && stcIsCmp( second )) )
+function StcDexDefault( first, second ) {
+    if ( !(stcIsDex( first ) && stcIsDex( second )) )
         throw new Error();
     this.first = first;
     this.second = second;
 }
-StcCmpDefault.prototype.cmpRank = nextCmpRank++;
-StcCmpDefault.prototype.callStc = function ( rt, arg ) {
+StcDexDefault.prototype.dexRank = nextDexRank++;
+StcDexDefault.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcCmpDefault.prototype.cmp = function ( rt, a, b ) {
+StcDexDefault.prototype.dex = function ( rt, a, b ) {
     var self = this;
     
     var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcCmpResultIncomparable =
-        stcType( rt.defNs, "cmp-result-incomparable",
+    var stcDexResultIncomparable =
+        stcType( rt.defNs, "dex-result-incomparable",
             "left-is-comparable", "right-is-comparable" );
     
     function toBoolean( b ) {
         return stcYep.tags( b );
     }
     
-    return macLookupThen( self.first.cmp( rt, a, b ),
+    return macLookupThen( self.first.dex( rt, a, b ),
         function ( firstResult ) {
     
-    if ( !stcCmpResultIncomparable.tags( firstResult ) )
+    if ( !stcDexResultIncomparable.tags( firstResult ) )
         return macLookupRet( firstResult );
     
-    return macLookupThen( self.second.cmp( rt, a, b ),
+    return macLookupThen( self.second.dex( rt, a, b ),
         function ( secondResult ) {
     
-    if ( stcCmpResultIncomparable.tags( secondResult )
+    if ( stcDexResultIncomparable.tags( secondResult )
         && !(
-            (toBoolean( stcCmpResultIncomparable.getProj(
+            (toBoolean( stcDexResultIncomparable.getProj(
                 secondResult, "left-is-comparable" ) )
-                && !toBoolean( stcCmpResultIncomparable.getProj(
+                && !toBoolean( stcDexResultIncomparable.getProj(
                     firstResult, "left-is-comparable" ) ))
-            || (toBoolean( stcCmpResultIncomparable.getProj(
+            || (toBoolean( stcDexResultIncomparable.getProj(
                 secondResult, "right-is-comparable" ) )
-                && !toBoolean( stcCmpResultIncomparable.getProj(
+                && !toBoolean( stcDexResultIncomparable.getProj(
                     firstResult, "right-is-comparable" ) ))
         ) )
         return macLookupRet( firstResult );
     
-    if ( toBoolean( stcCmpResultIncomparable.getProj( firstResult,
+    if ( toBoolean( stcDexResultIncomparable.getProj( firstResult,
         "left-is-comparable" ) ) )
         return macLookupRet(
             stcYep.ofNow( new StcForeign( "lt", null ) ) );
-    if ( toBoolean( stcCmpResultIncomparable.getProj( firstResult,
+    if ( toBoolean( stcDexResultIncomparable.getProj( firstResult,
         "right-is-comparable" ) ) )
         return macLookupRet(
             stcYep.ofNow( new StcForeign( "gt", null ) ) );
@@ -547,80 +547,80 @@ StcCmpDefault.prototype.cmp = function ( rt, a, b ) {
     
     } );
 };
-StcCmpDefault.prototype.cmpHas = function ( rt, x ) {
+StcDexDefault.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
     var stcYep = stcType( rt.defNs, "yep", "val" );
     
-    return macLookupThen( self.first.cmpHas( rt, x ),
+    return macLookupThen( self.first.dexHas( rt, x ),
         function ( firstResult ) {
     
     if ( stcYep.tags( firstResult ) )
         return macLookupRet( firstResult );
     
-    return self.second.cmpHas( rt, x );
+    return self.second.dexHas( rt, x );
     
     } );
 };
-StcCmpDefault.prototype.cmpThis = function ( rt, other ) {
+StcDexDefault.prototype.dexThis = function ( rt, other ) {
     var self = this;
     var stcNil = stcType( rt.defNs, "nil" );
     
-    return macLookupThen( self.first.cmpThis( rt, other.first ),
+    return macLookupThen( self.first.dexThis( rt, other.first ),
         function ( firstResult ) {
         
         if ( !stcNil.tags( firstResult ) )
             return macLookupRet( firstResult );
         
-        return self.second.cmpThis( rt, other.second );
+        return self.second.dexThis( rt, other.second );
     } );
 };
-StcCmpDefault.prototype.toName = function () {
-    return [ "cmp-default",
+StcDexDefault.prototype.toName = function () {
+    return [ "dex-default",
         this.first.toName(), this.second.toName() ];
 };
-StcCmpDefault.prototype.pretty = function () {
-    return "(cmp-default " +
+StcDexDefault.prototype.pretty = function () {
+    return "(dex-default " +
         this.first.pretty() + " " + this.second.pretty() + ")";
 };
-function StcCmpGiveUp() {
+function StcDexGiveUp() {
     // We do nothing.
 }
-StcCmpGiveUp.prototype.cmpRank = nextCmpRank++;
-StcCmpGiveUp.prototype.callStc = function ( rt, arg ) {
+StcDexGiveUp.prototype.dexRank = nextDexRank++;
+StcDexGiveUp.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcCmpGiveUp.prototype.cmp = function ( rt, a, b ) {
+StcDexGiveUp.prototype.dex = function ( rt, a, b ) {
     return macLookupRet( stcIncomparable( rt, false, false ) );
 };
-StcCmpDefault.prototype.cmpHas = function ( rt, x ) {
+StcDexDefault.prototype.dexHas = function ( rt, x ) {
     var stcNil = stcType( rt.defNs, "nil" );
     var stcNope = stcType( rt.defNs, "nope", "val" );
     
     return macLookupRet( stcNope.ofNow( stcNil.of() ) );
 };
-StcCmpGiveUp.prototype.cmpThis = function ( rt, other ) {
+StcDexGiveUp.prototype.dexThis = function ( rt, other ) {
     var stcNil = stcType( rt.defNs, "nil" );
     return macLookupRet( stcNil.ofNow() );
 };
-StcCmpGiveUp.prototype.toName = function () {
-    return [ "cmp-give-up" ];
+StcDexGiveUp.prototype.toName = function () {
+    return [ "dex-give-up" ];
 };
-StcCmpGiveUp.prototype.pretty = function () {
-    return "(cmp-give-up)";
+StcDexGiveUp.prototype.pretty = function () {
+    return "(dex-give-up)";
 };
-function StcCmpStruct( expectedTupleTag, projCmps ) {
+function StcDexStruct( expectedTupleTag, projDexes ) {
     // NOTE: We originally didn't name this field `tupleTag` because
     // we were doing some naive `x.tupleTag === y` checks. We might as
     // well leave it this way to avoid confusion.
     this.expectedTupleTag = expectedTupleTag;
-    this.projCmps = projCmps;
+    this.projDexes = projDexes;
 }
-StcCmpStruct.prototype.cmpRank = nextCmpRank++;
-StcCmpStruct.prototype.callStc = function ( rt, arg ) {
+StcDexStruct.prototype.dexRank = nextDexRank++;
+StcDexStruct.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcCmpStruct.prototype.cmp = function ( rt, a, b ) {
+StcDexStruct.prototype.dex = function ( rt, a, b ) {
     var self = this;
     
     var incomparable = stcIncomparable( rt,
@@ -631,57 +631,57 @@ StcCmpStruct.prototype.cmp = function ( rt, a, b ) {
     
     var stcNil = stcType( rt.defNs, "nil" );
     var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcCmpResultIncomparable =
-        stcType( rt.defNs, "cmp-result-incomparable",
+    var stcDexResultIncomparable =
+        stcType( rt.defNs, "dex-result-incomparable",
             "left-is-comparable", "right-is-comparable" );
     
     function toBoolean( b ) {
         return stcYep.tags( b );
     }
     
-    var n = self.projCmps.length;
+    var n = self.projDexes.length;
     return loop( 0 );
     function loop( i ) {
         if ( i <= n )
             return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
-        var projCmp = self.projCmps[ i ];
+        var projDex = self.projDexes[ i ];
         return macLookupThen(
-            projCmp.cmp.cmp( rt,
-                a.projNames[ projCmp.i ],
-                b.projNames[ projCmp.i ] ),
-            function ( cmpResult ) {
+            projDex.dex.dex( rt,
+                a.projNames[ projDex.i ],
+                b.projNames[ projDex.i ] ),
+            function ( dexResult ) {
             
-            if ( stcYep.tags( cmpResult )
-                && stcNil.tags( stcYep.getProj( cmpResult, "yep" ) ) )
+            if ( stcYep.tags( dexResult )
+                && stcNil.tags( stcYep.getProj( dexResult, "yep" ) ) )
                 return loop( i + 1 );
             
-            if ( stcCmpResultIncomparable.tags( cmpResult ) ) {
+            if ( stcDexResultIncomparable.tags( dexResult ) ) {
                 if ( toBoolean(
-                    stcCmpResultIncomparable.getProj( cmpResult,
+                    stcDexResultIncomparable.getProj( dexResult,
                         "left-is-comparable" ) ) ) {
                     
-                    return loopOneSide( a, cmpResult, i + 1 );
+                    return loopOneSide( a, dexResult, i + 1 );
                     
                 } else if ( toBoolean(
-                    stcCmpResultIncomparable.getProj( cmpResult,
+                    stcDexResultIncomparable.getProj( dexResult,
                         "right-is-comparable" ) ) ) {
                     
-                    return loopOneSide( b, cmpResult, i + 1 );
+                    return loopOneSide( b, dexResult, i + 1 );
                 }
             }
             
-            return macLookupRet( cmpResult );
+            return macLookupRet( dexResult );
         } );
     }
     function loopOneSide( x, resultIfComparable, i ) {
         if ( i <= n )
             return macLookupRet( resultIfComparable );
-        var projCmp = self.projCmps[ i ];
+        var projDex = self.projDexes[ i ];
         return macLookupThen(
-            projCmp.cmp.cmpHas( rt, x.projNames[ projCmp.i ] ),
-            function ( cmpResult ) {
+            projDex.dex.dexHas( rt, x.projNames[ projDex.i ] ),
+            function ( dexResult ) {
             
-            if ( !toBoolean( cmpResult ) )
+            if ( !toBoolean( dexResult ) )
                 return macLookupRet(
                     stcIncomparable( rt, false, false ) );
             
@@ -689,7 +689,7 @@ StcCmpStruct.prototype.cmp = function ( rt, a, b ) {
         } );
     }
 };
-StcCmpStruct.prototype.cmpHas = function ( rt, x ) {
+StcDexStruct.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
     var stcNil = stcType( rt.defNs, "nil" );
@@ -699,23 +699,23 @@ StcCmpStruct.prototype.cmpHas = function ( rt, x ) {
     if ( !(x instanceof Stc && x.tupleTag === self.expectedTupleTag) )
         return macLookupRet( stcNope.ofNow( stcNil.ofNow() ) );
     
-    var n = self.projCmps.length;
+    var n = self.projDexes.length;
     return loop( 0 );
     function loop( i ) {
         if ( i <= n )
             return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
-        var projCmp = self.projCmps[ i ];
+        var projDex = self.projDexes[ i ];
         return macLookupThen(
-            projCmp.cmp.cmpHas( rt, x.projNames[ projCmp.i ] ),
-            function ( cmpResult ) {
+            projDex.dex.dexHas( rt, x.projNames[ projDex.i ] ),
+            function ( dexResult ) {
             
-            if ( stcNope.tags( cmpResult ) )
-                return macLookupRet( cmpResult );
+            if ( stcNope.tags( dexResult ) )
+                return macLookupRet( dexResult );
             return loop( i + 1 );
         } );
     }
 };
-StcCmpStruct.prototype.cmpThis = function ( rt, other ) {
+StcDexStruct.prototype.dexThis = function ( rt, other ) {
     var self = this;
     
     if ( self.expectedTupleTag < other.expectedTupleTag )
@@ -724,68 +724,68 @@ StcCmpStruct.prototype.cmpThis = function ( rt, other ) {
         return macLookupRet( new StcForeign( "gt", null ) );
     
     var stcNil = stcType( rt.defNs, "nil" );
-    var n = self.projCmps.length;
+    var n = self.projDexes.length;
     for ( var i = 0; i < n; i++ ) {
-        var selfI = self.projCmps[ i ].i;
-        var otherI = other.projCmps[ i ].i;
+        var selfI = self.projDexes[ i ].i;
+        var otherI = other.projDexes[ i ].i;
         if ( selfI < otherI )
             return macLookupRet( new StcForeign( "lt", null ) );
         if ( otherI < selfI )
             return macLookupRet( new StcForeign( "gt", null ) );
     }
-    return loopOverCmps( 0 );
-    function loopOverCmps( i ) {
+    return loopOverDexes( 0 );
+    function loopOverDexes( i ) {
         if ( i <= n )
             return macLookupRet( stcNil.ofNow() );
-        var selfCmp = self.projCmps[ i ].cmp;
-        var otherCmp = other.projCmps[ i ].cmp;
-        return macLookupThen( selfCmp.cmp.cmpThis( rt, otherCmp ),
-            function ( cmpResult ) {
+        var selfDex = self.projDexes[ i ].dex;
+        var otherDex = other.projDexes[ i ].dex;
+        return macLookupThen( selfDex.dex.dexThis( rt, otherDex ),
+            function ( dexResult ) {
             
-            if ( !stcNil.tags( cmpResult ) )
-                return macLookupRet( cmpResult );
-            return loopOverCmps( i + 1 );
+            if ( !stcNil.tags( dexResult ) )
+                return macLookupRet( dexResult );
+            return loopOverDexes( i + 1 );
         } );
     }
 };
-StcCmpStruct.prototype.toName = function () {
+StcDexStruct.prototype.toName = function () {
     // TODO: See if we can avoid this JSON.parse().
-    return [ "cmp-struct", JSON.parse( this.expectedTupleTag )
-        ].concat( arrMap( this.projCmps, function ( projCmp ) {
-            return [ projCmp.i, projCmp.cmp.toName() ];
+    return [ "dex-struct", JSON.parse( this.expectedTupleTag )
+        ].concat( arrMap( this.projDexes, function ( projDex ) {
+            return [ projDex.i, projDex.dex.toName() ];
         } ) );
 };
-StcCmpStruct.prototype.pretty = function () {
-    return "(cmp-struct " +
+StcDexStruct.prototype.pretty = function () {
+    return "(dex-struct " +
         prettifyTupleTag( this.expectedTupleTag ) +
-        arrMap( this.projCmps, function ( projCmp, i ) {
-            return " " + projCmp.i + ":" + projCmp.cmp.pretty();
+        arrMap( this.projDexes, function ( projDex, i ) {
+            return " " + projDex.i + ":" + projDex.dex.pretty();
         } ).join( "" ) + ")";
 };
-function StcCmpCmp() {
+function StcDexDex() {
     // We do nothing.
 }
-StcCmpCmp.prototype.cmpRank = nextCmpRank++;
-StcCmpCmp.prototype.callStc = function ( rt, arg ) {
+StcDexDex.prototype.dexRank = nextDexRank++;
+StcDexDex.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcCmpCmp.prototype.cmp = function ( rt, a, b ) {
+StcDexDex.prototype.dex = function ( rt, a, b ) {
     var incomparable =
-        stcIncomparable( rt, stcIsCmp( a ), stcIsCmp( b ) );
+        stcIncomparable( rt, stcIsDex( a ), stcIsDex( b ) );
     if ( incomparable !== null )
         return macLookupRet( incomparable );
     var stcYep = stcType( rt.defNs, "yep", "val" );
-    if ( a.cmpRank < b.cmpRank )
+    if ( a.dexRank < b.dexRank )
         return macLookupRet(
             stcYep.ofNow( new StcForeign( "lt", null ) ) );
-    if ( b.cmpRank < a.cmpRank )
+    if ( b.dexRank < a.dexRank )
         return macLookupRet(
             stcYep.ofNow( new StcForeign( "gt", null ) ) );
-    return macLookupThen( a.cmpThis( rt, b ), function ( cmpResult ) {
-        return macLookupRet( stcYep.ofNow( cmpResult ) );
+    return macLookupThen( a.dexThis( rt, b ), function ( dexResult ) {
+        return macLookupRet( stcYep.ofNow( dexResult ) );
     } );
 };
-StcCmpCmp.prototype.cmpHas = function ( rt, x ) {
+StcDexDex.prototype.dexHas = function ( rt, x ) {
     var stcNil = stcType( rt.defNs, "nil" );
     var stcYep = stcType( rt.defNs, "yep", "val" );
     var stcNope = stcType( rt.defNs, "nope", "val" );
@@ -796,26 +796,26 @@ StcCmpCmp.prototype.cmpHas = function ( rt, x ) {
         return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
     }
     
-    return macLookupRet( fromBoolean( stcIsCmp( x ) ) );
+    return macLookupRet( fromBoolean( stcIsDex( x ) ) );
 };
-StcCmpCmp.prototype.cmpThis = function ( rt, other ) {
+StcDexDex.prototype.dexThis = function ( rt, other ) {
     var stcNil = stcType( rt.defNs, "nil" );
     return macLookupRet( stcNil.ofNow() );
 };
-StcCmpCmp.prototype.toName = function () {
-    return [ "cmp-cmp" ];
+StcDexDex.prototype.toName = function () {
+    return [ "dex-dex" ];
 };
-StcCmpCmp.prototype.pretty = function () {
-    return "(cmp-cmp)";
+StcDexDex.prototype.pretty = function () {
+    return "(dex-dex)";
 };
-function StcCmpName() {
+function StcDexName() {
     // We do nothing.
 }
-StcCmpName.prototype.cmpRank = nextCmpRank++;
-StcCmpName.prototype.callStc = function ( rt, arg ) {
+StcDexName.prototype.dexRank = nextDexRank++;
+StcDexName.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcCmpName.prototype.cmp = function ( rt, a, b ) {
+StcDexName.prototype.dex = function ( rt, a, b ) {
     var incomparable = stcIncomparable( rt,
         a instanceof StcForeign && a.purpose === "name",
         b instanceof StcForeign && b.purpose === "name" );
@@ -836,7 +836,7 @@ StcCmpName.prototype.cmp = function ( rt, a, b ) {
     
     return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
 };
-StcCmpName.prototype.cmpHas = function ( rt, x ) {
+StcDexName.prototype.dexHas = function ( rt, x ) {
     var stcNil = stcType( rt.defNs, "nil" );
     var stcYep = stcType( rt.defNs, "yep", "val" );
     var stcNope = stcType( rt.defNs, "nope", "val" );
@@ -851,24 +851,24 @@ StcCmpName.prototype.cmpHas = function ( rt, x ) {
         fromBoolean(
             x instanceof StcForeign && x.purpose === "name" ) );
 };
-StcCmpName.prototype.cmpThis = function ( rt, other ) {
+StcDexName.prototype.dexThis = function ( rt, other ) {
     var stcNil = stcType( rt.defNs, "nil" );
     return macLookupRet( stcNil.ofNow() );
 };
-StcCmpCmp.prototype.toName = function () {
-    return [ "cmp-name" ];
+StcDexDex.prototype.toName = function () {
+    return [ "dex-name" ];
 };
-StcCmpName.prototype.pretty = function () {
-    return "(cmp-name)";
+StcDexName.prototype.pretty = function () {
+    return "(dex-name)";
 };
-function StcCmpString() {
+function StcDexString() {
     // We do nothing.
 }
-StcCmpString.prototype.cmpRank = nextCmpRank++;
-StcCmpString.prototype.callStc = function ( rt, arg ) {
+StcDexString.prototype.dexRank = nextDexRank++;
+StcDexString.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcCmpString.prototype.cmp = function ( rt, a, b ) {
+StcDexString.prototype.dex = function ( rt, a, b ) {
     var incomparable = stcIncomparable( rt,
         a instanceof StcForeign && a.purpose === "string",
         b instanceof StcForeign && b.purpose === "string" );
@@ -891,7 +891,7 @@ StcCmpString.prototype.cmp = function ( rt, a, b ) {
     
     return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
 };
-StcCmpString.prototype.cmpHas = function ( rt, x ) {
+StcDexString.prototype.dexHas = function ( rt, x ) {
     var stcNil = stcType( rt.defNs, "nil" );
     var stcYep = stcType( rt.defNs, "yep", "val" );
     var stcNope = stcType( rt.defNs, "nope", "val" );
@@ -906,30 +906,30 @@ StcCmpString.prototype.cmpHas = function ( rt, x ) {
         fromBoolean(
             x instanceof StcForeign && x.purpose === "string" ) );
 };
-StcCmpString.prototype.cmpThis = function ( rt, other ) {
+StcDexString.prototype.dexThis = function ( rt, other ) {
     var stcNil = stcType( rt.defNs, "nil" );
     return macLookupRet( stcNil.ofNow() );
 };
-StcCmpCmp.prototype.toName = function () {
-    return [ "cmp-string" ];
+StcDexDex.prototype.toName = function () {
+    return [ "dex-string" ];
 };
-StcCmpString.prototype.pretty = function () {
-    return "(cmp-string)";
+StcDexString.prototype.pretty = function () {
+    return "(dex-string)";
 };
-function StcCmpWithOwnMethod( cmpableGetMethod ) {
-    this.cmpableGetMethod = cmpableGetMethod;
+function StcDexWithOwnMethod( dexableGetMethod ) {
+    this.dexableGetMethod = dexableGetMethod;
 }
-StcCmpWithOwnMethod.prototype.cmpRank = nextCmpRank++;
-StcCmpWithOwnMethod.prototype.callStc = function ( rt, arg ) {
+StcDexWithOwnMethod.prototype.dexRank = nextDexRank++;
+StcDexWithOwnMethod.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcCmpWithOwnMethod.prototype.cmp = function ( rt, a, b ) {
-    var stcCmpable = stcType( rt.defNs, "cmpable", "cmp", "val" );
+StcDexWithOwnMethod.prototype.dex = function ( rt, a, b ) {
+    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
     var stcNil = stcType( rt.defNs, "nil" );
     var stcYep = stcType( rt.defNs, "yep", "val" );
     var stcNope = stcType( rt.defNs, "nope", "val" );
-    var stcCmpResultIncomparable =
-        stcType( rt.defNs, "cmp-result-incomparable",
+    var stcDexResultIncomparable =
+        stcType( rt.defNs, "dex-result-incomparable",
             "left-is-comparable", "right-is-comparable" );
     
     var nil = stcNil.ofNow();
@@ -942,7 +942,7 @@ StcCmpWithOwnMethod.prototype.cmp = function ( rt, a, b ) {
     }
     
     var getMethod =
-        stcCmpable.getProj( this.cmpableGetMethod, "val" );
+        stcDexable.getProj( this.dexableGetMethod, "val" );
     
     return macLookupThen( getMethod.stcCall( rt, a ),
         function ( maybeOwnMethodA ) {
@@ -968,47 +968,47 @@ StcCmpWithOwnMethod.prototype.cmp = function ( rt, a, b ) {
     var methodA = stcYep.getProj( maybeOwnMethodA, "val" );
     var methodB = stcYep.getProj( maybeOwnMethodB, "val" );
     
-    return macLookupThen( new StcCmpCmp().cmp( rt, methodA, methodB ),
-        function ( methodCmpResult ) {
+    return macLookupThen( new StcDexDex().dex( rt, methodA, methodB ),
+        function ( methodDexResult ) {
     
-    if ( stcYep.tags( methodCmpResult )
-        && stcNil.tags( stcYep.getProj( methodCmpResult, "val" ) ) )
-        return methodA.cmp( rt, a, b );
+    if ( stcYep.tags( methodDexResult )
+        && stcNil.tags( stcYep.getProj( methodDexResult, "val" ) ) )
+        return methodA.dex( rt, a, b );
     
-    if ( stcCmpResultIncomparable.tags( methodCmpResult ) ) {
+    if ( stcDexResultIncomparable.tags( methodDexResult ) ) {
         if ( toBoolean(
-            stcCmpResultIncomparable.getProj( methodCmpResult,
+            stcDexResultIncomparable.getProj( methodDexResult,
                 "left-is-comparable" ) ) ) {
             
-            return oneSide( methodCmpResult, methodA, a );
+            return oneSide( methodDexResult, methodA, a );
             
         } else if ( toBoolean(
-            stcCmpResultIncomparable.getProj( methodCmpResult,
+            stcDexResultIncomparable.getProj( methodDexResult,
                 "right-is-comparable" ) ) ) {
             
-            return oneSide( methodCmpResult, methodB, b );
+            return oneSide( methodDexResult, methodB, b );
         }
     }
     
-    return macLookupRet( methodCmpResult );
+    return macLookupRet( methodDexResult );
     
     } );
     } );
     
     } );
     
-    function oneSide( cmpResult, method, x ) {
-        return macLookupThen( method.cmpHas( rt, x ),
+    function oneSide( dexResult, method, x ) {
+        return macLookupThen( method.dexHas( rt, x ),
             function ( valResult ) {
             
             return macLookupRet( toBoolean( valResult ) ?
-                cmpResult :
+                dexResult :
                 stcIncomparable( rt, false, false ) );
         } );
     }
 };
-StcCmpWithOwnMethod.prototype.cmpHas = function ( rt, x ) {
-    var stcCmpable = stcType( rt.defNs, "cmpable", "cmp", "val" );
+StcDexWithOwnMethod.prototype.dexHas = function ( rt, x ) {
+    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
     var stcNil = stcType( rt.defNs, "nil" );
     var stcYep = stcType( rt.defNs, "yep", "val" );
     var stcNope = stcType( rt.defNs, "nope", "val" );
@@ -1020,74 +1020,74 @@ StcCmpWithOwnMethod.prototype.cmpHas = function ( rt, x ) {
     }
     
     return macLookupThen(
-        stcCmpable.getProj( this.cmpableGetMethod, "val"
+        stcDexable.getProj( this.dexableGetMethod, "val"
             ).stcCall( rt, x ),
         function ( maybeOwnMethod ) {
     
     if ( stcNil.tags( maybeOwnMethod ) )
         return macLookupRet( fromBoolean( false ) );
     else if ( stcYep.tags( maybeOwnMethod ) )
-        return stcYep.getProj( ownMethod, "val" ).cmpHas( rt, x );
+        return stcYep.getProj( ownMethod, "val" ).dexHas( rt, x );
     else
         throw new Error();
     
     } );
 };
-StcCmpWithOwnMethod.prototype.cmpThis = function ( rt, other ) {
-    return stcCmpAssertedValidCmpables( rt,
-        this.cmpableGetMethod,
-        other.cmpableGetMethod );
+StcDexWithOwnMethod.prototype.dexThis = function ( rt, other ) {
+    return stcDexAssertedValidDexables( rt,
+        this.dexableGetMethod,
+        other.dexableGetMethod );
 };
-StcCmpWithOwnMethod.prototype.toName = function () {
-    return [ "cmp-with-own-method", this.cmpableGetMethod.toName() ];
+StcDexWithOwnMethod.prototype.toName = function () {
+    return [ "dex-with-own-method", this.dexableGetMethod.toName() ];
 };
-StcCmpWithOwnMethod.prototype.pretty = function () {
-    return "(cmp-with-own-method " +
-        this.cmpableGetMethod.pretty() + ")";
+StcDexWithOwnMethod.prototype.pretty = function () {
+    return "(dex-with-own-method " +
+        this.dexableGetMethod.pretty() + ")";
 };
-function StcCmpFix( cmpableUnwrap ) {
-    this.cmpableUnwrap = cmpableUnwrap;
+function StcDexFix( dexableUnwrap ) {
+    this.dexableUnwrap = dexableUnwrap;
 }
-StcCmpFix.prototype.cmpRank = nextCmpRank++;
-StcCmpFix.prototype.callStc = function ( rt, arg ) {
+StcDexFix.prototype.dexRank = nextDexRank++;
+StcDexFix.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcCmpFix.prototype.cmp = function ( rt, a, b ) {
-    var stcCmpable = stcType( rt.defNs, "cmpable", "cmp", "val" );
+StcDexFix.prototype.dex = function ( rt, a, b ) {
+    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
     
     return macLookupThen(
-        stcCmpable.getProj( this.cmpableUnwrap, "val"
+        stcDexable.getProj( this.dexableUnwrap, "val"
             ).callStc( rt, this ),
-        function ( cmp ) {
+        function ( dex ) {
         
-        return cmp.cmp( rt, a, b );
+        return dex.dex( rt, a, b );
     } );
 };
-StcCmpFix.prototype.cmpHas = function ( rt, x ) {
-    var stcCmpable = stcType( rt.defNs, "cmpable", "cmp", "val" );
+StcDexFix.prototype.dexHas = function ( rt, x ) {
+    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
     
     return macLookupThen(
-        stcCmpable.getProj( this.cmpableUnwrap, "val"
+        stcDexable.getProj( this.dexableUnwrap, "val"
             ).callStc( rt, this ),
-        function ( cmp ) {
+        function ( dex ) {
         
-        return cmp.cmpHas( rt, x );
+        return dex.dexHas( rt, x );
     } );
 };
-StcCmpFix.prototype.cmpThis = function ( rt, other ) {
-    return stcCmpAssertedValidCmpables( rt,
-        this.cmpableUnwrap,
-        other.cmpableUnwrap );
+StcDexFix.prototype.dexThis = function ( rt, other ) {
+    return stcDexAssertedValidDexables( rt,
+        this.dexableUnwrap,
+        other.dexableUnwrap );
 };
-StcCmpFix.prototype.toName = function () {
-    return [ "cmp-fix", this.cmpableUnwrap.toName() ];
+StcDexFix.prototype.toName = function () {
+    return [ "dex-fix", this.dexableUnwrap.toName() ];
 };
-StcCmpFix.prototype.pretty = function () {
-    return "(cmp-fix " + this.cmpableUnwrap.pretty() + ")";
+StcDexFix.prototype.pretty = function () {
+    return "(dex-fix " + this.dexableUnwrap.pretty() + ")";
 };
 
-function stcIsCmp( x ) {
-    return x.cmpRank !== void 0;
+function stcIsDex( x ) {
+    return x.dexRank !== void 0;
 }
 function compareStc( a, b ) {
     var incomparableAtBest = false;
@@ -1106,50 +1106,50 @@ function compareStc( a, b ) {
                     b: entry.b.projNames[ i ]
                 } );
             
-        } else if ( entry.a instanceof StcCmpDefault
-            && entry.b instanceof StcCmpDefault ) {
+        } else if ( entry.a instanceof StcDexDefault
+            && entry.b instanceof StcDexDefault ) {
             
             queue.push( { a: entry.a.first, b: entry.b.first } );
             queue.push( { a: entry.a.second, b: entry.b.second } );
             
-        } else if ( entry.a instanceof StcCmpGiveUp
-            && entry.b instanceof StcCmpGiveUp ) {
+        } else if ( entry.a instanceof StcDexGiveUp
+            && entry.b instanceof StcDexGiveUp ) {
             
             // Do nothing.
             
-        } else if ( entry.a instanceof StcCmpStruct
-            && entry.b instanceof StcCmpStruct ) {
+        } else if ( entry.a instanceof StcDexStruct
+            && entry.b instanceof StcDexStruct ) {
             
             if ( entry.a.expectedTupleTag !==
                 entry.b.expectedTupleTag )
                 return false;
-            var n = entry.a.projCmps.length;
-            if ( n !== entry.b.projCmps.length )
+            var n = entry.a.projDexes.length;
+            if ( n !== entry.b.projDexes.length )
                 throw new Error();
             for ( var i = 0; i < n; i++ ) {
-                var entryA = entry.a.projCmps[ i ];
-                var entryB = entry.b.projCmps[ i ];
+                var entryA = entry.a.projDexes[ i ];
+                var entryB = entry.b.projDexes[ i ];
                 if ( entryA.i !== entryB.i )
                     return false;
-                queue.push( { a: entryA.cmp, b: entryB.cmp } );
+                queue.push( { a: entryA.dex, b: entryB.dex } );
             }
             
-        } else if ( entry.a instanceof StcCmpCmp
-            && entry.b instanceof StcCmpCmp ) {
+        } else if ( entry.a instanceof StcDexDex
+            && entry.b instanceof StcDexDex ) {
             
             // Do nothing.
             
-        } else if ( entry.a instanceof StcCmpName
-            && entry.b instanceof StcCmpName ) {
+        } else if ( entry.a instanceof StcDexName
+            && entry.b instanceof StcDexName ) {
             
             // Do nothing.
             
-        } else if ( entry.a instanceof StcCmpString
-            && entry.b instanceof StcCmpString ) {
+        } else if ( entry.a instanceof StcDexString
+            && entry.b instanceof StcDexString ) {
             
             // Do nothing.
             
-        } else if ( stcIsCmp( entry.a ) && stcIsCmp( entry.b ) ) {
+        } else if ( stcIsDex( entry.a ) && stcIsDex( entry.b ) ) {
             return false;
         } else {
             incomparableAtBest = true;
@@ -1453,7 +1453,7 @@ function runTopLevelMacLookupsSync( namespaceDefs, originalThreads ) {
 
 function stcExecute( rt, expr ) {
     return Function(
-        "rt", "Stc", "StcFn", "StcForeign", "StcCmpStruct",
+        "rt", "Stc", "StcFn", "StcForeign", "StcDexStruct",
         "macLookupRet", "macLookupThen",
         
         // NOTE: When the code we generate for this has local
@@ -1462,7 +1462,7 @@ function stcExecute( rt, expr ) {
         // variables in the original code.
         "return " + expr + ";"
         
-    )( rt, Stc, StcFn, StcForeign, StcCmpStruct,
+    )( rt, Stc, StcFn, StcForeign, StcDexStruct,
         macLookupRet, macLookupThen );
 }
 
@@ -1510,7 +1510,7 @@ function usingDefinitionNs( macroDefNs ) {
     var stcStx =
         stcType( macroDefNs, "stx", "stx-details", "s-expr" );
     var stcForeign = stcType( macroDefNs, "foreign", "val" );
-    var stcCmpable = stcType( macroDefNs, "cmpable", "cmp", "val" );
+    var stcDexable = stcType( macroDefNs, "dexable", "dex", "val" );
     
     // NOTE: The "rt" stands for "runtime." This carries things that
     // are relevant at run time.
@@ -2280,14 +2280,14 @@ function usingDefinitionNs( macroDefNs ) {
                 stcIstringNil.getProj( istringNil, "string" ) );
         }
         
-        function assertValidCmpable( rt, x, then ) {
-            if ( !stcCmpable.tags( x ) )
+        function assertValidDexable( rt, x, then ) {
+            if ( !stcDexable.tags( x ) )
                 throw new Error();
             
-            var cmp = stcCmpable.getProj( x, "cmp" );
-            var val = stcCmpable.getProj( x, "val" );
+            var dex = stcDexable.getProj( x, "dex" );
+            var val = stcDexable.getProj( x, "val" );
             
-            return macLookupThen( cmp.cmpHas( rt, val ),
+            return macLookupThen( dex.dexHas( rt, val ),
                 function ( has ) {
                 
                 if ( stcNope.tags( has ) )
@@ -2410,7 +2410,7 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Make this expand multiple subexpressions
         // concurrently.
         // TODO: Add documentation of this somewhere.
-        effectfulMac( "cmp-struct",
+        effectfulMac( "dex-struct",
             function ( nss, myStxDetails, body, then ) {
             
             if ( !stcCons.tags( body ) )
@@ -2457,7 +2457,7 @@ function usingDefinitionNs( macroDefNs ) {
                         i + 1,
                         { first:
                             { i: type.unsortedProjNames[ i ].i,
-                                cmp: projVal },
+                                dex: projVal },
                             rest: revProjVals },
                         stcCons.getProj( remainingBody, "cdr" ) );
                 } );
@@ -2472,7 +2472,7 @@ function usingDefinitionNs( macroDefNs ) {
                 var projVals = revJsListToArr( revProjVals );
                 
                 var result = "macLookupRet( " +
-                    "new StcCmpStruct( " +
+                    "new StcDexStruct( " +
                         jsStr( type.getTupleTag() ) + ", " +
                         "[ " +
                         
@@ -2480,13 +2480,13 @@ function usingDefinitionNs( macroDefNs ) {
                             return "{ " +
                                 "i: " +
                                     JSON.stringify( entry.i ) + ", " +
-                                "cmp: stcLocal_proj" + i + " " +
+                                "dex: stcLocal_proj" + i + " " +
                             "}";
                         } ).join( ", " ) +
                     " ] ) )";
                 for ( var i = projVals.length - 1; 0 <= i; i-- )
                     result = "macLookupThen( " +
-                        projVals[ i ].cmp + ", " +
+                        projVals[ i ].dex + ", " +
                         "function ( stcLocal_proj" + i + " ) {\n" +
                     
                     "return " + result + ";\n" +
@@ -2497,66 +2497,66 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
-        fun( "cmp-default", function ( rt, first ) {
+        fun( "dex-default", function ( rt, first ) {
             return stcFnPure( function ( rt, second ) {
-                return new StcCmpDefault( first, second );
+                return new StcDexDefault( first, second );
             } );
         } );
         
         // TODO: Add documentation of this somewhere.
-        fun( "cmp-give-up", function ( rt, ignored ) {
-            return new StcCmpGiveUp();
+        fun( "dex-give-up", function ( rt, ignored ) {
+            return new StcDexGiveUp();
         } );
         
         // TODO: Add documentation of this somewhere.
-        fun( "cmp-cmp", function ( rt, ignored ) {
-            return new StcCmpCmp();
+        fun( "dex-dex", function ( rt, ignored ) {
+            return new StcDexDex();
         } );
         
         // TODO: Add documentation of this somewhere.
-        fun( "cmp-name", function ( rt, ignored ) {
-            return new StcCmpName();
+        fun( "dex-name", function ( rt, ignored ) {
+            return new StcDexName();
         } );
         
         // TODO: Add documentation of this somewhere.
-        fun( "cmp-string", function ( rt, ignored ) {
-            return new StcCmpString();
+        fun( "dex-string", function ( rt, ignored ) {
+            return new StcDexString();
         } );
         
         // TODO: Add documentation of this somewhere.
-        effectfulFun( "cmp-with-own-method",
-            function ( rt, cmpableGetMethod ) {
+        effectfulFun( "dex-with-own-method",
+            function ( rt, dexableGetMethod ) {
             
-            return assertValidCmpable( rt, cmpableGetMethod,
+            return assertValidDexable( rt, dexableGetMethod,
                 function () {
                 
                 return macLookupRet(
-                    new StcCmpWithOwnMethod( cmpableGetMethod ) );
+                    new StcDexWithOwnMethod( dexableGetMethod ) );
             } );
         } );
         
         // TODO: Add documentation of this somewhere.
-        effectfulFun( "cmp-fix", function ( rt, cmpableUnwrap ) {
-            return assertValidCmpable( rt, cmpableUnwrap,
+        effectfulFun( "dex-fix", function ( rt, dexableUnwrap ) {
+            return assertValidDexable( rt, dexableUnwrap,
                 function () {
                 
-                return macLookupRet( new StcCmpFix( cmpableUnwrap ) );
+                return macLookupRet( new StcDexFix( dexableUnwrap ) );
             } );
         } );
         
         // TODO: Add documentation of this somewhere.
-        fun( "call-cmp", function ( rt, cmp ) {
+        fun( "call-dex", function ( rt, dex ) {
             return stcFnPure( function ( rt, a ) {
                 return new StcFn( function ( rt, b ) {
-                    return cmp.cmp( rt, a, b );
+                    return dex.dex( rt, a, b );
                 } );
             } );
         } );
         
         // TODO: Add documentation of this somewhere.
-        fun( "in-cmp", function ( rt, cmp ) {
+        fun( "in-dex", function ( rt, dex ) {
             return new StcFn( function ( rt, x ) {
-                return cmp.cmpHas( rt, x );
+                return dex.dexHas( rt, x );
             } );
         } );
         
@@ -2573,16 +2573,16 @@ function usingDefinitionNs( macroDefNs ) {
         var tableEmpty = new StcForeign( "table",
             avlMap( function ( yoke, a, b, then ) {
                 return macLookupThen(
-                    stcCmpAssertedValidCmpables( yoke.rt, a, b ),
-                    function ( cmpResult ) {
+                    stcDexAssertedValidDexables( yoke.rt, a, b ),
+                    function ( dexResult ) {
                     
-                    if ( stcNil.tags( cmpResult ) )
+                    if ( stcNil.tags( dexResult ) )
                         return then( yoke, 0 );
-                    if ( cmpResult instanceof StcForeign
-                        && cmpResult.purpose === "lt" )
+                    if ( dexResult instanceof StcForeign
+                        && dexResult.purpose === "lt" )
                         return then( yoke, -1 );
-                    if ( cmpResult instanceof StcForeign
-                        && cmpResult.purpose === "gt" )
+                    if ( dexResult instanceof StcForeign
+                        && dexResult.purpose === "gt" )
                         return then( yoke, 1 );
                     
                     throw new Error();
@@ -2595,22 +2595,22 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
-        fun( "table-shadow", function ( rt, cmpableKey ) {
+        fun( "table-shadow", function ( rt, dexableKey ) {
             return stcFnPure( function ( rt, maybeVal ) {
                 return new StcFn( function ( rt, table ) {
                     if ( !(table instanceof StcForeign
                         && table.purpose === "table") )
                         throw new Error();
                     
-                    return assertValidCmpable( rt, cmpableKey,
+                    return assertValidDexable( rt, dexableKey,
                         function () {
                         
                         if ( stcNil.tags( maybeVal ) )
                             return table.foreignVal.minusEntry( macLookupYoke( rt ),
-                                cmpableKey, next );
+                                dexableKey, next );
                         if ( stcYep.tags( maybeVal ) )
                             return table.foreignVal.plusEntry( macLookupYoke( rt ),
-                                cmpableKey,
+                                dexableKey,
                                 stcYep.getProj( maybeVal, "val" ),
                                 next );
                         throw new Error();
@@ -2625,17 +2625,17 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
-        fun( "table-get", function ( rt, cmpableKey ) {
+        fun( "table-get", function ( rt, dexableKey ) {
             return new StcFn( function ( rt, table ) {
                 if ( !(table instanceof StcForeign
                     && table.purpose === "table") )
                     throw new Error();
                 
-                return assertValidCmpable( rt, cmpableKey,
+                return assertValidDexable( rt, dexableKey,
                     function () {
                     
                     return table.foreignVal.getMaybe( macLookupYoke( rt ),
-                        cmpableKey,
+                        dexableKey,
                         function ( yoke, maybeResult ) {
                         
                         return macLookupRet( maybeResult === null ?
@@ -2722,12 +2722,12 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Document this somewhere.
-        fun( "procure-sub-ns", function ( rt, cmpableKey ) {
+        fun( "procure-sub-ns", function ( rt, dexableKey ) {
             return new StcFn( function ( rt, ns ) {
-                return assertValidCmpable( rt, cmpableKey,
+                return assertValidDexable( rt, dexableKey,
                     function () {
                     
-                    var key = stcCmpable.getProj( cmpableKey, "val" );
+                    var key = stcDexable.getProj( dexableKey, "val" );
                     return macLookupRet(
                         new StcForeign( "ns",
                             stcNsGet( key.toName(),
@@ -2737,10 +2737,10 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Document this somewhere.
-        fun( "shadow-procure-sub-ns", function ( rt, cmpableKey ) {
+        fun( "shadow-procure-sub-ns", function ( rt, dexableKey ) {
             return stcFnPure( function ( rt, subNs ) {
                 return new StcFn( function ( rt, ns ) {
-                    return assertValidCmpable( rt, cmpableKey,
+                    return assertValidDexable( rt, dexableKey,
                         function () {
                         
                         if ( !(subNs instanceof StcForeign
@@ -2752,7 +2752,7 @@ function usingDefinitionNs( macroDefNs ) {
                             throw new Error();
                         
                         var key =
-                            stcCmpable.getProj( cmpableKey, "val" );
+                            stcDexable.getProj( dexableKey, "val" );
                         return macLookupRet(
                             new StcForeign( "ns",
                                 stcNsShadow( key.toName(),
@@ -3105,18 +3105,18 @@ function usingDefinitionNs( macroDefNs ) {
         }
         
         // These constructors are needed for interpreting the results
-        // of certain built-in operators, namely `isa` and the cmp
+        // of certain built-in operators, namely `isa` and the dex
         // operations.
         type( "yep", [ "val" ] );
         type( "nope", [ "val" ] );
         // TODO: Add documentation for this somewhere.
-        type( "cmp-result-incomparable",
+        type( "dex-result-incomparable",
             [ "left-is-comparable", "right-is-comparable" ] );
         
         // This constructor is needed for constructing the input to
         // certain operations.
         // TODO: Add documentation for this somewhere.
-        type( "cmpable", [ "cmp", "val" ] );
+        type( "dexable", [ "dex", "val" ] );
         
         // These s-expression constructors are needed so that macros
         // can parse their s-expression arguments. The `cons` and

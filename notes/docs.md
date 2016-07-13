@@ -154,13 +154,13 @@ Blocks until the given namespace has a defined value and then returns it. The gi
 
 -
 ```
-(defn procure-contribute-element ns cmpable-key element ...)
+(defn procure-contribute-element ns dexable-key element ...)
 ```
 Monadically, contributes to the element contribution map on the namespace. If more than one element contribution is given for the same key, an error occurs; all listener contributors, element contributors, and ticks begun by these contributions are in error, and their ticks' side effects are invalidated. The current modality's ancestors must not have used `contributing-only-to` to disallow making element contributions to the given namespace.
 
 -
 ```
-(defn procure-contribute-listener ns cmpable-key listener ...)
+(defn procure-contribute-listener ns dexable-key listener ...)
 (listener singleton-table)
 ```
 (**TODO**: Implement this.)

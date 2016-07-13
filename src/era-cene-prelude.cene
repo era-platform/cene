@@ -10,16 +10,16 @@
 \= them in docs.md.
 
 (defn ns-get-string string ns
-  (procure-sub-ns (cmpable (cmp-string/nil) string) ns))
+  (procure-sub-ns (dexable (dex-string/nil) string) ns))
 
 (defn ns-get-name name ns
-  (procure-sub-ns (cmpable (cmp-name/nil) name) ns))
+  (procure-sub-ns (dexable (dex-name/nil) name) ns))
 
 (defn ns-shadow-string string sub-ns ns
-  (shadow-procure-sub-ns (cmpable (cmp-string/nil) string) sub-ns ns))
+  (shadow-procure-sub-ns (dexable (dex-string/nil) string) sub-ns ns))
 
 (defn ns-shadow-name name sub-ns ns
-  (shadow-procure-sub-ns (cmpable (cmp-name/nil) name) sub-ns ns))
+  (shadow-procure-sub-ns (dexable (dex-name/nil) name) sub-ns ns))
 
 
 \= ===== Lists, boolean tags, and macro utilities ====================
@@ -96,8 +96,8 @@
 
 (defn macro-name mode definition-ns name
   (let - assert-current-modality.mode
-  /case (in-cmp (cmp-name/nil) name) yep - name
-  /case (in-cmp (cmp-string/nil) name) yep -
+  /case (in-dex (dex-name/nil) name) yep - name
+  /case (in-dex (dex-string/nil) name) yep -
     (procure-name mode
     /ns-get-string str.name
     /ns-get-string name
@@ -2364,7 +2364,7 @@ of the match.
 \= format user-level code does not know how to deconstruct. For equal
 \= names, the result will be (nil).
 (defn name-metacompare a b
-  (case (call-cmp (cmp-name/nil) a b)
+  (case (call-dex (dex-name/nil) a b)
     yep result result
     err.\;qq[Called name-metacompare with non-name values]))
 
@@ -2372,7 +2372,7 @@ of the match.
 \= format user-level code does not know how to deconstruct. For equal
 \= strings, the result will be (nil).
 (defn string-metacompare a b
-  (case (call-cmp (cmp-string/nil) a b)
+  (case (call-dex (dex-string/nil) a b)
     yep result result
     err.\;qq[Called string-metacompare with non-string values]))
 
