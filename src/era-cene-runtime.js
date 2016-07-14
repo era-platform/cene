@@ -325,8 +325,6 @@ function macLookupYoke( rt ) {
 }
 
 
-var nextDexRank = 1;
-
 function prettifyTupleTag( tupleTag ) {
     return JSON.stringify(
         JSON.parse( tupleTag )[ 1 ][ 3 ][ 1 ][ 3 ][ 1 ] );
@@ -336,6 +334,7 @@ function Stc( tupleTag, opt_projNames ) {
     this.tupleTag = tupleTag;
     this.projNames = opt_projNames || [];
 }
+Stc.prototype.affiliation = "none";
 Stc.prototype.callStc = function ( rt, arg ) {
     var self = this;
     
@@ -370,6 +369,9 @@ Stc.prototype.callStc = function ( rt, arg ) {
 Stc.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
+Stc.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
+};
 Stc.prototype.toName = function () {
     // TODO: See if we can avoid this JSON.parse().
     return [ "struct", JSON.parse( this.tupleTag ) ].concat(
@@ -386,11 +388,15 @@ Stc.prototype.pretty = function () {
 function StcFn( func ) {
     this.func = func;
 }
+StcFn.prototype.affiliation = "none";
 StcFn.prototype.callStc = function ( rt, arg ) {
     var func = this.func;
     return func( rt, arg );
 };
 StcFn.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+StcFn.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcFn.prototype.toName = function () {
@@ -403,6 +409,7 @@ function StcForeign( purpose, foreignVal ) {
     this.purpose = purpose;
     this.foreignVal = foreignVal;
 }
+StcForeign.prototype.affiliation = "none";
 StcForeign.prototype.callStc = function ( rt, arg ) {
     var self = this;
     
@@ -415,6 +422,9 @@ StcForeign.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
 StcForeign.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+StcForeign.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcForeign.prototype.toName = function () {
@@ -436,12 +446,13 @@ StcForeign.prototype.pretty = function () {
         JSON.stringify( this.foreignVal ) + ")";
 };
 function StcDexDefault( first, second ) {
-    if ( !(stcIsDex( first ) && stcIsDex( second )) )
+    if ( !(first.affiliation === "dex"
+        && second.affiliation === "dex") )
         throw new Error();
     this.first = first;
     this.second = second;
 }
-StcDexDefault.prototype.dexRank = nextDexRank++;
+StcDexDefault.prototype.affiliation = "dex";
 StcDexDefault.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
@@ -460,6 +471,9 @@ StcDexDefault.prototype.dexHas = function ( rt, x ) {
     
     } );
 };
+StcDexDefault.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
+};
 StcDexDefault.prototype.toName = function () {
     return [ "dex-default",
         this.first.toName(), this.second.toName() ];
@@ -471,7 +485,7 @@ StcDexDefault.prototype.pretty = function () {
 function StcDexGiveUp() {
     // We do nothing.
 }
-StcDexGiveUp.prototype.dexRank = nextDexRank++;
+StcDexGiveUp.prototype.affiliation = "dex";
 StcDexGiveUp.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
@@ -480,6 +494,9 @@ StcDexGiveUp.prototype.dexHas = function ( rt, x ) {
     var stcNope = stcType( rt.defNs, "nope", "val" );
     
     return macLookupRet( stcNope.ofNow( stcNil.ofNow() ) );
+};
+StcDexGiveUp.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
 };
 StcDexGiveUp.prototype.toName = function () {
     return [ "dex-give-up" ];
@@ -494,7 +511,7 @@ function StcDexStruct( expectedTupleTag, projDexes ) {
     this.expectedTupleTag = expectedTupleTag;
     this.projDexes = projDexes;
 }
-StcDexStruct.prototype.dexRank = nextDexRank++;
+StcDexStruct.prototype.affiliation = "dex";
 StcDexStruct.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
@@ -524,6 +541,9 @@ StcDexStruct.prototype.dexHas = function ( rt, x ) {
         } );
     }
 };
+StcDexStruct.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
+};
 StcDexStruct.prototype.toName = function () {
     // TODO: See if we can avoid this JSON.parse().
     return [ "dex-struct", JSON.parse( this.expectedTupleTag )
@@ -541,22 +561,15 @@ StcDexStruct.prototype.pretty = function () {
 function StcDexDex() {
     // We do nothing.
 }
-StcDexDex.prototype.dexRank = nextDexRank++;
+StcDexDex.prototype.affiliation = "dex";
 StcDexDex.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
 StcDexDex.prototype.dexHas = function ( rt, x ) {
-    var stcNil = stcType( rt.defNs, "nil" );
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcNope = stcType( rt.defNs, "nope", "val" );
-    
-    var nil = stcNil.ofNow();
-    
-    function fromBoolean( b ) {
-        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
-    }
-    
-    return macLookupRet( fromBoolean( stcIsDex( x ) ) );
+    return macLookupRet( rt.fromBoolean( x.affiliation === "dex" ) );
+};
+StcDexDex.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
 };
 StcDexDex.prototype.toName = function () {
     return [ "dex-dex" ];
@@ -564,27 +577,59 @@ StcDexDex.prototype.toName = function () {
 StcDexDex.prototype.pretty = function () {
     return "(dex-dex)";
 };
+function StcDexMerge() {
+    // We do nothing.
+}
+StcDexMerge.prototype.affiliation = "dex";
+StcDexMerge.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcDexMerge.prototype.dexHas = function ( rt, x ) {
+    return macLookupRet(
+        rt.fromBoolean( x.affiliation === "merge" ) );
+};
+StcDexMerge.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
+};
+StcDexMerge.prototype.toName = function () {
+    return [ "dex-merge" ];
+};
+StcDexMerge.prototype.pretty = function () {
+    return "(dex-merge)";
+};
+function StcDexFuse() {
+    // We do nothing.
+}
+StcDexFuse.prototype.affiliation = "fuse";
+StcDexFuse.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcDexFuse.prototype.dexHas = function ( rt, x ) {
+    return macLookupRet( rt.fromBoolean( x.affiliation === "fuse" ) );
+};
+StcDexFuse.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
+};
+StcDexFuse.prototype.toName = function () {
+    return [ "dex-fuse" ];
+};
+StcDexFuse.prototype.pretty = function () {
+    return "(dex-fuse)";
+};
 function StcDexName() {
     // We do nothing.
 }
-StcDexName.prototype.dexRank = nextDexRank++;
+StcDexName.prototype.affiliation = "dex";
 StcDexName.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
 StcDexName.prototype.dexHas = function ( rt, x ) {
-    var stcNil = stcType( rt.defNs, "nil" );
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcNope = stcType( rt.defNs, "nope", "val" );
-    
-    var nil = stcNil.ofNow();
-    
-    function fromBoolean( b ) {
-        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
-    }
-    
     return macLookupRet(
-        fromBoolean(
+        rt.fromBoolean(
             x instanceof StcForeign && x.purpose === "name" ) );
+};
+StcDexName.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
 };
 StcDexName.prototype.toName = function () {
     return [ "dex-name" ];
@@ -595,24 +640,17 @@ StcDexName.prototype.pretty = function () {
 function StcDexString() {
     // We do nothing.
 }
-StcDexString.prototype.dexRank = nextDexRank++;
+StcDexString.prototype.affiliation = "dex";
 StcDexString.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
 StcDexString.prototype.dexHas = function ( rt, x ) {
-    var stcNil = stcType( rt.defNs, "nil" );
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcNope = stcType( rt.defNs, "nope", "val" );
-    
-    var nil = stcNil.ofNow();
-    
-    function fromBoolean( b ) {
-        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
-    }
-    
     return macLookupRet(
-        fromBoolean(
+        rt.fromBoolean(
             x instanceof StcForeign && x.purpose === "string" ) );
+};
+StcDexString.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
 };
 StcDexString.prototype.toName = function () {
     return [ "dex-string" ];
@@ -623,7 +661,7 @@ StcDexString.prototype.pretty = function () {
 function StcDexWithOwnMethod( dexableGetMethod ) {
     this.dexableGetMethod = dexableGetMethod;
 }
-StcDexWithOwnMethod.prototype.dexRank = nextDexRank++;
+StcDexWithOwnMethod.prototype.affiliation = "dex";
 StcDexWithOwnMethod.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
@@ -631,13 +669,6 @@ StcDexWithOwnMethod.prototype.dexHas = function ( rt, x ) {
     var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
     var stcNil = stcType( rt.defNs, "nil" );
     var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcNope = stcType( rt.defNs, "nope", "val" );
-    
-    var nil = stcNil.ofNow();
-    
-    function fromBoolean( b ) {
-        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
-    }
     
     return macLookupThen(
         stcDexable.getProj( this.dexableGetMethod, "val"
@@ -645,13 +676,16 @@ StcDexWithOwnMethod.prototype.dexHas = function ( rt, x ) {
         function ( maybeOwnMethod ) {
     
     if ( stcNil.tags( maybeOwnMethod ) )
-        return macLookupRet( fromBoolean( false ) );
+        return macLookupRet( rt.fromBoolean( false ) );
     else if ( stcYep.tags( maybeOwnMethod ) )
         return stcYep.getProj( ownMethod, "val" ).dexHas( rt, x );
     else
         throw new Error();
     
     } );
+};
+StcDexWithOwnMethod.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
 };
 StcDexWithOwnMethod.prototype.toName = function () {
     return [ "dex-with-own-method", this.dexableGetMethod.toName() ];
@@ -663,7 +697,7 @@ StcDexWithOwnMethod.prototype.pretty = function () {
 function StcDexFix( dexableUnwrap ) {
     this.dexableUnwrap = dexableUnwrap;
 }
-StcDexFix.prototype.dexRank = nextDexRank++;
+StcDexFix.prototype.affiliation = "dex";
 StcDexFix.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
@@ -678,6 +712,9 @@ StcDexFix.prototype.dexHas = function ( rt, x ) {
         return dex.dexHas( rt, x );
     } );
 };
+StcDexFix.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
+};
 StcDexFix.prototype.toName = function () {
     return [ "dex-fix", this.dexableUnwrap.toName() ];
 };
@@ -687,28 +724,21 @@ StcDexFix.prototype.pretty = function () {
 function StcDexTable( dexVal ) {
     this.dexVal = dexVal;
 }
-StcDexTable.prototype.dexRank = nextDexRank++;
+StcDexTable.prototype.affiliation = "dex";
 StcDexTable.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
 StcDexTable.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
-    var stcNil = stcType( rt.defNs, "nil" );
     var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcNope = stcType( rt.defNs, "nope", "val" );
     
-    var nil = stcNil.ofNow();
-    
-    function fromBoolean( b ) {
-        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
-    }
     function toBoolean( b ) {
         return stcYep.tags( b );
     }
     
     if ( !(x instanceof StcForeign && x.purpose === "table") )
-        return macLookupRet( fromBoolean( false ) );
+        return macLookupRet( rt.fromBoolean( false ) );
     
     var vals = [];
     x.foreignVal.each( function ( k, v ) {
@@ -718,16 +748,19 @@ StcDexTable.prototype.dexHas = function ( rt, x ) {
     return loop( 0 );
     function loop( i ) {
         if ( n <= i )
-            return macLookupRet( fromBoolean( true ) );
+            return macLookupRet( rt.fromBoolean( true ) );
         return macLookupThen( self.dexVal.dexHas( rt, vals[ i ] ),
             function ( dexResult ) {
             
             if ( !toBoolean( dexResult ) )
-                return macLookupRet( fromBoolean( false ) );
+                return macLookupRet( rt.fromBoolean( false ) );
             
             return loop( i + 1 );
         } );
     }
+};
+StcDexTable.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
 };
 StcDexTable.prototype.toName = function () {
     return [ "dex-table", this.dexVal.toName() ];
@@ -735,78 +768,69 @@ StcDexTable.prototype.toName = function () {
 StcDexTable.prototype.pretty = function () {
     return "(dex-table " + this.dexVal.pretty() + ")";
 };
-
-function stcIsDex( x ) {
-    return x.dexRank !== void 0;
+function StcMergeByDex( dexToUse ) {
+    if ( dexToUse.affiliation !== "dex" )
+        throw new Error();
+    this.dexToUse = dexToUse;
 }
-function compareStc( a, b ) {
-    var incomparableAtBest = false;
-    var queue = [ { a: a, b: b } ];
-    while ( queue.length !== 0 ) {
-        var entry = queue.shift();
-        if ( entry.a instanceof Stc && entry.b instanceof Stc ) {
-            if ( entry.a.tupleTag !== entry.b.tupleTag )
-                return false;
-            var n = entry.a.projNames.length;
-            if ( n !== entry.b.projNames.length )
-                throw new Error();
-            for ( var i = 0; i < n; i++ )
-                queue.push( {
-                    a: entry.a.projNames[ i ],
-                    b: entry.b.projNames[ i ]
-                } );
-            
-        } else if ( entry.a instanceof StcDexDefault
-            && entry.b instanceof StcDexDefault ) {
-            
-            queue.push( { a: entry.a.first, b: entry.b.first } );
-            queue.push( { a: entry.a.second, b: entry.b.second } );
-            
-        } else if ( entry.a instanceof StcDexGiveUp
-            && entry.b instanceof StcDexGiveUp ) {
-            
-            // Do nothing.
-            
-        } else if ( entry.a instanceof StcDexStruct
-            && entry.b instanceof StcDexStruct ) {
-            
-            if ( entry.a.expectedTupleTag !==
-                entry.b.expectedTupleTag )
-                return false;
-            var n = entry.a.projDexes.length;
-            if ( n !== entry.b.projDexes.length )
-                throw new Error();
-            for ( var i = 0; i < n; i++ ) {
-                var entryA = entry.a.projDexes[ i ];
-                var entryB = entry.b.projDexes[ i ];
-                if ( entryA.i !== entryB.i )
-                    return false;
-                queue.push( { a: entryA.dex, b: entryB.dex } );
-            }
-            
-        } else if ( entry.a instanceof StcDexDex
-            && entry.b instanceof StcDexDex ) {
-            
-            // Do nothing.
-            
-        } else if ( entry.a instanceof StcDexName
-            && entry.b instanceof StcDexName ) {
-            
-            // Do nothing.
-            
-        } else if ( entry.a instanceof StcDexString
-            && entry.b instanceof StcDexString ) {
-            
-            // Do nothing.
-            
-        } else if ( stcIsDex( entry.a ) && stcIsDex( entry.b ) ) {
-            return false;
-        } else {
-            incomparableAtBest = true;
-        }
-    }
-    return incomparableAtBest ? null : true;
+StcMergeByDex.prototype.affiliation = "merge";
+StcMergeByDex.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcMergeByDex.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+StcMergeByDex.prototype.fuse = function ( rt, a, b ) {
+    var self = this;
+    
+    var stcNil = stcType( rt.defNs, "nil" );
+    var stcYep = stcType( rt.defNs, "yep", "val" );
+    
+    return macLookupThen( self.dexToUse.dexHas( rt, a ),
+        function ( hasA ) {
+        
+        if ( stcNope.tags( hasA ) )
+            return macLookupRet( stcNil.ofNow() );
+    
+    return macLookupThen( self.dexToUse.dexHas( rt, b ),
+        function ( hasB ) {
+        
+        if ( stcNope.tags( hasB ) )
+            return macLookupRet( stcNil.ofNow() );
+    
+    return macLookupRet( stcYep.ofNow( a ) );
+    
+    } );
+    
+    } );
+};
+StcMergeByDex.prototype.toName = function () {
+    return [ "merge-by-dex", this.dexToUse.toName() ];
+};
+StcMergeByDex.prototype.pretty = function () {
+    return "(merge-by-dex " + this.dexToUse.pretty() + ")";
+};
+function StcFuseByMerge( mergeToUse ) {
+    if ( mergeToUse.affiliation !== "merge" )
+        throw new Error();
+    this.mergeToUse = mergeToUse;
 }
+StcFuseByMerge.prototype.affiliation = "fuse";
+StcFuseByMerge.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcFuseByMerge.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+StcFuseByMerge.prototype.fuse = function ( rt, a, b ) {
+    return this.mergeToUse.fuse( rt, a, b );
+};
+StcFuseByMerge.prototype.toName = function () {
+    return [ "fuse-by-merge", this.mergeToUse.toName() ];
+};
+StcFuseByMerge.prototype.pretty = function () {
+    return "(fuse-by-merge " + this.mergeToUse.pretty() + ")";
+};
 
 function stcTrivialStxDetails() {
     return new StcForeign( "macro-stx-details", null );
@@ -1168,6 +1192,10 @@ function usingDefinitionNs( macroDefNs ) {
     var rt = {};
     rt.defNs = macroDefNs;
     rt.functionDefs = {};
+    rt.fromBoolean = function ( b ) {
+        var nil = stcNil.ofNow();
+        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
+    };
     
     function callStcMulti( rt, func, var_args ) {
         var args = arguments;
@@ -1714,27 +1742,36 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
-                var aNss = nssGet( nss, "a" );
-                // NOTE: This is the only place we ignore
-                // `macroexpand`'s result.
-                macroexpand( nssGet( aNss, "unique" ), rawMode,
+                
+                function evalExpr( nss, rawMode, expr, then ) {
+                    return macroexpand(
+                        nssGet( nss, "unique" ),
+                        rawMode,
+                        expr,
+                        nssGet( nss, "outbox" ).uniqueNs,
+                        function ( rawMode, expanded ) {
+                        
+                        return macLookupThen(
+                            evalStcForTest( rt, expanded ),
+                            function ( evaluated ) {
+                            
+                            return then( rawMode, evaluated );
+                        } );
+                    } );
+                }
+                
+                // NOTE: This `evalExpr` call is the only place we
+                // ignore `macroexpand`'s result.
+                evalExpr( nssGet( nss, "a" ), rawMode,
                     stcCons.getProj( body, "car" ),
-                    nssGet( aNss, "outbox" ).uniqueNs,
-                    function ( rawMode, expandedA ) {
-                return macLookupThen( evalStcForTest( rt, expandedA ),
-                    function ( a ) {
-                var bNss = nssGet( nss, "b" );
-                return macroexpand( nssGet( bNss, "unique" ), rawMode,
+                    function ( rawMode, a ) {
+                return evalExpr( nssGet( nss, "b" ), rawMode,
                     stcCons.getProj( body1, "car" ),
-                    nssGet( bNss, "outbox" ).uniqueNs,
-                    function ( rawMode, expandedB ) {
-                return macLookupThen( evalStcForTest( rt, expandedB ),
-                    function ( b ) {
+                    function ( rawMode, b ) {
                 
-                var match = compareStc( a, b );
+                var match = nameCompare( a.toName(), b.toName() );
                 
-                // NOTE: This can be true, false, or null.
-                if ( match === true )
+                if ( match === 0 )
                     console.log( "Test succeeded" );
                 else
                     console.log(
@@ -1745,8 +1782,7 @@ function usingDefinitionNs( macroDefNs ) {
                 
                 } );
                 } );
-                } );
-                } );
+                
                 return macLookupThenRunEffects( rawMode,
                     then( stcNil.of() ) );
             } );
@@ -2164,6 +2200,16 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
+        fun( "dex-merge", function ( rt, ignored ) {
+            return new StcDexMerge();
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "dex-fuse", function ( rt, ignored ) {
+            return new StcDexFuse();
+        } );
+        
+        // TODO: Add documentation of this somewhere.
         fun( "dex-name", function ( rt, ignored ) {
             return new StcDexName();
         } );
@@ -2196,7 +2242,7 @@ function usingDefinitionNs( macroDefNs ) {
         
         // TODO: Add documentation of this somewhere.
         effectfulFun( "dex-table", function ( rt, dexVal ) {
-            if ( !stcIsDex( dexVal ) )
+            if ( dexVal.affiliation !== "dex" )
                 throw new Error();
             return macLookupRet( new StcDexTable( dexVal ) );
         } );
@@ -2242,6 +2288,38 @@ function usingDefinitionNs( macroDefNs ) {
         fun( "in-dex", function ( rt, dex ) {
             return new StcFn( function ( rt, x ) {
                 return dex.dexHas( rt, x );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        effectfulFun( "merge-by-dex", function ( rt, dex ) {
+            return macLookupRet( new StcMergeByDex( dex ) );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "call-merge", function ( rt, merge ) {
+            return stcFnPure( function ( rt, a ) {
+                return new StcFn( function ( rt, b ) {
+                    if ( merge.affiliation !== "merge" )
+                        throw new Error();
+                    return merge.fuse( rt, a, b );
+                } );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        effectfulFun( "fuse-by-merge", function ( rt, merge ) {
+            return macLookupRet( new StcFuseByMerge( merge ) );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "call-fuse", function ( rt, fuse ) {
+            return stcFnPure( function ( rt, a ) {
+                return new StcFn( function ( rt, b ) {
+                    if ( fuse.affiliation !== "fuse" )
+                        throw new Error();
+                    return fuse.fuse( rt, a, b );
+                } );
             } );
         } );
         
