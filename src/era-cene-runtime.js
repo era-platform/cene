@@ -600,7 +600,7 @@ StcDexMerge.prototype.pretty = function () {
 function StcDexFuse() {
     // We do nothing.
 }
-StcDexFuse.prototype.affiliation = "fuse";
+StcDexFuse.prototype.affiliation = "dex";
 StcDexFuse.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
@@ -2376,19 +2376,80 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
-        fun( "table-default", function ( rt, first ) {
-            return new StcFn( function ( rt, second ) {
-                if ( !(first instanceof StcForeign
-                    && first.purpose === "table") )
-                    throw new Error();
-                if ( !(second instanceof StcForeign
-                    && second.purpose === "table") )
-                    throw new Error();
-                
-                return macLookupRet(
-                    new StcForeign( "table",
-                        first.foreignVal.plus(
-                            second.foreignVal ) ) );
+        fun( "table-zip", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                return new StcFn( function ( rt, combiner ) {
+                    if ( !(a instanceof StcForeign
+                        && a.purpose === "table") )
+                        throw new Error();
+                    if ( !(b instanceof StcForeign
+                        && b.purpose === "table") )
+                        throw new Error();
+                    
+                    var entries = [];
+                    a.foreignVal.plus( b.foreignVal ).each(
+                        function ( k, v ) {
+                        
+                        function get( table ) {
+                            var v = table.get( k );
+                            return v === void 0 ?
+                                stcNil.ofNow() :
+                                stcYep.ofNow( v );
+                        }
+                        entries.push(
+                            { k: k, a: get( a ), b: get( b ) } );
+                    } );
+                    var n = entries.length;
+                    return loop( 0, jsnMap() );
+                    function loop( i, table ) {
+                        if ( n <= i )
+                            return macLookupRet(
+                                new StcForeign( "table", table ) );
+                        var entry = entries[ i ];
+                        return macLookupThen(
+                            callStcMulti( rt, combiner,
+                                entry.a, entry.b ),
+                            function ( v ) {
+                            
+                            return loop( i + 1,
+                                table.plusEntry( entry.k, v ) );
+                        } );
+                    }
+                } );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "table-fuse", function ( rt, table ) {
+            return stcFnPure( function ( rt, init ) {
+                return new StcFn( function ( rt, fuse ) {
+                    if ( !(table instanceof StcForeign
+                        && table.purpose === "table") )
+                        throw new Error();
+                    if ( fuse.affiliation !== "fuse" )
+                        throw new Error();
+                    
+                    var vals = [];
+                    table.foreignVal.each( function ( k, v ) {
+                        vals.push( v );
+                    } );
+                    var n = vals.length;
+                    return loop( 0, init );
+                    function loop( i, state ) {
+                        if ( n <= i )
+                            return macLookupRet( state );
+                        return macLookupThen(
+                            fuse.fuse( rt, state, vals[ i ] ),
+                            function ( state ) {
+                            
+                            if ( !stcYep.tags( state ) )
+                                return macLookupRet( stcNil.ofNow() );
+                            
+                            return loop( i + 1,
+                                stcYep.getProj( state, "val" ) );
+                        } );
+                    }
+                } );
             } );
         } );
         
