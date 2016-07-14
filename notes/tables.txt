@@ -51,34 +51,26 @@ def-type (dexable dex val)
 (merge-by-dex <dex>)
   \= NOTE: This only processes the dex operation once, calling it with the two values being merged. It doesn't sanity-check that the dex is reflexive for either argument.
 (merge-default <merge-for-trying-first> <merge-for-trying-second>)
-  \= TODO: Implement this.
 (merge-struct cons <car-merge> <cdr-merge>)
   \= TODO: Implement this.
 (merge-by-own-method <dexable-get-method>)
-  \= TODO: Implement this.
   \= Given a dexable function, returns a merge that works by invoking that function with each value to get `(yep <merge>)` or `(nil)`, verifying that the two `<merge>` values are the same, invoking that value, and invoking the function on the result again to make sure it yields the same `<merge>`. That final check makes sure this operation is associative.
 (merge-fix <dexable-unwrap>)
-  \= TODO: Implement this.
   \= Given a dexable function, returns a merge that works by passing itself to the function and then invoking the resulting merge.
 (merge-table <val-merge>)
-  \= TODO: Implement this.
 (call-merge <merge> <a> <b>)
 
 \= A "fuse" is a binary operation that is commutative and associative wherever it is defined. It returns a `(yep ...)` or `(nil)`, so it doesn't have to be defined everywhere, but when it returns `(nil)` is also subject to those laws.
 \=
 (fuse-by-merge <merge>)
 (fuse-default <fuse-for-trying-first> <fuse-for-trying-second>)
-  \= TODO: Implement this.
 (fuse-struct cons <car-fuse> <cdr-fuse>)
   \= TODO: Implement this.
 (fuse-by-own-method <dexable-get-method>)
-  \= TODO: Implement this.
   \= Given a dexable function, returns a fuse that works by invoking that function with each value to get `(yep <fuse>)` or `(nil)`, verifying that the two `<fuse>` values are the same, invoking that value, and invoking the function on the result again to make sure it yields the same `<fuse>`. That final check makes sure this operation is associative.
 (fuse-fix <dexable-unwrap>)
-  \= TODO: Implement this.
   \= Given a dexable function, returns a fuse that works by passing itself to the function and then invoking the resulting fuse.
 (fuse-table <val-fuse>)
-  \= TODO: Implement this.
 (call-fuse <fuse> <a> <b>)
 \= TODO: Add some way to fuse numbers by addition. Figure out if there's a way to do it that is compatible with various number encodings or other commutative monoids.
 

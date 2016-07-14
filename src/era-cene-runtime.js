@@ -658,14 +658,14 @@ StcDexString.prototype.toName = function () {
 StcDexString.prototype.pretty = function () {
     return "(dex-string)";
 };
-function StcDexWithOwnMethod( dexableGetMethod ) {
+function StcDexByOwnMethod( dexableGetMethod ) {
     this.dexableGetMethod = dexableGetMethod;
 }
-StcDexWithOwnMethod.prototype.affiliation = "dex";
-StcDexWithOwnMethod.prototype.callStc = function ( rt, arg ) {
+StcDexByOwnMethod.prototype.affiliation = "dex";
+StcDexByOwnMethod.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
-StcDexWithOwnMethod.prototype.dexHas = function ( rt, x ) {
+StcDexByOwnMethod.prototype.dexHas = function ( rt, x ) {
     var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
     var stcNil = stcType( rt.defNs, "nil" );
     var stcYep = stcType( rt.defNs, "yep", "val" );
@@ -684,14 +684,14 @@ StcDexWithOwnMethod.prototype.dexHas = function ( rt, x ) {
     
     } );
 };
-StcDexWithOwnMethod.prototype.fuse = function ( rt, a, b ) {
+StcDexByOwnMethod.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexWithOwnMethod.prototype.toName = function () {
-    return [ "dex-with-own-method", this.dexableGetMethod.toName() ];
+StcDexByOwnMethod.prototype.toName = function () {
+    return [ "dex-by-own-method", this.dexableGetMethod.toName() ];
 };
-StcDexWithOwnMethod.prototype.pretty = function () {
-    return "(dex-with-own-method " +
+StcDexByOwnMethod.prototype.pretty = function () {
+    return "(dex-by-own-method " +
         this.dexableGetMethod.pretty() + ")";
 };
 function StcDexFix( dexableUnwrap ) {
@@ -830,6 +830,200 @@ StcFuseByMerge.prototype.toName = function () {
 };
 StcFuseByMerge.prototype.pretty = function () {
     return "(fuse-by-merge " + this.mergeToUse.pretty() + ")";
+};
+function StcFuseDefault(
+    nameTag, affiliation, first, second ) {
+    
+    if ( first.affiliation !== affiliation )
+        throw new Error();
+    if ( second.affiliation !== affiliation )
+        throw new Error();
+    
+    this.nameTag = nameTag;
+    this.affiliation = affiliation;
+    this.first = first;
+    this.second = second;
+}
+StcFuseDefault.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcFuseDefault.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+StcFuseDefault.prototype.fuse = function ( rt, a, b ) {
+    var self = this;
+    
+    var stcYep = stcType( rt.defNs, "yep", "val" );
+    
+    return macLookupThen( self.first.fuse( rt, a, b ),
+        function ( firstResult ) {
+    
+    if ( stcYep.tags( firstResult ) )
+        return macLookupRet( firstResult );
+    
+    return self.second.fuse( rt, a, b );
+    
+    } );
+};
+StcFuseDefault.prototype.toName = function () {
+    return [ this.nameTag,
+        this.first.toName(),
+        this.second.toName() ];
+};
+StcFuseDefault.prototype.pretty = function () {
+    return "(" + this.nameTag + " " +
+        this.first.pretty() + " " +
+        this.second.pretty() + ")";
+};
+function StcFuseByOwnMethod(
+    nameTag, affiliation, dexableGetMethod ) {
+    
+    this.nameTag = nameTag;
+    this.affiliation = affiliation;
+    this.dexableGetMethod = dexableGetMethod;
+}
+StcFuseByOwnMethod.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcFuseByOwnMethod.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+StcFuseByOwnMethod.prototype.fuse = function ( rt, a, b ) {
+    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
+    var stcNil = stcType( rt.defNs, "nil" );
+    var stcYep = stcType( rt.defNs, "yep", "val" );
+    
+    var getMethod =
+        stcDexable.getProj( this.dexableGetMethod, "val" );
+    
+    function getFrom( x, then ) {
+        return macLookupThen( getMethod.stcCall( rt, x ),
+            function ( maybeOwnMethod ) {
+            
+            if ( stcNil.tags( maybeOwnMethod ) ) {
+                return macLookupRet( stcNil.of() );
+            } else if ( stcYep.tags( maybeOwnMethod ) ) {
+                var method = stcYep.getProj( maybeOwnMethod, "val" );
+                if ( method.affiliation !== self.affiliation )
+                    return macLookupRet( stcNil.of() );
+                return then( method );
+            } else {
+                throw new Error();
+            }
+        } );
+    }
+    
+    return getFrom( a, function ( methodA ) {
+    return getFrom( b, function ( methodB ) {
+    
+    if ( nameCompare( methodA.toName(), methodB.toName() ) !== 0 )
+        return macLookupRet( stcNil.of() );
+    
+    return methodA.fuse( rt, a, b );
+    
+    } );
+    } );
+};
+StcFuseByOwnMethod.prototype.toName = function () {
+    return [ this.nameTag, this.dexableGetMethod.toName() ];
+};
+StcFuseByOwnMethod.prototype.pretty = function () {
+    return "(" + this.nameTag + " " +
+        this.dexableGetMethod.pretty() + ")";
+};
+function StcFuseFix( nameTag, affiliation, dexableUnwrap ) {
+    this.nameTag = nameTag;
+    this.affiliation = affiliation;
+    this.dexableUnwrap = dexableUnwrap;
+}
+StcFuseFix.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcFuseFix.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+StcFuseFix.prototype.fuse = function ( rt, a, b ) {
+    var self = this;
+    
+    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
+    
+    return macLookupThen(
+        stcDexable.getProj( self.dexableUnwrap, "val"
+            ).callStc( rt, self ),
+        function ( merge ) {
+        
+        if ( merge.affiliation !== self.affiliation )
+            throw new Error();
+        
+        return merge.fuse( rt, a, b );
+    } );
+};
+StcFuseFix.prototype.toName = function () {
+    return [ this.nameTag, this.dexableUnwrap.toName() ];
+};
+StcFuseFix.prototype.pretty = function () {
+    return "(" + this.nameTag + " " +
+        this.dexableUnwrap.pretty() + ")";
+};
+function StcFuseTable( nameTag, affiliation, mergeVal ) {
+    if ( mergeVal.affiliation !== affiliation )
+        throw new Error();
+    
+    this.nameTag = nameTag;
+    this.affiliation = affiliation;
+    this.mergeVal = mergeVal;
+}
+StcFuseTable.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcFuseTable.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+StcFuseTable.prototype.fuse = function ( rt, a, b ) {
+    var self = this;
+    
+    if ( !(a instanceof StcForeign && a.purpose === "table") )
+        throw new Error();
+    if ( !(b instanceof StcForeign && b.purpose === "table") )
+        throw new Error();
+    
+    var entries = [];
+    a.foreignVal.plus( b.foreignVal ).each(
+        function ( k, v ) {
+        
+        function get( table ) {
+            var v = table.get( k );
+            return v === void 0 ?
+                stcNil.ofNow() :
+                stcYep.ofNow( v );
+        }
+        entries.push(
+            { k: k, a: get( a ), b: get( b ) } );
+    } );
+    var n = entries.length;
+    return loop( 0, jsnMap() );
+    function loop( i, table ) {
+        if ( n <= i )
+            return macLookupRet(
+                new StcForeign( "table", table ) );
+        var entry = entries[ i ];
+        if ( entry.a === void 0 )
+            return next( entry.b );
+        if ( entry.b === void 0 )
+            return next( entry.a );
+        return macLookupThen(
+            self.mergeVal.fuse( rt, entry.a, entry.b ), next );
+        
+        function next( v ) {
+            return loop( i + 1, table.plusEntry( entry.k, v ) );
+        }
+    }
+};
+StcFuseTable.prototype.toName = function () {
+    return [ this.nameTag, this.mergeVal.toName() ];
+};
+StcFuseTable.prototype.pretty = function () {
+    return "(" + this.nameTag + " " + this.mergeVal.pretty() + ")";
 };
 
 function stcTrivialStxDetails() {
@@ -2220,14 +2414,14 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
-        effectfulFun( "dex-with-own-method",
+        effectfulFun( "dex-by-own-method",
             function ( rt, dexableGetMethod ) {
             
             return assertValidDexable( rt, dexableGetMethod,
                 function () {
                 
                 return macLookupRet(
-                    new StcDexWithOwnMethod( dexableGetMethod ) );
+                    new StcDexByOwnMethod( dexableGetMethod ) );
             } );
         } );
         
@@ -2297,6 +2491,46 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
+        fun( "merge-default", function ( rt, first ) {
+            return stcFnPure( function ( rt, second ) {
+                return new StcFuseDefault( "merge-default", "merge",
+                    first, second );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        effectfulFun( "merge-by-own-method",
+            function ( rt, dexableGetMethod ) {
+            
+            return assertValidDexable( rt, dexableGetMethod,
+                function () {
+                
+                return macLookupRet(
+                    new StcFuseByOwnMethod( "merge-by-own-method",
+                        "merge",
+                        dexableGetMethod ) );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        effectfulFun( "merge-fix", function ( rt, dexableUnwrap ) {
+            return assertValidDexable( rt, dexableUnwrap,
+                function () {
+                
+                return macLookupRet(
+                    new StcFuseFix( "merge-fix", "merge",
+                        dexableUnwrap ) );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        effectfulFun( "merge-table", function ( rt, mergeVal ) {
+            return macLookupRet(
+                new StcFuseTable( "merge-table", "merge",
+                    mergeVal ) );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
         fun( "call-merge", function ( rt, merge ) {
             return stcFnPure( function ( rt, a ) {
                 return new StcFn( function ( rt, b ) {
@@ -2310,6 +2544,45 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Add documentation of this somewhere.
         effectfulFun( "fuse-by-merge", function ( rt, merge ) {
             return macLookupRet( new StcFuseByMerge( merge ) );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "fuse-default", function ( rt, first ) {
+            return stcFnPure( function ( rt, second ) {
+                return new StcFuseDefault( "fuse-default", "fuse",
+                    first, second );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        effectfulFun( "fuse-by-own-method",
+            function ( rt, dexableGetMethod ) {
+            
+            return assertValidDexable( rt, dexableGetMethod,
+                function () {
+                
+                return macLookupRet(
+                    new StcFuseByOwnMethod( "fuse-by-own-method",
+                        "fuse",
+                        dexableGetMethod ) );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        effectfulFun( "fuse-fix", function ( rt, dexableUnwrap ) {
+            return assertValidDexable( rt, dexableUnwrap,
+                function () {
+                
+                return macLookupRet(
+                    new StcFuseFix( "fuse-fix", "fuse",
+                        dexableUnwrap ) );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        effectfulFun( "fuse-table", function ( rt, fuseVal ) {
+            return macLookupRet(
+                new StcFuseTable( "fuse-table", "fuse", fuseVal ) );
         } );
         
         // TODO: Add documentation of this somewhere.
