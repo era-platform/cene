@@ -88,8 +88,6 @@ Constructs a syntax details object that refers to a macro's input, so that the m
 ```
 (defn contributing-only-to ns effects ...)
 ```
-(**TODO**: Implement this.)
-
 Monadically, schedules the effects to occur in a future tick where contributing to multimethods outside the given namespace is not allowed, but reading closed-world-assumption collections of contributions outside the given namespace is allowed.
 
 -
@@ -173,8 +171,6 @@ This is a way to make frameworks that are extensible in the sense of the open-wo
 ```
 (defn procure-contributed-elements mode ns ...)
 ```
-(**TODO**: Implement this.)
-
 Gets the namespace's full element contribution map as a table. The given modality must be the current one, and its ancestors must have used `contributing-only-to` to disallow making contributions to the given namespace. During macroexpansion, this operation will not compute a result until at least all the original macroexpansion ticks have completed, since they are capable of contributing to any namespace.
 
 This is a way to make frameworks that are extensible in the sense of the closed-world assumption (CWA).

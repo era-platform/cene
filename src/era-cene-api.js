@@ -470,7 +470,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
                     // /cli-output-environment-variable-shadows/<key>.
                     // Maybe we don't actually need this to be a
                     // built-in function.
-                    collectPut( rawMode,
+                    collectPutDefined( rawMode,
                         stcNsGet( keyInternal,
                             stcNsGet(
                                 "cli-output-environment-variable-shadows",
