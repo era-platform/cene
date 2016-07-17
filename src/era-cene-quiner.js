@@ -33,8 +33,10 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
         }, 0 );
     }
     
+    var namespaceDefs = jsnMap();
+    
     var ceneApiUsingDefNs =
-        ceneApiUsingDefinitionNs( nss.definitionNs, {
+        ceneApiUsingDefinitionNs( namespaceDefs, nss.definitionNs, {
             defer: function ( body ) {
                 defer( body );
             },
@@ -98,12 +100,13 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
             }
         } );
     
-    var namespaceDefs = jsnMap();
     usingDefNs.stcAddCoreMacros( namespaceDefs, nss.definitionNs );
     usingDefNs.processCoreTypes( namespaceDefs, nss.definitionNs );
-    ceneApiUsingDefNs.addCeneApi( namespaceDefs, nss.definitionNs );
+    ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
     
-    runTopLevelMacLookupsSync( namespaceDefs, [].concat(
+    runTopLevelMacLookupsSync( namespaceDefs, usingDefNs.rt,
+        [].concat(
+        
         usingDefNs.topLevelTryExprsToMacLookupThreads( nss,
             codeOfFiles ),
         [ { type: "jsEffectsThread", macLookupEffectsOfJsEffects:

@@ -181,8 +181,12 @@ function runCeneSync(
         return memoMap.get( key );
     }
     
+    var namespaceDefs = $stc.jsnMap();
+    
     var ceneApiUsingDefNs =
-        $stc.ceneApiUsingDefinitionNs( nss.definitionNs, {
+        $stc.ceneApiUsingDefinitionNs( namespaceDefs,
+            nss.definitionNs, {
+            
             defer: function ( body ) {
                 _.defer( body );
             },
@@ -370,10 +374,9 @@ function runCeneSync(
             }
         } );
     
-    var namespaceDefs = $stc.jsnMap();
     usingDefNs.stcAddCoreMacros( namespaceDefs, nss.definitionNs );
     usingDefNs.processCoreTypes( namespaceDefs, nss.definitionNs );
-    ceneApiUsingDefNs.addCeneApi( namespaceDefs, nss.definitionNs );
+    ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
     
     usingDefNs.runTopLevelTryExprsSync( namespaceDefs, nss,
         [].concat( codeOfFiles, codeOfTestFiles ) );
