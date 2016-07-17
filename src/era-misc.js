@@ -954,7 +954,7 @@ JsnMap.prototype.map = function ( func ) {
     return new JsnMap().init_( this.contents_.map(
         function ( kv, k ) {
         
-        return func( kv.k, kv.v );
+        return { k: k, v: func( kv.v, kv.k ) };
     } ) );
 };
 // NOTE: This body takes its args as ( v, k ).

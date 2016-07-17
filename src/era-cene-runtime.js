@@ -2354,7 +2354,7 @@ function usingDefinitionNs( macroDefNs ) {
                 if ( stcNope.tags( has ) )
                     throw new Error();
                 
-                return then();
+                return then( val );
             } );
         }
         
@@ -2599,7 +2599,7 @@ function usingDefinitionNs( macroDefNs ) {
             function ( rt, dexableGetMethod ) {
             
             return assertValidDexable( rt, dexableGetMethod,
-                function () {
+                function ( getMethod ) {
                 
                 return macLookupRet(
                     new StcDexByOwnMethod( dexableGetMethod ) );
@@ -2609,7 +2609,7 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Add documentation of this somewhere.
         effectfulFun( "dex-fix", function ( rt, dexableUnwrap ) {
             return assertValidDexable( rt, dexableUnwrap,
-                function () {
+                function ( unwrap ) {
                 
                 return macLookupRet( new StcDexFix( dexableUnwrap ) );
             } );
@@ -2684,7 +2684,7 @@ function usingDefinitionNs( macroDefNs ) {
             function ( rt, dexableGetMethod ) {
             
             return assertValidDexable( rt, dexableGetMethod,
-                function () {
+                function ( getMethod ) {
                 
                 return macLookupRet(
                     new StcFuseByOwnMethod( "merge-by-own-method",
@@ -2696,7 +2696,7 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Add documentation of this somewhere.
         effectfulFun( "merge-fix", function ( rt, dexableUnwrap ) {
             return assertValidDexable( rt, dexableUnwrap,
-                function () {
+                function ( unwrap ) {
                 
                 return macLookupRet(
                     new StcFuseFix( "merge-fix", "merge",
@@ -2740,7 +2740,7 @@ function usingDefinitionNs( macroDefNs ) {
             function ( rt, dexableGetMethod ) {
             
             return assertValidDexable( rt, dexableGetMethod,
-                function () {
+                function ( getMethod ) {
                 
                 return macLookupRet(
                     new StcFuseByOwnMethod( "fuse-by-own-method",
@@ -2752,7 +2752,7 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Add documentation of this somewhere.
         effectfulFun( "fuse-fix", function ( rt, dexableUnwrap ) {
             return assertValidDexable( rt, dexableUnwrap,
-                function () {
+                function ( unwrap ) {
                 
                 return macLookupRet(
                     new StcFuseFix( "fuse-fix", "fuse",
@@ -2791,16 +2791,16 @@ function usingDefinitionNs( macroDefNs ) {
                         throw new Error();
                     
                     return assertValidDexable( rt, dexableKey,
-                        function () {
+                        function ( key ) {
                         
                         if ( stcNil.tags( maybeVal ) )
                             return macLookupRet(
                                 new StcForeign( "table",
-                                    table.foreignVal.minusEntry( dexableKey.toName() ) ) );
+                                    table.foreignVal.minusEntry( key.toName() ) ) );
                         if ( stcYep.tags( maybeVal ) )
                             return macLookupRet(
                                 new StcForeign( "table",
-                                    table.foreignVal.plusEntry( dexableKey.toName(),
+                                    table.foreignVal.plusEntry( key.toName(),
                                         stcYep.getProj( maybeVal, "val" ) ) ) );
                         throw new Error();
                     } );
@@ -2816,9 +2816,10 @@ function usingDefinitionNs( macroDefNs ) {
                     throw new Error();
                 
                 return assertValidDexable( rt, dexableKey,
-                    function () {
+                    function ( key ) {
                     
-                    var k = dexableKey.toName();
+                    var k = key.toName();
+                    
                     if ( table.foreignVal.has( k ) )
                         return macLookupRet(
                             stcYep.ofNow(
@@ -2870,6 +2871,25 @@ function usingDefinitionNs( macroDefNs ) {
                     }
                 } );
             } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "table-get-singleton", function ( rt, table ) {
+            if ( !(table instanceof StcForeign
+                && table.purpose === "table") )
+                throw new Error();
+            
+            var foundResult = false;
+            var result = null;
+            table.foreignVal.each( function ( k, v ) {
+                if ( foundResult )
+                    throw new Error();
+                foundResult = true;
+                result = v;
+            } );
+            if ( !foundResult )
+                throw new Error();
+            return result;
         } );
         
         // TODO: Add documentation of this somewhere.
@@ -2989,45 +3009,44 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Document this somewhere.
-        fun( "procure-sub-ns", function ( rt, dexableKey ) {
+        fun( "procure-sub-ns-table", function ( rt, table ) {
             return new StcFn( function ( rt, ns ) {
-                return assertValidDexable( rt, dexableKey,
-                    function () {
-                    
-                    var key = stcDexable.getProj( dexableKey, "val" );
-                    return macLookupRet(
-                        new StcForeign( "ns",
-                            stcNsGet( key.toName(),
-                                ns.foreignVal ) ) );
-                } );
+                if ( !(table instanceof StcForeign
+                    && table.purpose === "table") )
+                    throw new Error();
+                if ( !(ns instanceof StcForeign
+                    && ns.purpose === "ns") )
+                    throw new Error();
+                
+                return macLookupRet(
+                    new StcForeign( "table",
+                        table.foreignVal.map( function ( v, k ) {
+                            return new StcForeign( "ns",
+                                stcNsGet( k, ns.foreignVal ) );
+                        } ) ) );
             } );
         } );
         
-        // TODO: Document this somewhere.
-        fun( "shadow-procure-sub-ns", function ( rt, dexableKey ) {
-            return stcFnPure( function ( rt, subNs ) {
-                return new StcFn( function ( rt, ns ) {
-                    return assertValidDexable( rt, dexableKey,
-                        function () {
-                        
-                        if ( !(subNs instanceof StcForeign
-                            && subNs.purpose === "ns") )
-                            throw new Error();
-                        
-                        if ( !(ns instanceof StcForeign
-                            && ns.purpose === "ns") )
-                            throw new Error();
-                        
-                        var key =
-                            stcDexable.getProj( dexableKey, "val" );
-                        return macLookupRet(
-                            new StcForeign( "ns",
-                                stcNsShadow( key.toName(),
-                                    subNs.foreignVal,
-                                    ns.foreignVal ) ) );
-                    } );
+        fun( "shadow-procure-sub-ns-table", function ( rt, table ) {
+            return new StcFn( function ( rt, ns ) {
+                if ( !(table instanceof StcForeign
+                    && table.purpose === "table") )
+                    throw new Error();
+                if ( !(ns instanceof StcForeign
+                    && ns.purpose === "ns") )
+                    throw new Error();
+                
+                var result = ns.foreignVal;
+                
+                table.each( function ( k, subNs ) {
+                    if ( !(subNs instanceof StcForeign
+                        && subNs.purpose === "ns") )
+                        throw new Error();
+                    result =
+                        stcNsShadow( k, subNs.foreignVal, result );
                 } );
+                
+                return macLookupRet( new StcForeign( "ns", result ) );
             } );
         } );
         
@@ -3095,10 +3114,8 @@ function usingDefinitionNs( macroDefNs ) {
                         throw new Error();
                     
                     return assertValidDexable( rt, dexableKey,
-                        function () {
+                        function ( key ) {
                         
-                        var key =
-                            stcDexable.getProj( dexableKey, "val" );
                         return macLookupRet(
                             new StcForeign( "effects",
                                 function ( rawMode ) {
@@ -3123,10 +3140,8 @@ function usingDefinitionNs( macroDefNs ) {
                         throw new Error();
                     
                     return assertValidDexable( rt, dexableKey,
-                        function () {
+                        function ( key ) {
                         
-                        var key =
-                            stcDexable.getProj( dexableKey, "val" );
                         return macLookupRet(
                             new StcForeign( "effects",
                                 function ( rawMode ) {

@@ -104,10 +104,8 @@ Obtains a sub-namespace determined by the first namespace, using the given strin
 
 -
 ```
-(defn procure-sub-ns-table ns table ...)
+(defn procure-sub-ns-table table ns ...)
 ```
-(**TODO**: Implement this, and reimplement `procure-sub-ns` in terms of this.)
-
 Makes a table with entries corresponding to the given table, except each value is a namespace uniquely determined by the given namespace and the entry's key. The entry's value is ignored.
 
 -
@@ -128,8 +126,6 @@ The `ns-shadow-name` and `ns-shadow-string` functions can be used to establish l
 ```
 (defn shadow-procure-sub-ns-table table ns ...)
 ```
-(**TODO**: Implement this, and reimplement `shadow-procure-sub-ns` in terms of this.)
-
 Creates a new namespace that behaves like the given namespace in almost every way, except when a key from the given table is requested as a "folder name", in which case the corresponding value of the table is returned instead. The values of the table must be namespaces.
 
 -
