@@ -579,7 +579,7 @@ StcDexStruct.prototype.dexHas = function ( rt, x ) {
             return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
         var projDex = self.projDexes[ i ];
         return macLookupThen(
-            projDex.dex.dexHas( rt, x.projNames[ projDex.i ] ),
+            projDex.val.dexHas( rt, x.projNames[ projDex.i ] ),
             function ( dexResult ) {
             
             if ( stcNope.tags( dexResult ) )
@@ -595,14 +595,14 @@ StcDexStruct.prototype.toName = function () {
     // TODO: See if we can avoid this JSON.parse().
     return [ "dex-struct", JSON.parse( this.expectedTupleTag )
         ].concat( arrMap( this.projDexes, function ( projDex ) {
-            return [ projDex.i, projDex.dex.toName() ];
+            return [ projDex.i, projDex.val.toName() ];
         } ) );
 };
 StcDexStruct.prototype.pretty = function () {
     return "(dex-struct " +
         prettifyTupleTag( this.expectedTupleTag ) +
         arrMap( this.projDexes, function ( projDex, i ) {
-            return " " + projDex.i + ":" + projDex.dex.pretty();
+            return " " + projDex.i + ":" + projDex.val.pretty();
         } ).join( "" ) + ")";
 };
 function StcDexDex() {
@@ -877,6 +877,83 @@ StcFuseByMerge.prototype.toName = function () {
 };
 StcFuseByMerge.prototype.pretty = function () {
     return "(fuse-by-merge " + this.mergeToUse.pretty() + ")";
+};
+function StcFuseStruct(
+    nameTag, affiliation, expectedTupleTag, projFuses ) {
+    
+    this.nameTag = nameTag;
+    this.affiliation = affiliation;
+    // NOTE: We originally didn't name this field `tupleTag` because
+    // we were doing some naive `x.tupleTag === y` checks. We might as
+    // well leave it this way to avoid confusion.
+    this.expectedTupleTag = expectedTupleTag;
+    this.projFuses = projFuses;
+    
+    arrEach( projFuses, function ( projFuse ) {
+        if ( projFuse.val.affiliation !== affiliation )
+            throw new Error();
+    } );
+}
+StcFuseStruct.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcFuseStruct.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+StcFuseStruct.prototype.fuse = function ( rt, a, b ) {
+    var self = this;
+    
+    var stcNil = stcType( rt.defNs, "nil" );
+    var stcYep = stcType( rt.defNs, "yep", "val" );
+    
+    if ( !(a instanceof Stc && a.tupleTag === self.expectedTupleTag) )
+        return macLookupRet( stcNil.ofNow() );
+    if ( !(b instanceof Stc && b.tupleTag === self.expectedTupleTag) )
+        return macLookupRet( stcNil.ofNow() );
+    
+    var n = self.projFuses.length;
+    return loop( 0, [] );
+    function loop( i, fuseResults ) {
+        if ( n <= i )
+            return macLookupRet(
+                stcYep.ofNow(
+                    new Stc( self.expectedTupleTag,
+                        arrMap( fuseResults.slice().sort(
+                            function ( a, b ) {
+                            
+                            return a.i - b.i;
+                        } ), function ( fuseResult ) {
+                            return fuseResult.val;
+                        } ) ) ) );
+        var projFuse = self.projFuses[ i ];
+        return macLookupThen(
+            projFuse.val.fuse( rt,
+                a.projNames[ projFuse.i ],
+                b.projNames[ projFuse.i ] ),
+            function ( fuseResult ) {
+            
+            if ( !stcYep.tags( fuseResult ) )
+                return macLookupRet( stcNil.ofNow() );
+            return loop( i + 1, fuseResults.concat( [ {
+                i: projFuse.i,
+                val: stcYep.getProj( fuseResult, "val" )
+            } ] ) );
+        } );
+    }
+};
+StcFuseStruct.prototype.toName = function () {
+    // TODO: See if we can avoid this JSON.parse().
+    return [ this.nameTag, JSON.parse( this.expectedTupleTag )
+        ].concat( arrMap( this.projFuses, function ( projDex ) {
+            return [ projDex.i, projDex.val.toName() ];
+        } ) );
+};
+StcFuseStruct.prototype.pretty = function () {
+    return "(" + this.nameTag + " " +
+        prettifyTupleTag( this.expectedTupleTag ) +
+        arrMap( this.projFuses, function ( projDex, i ) {
+            return " " + projDex.i + ":" + projDex.val.pretty();
+        } ).join( "" ) + ")";
 };
 function StcFuseDefault(
     nameTag, affiliation, first, second ) {
@@ -1499,7 +1576,7 @@ function runTopLevelMacLookupsSync(
 function stcExecute( rt, expr ) {
     return Function(
         "rt", "Stc", "StcFn", "StcForeign", "StcDexStruct",
-        "macLookupRet", "macLookupThen",
+        "StcFuseStruct", "macLookupRet", "macLookupThen",
         
         // NOTE: When the code we generate for this has local
         // variables, we consistently prefix them with "stcLocal_" or
@@ -1508,7 +1585,7 @@ function stcExecute( rt, expr ) {
         "return " + expr + ";"
         
     )( rt, Stc, StcFn, StcForeign, StcDexStruct,
-        macLookupRet, macLookupThen );
+        StcFuseStruct, macLookupRet, macLookupThen );
 }
 
 function addFunctionNativeDefinition(
@@ -2470,9 +2547,7 @@ function usingDefinitionNs( macroDefNs ) {
         
         // TODO: Make this expand multiple subexpressions
         // concurrently.
-        // TODO: Add documentation of this somewhere.
-        effectfulMac( "dex-struct",
-            function ( nss, myStxDetails, body, then ) {
+        function structMapper( nss, body, then, genJsConstructor ) {
             
             if ( !stcCons.tags( body ) )
                 throw new Error();
@@ -2518,7 +2593,7 @@ function usingDefinitionNs( macroDefNs ) {
                         i + 1,
                         { first:
                             { i: type.unsortedProjNames[ i ].i,
-                                dex: projVal },
+                                val: projVal },
                             rest: revProjVals },
                         stcCons.getProj( remainingBody, "cdr" ) );
                 } );
@@ -2533,7 +2608,7 @@ function usingDefinitionNs( macroDefNs ) {
                 var projVals = revJsListToArr( revProjVals );
                 
                 var result = "macLookupRet( " +
-                    "new StcDexStruct( " +
+                    genJsConstructor(
                         jsStr( type.getTupleTag() ) + ", " +
                         "[ " +
                         
@@ -2541,13 +2616,13 @@ function usingDefinitionNs( macroDefNs ) {
                             return "{ " +
                                 "i: " +
                                     JSON.stringify( entry.i ) + ", " +
-                                "dex: stcLocal_proj" + i + " " +
+                                "val: stcLocal_proj" + i + " " +
                             "}";
-                        } ).join( ", " ) +
-                    " ] ) )";
+                        } ).join( ", " ) + " " +
+                    "]" ) + " )";
                 for ( var i = projVals.length - 1; 0 <= i; i-- )
                     result = "macLookupThen( " +
-                        projVals[ i ].dex + ", " +
+                        projVals[ i ].val + ", " +
                         "function ( stcLocal_proj" + i + " ) {\n" +
                     
                     "return " + result + ";\n" +
@@ -2555,6 +2630,15 @@ function usingDefinitionNs( macroDefNs ) {
                 return macLookupThenRunEffects( rawMode,
                     then( result ) );
             }
+        }
+        
+        // TODO: Add documentation of this somewhere.
+        effectfulMac( "dex-struct",
+            function ( nss, myStxDetails, body, then ) {
+            
+            return structMapper( nss, body, then, function ( args ) {
+                return "new StcDexStruct( " + args + " )";
+            } );
         } );
         
         // TODO: Add documentation of this somewhere.
@@ -2672,6 +2756,16 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
+        effectfulMac( "merge-struct",
+            function ( nss, myStxDetails, body, then ) {
+            
+            return structMapper( nss, body, then, function ( args ) {
+                return "new StcFuseStruct( " +
+                    "\"merge-struct\", \"merge\", " + args + " )";
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
         fun( "merge-default", function ( rt, first ) {
             return stcFnPure( function ( rt, second ) {
                 return new StcFuseDefault( "merge-default", "merge",
@@ -2725,6 +2819,16 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Add documentation of this somewhere.
         effectfulFun( "fuse-by-merge", function ( rt, merge ) {
             return macLookupRet( new StcFuseByMerge( merge ) );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        effectfulMac( "fuse-struct",
+            function ( nss, myStxDetails, body, then ) {
+            
+            return structMapper( nss, body, then, function ( args ) {
+                return "new StcFuseStruct( " +
+                    "\"fuse-struct\", \"fuse\", " + args + " )";
+            } );
         } );
         
         // TODO: Add documentation of this somewhere.
