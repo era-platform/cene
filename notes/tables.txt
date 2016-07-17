@@ -52,7 +52,6 @@ def-type (dexable dex val)
   \= NOTE: This only processes the dex operation once, calling it with the two values being merged. It doesn't sanity-check that the dex is reflexive for either argument.
 (merge-default <merge-for-trying-first> <merge-for-trying-second>)
 (merge-struct cons <car-merge> <cdr-merge>)
-  \= TODO: Implement this.
 (merge-by-own-method <dexable-get-method>)
   \= Given a dexable function, returns a merge that works by invoking that function with each value to get `(yep <merge>)` or `(nil)`, verifying that the two `<merge>` values are the same, invoking that value, and invoking the function on the result again to make sure it yields the same `<merge>`. That final check makes sure this operation is associative.
 (merge-fix <dexable-unwrap>)
@@ -65,7 +64,6 @@ def-type (dexable dex val)
 (fuse-by-merge <merge>)
 (fuse-default <fuse-for-trying-first> <fuse-for-trying-second>)
 (fuse-struct cons <car-fuse> <cdr-fuse>)
-  \= TODO: Implement this.
 (fuse-by-own-method <dexable-get-method>)
   \= Given a dexable function, returns a fuse that works by invoking that function with each value to get `(yep <fuse>)` or `(nil)`, verifying that the two `<fuse>` values are the same, invoking that value, and invoking the function on the result again to make sure it yields the same `<fuse>`. That final check makes sure this operation is associative.
 (fuse-fix <dexable-unwrap>)
