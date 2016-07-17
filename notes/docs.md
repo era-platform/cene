@@ -161,8 +161,6 @@ Monadically, contributes to the element contribution map on the namespace. If mo
 (defn procure-contribute-listener ns dexable-key listener ...)
 (listener singleton-table)
 ```
-(**TODO**: Implement this.)
-
 Monadically, contributes to the listener contribution map on the namespace. The listener will be called monadically in a different future tick each time an entry is contributed to the namespace's element contribution map. The listener is given a singleton table containing the entry contributed. If more than one listener contribution is given for the same key, an error occurs; all listener contributors, element contributors, and ticks begun by these contributions are in error, and their ticks' side effects are invalidated.
 
 This is a way to make frameworks that are extensible in the sense of the open-world assumption (OWA).
@@ -213,8 +211,6 @@ A modality must be passed to certain effectful primitives as a way to give the e
 (defn table-zip a b func ...)
 (func maybe-a-val maybe-b-val)
 ```
-(**TODO**: Implement this.)
-
 Given two tables and a function to combine values, makes a new table by iterating over the tables' combined set of keys, calling the function with both tables' `(yep ...)` or `(nil)` values for the keys, and using the function's `(yep ...)` or `(nil)` result to determine the value for the final table. The function will never be called with `(nil)` and `(nil)`.
 
 -

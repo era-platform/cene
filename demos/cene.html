@@ -73,8 +73,13 @@ window.onload = function () {
         };
         
         var usingDefNs = usingDefinitionNs( nss.definitionNs );
+        
+        var namespaceDefs = jsnMap();
+        
         var ceneApiUsingDefNs =
-            ceneApiUsingDefinitionNs( nss.definitionNs, {
+            ceneApiUsingDefinitionNs( namespaceDefs, nss.definitionNs,
+                {
+                
                 defer: function ( body ) {
                     _.defer( body );
                 },
@@ -126,13 +131,11 @@ window.onload = function () {
                 }
             } );
         
-        var namespaceDefs = jsnMap();
         usingDefNs.stcAddCoreMacros(
             namespaceDefs, nss.definitionNs );
         usingDefNs.processCoreTypes(
             namespaceDefs, nss.definitionNs );
-        ceneApiUsingDefNs.addCeneApi(
-            namespaceDefs, nss.definitionNs );
+        ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
         
         usingDefNs.runTopLevelTryExprsSync( namespaceDefs, nss,
             [].concat( codeOfFiles, testCode ) );

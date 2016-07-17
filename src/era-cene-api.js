@@ -2,7 +2,9 @@
 // Copyright 2015, 2016 Ross Angle. Released under the MIT License.
 
 
-function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
+function ceneApiUsingDefinitionNs(
+    namespaceDefs, macroDefNs, apiOps ) {
+    
     var usingDefNs = usingDefinitionNs( macroDefNs );
     
     var stcCons = stcType( macroDefNs, "cons", "car", "cdr" );
@@ -118,7 +120,11 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     }
     function simpleEffects( body ) {
         return new StcForeign( "effects", function ( rawMode ) {
-            collectDefer( rawMode, function () {
+            if ( rawMode.type !== "macro" )
+                throw new Error();
+            collectDefer( rawMode, rawMode.contributingOnlyTo,
+                function () {
+                
                 body();
                 return macLookupRet( new StcForeign( "effects",
                     function ( rawMode ) {
@@ -134,7 +140,9 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
     
     function deferAndRunMacLookup( body ) {
         apiOps.defer( function () {
-            runTopLevelMacLookupsSync( [ {
+            runTopLevelMacLookupsSync( namespaceDefs, usingDefNs.rt,
+                [ {
+                
                 type: "jsEffectsThread",
                 macLookupEffectsOfJsEffects:
                     macLookupThen( body(), function ( ignored ) {
@@ -228,7 +236,7 @@ function ceneApiUsingDefinitionNs( macroDefNs, apiOps ) {
         } );
     } );
     
-    function addCeneApi( namespaceDefs, targetDefNs ) {
+    function addCeneApi( targetDefNs ) {
         var dummyMode = usingDefNs.makeDummyMode();
         
         function type( tupleName, projNames ) {

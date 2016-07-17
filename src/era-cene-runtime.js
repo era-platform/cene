@@ -316,6 +316,11 @@ function stcType( definitionNs, tupleStringyName, var_args ) {
         [].slice.call( arguments, 2 ) );
 }
 
+function stcNameSetEmpty() {
+    return function ( name ) {
+        return false;
+    };
+}
 function stcNameSetAll() {
     return function ( name ) {
         return true;
@@ -347,10 +352,6 @@ function macLookupRet( result ) {
 }
 function macLookupGet( name, err ) {
     return { type: "get", name: name, err: err };
-}
-function macLookupContributingOnlyTo( contributingOnlyTo ) {
-    return { type: "contributingOnlyTo",
-        contributingOnlyTo: contributingOnlyTo };
 }
 function macLookupProcureContributedElements( name, err ) {
     return { type: "procureContributedElements",
@@ -1085,12 +1086,19 @@ function getMacroFunctionNamespace( definitionNs, name ) {
 function collectPutDefined( rawMode, namespace, value ) {
     rawMode.putDefined.push( { namespace: namespace, value: value } );
 }
-function collectPutElement( rawMode, namespace, name, value ) {
-    rawMode.putDefined.push(
-        { namespace: namespace, name: name, value: value } );
+function collectPutElement( rawMode, namespace, name, element ) {
+    rawMode.putElement.push(
+        { namespace: namespace, name: name, element: element } );
 }
-function collectDefer( rawMode, item ) {
-    rawMode.defer.push( item );
+function collectPutListener( rawMode, namespace, name, listener ) {
+    rawMode.putListener.push(
+        { namespace: namespace, name: name, listener: listener } );
+}
+function collectDefer( rawMode, contributingOnlyTo, body ) {
+    rawMode.defer.push( {
+        contributingOnlyTo: contributingOnlyTo,
+        body: body
+    } );
 }
 function runPuts( namespaceDefs, rawMode ) {
     function jsnUniqueArrEach( arr, getName, body ) {
@@ -1112,17 +1120,60 @@ function runPuts( namespaceDefs, rawMode ) {
         namespaceDefs.set( put.namespace.name, put.value );
     } );
     
+    var listenersFired = [];
+    
+    function getContributionTable( name ) {
+        var k = [ "contributions", name ];
+        if ( !namespaceDefs.has( k ) )
+            namespaceDefs.set( k, {
+                elements: jsnMap(),
+                listeners: jsnMap()
+            } );
+        return namespaceDefs.get( k );
+    }
+    
+    // NOTE: This adds the `listenersFired` entries for preexisting
+    // listeners and new elements.
     jsnUniqueArrEach( rawMode.putElement, function ( put ) {
         return put.namespace.name;
     }, function ( put ) {
-        var k = [ "contributedElements", put.namespace.name ];
-        if ( !namespaceDefs.has( k ) )
-            namespaceDefs.set( k, jsnMap() );
-        var table = namespaceDefs.get( k );
-        if ( table.has( put.name ) )
+        var contribs = getContributionTable( put.namespace.name );
+        if ( contribs.elements.has( put.name ) )
             throw new Error();
-        table.set( put.name, put, value );
+        contribs.elements.set( put.name, put.element );
+        var singletonTable = new StcForeign( "table",
+            jsnMap().plusEntry( put.name, put.element ) );
+        contribs.listeners.each( function ( k, v ) {
+            listenersFired.push(
+                { singletonTable: singletonTable, listener: v } );
+        } );
     } );
+    
+    // NOTE: This adds the `listenersFired` entries for new listeners
+    // and preexisting elements and also for new listeners and new
+    // elements. It includes both old and new elements because the new
+    // elements were already added above.
+    jsnUniqueArrEach( rawMode.putListener, function ( put ) {
+        return put.namespace.name;
+    }, function ( put ) {
+        var contribs = getContributionTable( put.namespace.name );
+        if ( contribs.listeners.has( put.name ) )
+            throw new Error();
+        var listenerObj = {
+            contributingOnlyTo: rawMode.contributingOnlyTo,
+            listener: put.listener
+        };
+        contribs.listeners.set( put.name, listenerObj );
+        contribs.elements.each( function ( k, v ) {
+            listenersFired.push( {
+                singletonTable: new StcForeign( "table",
+                    jsnMap().plusEntry( k, v ) ),
+                listener: listenerObj
+            } );
+        } );
+    } );
+    
+    return listenersFired;
 }
 function runEffects( rawMode, effects ) {
     if ( !(effects instanceof StcForeign
@@ -1137,7 +1188,8 @@ function macLookupThenRunEffects( rawMode, effects ) {
     } );
 }
 
-function runTopLevelMacLookupsSync( namespaceDefs, originalThreads ) {
+function runTopLevelMacLookupsSync(
+    namespaceDefs, rt, originalThreads ) {
     
     function currentlyMode( rawMode, body ) {
         rawMode.current = true;
@@ -1153,12 +1205,14 @@ function runTopLevelMacLookupsSync( namespaceDefs, originalThreads ) {
     
     var threads = [];
     
-    function addMacroThread( thread ) {
+    function addMacroThread( contributingOnlyTo, thread ) {
         var rawMode = {
             type: "macro",
             current: false,
+            contributingOnlyTo: contributingOnlyTo,
             putDefined: [],
             putElement: [],
+            putListener: [],
             defer: []
         };
         var monad = macLookupThen( macLookupRet( null ),
@@ -1169,10 +1223,29 @@ function runTopLevelMacLookupsSync( namespaceDefs, originalThreads ) {
             } ),
             function ( ignored ) {
             
-            runPuts( namespaceDefs, rawMode );
-            arrEach( rawMode.defer, function ( thread ) {
-                addMacroThread( function ( rawMode ) {
-                    return macLookupThen( thread(),
+            var listenersFired = runPuts( namespaceDefs, rawMode );
+            arrEach( listenersFired, function ( listenerFired ) {
+                addMacroThread(
+                    listenerFired.listener.contributingOnlyTo,
+                    function ( rawMode ) {
+                    
+                    return macLookupThen(
+                        listenerFired.listener.listener.callStc( rt,
+                            listenerFired.singletonTable ),
+                        function ( effects ) {
+                        
+                        return currentlyMode( rawMode, function () {
+                            return runEffects( rawMode, effects );
+                        } );
+                    } );
+                } );
+            } );
+            arrEach( rawMode.defer, function ( deferred ) {
+                addMacroThread( deferred.contributingOnlyTo,
+                    function ( rawMode ) {
+                    
+                    var body = deferred.body;
+                    return macLookupThen( body(),
                         function ( effects ) {
                         
                         return currentlyMode( rawMode, function () {
@@ -1190,14 +1263,14 @@ function runTopLevelMacLookupsSync( namespaceDefs, originalThreads ) {
             isJs: false,
             failedAdvances: 0,
             rawMode: rawMode,
-            contributingOnlyTo: stcNameSetAll(),
+            contributingOnlyTo: contributingOnlyTo,
             monad: monad
         } );
     }
     
     arrEach( originalThreads, function ( thread ) {
         if ( thread.type === "topLevelDefinitionThread" ) {
-            addMacroThread(
+            addMacroThread( stcNameSetAll(),
                 thread.macLookupEffectsOfDefinitionEffects );
         } else if ( thread.type === "jsEffectsThread" ) {
             var monad = macLookupThen(
@@ -1215,7 +1288,7 @@ function runTopLevelMacLookupsSync( namespaceDefs, originalThreads ) {
                 isJs: true,
                 failedAdvances: 0,
                 rawMode: null,
-                contributingOnlyTo: stcNameSetAll(),
+                contributingOnlyTo: stcNameSetEmpty(),
                 monad: monad
             } );
         } else {
@@ -1240,7 +1313,6 @@ function runTopLevelMacLookupsSync( namespaceDefs, originalThreads ) {
         if ( thread.monad.type === "ret" ) {
             return true;
         } else if ( thread.monad.type === "get"
-            || thread.monad.type === "contributingOnlyTo"
             || thread.monad.type === "procureContributedElements" ) {
             return replaceThread(
                 macLookupThen( thread.monad, function ( ignored ) {
@@ -1265,19 +1337,6 @@ function runTopLevelMacLookupsSync( namespaceDefs, originalThreads ) {
                     thread.failedAdvances++;
                     return false;
                 }
-            } else if (
-                thread.monad.first.type === "contributingOnlyTo" ) {
-                
-                threads[ i ] = {
-                    isJs: thread.isJs,
-                    failedAdvances: 0,
-                    rawMode: thread.rawMode,
-                    contributingOnlyTo: stcNameSetIntersection(
-                        thread.contributingOnlyTo,
-                        thread.monad.first.contributingOnlyTo ),
-                    monad: then( null )
-                };
-                return true;
             } else if ( thread.monad.first.type ===
                 "procureContributedElements" ) {
                 
@@ -1296,10 +1355,10 @@ function runTopLevelMacLookupsSync( namespaceDefs, originalThreads ) {
                         thread.monad.first.name );
                 } ) ) {
                     var result = new StcForeign( "table",
-                        namespaceDefs.get(
-                            [ "contributedElements",
-                                thread.monad.first.name ] ) ||
-                        jsnMap() );
+                        (namespaceDefs.get(
+                            [ "contributions",
+                                thread.monad.first.name ] )
+                            || { elements: jsnMap() }).elements );
                     return replaceThread(
                         currentlyThread( thread, function () {
                             return then( result );
@@ -1900,13 +1959,16 @@ function usingDefinitionNs( macroDefNs ) {
         return {
             type: "dummy-mode",
             putDefined: [],
-            putElement: []
+            putElement: [],
+            putListener: []
         };
     }
     function commitDummyMode( namespaceDefs, rawMode ) {
         if ( rawMode.type !== "dummy-mode" )
             throw new Error();
-        runPuts( namespaceDefs, rawMode );
+        var listenersFired = runPuts( namespaceDefs, rawMode );
+        if ( listenersFired.length !== 0 )
+            throw new Error();
     }
     
     function stcAddCoreMacros( namespaceDefs, targetDefNs ) {
@@ -2767,7 +2829,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "table-zip", function ( rt, a ) {
             return stcFnPure( function ( rt, b ) {
                 return new StcFn( function ( rt, combiner ) {
@@ -2912,15 +2973,16 @@ function usingDefinitionNs( macroDefNs ) {
                 return new StcForeign( "effects",
                     function ( rawMode ) {
                     
-                    collectDefer( rawMode, function () {
-                        return macLookupThen(
-                            macLookupContributingOnlyTo(
-                                stcNameSetNsDescendants(
-                                    ns.foreignVal ) ),
-                            function ( ignored ) {
-                            
-                            return macLookupRet( effects );
-                        } );
+                    if ( rawMode.type !== "macro" )
+                        throw new Error();
+                    collectDefer( rawMode,
+                        stcNameSetIntersection(
+                            rawMode.contributingOnlyTo,
+                            stcNameSetNsDescendants(
+                                ns.foreignVal ) ),
+                        function () {
+                        
+                        return macLookupRet( effects );
                     } );
                     return macLookupRet( stcNil.ofNow() );
                 } );
@@ -3027,7 +3089,7 @@ function usingDefinitionNs( macroDefNs ) {
         
         fun( "procure-contribute-element", function ( rt, ns ) {
             return stcFnPure( function ( rt, dexableKey ) {
-                return new StcFn( function ( rt, value ) {
+                return new StcFn( function ( rt, element ) {
                     if ( !(ns instanceof StcForeign
                         && ns.purpose === "ns") )
                         throw new Error();
@@ -3045,7 +3107,36 @@ function usingDefinitionNs( macroDefNs ) {
                                 throw new Error();
                             
                             collectPutElement( rawMode, ns.foreignVal,
-                                key.toName(), value );
+                                key.toName(), element );
+                            return macLookupRet( stcNil.ofNow() );
+                        } ) );
+                    } );
+                } );
+            } );
+        } );
+        
+        fun( "procure-contribute-listener", function ( rt, ns ) {
+            return stcFnPure( function ( rt, dexableKey ) {
+                return new StcFn( function ( rt, listener ) {
+                    if ( !(ns instanceof StcForeign
+                        && ns.purpose === "ns") )
+                        throw new Error();
+                    
+                    return assertValidDexable( rt, dexableKey,
+                        function () {
+                        
+                        var key =
+                            stcDexable.getProj( dexableKey, "val" );
+                        return macLookupRet(
+                            new StcForeign( "effects",
+                                function ( rawMode ) {
+                            
+                            if ( rawMode.type !== "macro" )
+                                throw new Error();
+                            
+                            collectPutListener( rawMode,
+                                ns.foreignVal,
+                                key.toName(), listener );
                             return macLookupRet( stcNil.ofNow() );
                         } ) );
                     } );
@@ -3116,7 +3207,11 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
-                collectDefer( rawMode, function () {
+                if ( rawMode.type !== "macro" )
+                    throw new Error();
+                collectDefer( rawMode, rawMode.contributingOnlyTo,
+                    function () {
+                    
                     return macLookupRet( effects );
                 } );
                 return macLookupRet( stcNil.ofNow() );
@@ -3193,7 +3288,11 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function macroexpand( nss, rawMode, locatedExpr, outNs, then ) {
-        collectDefer( rawMode, function () {
+        if ( rawMode.type !== "macro" )
+            throw new Error();
+        collectDefer( rawMode, rawMode.contributingOnlyTo,
+            function () {
+            
             var identifier = stxToMaybeName( locatedExpr );
             if ( identifier !== null )
                 return macLookupRet( new StcForeign( "effects",
@@ -3251,7 +3350,9 @@ function usingDefinitionNs( macroDefNs ) {
             
             } );
         } );
-        collectDefer( rawMode, function () {
+        collectDefer( rawMode, rawMode.contributingOnlyTo,
+            function () {
+            
             return macLookupThen(
                 macLookupGet( outNs.name, function () {
                     if ( !stcStx.tags( locatedExpr ) )
@@ -3463,7 +3564,7 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function runTopLevelTryExprsSync( namespaceDefs, nss, tryExprs ) {
-        runTopLevelMacLookupsSync( namespaceDefs,
+        runTopLevelMacLookupsSync( namespaceDefs, rt,
             topLevelTryExprsToMacLookupThreads( nss, tryExprs ) );
     }
     
