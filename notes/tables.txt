@@ -81,6 +81,8 @@ def-type (dexable dex val)
 (table-zip <a> <b> <func>)
   where (func <maybe-a-val> <maybe-b-val>)
   \= Given two tables and a function to combine values, makes a new table by iterating over the tables' combined set of keys, calling the function with both tables' `(yep ...)` or `(nil)` values for the keys, and using the function's `(yep ...)` or `(nil)` result to determine the value for the final table. The function will never be called with `(nil)` and `(nil)`.
+(table-get-singleton <table>)
+  \= TODO: See if we really need this. It seems like a base case of `table-fuse` or something.
 (table-fuse <table> <init> <fuse>)
   \= NOTE: Due to `table-fuse`, clients can see the contents of the table as a finite multiset of values, even if they don't have the keys. Due to `table-fuse`, `table-zip`, and `procure-sub-ns-table`, they can observe keys in terms of other keys, but they still can't view them directly.
   \=

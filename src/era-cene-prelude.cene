@@ -8,16 +8,28 @@
 \= them in docs.md.
 
 (defn ns-get-string string ns
-  (procure-sub-ns (dexable (dex-string/nil) string) ns))
+  (table-get-singleton/procure-sub-ns-table
+    (table-shadow (dexable (dex-string/nil) string) (yep/nil)
+    /table-empty/nil)
+    ns))
 
 (defn ns-get-name name ns
-  (procure-sub-ns (dexable (dex-name/nil) name) ns))
+  (table-get-singleton/procure-sub-ns-table
+    (table-shadow (dexable (dex-name/nil) name) (yep/nil)
+    /table-empty/nil)
+    ns))
 
 (defn ns-shadow-string string sub-ns ns
-  (shadow-procure-sub-ns (dexable (dex-string/nil) string) sub-ns ns))
+  (shadow-procure-sub-ns-table
+    (table-shadow (dexable (dex-string/nil) string) yep.sub-ns
+    /table-empty/nil)
+    ns))
 
 (defn ns-shadow-name name sub-ns ns
-  (shadow-procure-sub-ns (dexable (dex-name/nil) name) sub-ns ns))
+  (shadow-procure-sub-ns-table
+    (table-shadow (dexable (dex-name/nil) name) yep.sub-ns
+    /table-empty/nil)
+    ns))
 
 
 \= ===== Lists, boolean tags, and macro utilities ====================
