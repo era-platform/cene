@@ -2969,8 +2969,13 @@ function usingDefinitionNs( macroDefNs ) {
                                 entry.a, entry.b ),
                             function ( v ) {
                             
-                            return loop( i + 1,
-                                table.plusEntry( entry.k, v ) );
+                            if ( stcNil.tags( v ) )
+                                return loop( i + 1, table );
+                            else if ( stcYep.tags( v ) )
+                                return loop( i + 1,
+                                    table.plusEntry( entry.k, stcYep.getProj( v, "val" ) ) );
+                            else
+                                throw new Error();
                         } );
                     }
                 } );
