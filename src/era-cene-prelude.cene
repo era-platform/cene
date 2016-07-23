@@ -154,6 +154,36 @@
   /foldr args (c s /c mac str.nil /nil) /fn first rest
     (c s /c mac str.cons /cons first /cons rest /nil)))
 
+\= Macro calls appearing inside an `(after-cwa ...)` form will be able
+\= to depend on anything that uses `procure-contributed-elements`
+\= during macroexpansion, and they won't be able to do
+\= `procure-contribute-element` at all. The "cwa" stands for
+\= "closed world assumption."
+\=
+\= TODO: Use this. Once we're using it, we'll probably have other
+\= assorted tools for doing closed world assumption extensibility at
+\= macroexpansion time, so we might want to move them all to their own
+\= section.
+\=
+(def-macro after-cwa unique-ns definition-ns my-stx-details args then
+  (cast args cons body args
+    err.\;qq[Called after-cwa with too few arguments]
+  /cast args nil
+    err.\;qq[Called after-cwa with too many arguments]
+  
+  /contributing-only-to (ns-get-string str.no-contributions unique-ns)
+  /let unique-ns (ns-get-string str.body unique-ns)
+  
+  \= TODO: Actually, maybe we just want to do this:
+\=  /contributing-only-to unique-ns
+  \= That way, we're still promising not to contribute to anything the
+  \= rest of the code is doing, but we can still use extensible
+  \= techniques internally to this expression.
+  
+  /basic-pure-macro unique-ns definition-ns my-stx-details then
+  /fn unique-ns s mac
+    body))
+
 (defn append past rest
   (rev-append rev.past rest))
 
