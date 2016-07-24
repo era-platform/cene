@@ -8,9 +8,10 @@
 
 -
 ```
-(defn string-append a b ...)
+(defn string-append-later a b then ...)
+(then result)
 ```
-Concatenates two strings.
+Monadically, concatenates two strings, and calls the given callback monadically in a future tick.
 
 -
 ```

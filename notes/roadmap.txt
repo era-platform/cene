@@ -8,8 +8,6 @@ Cene tasks, in roughly highest-priority-first order:
 
 - Design and implement a better unit test framework. The unit tests can now use dex values to do their comparisons, at least. We probably want to have control over the order unit test results are reported in.
 
-- Decide whether to make string operations effectful (to account for the memoization effects of an underlying finger tree) or to support memoization as an implicit effect (which we already seem to have done in the act of definition lookup). We should probably make the primitives monadic for flexibility, but then also define an effect that obtains a pure way to run those effects.
-
 - Implement proper error handling using a `do-what-you-think-is-best` operation instead of just terminating outright. Let people write something like (err a b c \;qq[message]) to call `do-what-you-think-is-best` using a parameter consisting of (list a b c), `str.\;qq[message]`, and an empty struct tagged with a name unique to this source code location.
 
 - Design and implement a rich document format (ideally making the HTML ecosystem, plain text program code, and UI toolkits obsolete). A killer feature will be to have good support for keyboard navigation (if only for accessibility), selecting paren-unbalanced snippets, copying, and pasting.
@@ -25,6 +23,8 @@ Cene tasks, in roughly highest-priority-first order:
   - Subdivide the operations in docs.md based on topic.
 
 - Implement a multi-backend compiler of Cene in Cene.
+
+- See if we should offer a pure runner (like Haskell's ST monad) for `string-append-later` side effects.
 
 - Have the compiler do a dead code elimination pass.
 

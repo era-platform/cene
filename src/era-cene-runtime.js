@@ -3035,10 +3035,28 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "string-append", function ( rt, a ) {
+        fun( "string-append-later", function ( rt, a ) {
             return stcFnPure( function ( rt, b ) {
-                return new StcForeign( "string",
-                    parseString( a ) + parseString( b ) );
+                return stcFnPure( function ( rt, then ) {
+                    var aInternal = parseString( a );
+                    var bInternal = parseString( b );
+                    
+                    return new StcForeign( "effects",
+                        function ( rawMode ) {
+                        
+                        if ( rawMode.type !== "macro" )
+                            throw new Error();
+                        collectDefer( rawMode,
+                            rawMode.contributingOnlyTo,
+                            function () {
+                            
+                            return then.callStc( rt,
+                                new StcForeign( "string",
+                                    aInternal + bInternal ) );
+                        } );
+                        return macLookupRet( stcNil.ofNow() );
+                    } );
+                } );
             } );
         } );
         
