@@ -214,6 +214,23 @@
       nope result (nope/nil)
       err.\;qq[Expected a check-result of type yep or nope])))
 
+(defn c-later func arg
+  (later/get-mode/fn - /c func arg))
+
+(defn foldl-later state list combiner-later then
+  (cast list cons first rest
+    (c-later then state)
+  /c combiner-later state first /fn state
+  /c-new foldl-later state rest combiner-later then))
+
+(defn map-later list func-later then
+  (foldl-later (nil) list
+    (fn state elem then
+      (c func-later elem /fn elem
+      /c then /cons elem state))
+  /fn rev-elems
+  /c then rev.rev-elems))
+
 (defn not yep-nope
   (case yep-nope
     yep val nope.val

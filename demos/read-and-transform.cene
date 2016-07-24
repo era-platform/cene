@@ -24,22 +24,27 @@
   (basic-nil-macro unique-ns definition-ns my-stx-details then
   /fn unique-ns s mac
   /get-mode/fn mode
-  /output-path-blob-utf-8
-    (output-path-get (cli-output-directory mode)
-      str.\;qq[transformed.txt])
-  /foldl str.\;qq[]
+  /foldl-later str.\;qq[]
     (read-all-force/input-path-blob-utf-8 mode
     /input-path-get (cli-input-directory mode)
       str.\;qq[read-and-transform-src.cene])
-  /fn state expr
-    (cast expr stx - list
-      err.\;qq[Internal error]
-    /foldl state list /fn state elem
-      (cast elem stx - string
+    (fn state expr then
+      (cast expr stx - list
         err.\;qq[Internal error]
-      /cast string istring-nil string
-        err.\;qq[Encountered a list element that wasn't a string]
-      /string-append state
-      /string-append str.\;qq[\s] string))))
+      /foldl-later state list
+        (fn state elem then
+          (cast elem stx - string
+            err.\;qq[Internal error]
+          /cast string istring-nil string
+            err.\;qq[Encountered a list element that wasn't a string]
+          /string-append-later state str.\;qq[\s] /fn state
+          /string-append-later state string then))
+        then))
+  /fn contents
+  /get-mode/fn mode
+  /output-path-blob-utf-8
+    (output-path-get (cli-output-directory mode)
+      str.\;qq[transformed.txt])
+    contents))
 
 (go)
