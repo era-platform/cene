@@ -398,6 +398,8 @@ function runCeneSync(
             "- Spent " + (stopMillis - readMillis) / 1000 + " " +
             "seconds processing it." );
     }
+    
+    return usingDefNs.rt.anyTestFailed;
 }
 
 var preludeFiles = _.arrMap( [
@@ -478,21 +480,34 @@ argParser.addArgument( [ "-C", "--test-cene" ], {
 
 var args = argParser.parseArgs();
 
+var shouldExitWithErrorCode = false;
 var tasks = [];
 
 
 if ( args.test_era ) tasks.push( function ( then ) {
-    Function( readInternalFiles( [
-        "src/era-misc-strmap-avl.js",
-        "src/era-misc.js",
-        "test/harness-first.js",
-        "src/era-reader.js",
-        "test/test-reader.js",
-        "test/harness-last.js"
-    ] ) )();
+    var $test = Function(
+        readInternalFiles( [
+            "src/era-misc-strmap-avl.js",
+            "src/era-misc.js",
+            "test/harness-first.js",
+            "src/era-reader.js",
+            "test/test-reader.js",
+            "test/harness-last.js"
+        ] ) + "\n" +
+        "\n" +
+        "\n" +
+        "return {\n" +
+        "    runHarness: runHarness\n" +
+        "};\n"
+    )();
     
-    process.nextTick( function () {
-        then();
+    $test.runHarness( function ( anyTestFailed ) {
+        if ( anyTestFailed )
+            shouldExitWithErrorCode = true;
+        
+        process.nextTick( function () {
+            then();
+        } );
     } );
 } );
 
@@ -531,8 +546,12 @@ if ( args.demo_cene ) tasks.push( function ( then ) {
 } );
 
 if ( args.test_cene ) tasks.push( function ( then ) {
-    runCeneSync( preludeFiles, [ "test/test.cene" ],
-        !!"displayTimeInfo", [], null, null );
+    var anyTestFailed =
+        runCeneSync( preludeFiles, [ "test/test.cene" ],
+            !!"displayTimeInfo", [], null, null );
+    
+    if ( anyTestFailed )
+        shouldExitWithErrorCode = true;
     
     process.nextTick( function () {
         then();
@@ -540,8 +559,12 @@ if ( args.test_cene ) tasks.push( function ( then ) {
 } );
 
 if ( args.file !== null ) tasks.push( function ( then ) {
-    runCeneSync( preludeFiles.concat( [ args.file ] ), [],
-        !!"displayTimeInfo", args.args, args.in, args.out );
+    var anyTestFailed =
+        runCeneSync( preludeFiles.concat( [ args.file ] ), [],
+            !!"displayTimeInfo", args.args, args.in, args.out );
+    
+    if ( anyTestFailed )
+        shouldExitWithErrorCode = true;
     
     process.nextTick( function () {
         then();
@@ -557,7 +580,7 @@ if ( tasks.length === 0 ) {
     }, function ( e ) {
         if ( e ) throw e;
         
-        // Do nothing.
+        process.exit( shouldExitWithErrorCode ? 1 : 0 );
     } );
 }
 

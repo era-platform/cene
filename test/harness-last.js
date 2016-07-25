@@ -3,7 +3,8 @@
 "use strict";
 
 
-(function () {
+function runHarness( then ) {
+    var anyTestFailed = false;
     var testsPassedInARow = 0;
     function resetTestsPassedInARow() {
         if ( testsPassedInARow !== 0 )
@@ -15,6 +16,7 @@
     function run( i ) {
         if ( !(i < unitTests.length) ) {
             resetTestsPassedInARow();
+            then( anyTestFailed );
             return;
         }
         var unitTest = unitTests[ i ];
@@ -22,6 +24,7 @@
             if ( errorMessage === null ) {
                 testsPassedInARow++;
             } else {
+                anyTestFailed = true;
                 resetTestsPassedInARow();
                 debugLog( errorMessage );
             }
@@ -29,4 +32,4 @@
         } )
     }
     run( 0 );
-})();
+}
