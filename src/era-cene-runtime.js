@@ -506,12 +506,10 @@ StcDexDefault.prototype.callStc = function ( rt, arg ) {
 StcDexDefault.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    
     return macLookupThen( self.first.dexHas( rt, x ),
         function ( firstResult ) {
     
-    if ( stcYep.tags( firstResult ) )
+    if ( rt.toBoolean( firstResult ) )
         return macLookupRet( firstResult );
     
     return self.second.dexHas( rt, x );
@@ -582,7 +580,7 @@ StcDexStruct.prototype.dexHas = function ( rt, x ) {
             projDex.val.dexHas( rt, x.projNames[ projDex.i ] ),
             function ( dexResult ) {
             
-            if ( stcNope.tags( dexResult ) )
+            if ( !rt.toBoolean( dexResult ) )
                 return macLookupRet( dexResult );
             return loop( i + 1 );
         } );
@@ -778,12 +776,6 @@ StcDexTable.prototype.callStc = function ( rt, arg ) {
 StcDexTable.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    
-    function toBoolean( b ) {
-        return stcYep.tags( b );
-    }
-    
     if ( !(x instanceof StcForeign && x.purpose === "table") )
         return macLookupRet( rt.fromBoolean( false ) );
     
@@ -799,8 +791,8 @@ StcDexTable.prototype.dexHas = function ( rt, x ) {
         return macLookupThen( self.dexVal.dexHas( rt, vals[ i ] ),
             function ( dexResult ) {
             
-            if ( !toBoolean( dexResult ) )
-                return macLookupRet( rt.fromBoolean( false ) );
+            if ( !rt.toBoolean( dexResult ) )
+                return macLookupRet( dexResult );
             
             return loop( i + 1 );
         } );
@@ -833,16 +825,12 @@ StcMergeByDex.prototype.fuse = function ( rt, a, b ) {
     var stcNil = stcType( rt.defNs, "nil" );
     var stcYep = stcType( rt.defNs, "yep", "val" );
     
-    return macLookupThen( self.dexToUse.dexHas( rt, a ),
-        function ( hasA ) {
-        
-        if ( stcNope.tags( hasA ) )
+    return rt.dexHas( self.dexToUse, a, function ( hasA ) {
+        if ( !hasA )
             return macLookupRet( stcNil.ofNow() );
     
-    return macLookupThen( self.dexToUse.dexHas( rt, b ),
-        function ( hasB ) {
-        
-        if ( stcNope.tags( hasB ) )
+    return rt.dexHas( self.dexToUse, b, function ( hasB ) {
+        if ( !hasB )
             return macLookupRet( stcNil.ofNow() );
     
     return macLookupRet( stcYep.ofNow( a ) );
@@ -1640,9 +1628,18 @@ function usingDefinitionNs( macroDefNs ) {
     var rt = {};
     rt.defNs = macroDefNs;
     rt.functionDefs = {};
+    rt.anyTestFailed = false;
     rt.fromBoolean = function ( b ) {
         var nil = stcNil.ofNow();
         return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
+    };
+    rt.toBoolean = function ( b ) {
+        return stcYep.tags( b );
+    };
+    rt.dexHas = function ( dex, x, then ) {
+        return macLookupThen( dex.dexHas( rt, x ), function ( has ) {
+            return then( rt.toBoolean( has ) );
+        } );
     };
     
     function callStcMulti( rt, func, var_args ) {
@@ -2178,8 +2175,8 @@ function usingDefinitionNs( macroDefNs ) {
         
         // TODO: See if we should design a different approach to unit
         // tests. Perhaps they should allow asynchronous computation.
-        // Perhaps they should use a custom comparator. Perhaps the
-        // results should be installed as definitions somewhere.
+        // Perhaps the results should be installed as definitions
+        // somewhere. Perhaps we should be able to control the order.
         //
         // TODO: Make this expand multiple expressions concurrently.
         //
@@ -2190,7 +2187,10 @@ function usingDefinitionNs( macroDefNs ) {
             if ( !stcCons.tags( body1 ) )
                 throw new Error();
             var body2 = stcCons.getProj( body1, "cdr" );
-            if ( stcCons.tags( body2 ) )
+            if ( !stcCons.tags( body2 ) )
+                throw new Error();
+            var body3 = stcCons.getProj( body2, "cdr" );
+            if ( stcCons.tags( body3 ) )
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
@@ -2214,24 +2214,40 @@ function usingDefinitionNs( macroDefNs ) {
                 
                 // NOTE: This `evalExpr` call is the only place we
                 // ignore `macroexpand`'s result.
-                evalExpr( nssGet( nss, "a" ), rawMode,
+                evalExpr( nssGet( nss, "dex" ), rawMode,
                     stcCons.getProj( body, "car" ),
+                    function ( rawMode, dex ) {
+                return evalExpr( nssGet( nss, "a" ), rawMode,
+                    stcCons.getProj( body1, "car" ),
                     function ( rawMode, a ) {
                 return evalExpr( nssGet( nss, "b" ), rawMode,
-                    stcCons.getProj( body1, "car" ),
+                    stcCons.getProj( body2, "car" ),
                     function ( rawMode, b ) {
+                return rt.dexHas( dex, a, function ( hasA ) {
+                return rt.dexHas( dex, b, function ( hasB ) {
                 
-                var match = nameCompare( a.toName(), b.toName() );
-                
-                if ( match === 0 )
+                var succeeded = hasA && hasB &&
+                    nameCompare( a.toName(), b.toName() ) === 0;
+                if ( succeeded )
                     console.log( "Test succeeded" );
+                else if ( !hasA && !hasB )
+                    console.log(
+                        "Test failed: Expected things that matched " +
+                        dex.pretty() + ", got " + a.pretty() + " " +
+                        "and " + b.pretty() );
                 else
                     console.log(
                         "Test failed: Expected " +
                         b.pretty() + ", got " + a.pretty() );
                 
+                if ( !succeeded )
+                    rt.anyTestFailed = true;
+                
                 return macLookupRet( stcNil.ofNow() );
                 
+                } );
+                } );
+                } );
                 } );
                 } );
                 
@@ -2425,10 +2441,8 @@ function usingDefinitionNs( macroDefNs ) {
             var dex = stcDexable.getProj( x, "dex" );
             var val = stcDexable.getProj( x, "val" );
             
-            return macLookupThen( dex.dexHas( rt, val ),
-                function ( has ) {
-                
-                if ( stcNope.tags( has ) )
+            return rt.dexHas( dex, val, function ( has ) {
+                if ( !has )
                     throw new Error();
                 
                 return then( val );
@@ -2710,16 +2724,12 @@ function usingDefinitionNs( macroDefNs ) {
         fun( "call-dex", function ( rt, dex ) {
             return stcFnPure( function ( rt, a ) {
                 return new StcFn( function ( rt, b ) {
-                    return macLookupThen( dex.dexHas( rt, a ),
-                        function ( hasA ) {
-                        
-                        if ( stcNope.tags( hasA ) )
+                    return rt.dexHas( dex, a, function ( hasA ) {
+                        if ( !hasA )
                             return macLookupRet( stcNil.ofNow() );
                     
-                    return macLookupThen( dex.dexHas( rt, b ),
-                        function ( hasB ) {
-                        
-                        if ( stcNope.tags( hasB ) )
+                    return rt.dexHas( dex, b, function ( hasB ) {
+                        if ( !hasB )
                             return macLookupRet( stcNil.ofNow() );
                     
                     var result =

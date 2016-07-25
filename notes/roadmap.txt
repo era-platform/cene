@@ -6,11 +6,17 @@ Cene tasks, in roughly highest-priority-first order:
 
 - Cene's namespaces are going to have lots of functionality already, but see if we need to design any more LVar primitives according to the laws described in lvars.md.
 
-- Design and implement a better unit test framework. The unit tests can now use dex values to do their comparisons, at least. We probably want to have control over the order unit test results are reported in.
-
 - Implement proper error handling using a `do-what-you-think-is-best` operation instead of just terminating outright. Let people write something like (err a b c \;qq[message]) to call `do-what-you-think-is-best` using a parameter consisting of (list a b c), `str.\;qq[message]`, and an empty struct tagged with a name unique to this source code location.
 
 - Design and implement a rich document format (ideally making the HTML ecosystem, plain text program code, and UI toolkits obsolete). A killer feature will be to have good support for keyboard navigation (if only for accessibility), selecting paren-unbalanced snippets, copying, and pasting.
+
+- See if we should design a different approach to unit tests.
+
+  - Perhaps they should allow asynchronous computation.
+
+  - Perhaps the results should be installed as definitions somewhere.
+
+  - Perhaps we should be able to control the order.
 
 - Design and implement an approach to user-facing content localization. This is for arbitrary snippets of code, not just strings.
 

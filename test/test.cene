@@ -4,47 +4,60 @@
 \= These are some tests for Cene. They depend on
 \= era-cene-prelude.cene.
 
-(test
+
+(defn dex-test-fix dex-test-fix
+  (dex-default dex-struct.nil
+  /dex-default (dex-struct yep dex-test-fix)
+  /dex-default (dex-struct nope dex-test-fix)
+  /dex-default (dex-struct cons dex-test-fix dex-test-fix)
+  /dex-default (dex-dex/nil)
+  /dex-give-up/nil))
+
+(defn dex-test -
+  (dex-fix/dexable dex-struct.dex-test-fix /dex-test-fix))
+
+
+(test (dex-test/nil)
   (rev/cons (yep/nil) /cons (nope/nil) /nil)
   (cons (nope/nil) /cons (yep/nil) /nil))
 
-(test
+(test (dex-test/nil)
   (rev/nil)
   (nil))
 
-(test
+(test (dex-test/nil)
   (not/yep/nil)
   (nope/nil))
 
-(test
+(test (dex-test/nil)
   (let x (nope/nil) y (yep/nil)
   /let x y y x
   /cons x y)
   (cons (yep/nil) (nope/nil)))
 
-(test
+(test (dex-test/nil)
   (list (nil) (nil))
   (cons (nil) /cons (nil) /nil))
 
-(test
+(test (dex-test/nil)
   (dex-struct cons dex-struct.nil dex-struct.nil)
   (dex-struct cons dex-struct.nil dex-struct.nil))
 
-(test
+(test (dex-test/nil)
   (call-dex (dex-struct cons dex-struct.nil dex-struct.nil)
     (cons (nil) /nil)
     (cons (nil) /nil))
   (yep/nil))
 
-(test
+(test (dex-test/nil)
   (in-dex (dex-default dex-struct.nil dex-struct.nil) /nil)
   (yep/nil))
 
-(test
+(test (dex-test/nil)
   (in-dex dex-struct.nil /nil)
   (yep/nil))
 
-(test
+(test (dex-test/nil)
   (case
     (proj1 yep /call-dex
       (dex-default dex-struct.nil (dex-struct yep dex-struct.nil))
@@ -55,7 +68,7 @@
     (nope/nil))
   (nope/nil))
 
-(test
+(test (dex-test/nil)
   (table-get (dexable (dex-string/nil) str.woo)
     (table-shadow (dexable (dex-string/nil) str.woo) (yep/nope/nil)
     /table-empty/nil))
