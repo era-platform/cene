@@ -4,13 +4,33 @@
 // This file implements the main Cene runtime and built-in operators.
 
 
-var stcNextGensymI = 0;
-function stcGensym() {
-    return "gs-" + stcNextGensymI++;
-}
+// NOTE: We've tagged code with "#GEN" if it generates JavaScript code
+// strings directly.
+//
+// TODO: For each of these, make sure user-defined macros can produce
+// these kinds of generated code with sufficient flexibility. If they
+// have to look up the built-in macros to do it, that's probably not
+// good enough; macro calls sometimes require namespaces when there's
+// no namespace really needed for this task, etc.
+//
+// TODO: It would be nice to update the JavaScript FFI so that it's
+// not repeatedly evaluating JavaScript code strings at run time. We
+// can do this by having the JavaScript code strings executed at
+// load time instead, but that means some of our generated code needs
+// to have metadata saying what its load-time dependencies are.
+//
+// TODO: At some point we may want more than one compilation target,
+// even without leaving JavaScript: For instance, the asynchronous
+// `macLookupThen`/`macLookupRet` target we have now, a synchronous
+// target, and a target specialized for continuous reactive
+// programming. Unfortunately, if we do want all these targets, we may
+// need to offer multiple implementations of each builtin as well, and
+// that'll easily become difficult to maintain. See if there's
+// anything we can do to prepare for these.
 
 
 function stcIdentifier( identifier ) {
+    // #GEN
     return "_stc_" +
         JSON.stringify( identifier ).replace( /[^a-z01-9]/g,
             function ( c ) {
@@ -25,6 +45,7 @@ function stcIdentifier( identifier ) {
 }
 
 function stcCallArr( func, argsArr ) {
+    // #GEN
     var result = func;
     arrEach( argsArr, function ( arg ) {
         result =
@@ -47,6 +68,7 @@ function stcCall( func, var_args ) {
 }
 
 function stcFn( var_args ) {
+    // #GEN
     var n = arguments.length;
     var vars = [].slice.call( arguments, 0, n - 1 );
     var body = arguments[ n - 1 ];
@@ -217,6 +239,7 @@ function stcTypeArr(
         return stc.projNames[ i ];
     };
     result.ofArr = function ( args ) {
+        // #GEN
         if ( args.length !== n )
             throw new Error();
         
@@ -1562,6 +1585,7 @@ function runTopLevelMacLookupsSync(
 }
 
 function stcExecute( rt, expr ) {
+    // #GEN
     return Function(
         "rt", "Stc", "StcFn", "StcForeign", "StcDexStruct",
         "StcFuseStruct", "macLookupRet", "macLookupThen",
@@ -1586,6 +1610,7 @@ function addFunctionNativeDefinition(
         new StcForeign( "native-definition", impl ) );
 }
 function stcAddDefun( rt, defNs, rawMode, name, argName, body ) {
+    // #GEN
     var tupleTagName = stcNameTupleTagAlreadySorted( name, [] );
     var innerFunc = stcExecute( rt,
         "function ( rt, " + stcIdentifier( argName ) + " ) { " +
@@ -1599,6 +1624,7 @@ function stcAddDefun( rt, defNs, rawMode, name, argName, body ) {
 }
 
 function stcErr( msg ) {
+    // #GEN
     return "(function () { " +
         "throw new Error( " + jsStr( msg ) + " ); " +
     "})()";
@@ -1767,6 +1793,8 @@ function usingDefinitionNs( macroDefNs ) {
     function stcCaseletForRunner(
         nss, rawMode, maybeVa, matchSubject, body, then ) {
         
+        // #GEN
+        
         function processTail( nss, rawMode, body, then ) {
             if ( !stcCons.tags( body ) )
                 throw new Error();
@@ -1851,6 +1879,7 @@ function usingDefinitionNs( macroDefNs ) {
     
     // TODO: Make this expand multiple expressions concurrently.
     function stcCast( nss, rawMode, matchSubject, body, then ) {
+        // #GEN
         return macLookupThen(
             extractPattern( nss.definitionNs, body ),
             function ( pattern ) {
@@ -2102,6 +2131,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "defn", function ( nss, myStxDetails, body, then ) {
+            // #GEN
             if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2297,6 +2327,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "isa", function ( nss, myStxDetails, body, then ) {
+            // #GEN
             if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2465,6 +2496,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "str", function ( nss, myStxDetails, body, then ) {
+            // #GEN
             if ( !stcCons.tags( body ) )
                 throw new Error();
             if ( stcCons.tags( stcCons.getProj( body, "cdr" ) ) )
@@ -2492,6 +2524,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         mac( "let", function ( nss, myStxDetails, body, then ) {
+            // #GEN
             return new StcForeign( "effects", function ( rawMode ) {
                 return loop(
                     rawMode, 0, body, nssGet( nss, "bindings" ), "",
@@ -2562,6 +2595,8 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Make this expand multiple subexpressions
         // concurrently.
         function structMapper( nss, body, then, genJsConstructor ) {
+            
+            // #GEN
             
             if ( !stcCons.tags( body ) )
                 throw new Error();
@@ -2649,6 +2684,8 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Add documentation of this somewhere.
         effectfulMac( "dex-struct",
             function ( nss, myStxDetails, body, then ) {
+            
+            // #GEN
             
             return structMapper( nss, body, then, function ( args ) {
                 return "new StcDexStruct( " + args + " )";
@@ -2769,6 +2806,8 @@ function usingDefinitionNs( macroDefNs ) {
         effectfulMac( "merge-struct",
             function ( nss, myStxDetails, body, then ) {
             
+            // #GEN
+            
             return structMapper( nss, body, then, function ( args ) {
                 return "new StcFuseStruct( " +
                     "\"merge-struct\", \"merge\", " + args + " )";
@@ -2834,6 +2873,8 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Add documentation of this somewhere.
         effectfulMac( "fuse-struct",
             function ( nss, myStxDetails, body, then ) {
+            
+            // #GEN
             
             return structMapper( nss, body, then, function ( args ) {
                 return "new StcFuseStruct( " +
@@ -3440,6 +3481,7 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function macroexpand( nss, rawMode, locatedExpr, outNs, then ) {
+        // #GEN
         if ( rawMode.type !== "macro" )
             throw new Error();
         collectDefer( rawMode, rawMode.contributingOnlyTo,
