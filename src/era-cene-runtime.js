@@ -1792,6 +1792,8 @@ function usingDefinitionNs( macroDefNs ) {
         stcType( macroDefNs, "stx", "stx-details", "s-expr" );
     var stcForeign = stcType( macroDefNs, "foreign", "val" );
     var stcDexable = stcType( macroDefNs, "dexable", "dex", "val" );
+    var stcCarried =
+        stcType( macroDefNs, "carried", "main", "carry" );
     
     // NOTE: The "rt" stands for "runtime." This carries things that
     // are relevant at run time.
@@ -3319,27 +3321,148 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        // TODO: Add documentation of this somewhere.
+        // TODO: Optimize this. Iterating from the beginning of the
+        // string is pretty bad.
+        fun( "string-length", function ( rt, string ) {
+            var stringInternal = parseString( string );
+            
+            var n = 0;
+            eachUnicodeCodePoint( stringInternal,
+                function ( codePointInfo ) {
+                
+                n++;
+            } );
+            return stcForeignInt( n );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "string-empty", function ( rt, ignored ) {
+            return new StcForeign( "string", "" );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "string-singleton", function ( rt, unicodeScalar ) {
+            if ( !(unicodeScalar instanceof StcForeign
+                && unicodeScalar.purpose === "int") )
+                throw new Error();
+            
+            var result = unicodeCodePointToString( unicodeScalar );
+            if ( result === null )
+                throw new Error();
+            
+            return new StcForeign( "string", result );
+        } );
+        
+        function callStcLater( rt, func, arg ) {
+            return new StcForeign( "effects", function ( rawMode ) {
+                if ( rawMode.type !== "macro" )
+                    throw new Error();
+                collectDefer( rawMode, rawMode.contributingOnlyTo,
+                    function () {
+                    
+                    return func.callStc( rt, arg );
+                } );
+                return macLookupRet( stcNil.ofNow() );
+            } );
+        }
+        
+        // TODO: Add documentation of this somewhere.
+        // TODO: Optimize this. Iterating from the beginning of the
+        // string is pretty bad.
+        fun( "string-cut-later", function ( rt, string ) {
+            return stcFnPure( function ( rt, start ) {
+                return stcFnPure( function ( rt, stop ) {
+                    return stcFnPure( function ( rt, then ) {
+                        
+                        var stringInternal = parseString( string );
+                        
+                        if ( !(start instanceof StcForeign
+                            && start.purpose === "int") )
+                            throw new Error();
+                        if ( !(stop instanceof StcForeign
+                            && stop.purpose === "int") )
+                            throw new Error();
+                        
+                        var startUtf16 = null;
+                        var stopUtf16 = null;
+                        var i = 0;
+                        var iUtf16 = 0;
+                        eachUnicodeCodePoint( stringInternal,
+                            function ( codePointInfo ) {
+                            
+                            if ( i === start.foreignVal )
+                                startUtf16 = iUtf16;
+                            if ( i === stop.foreignVal )
+                                stopUtf16 = iUtf16;
+                            i++;
+                            iUtf16 += codePointInfo.charString.length;
+                        } );
+                        if ( i === start.foreignVal )
+                            startUtf16 = iUtf16;
+                        if ( i === stop.foreignVal )
+                            stopUtf16 = iUtf16;
+                        
+                        if ( startUtf16 === null )
+                            throw new Error();
+                        if ( stopUtf16 === null )
+                            throw new Error();
+                        if ( !(0 <= startUtf16
+                            && startUtf16 <= stopUtf16) )
+                            throw new Error();
+                        
+                        return callStcLater( rt, then,
+                            new StcForeign( "string",
+                                stringInternal.substring(
+                                    startUtf16, stopUtf16 ) ) );
+                    } );
+                } );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        // TODO: Optimize this. Iterating from the beginning of the
+        // string is pretty bad.
+        fun( "string-get-unicode-scalar-later",
+            function ( rt, string ) {
+            
+            return stcFnPure( function ( rt, start ) {
+                return stcFnPure( function ( rt, then ) {
+                    
+                    var stringInternal = parseString( string );
+                    
+                    if ( !(start instanceof StcForeign
+                        && start.purpose === "int") )
+                        throw new Error();
+                    
+                    var i = 0;
+                    var result = anyUnicodeCodePoint( stringInternal,
+                        function ( codePointInfo ) {
+                        
+                        if ( i === start.foreignVal )
+                            return { val: codePointInfo.codePoint };
+                        i++;
+                        return false;
+                    } );
+                    
+                    if ( !result )
+                        throw new Error();
+                    
+                    return callStcLater( rt, then,
+                        stcForeignInt( result.val ) );
+                } );
+            } );
+        } );
+        
         fun( "string-append-later", function ( rt, a ) {
             return stcFnPure( function ( rt, b ) {
                 return stcFnPure( function ( rt, then ) {
                     var aInternal = parseString( a );
                     var bInternal = parseString( b );
                     
-                    return new StcForeign( "effects",
-                        function ( rawMode ) {
-                        
-                        if ( rawMode.type !== "macro" )
-                            throw new Error();
-                        collectDefer( rawMode,
-                            rawMode.contributingOnlyTo,
-                            function () {
-                            
-                            return then.callStc( rt,
-                                new StcForeign( "string",
-                                    aInternal + bInternal ) );
-                        } );
-                        return macLookupRet( stcNil.ofNow() );
-                    } );
+                    return callStcLater( rt, then,
+                        new StcForeign( "string",
+                            aInternal + bInternal ) );
                 } );
             } );
         } );
