@@ -131,7 +131,7 @@
     err.\;qq[Expected a body result of type basic-macro-result]
   /join-effects effects
   /compile-expression (ns-get-string str.compilation unique-ns)
-    definition-ns expression outbox))
+    definition-ns expression procure-definer.outbox))
 
 (defn basic-pure-macro
   unique-ns definition-ns my-stx-details then body

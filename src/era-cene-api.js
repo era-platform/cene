@@ -479,10 +479,11 @@ function ceneApiUsingDefinitionNs(
                     // Maybe we don't actually need this to be a
                     // built-in function.
                     collectPutDefined( rawMode,
-                        stcNsGet( keyInternal,
-                            stcNsGet(
-                                "cli-output-environment-variable-shadows",
-                                defNs ) ),
+                        nsToDefiner(
+                            stcNsGet( keyInternal,
+                                stcNsGet(
+                                    "cli-output-environment-variable-shadows",
+                                    defNs ) ) ),
                         value );
                     return macLookupRet( stcNil.ofNow() );
                 } );
