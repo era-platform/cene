@@ -236,7 +236,7 @@ function stcTypeArr(
         var i = projNamesToSortedIndices[ "|" + projStringyName ];
         if ( i === void 0 )
             throw new Error();
-        return stc.projNames[ i ];
+        return stc.projVals[ i ];
     };
     result.ofArr = function ( args ) {
         // #GEN
@@ -407,9 +407,9 @@ function prettifyTupleTag( tupleTag ) {
         JSON.parse( tupleTag )[ 1 ][ 3 ][ 1 ][ 3 ][ 1 ] );
 }
 
-function Stc( tupleTag, opt_projNames ) {
+function Stc( tupleTag, opt_projVals ) {
     this.tupleTag = tupleTag;
-    this.projNames = opt_projNames || [];
+    this.projVals = opt_projVals || [];
 }
 Stc.prototype.affiliation = "none";
 Stc.prototype.callStc = function ( rt, arg ) {
@@ -453,14 +453,14 @@ Stc.prototype.fuse = function ( rt, a, b ) {
 Stc.prototype.toName = function () {
     // TODO: See if we can avoid this JSON.parse().
     return [ "struct", JSON.parse( this.tupleTag ) ].concat(
-        arrMap( this.projNames, function ( projName ) {
-            return projName.toName();
+        arrMap( this.projVals, function ( projVal ) {
+            return projVal.toName();
         } ) );
 };
 Stc.prototype.pretty = function () {
     return "(" + prettifyTupleTag( this.tupleTag ) +
-        arrMap( this.projNames, function ( elem, i ) {
-            return " " + elem.pretty();
+        arrMap( this.projVals, function ( projVal ) {
+            return " " + projVal.pretty();
         } ).join( "" ) + ")";
 };
 function StcFn( func ) {
@@ -611,7 +611,7 @@ StcDexStruct.prototype.dexHas = function ( rt, x ) {
             return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
         var projDex = self.projDexes[ i ];
         return macLookupThen(
-            projDex.val.dexHas( rt, x.projNames[ projDex.i ] ),
+            projDex.val.dexHas( rt, x.projVals[ projDex.i ] ),
             function ( dexResult ) {
             
             if ( !rt.toBoolean( dexResult ) )
@@ -1019,8 +1019,8 @@ StcFuseStruct.prototype.fuse = function ( rt, a, b ) {
         var projFuse = self.projFuses[ i ];
         return macLookupThen(
             projFuse.val.fuse( rt,
-                a.projNames[ projFuse.i ],
-                b.projNames[ projFuse.i ] ),
+                a.projVals[ projFuse.i ],
+                b.projVals[ projFuse.i ] ),
             function ( fuseResult ) {
             
             if ( !stcYep.tags( fuseResult ) )
@@ -1990,7 +1990,7 @@ function usingDefinitionNs( macroDefNs ) {
                         stcIdentifier(
                             pattern.localVars[ entry.i ] ) +
                         " = " +
-                        "stcLocal_matchSubject.projNames[ " +
+                        "stcLocal_matchSubject.projVals[ " +
                             i + " ]; ";
                 } ).join( "" ) +
                 "return " + thenBranch + "; " +
@@ -2077,7 +2077,7 @@ function usingDefinitionNs( macroDefNs ) {
                                 stcIdentifier(
                                     pattern.localVars[ entry.i ] ) +
                                 " = " +
-                                "stcLocal_matchSubject.projNames[ " +
+                                "stcLocal_matchSubject.projVals[ " +
                                     i + " ]; ";
                         } ).join( "" ) +
                         "return " + body + "; " +
