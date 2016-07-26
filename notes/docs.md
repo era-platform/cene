@@ -137,9 +137,9 @@ Uses the given namespace to obtain a first-class name value. The given modality 
 
 -
 ```
-(defn procure-put-defined ns value ...)
+(defn procure-definer ns ...)
 ```
-Constructs a monad that, if invoked, installs a definition so that the given namespace has a defined value, namely the given one. If the definition cannot be installed, the program is in error; other computations that depend on the defined value may or may not be canceled or retroactively voided.
+Constructs a definer that determines the given namespace's defined value.
 
 -
 ```
@@ -184,15 +184,45 @@ Constructs a monad that, if invoked, performs the effects of both of the given m
 
 -
 ```
+(defn later effects ...)
+```
+Monadically, executes the effects in a later tick.
+
+This is useful mainly for concurrency. It allows the given effects' computation to depend on values that might not be available right now.
+
+-
+```
+(defn make-promise-later then ...)
+then (fn definer read ...)
+read (fn - ...)
+```
+Monadically, calls a callback in a later tick with a definer and a pure function that ignores its argument and reads the defined value. The read function must be called in a later tick than the one the value is defined in.
+
+-
+```
+(defn definer-define definer value ...)
+```
+Monadically, writes to the given definer. If the definition cannot be installed, the program is in error; other computations that depend on the defined value may or may not be canceled or retroactively voided.
+
+-
+```
+(defn definer-commit-later definer effects ...)
+```
+(**TODO**: Implement and use this.)
+
+Monadically, executes the effects in a later tick and commits to writing to the given definer in that tick or later. This is only useful to suppress error messages about the definition not existing if there's an error in this logical thread.
+
+-
+```
 (defn assert-current-modality mode ...)
 ```
 Returns `(nil)`. The given modality must be the current one. If it isn't, this causes an error.
 
 -
 ```
-(defn compile-expression unique-ns definition-ns stx out-ns ...)
+(defn compile-expression unique-ns definition-ns stx out-definer ...)
 ```
-Constructs a monad that, if invoked, macroexpands the given `stx` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce a fully compiled expression. If the expression is successfully computed, it is defined directly in the given `out-ns`.
+Constructs a monad that, if invoked, macroexpands the given `stx` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce a fully compiled expression. If the expression is successfully computed, it is defined in the given `out-definer`.
 
 -
 ```
@@ -216,7 +246,7 @@ Given two tables and a function to combine values, makes a new table by iteratin
 
 ## Layout of the definition namespace
 
-During macroexpansion, Cene code may interact with the definition namespace by using the referentially transparent operation `procure-defined` and the monadic operation `procure-put-defined`. (Putting two definitions into one name is an error.) Even the built-in definitions reside in the definition namespace.
+During macroexpansion, Cene code may interact with the definition namespace by using operations like the referentially transparent `procure-defined` and `procure-definer` and the monadic `definer-define`. (Putting two definitions into one name is an error.) Even the built-in definitions reside in the definition namespace.
 
 The namespace also has standard places to find fully qualified names for various concepts. These are just like any other name, but the specific location to obtain them from is standardized.
 

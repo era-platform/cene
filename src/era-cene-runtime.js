@@ -373,8 +373,8 @@ function stcNameSetContains( nameSet, name ) {
 function macLookupRet( result ) {
     return { type: "ret", val: result };
 }
-function macLookupGet( name, err ) {
-    return { type: "get", name: name, err: err };
+function macLookupGet( definer, err ) {
+    return { type: "get", definer: definer, err: err };
 }
 function macLookupProcureContributedElements( name, err ) {
     return { type: "procureContributedElements",
@@ -416,15 +416,16 @@ Stc.prototype.callStc = function ( rt, arg ) {
     if ( func !== void 0 )
         return func( rt, self, arg );
     
-    var callName =
-        stcNsGet( "call",
-            stcNsGet( JSON.parse( self.tupleTag ),
-                stcNsGet( "functions", rt.defNs ) ) ).name;
     return macLookupThen(
-        macLookupGet( callName, function () {
-            throw new Error(
-                "No such function definition: " + self.tupleTag );
-        } ),
+        macLookupGet(
+            nsToDefiner(
+                stcNsGet( "call",
+                    stcNsGet( JSON.parse( self.tupleTag ),
+                        stcNsGet( "functions", rt.defNs ) ) ) ),
+            function () {
+                throw new Error(
+                    "No such function definition: " + self.tupleTag );
+            } ),
         function ( def ) {
         
         if ( !(def instanceof StcForeign
@@ -1171,8 +1172,8 @@ function getMacroFunctionNamespace( definitionNs, name ) {
             stcNsGet( "macros", definitionNs ) ) );
 }
 
-function collectPutDefined( rawMode, namespace, value ) {
-    rawMode.putDefined.push( { namespace: namespace, value: value } );
+function collectPutDefined( rawMode, definer, value ) {
+    rawMode.putDefined.push( { definer: definer, value: value } );
 }
 function collectPutElement( rawMode, namespace, name, element ) {
     rawMode.putElement.push(
@@ -1189,7 +1190,12 @@ function collectDefer( rawMode, contributingOnlyTo, body ) {
     } );
 }
 function runPuts( namespaceDefs, rawMode ) {
-    function jsnUniqueArrEach( arr, getName, body ) {
+    
+    
+    // First we do sanity checks to make sure the puts are not
+    // overlapping and don't conflict with existing state.
+    
+    function assertNamesUniqueAndUnset( arr, getName ) {
         var seenAlready = jsnMap();
         arrEach( arr, function ( put ) {
             var name = getName( put );
@@ -1199,13 +1205,59 @@ function runPuts( namespaceDefs, rawMode ) {
                 throw new Error();
             seenAlready.set( name, true );
         } );
-        arrEach( arr, body );
     }
     
-    jsnUniqueArrEach( rawMode.putDefined, function ( put ) {
+    arrEach( rawMode.putDefined, function ( put ) {
+        var type = put.definer.type;
+        if ( !(type === "namespace" || type === "object") )
+            throw new Error();
+    } );
+    var putDefinedNamespaces =
+        arrKeep( rawMode.putDefined, function ( put ) {
+            return put.definer.type === "namespace";
+        } );
+    var putDefinedObjects =
+        arrKeep( rawMode.putDefined, function ( put ) {
+            return put.definer.type === "object";
+        } );
+    
+    assertNamesUniqueAndUnset( putDefinedNamespaces,
+        function ( put ) {
+        
+        return put.definer.namespace.name;
+    } );
+    
+    var unique = !arrAny( putDefinedObjects, function ( put ) {
+        if ( put.definer.visited )
+            return true;
+        put.definer.visited = true;
+        return false;
+    } );
+    arrEach( putDefinedObjects, function ( put ) {
+        put.definer.visited = false;
+    } );
+    if ( !unique )
+        throw new Error();
+    arrEach( putDefinedObjects, function ( put ) {
+        if ( put.definer.value !== null )
+            throw new Error();
+    } );
+    
+    assertNamesUniqueAndUnset( rawMode.putElement, function ( put ) {
         return put.namespace.name;
-    }, function ( put ) {
-        namespaceDefs.set( put.namespace.name, put.value );
+    } );
+    assertNamesUniqueAndUnset( rawMode.putListener, function ( put ) {
+        return put.namespace.name;
+    } );
+    
+    
+    // Now that we know the puts are valid, we follow through on them.
+    
+    arrEach( putDefinedNamespaces, function ( put ) {
+        namespaceDefs.set( put.definer.namespace.name, put.value );
+    } );
+    arrEach( putDefinedObjects, function ( put ) {
+        put.definer.value = { val: put.value };
     } );
     
     var listenersFired = [];
@@ -1222,9 +1274,7 @@ function runPuts( namespaceDefs, rawMode ) {
     
     // NOTE: This adds the `listenersFired` entries for preexisting
     // listeners and new elements.
-    jsnUniqueArrEach( rawMode.putElement, function ( put ) {
-        return put.namespace.name;
-    }, function ( put ) {
+    arrEach( rawMode.putElement, function ( put ) {
         var contribs = getContributionTable( put.namespace.name );
         if ( contribs.elements.has( put.name ) )
             throw new Error();
@@ -1241,9 +1291,7 @@ function runPuts( namespaceDefs, rawMode ) {
     // and preexisting elements and also for new listeners and new
     // elements. It includes both old and new elements because the new
     // elements were already added above.
-    jsnUniqueArrEach( rawMode.putListener, function ( put ) {
-        return put.namespace.name;
-    }, function ( put ) {
+    arrEach( rawMode.putListener, function ( put ) {
         var contribs = getContributionTable( put.namespace.name );
         if ( contribs.listeners.has( put.name ) )
             throw new Error();
@@ -1260,6 +1308,7 @@ function runPuts( namespaceDefs, rawMode ) {
             } );
         } );
     } );
+    
     
     return listenersFired;
 }
@@ -1414,12 +1463,24 @@ function runTopLevelMacLookupsSync(
                         return then( thread.monad.first.val );
                     } ) );
             } else if ( thread.monad.first.type === "get" ) {
-                if ( namespaceDefs.has( thread.monad.first.name ) ) {
+                var definer = thread.monad.first.definer;
+                if ( definer.type === "namespace" ) {
+                    var maybeValue =
+                        namespaceDefs.has( definer.namespace.name ) ?
+                            { val:
+                                namespaceDefs.get(
+                                    definer.namespace.name ) } :
+                            null;
+                } else if ( definer.type === "object" ) {
+                    var maybeValue = definer.value;
+                } else {
+                    throw new Error();
+                }
+                
+                if ( maybeValue !== null ) {
                     return replaceThread(
                         currentlyThread( thread, function () {
-                            return then(
-                                namespaceDefs.get(
-                                    thread.monad.first.name ) );
+                            return then( maybeValue.val );
                         } ) );
                 } else {
                     thread.failedAdvances++;
@@ -1600,13 +1661,18 @@ function stcExecute( rt, expr ) {
         StcFuseStruct, macLookupRet, macLookupThen );
 }
 
+function nsToDefiner( ns ) {
+    return { type: "namespace", namespace: ns };
+}
+
 function addFunctionNativeDefinition(
     defNs, rawMode, tupleTagName, impl ) {
     
     collectPutDefined( rawMode,
-        stcNsGet( "call",
-            stcNsGet( tupleTagName,
-                stcNsGet( "functions", defNs ) ) ),
+        nsToDefiner(
+            stcNsGet( "call",
+                stcNsGet( tupleTagName,
+                    stcNsGet( "functions", defNs ) ) ) ),
         new StcForeign( "native-definition", impl ) );
 }
 function stcAddDefun( rt, defNs, rawMode, name, argName, body ) {
@@ -1728,15 +1794,18 @@ function usingDefinitionNs( macroDefNs ) {
     function getType( definitionNs, tupleName ) {
         var constructorName =
             stcConstructorName( definitionNs, tupleName );
-        var projListName =
-            stcNsGet( "projection-list",
-                stcNsGet( constructorName,
-                    stcNsGet( "constructors", definitionNs ) ) ).name;
         return macLookupThen(
-            macLookupGet( projListName, function () {
-                throw new Error(
-                    "No such type: " + JSON.stringify( tupleName ) );
-            } ),
+            macLookupGet(
+                nsToDefiner(
+                    stcNsGet( "projection-list",
+                        stcNsGet( constructorName,
+                            stcNsGet( "constructors",
+                                definitionNs ) ) ) ),
+                function () {
+                    throw new Error(
+                        "No such type: " +
+                        JSON.stringify( tupleName ) );
+                } ),
             function ( projList ) {
             
             return macLookupRet(
@@ -2020,7 +2089,8 @@ function usingDefinitionNs( macroDefNs ) {
         definitionNs, rawMode, name, macroFunctionImpl ) {
         
         collectPutDefined( rawMode,
-            getMacroFunctionNamespace( definitionNs, name ),
+            nsToDefiner(
+                getMacroFunctionNamespace( definitionNs, name ) ),
             stcFnPure( function ( rt, uniqueNs ) {
                 return stcFnPure( function ( rt, definitionNs ) {
                     return stcFnPure( function ( rt, myStxDetails ) {
@@ -2191,8 +2261,9 @@ function usingDefinitionNs( macroDefNs ) {
                     function ( executedFn ) {
                 
                 collectPutDefined( rawMode,
-                    getMacroFunctionNamespace(
-                        nss.definitionNs, name ),
+                    nsToDefiner(
+                        getMacroFunctionNamespace(
+                            nss.definitionNs, name ) ),
                     executedFn );
                 
                 return macLookupThenRunEffects( rawMode,
@@ -3256,7 +3327,7 @@ function usingDefinitionNs( macroDefNs ) {
                     && ns.purpose === "ns") )
                     throw new Error();
                 
-                return macLookupGet( ns.foreignVal.name,
+                return macLookupGet( nsToDefiner( ns.foreignVal ),
                     function () {
                         throw new Error(
                             "No such defined value: " +
@@ -3265,23 +3336,13 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "procure-put-defined", function ( rt, ns ) {
-            return stcFnPure( function ( rt, value ) {
-                if ( !(ns instanceof StcForeign
-                    && ns.purpose === "ns") )
-                    throw new Error();
-                
-                return new StcForeign( "effects",
-                    function ( rawMode ) {
-                    
-                    if ( rawMode.type !== "macro" )
-                        throw new Error();
-                    
-                    collectPutDefined( rawMode, ns.foreignVal,
-                        value );
-                    return macLookupRet( stcNil.ofNow() );
-                } );
-            } );
+        fun( "procure-definer", function ( rt, ns ) {
+            if ( !(ns instanceof StcForeign
+                && ns.purpose === "ns") )
+                throw new Error();
+            
+            return new StcForeign( "definer",
+                nsToDefiner( ns.foreignVal ) );
         } );
         
         fun( "procure-contribute-element", function ( rt, ns ) {
@@ -3388,12 +3449,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Document this in docs.md and/or
-        // cene-design-goals.txt. It's a (later ...) monadic side
-        // effect that runs the inner effects in a future mode. This
-        // has two purposes: Multiples of these can be concurrent with
-        // each other, and their errors will not retroactively
-        // invalidate effects from the current mode.
         fun( "later", function ( rt, effects ) {
             if ( !(effects instanceof StcForeign
                 && effects.purpose === "effects") )
@@ -3411,6 +3466,51 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        fun( "make-promise-later", function ( rt, then ) {
+            var definer =
+                { type: "object", visited: false, value: null };
+            
+            return new StcForeign( "effects",
+                function ( rawMode ) {
+                
+                if ( rawMode.type !== "macro" )
+                    throw new Error();
+                collectDefer( rawMode,
+                    rawMode.contributingOnlyTo,
+                    function () {
+                    
+                    return callStcMulti( rt, then,
+                        new StcForeign( "definer", definer ),
+                        new StcFn( function ( rt, ignored ) {
+                            return macLookupGet( definer,
+                                function () {
+                                    throw new Error( "Never fulfilled a promise" );
+                                } );
+                        } ) );
+                } );
+                return macLookupRet( stcNil.ofNow() );
+            } );
+        } );
+        
+        fun( "definer-define", function ( rt, definer ) {
+            return stcFnPure( function ( rt, value ) {
+                if ( !(definer instanceof StcForeign
+                    && definer.purpose === "definer") )
+                    throw new Error();
+                
+                return new StcForeign( "effects",
+                    function ( rawMode ) {
+                    
+                    if ( rawMode.type !== "macro" )
+                        throw new Error();
+                    
+                    collectPutDefined( rawMode, definer.foreignVal,
+                        value );
+                    return macLookupRet( stcNil.ofNow() );
+                } );
+            } );
+        } );
+        
         fun( "assert-current-modality", function ( rt, mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
@@ -3422,7 +3522,7 @@ function usingDefinitionNs( macroDefNs ) {
         fun( "compile-expression", function ( rt, uniqueNs ) {
             return stcFnPure( function ( rt, definitionNs ) {
                 return stcFnPure( function ( rt, stx ) {
-                    return stcFnPure( function ( rt, outNs ) {
+                    return stcFnPure( function ( rt, outDefiner ) {
                         if ( !(uniqueNs instanceof StcForeign
                             && uniqueNs.purpose === "ns") )
                             throw new Error();
@@ -3431,8 +3531,8 @@ function usingDefinitionNs( macroDefNs ) {
                             && definitionNs.purpose === "ns") )
                             throw new Error();
                         
-                        if ( !(outNs instanceof StcForeign
-                            && outNs.purpose === "ns") )
+                        if ( !(outDefiner instanceof StcForeign
+                            && outDefiner.purpose === "definer") )
                             throw new Error();
                         
                         return new StcForeign( "effects",
@@ -3442,14 +3542,10 @@ function usingDefinitionNs( macroDefNs ) {
                                 && rawMode.type === "macro") )
                                 throw new Error();
                             
-                            return macroexpand( {
+                            return macroexpandToDefiner( {
                                 definitionNs: definitionNs.foreignVal,
                                 uniqueNs: uniqueNs.foreignVal
-                            }, rawMode, stx, outNs.foreignVal,
-                                function ( rawMode, result ) {
-                                
-                                return macLookupRet( null );
-                            } );
+                            }, rawMode, stx, outDefiner.foreignVal );
                         } );
                     } );
                 } );
@@ -3480,7 +3576,9 @@ function usingDefinitionNs( macroDefNs ) {
         commitDummyMode( namespaceDefs, dummyMode );
     }
     
-    function macroexpand( nss, rawMode, locatedExpr, outNs, then ) {
+    function macroexpandToDefiner(
+        nss, rawMode, locatedExpr, outDefiner ) {
+        
         // #GEN
         if ( rawMode.type !== "macro" )
             throw new Error();
@@ -3495,7 +3593,7 @@ function usingDefinitionNs( macroDefNs ) {
                     // TODO: Report better errors if an unbound local
                     // variable is used. Currently, we just generate
                     // the JavaScript code for the variable anyway.
-                    collectPutDefined( rawMode, outNs,
+                    collectPutDefined( rawMode, outDefiner,
                         new StcForeign( "compiled-code",
                             "macLookupRet( " +
                                 stcIdentifier(
@@ -3513,18 +3611,19 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             var resolvedMacroName =
                 stcMacroName( nss.definitionNs, macroName );
-            var macroFunctionName =
-                stcNsGet( "function",
-                    stcNsGet( resolvedMacroName,
-                        stcNsGet( "macros",
-                            nss.definitionNs ) ) ).name;
             
             return macLookupThen(
-                macLookupGet( macroFunctionName, function () {
-                    throw new Error(
-                        "No such macro: " +
-                        JSON.stringify( macroName ) );
-                } ),
+                macLookupGet(
+                    nsToDefiner(
+                        stcNsGet( "function",
+                            stcNsGet( resolvedMacroName,
+                                stcNsGet( "macros",
+                                    nss.definitionNs ) ) ) ),
+                    function () {
+                        throw new Error(
+                            "No such macro: " +
+                            JSON.stringify( macroName ) );
+                    } ),
                 function ( macroFunction ) {
             
             return callStcMulti( rt, macroFunction,
@@ -3536,7 +3635,7 @@ function usingDefinitionNs( macroDefNs ) {
                     return new StcForeign( "effects",
                         function ( rawMode ) {
                         
-                        collectPutDefined( rawMode, outNs,
+                        collectPutDefined( rawMode, outDefiner,
                             macroResult );
                         return macLookupRet( stcNil.ofNow() );
                     } );
@@ -3544,11 +3643,18 @@ function usingDefinitionNs( macroDefNs ) {
             
             } );
         } );
+        
+        return macLookupRet( stcNil.ofNow() );
+    }
+    
+    function macroexpand( nss, rawMode, locatedExpr, outNs, then ) {
+        if ( rawMode.type !== "macro" )
+            throw new Error();
         collectDefer( rawMode, rawMode.contributingOnlyTo,
             function () {
             
             return macLookupThen(
-                macLookupGet( outNs.name, function () {
+                macLookupGet( nsToDefiner( outNs ), function () {
                     if ( !stcStx.tags( locatedExpr ) )
                         throw new Error();
                     var sExpr =
@@ -3574,7 +3680,8 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        return macLookupRet( stcNil.ofNow() );
+        return macroexpandToDefiner( nss, rawMode, locatedExpr,
+            nsToDefiner( outNs ) );
     }
     
     function processDefType(
@@ -3585,9 +3692,11 @@ function usingDefinitionNs( macroDefNs ) {
         var constructorName =
             stcConstructorName( definitionNs, tupleName );
         collectPutDefined( rawMode,
-            stcNsGet( "projection-list",
-                stcNsGet( constructorName,
-                    stcNsGet( "constructors", definitionNs ) ) ),
+            nsToDefiner(
+                stcNsGet( "projection-list",
+                    stcNsGet( constructorName,
+                        stcNsGet( "constructors",
+                            definitionNs ) ) ) ),
             stcArrayToConsList( arrMap( type.unsortedProjNames,
                 function ( entry ) {
                 

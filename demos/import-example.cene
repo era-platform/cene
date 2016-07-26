@@ -39,7 +39,7 @@
         (ns-get-string str.unique first-ns)
         definition-ns
         expr
-        (ns-get-string str.outbox first-ns)))
+        (procure-definer/ns-get-string str.outbox first-ns)))
     folding unique-ns launch-rest
     err.\;qq[Internal error]
     
