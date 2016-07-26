@@ -932,11 +932,9 @@ StcFuseIntByPlus.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
 StcFuseIntByPlus.prototype.fuse = function ( rt, a, b ) {
-    if ( !(a instanceof StcForeign
-        && a.purpose === "int") )
+    if ( !(a instanceof StcForeign && a.purpose === "int") )
         throw new Error();
-    if ( !(b instanceof StcForeign
-        && b.purpose === "int") )
+    if ( !(b instanceof StcForeign && b.purpose === "int") )
         throw new Error();
     return macLookupRet(
         stcForeignInt( a.foreignVal + b.foreignVal ) );
@@ -958,11 +956,9 @@ StcFuseIntByTimes.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
 StcFuseIntByTimes.prototype.fuse = function ( rt, a, b ) {
-    if ( !(a instanceof StcForeign
-        && a.purpose === "int") )
+    if ( !(a instanceof StcForeign && a.purpose === "int") )
         throw new Error();
-    if ( !(b instanceof StcForeign
-        && b.purpose === "int") )
+    if ( !(b instanceof StcForeign && b.purpose === "int") )
         throw new Error();
     return macLookupRet(
         stcForeignInt( a.foreignVal * b.foreignVal ) );
