@@ -8,6 +8,46 @@
 
 -
 ```
+\= TODO: Document all of these. (These aren't the only undocumented
+primitives.)
+
+
+### Integers
+
+(defn dex-int - ...)
+(defn fuse-int-by-plus - ...)
+(defn fuse-int-by-times - ...)
+
+(defn int-zero - ...)
+(defn int-one - ...)
+(defn int-compare a b ...)
+  \= TODO: See if we should make this available as a dex (becoming the
+  \= first dex with a visible order to it) or as a merge (in the form
+  \= of a max or min operation).
+(defn int-minus a b ...)
+(defn int-div-rounded-down a b ...)
+  \= NOTE: This one's result uses (carried main carry), where `carry`
+  \= is the remainder. It may also return (nil) for a zero divisor.
+  \= TODO: See if we should choose a different rounding policy.
+
+
+### Strings
+
+(defn string-length string ...)
+
+(defn string-empty - ...)
+
+(defn string-singleton unicode-scalar ...)
+
+(defn string-cut-later string start stop then ...)
+(then substring)
+
+(defn string-get-unicode-scalar-later string start then ...)
+(then unicode-scalar)
+```
+
+-
+```
 (defn string-append-later a b then ...)
 (then result)
 ```
@@ -198,6 +238,25 @@ read (fn - ...)
 ```
 Monadically, calls a callback in a later tick with a definer and a pure function that ignores its argument and reads the defined value. The read function must be called in a later tick than the one the value is defined in.
 
+**Rationale**: Cene expressions are designed so they can have consistent performance each time they run. Therefore, algorithms written as Cene expressions cannot rely on laziness or JIT techniques (even though an implementation of Cene may in fact implement such things as optimizations). However, laziness is useful to reduce the amortized computational complexity of data structures like finger trees, which are good for representing strings. To support this data structure technique, Cene offers `make-promise-later`, a standard way to allocate promise state even from a computation that has no other access to state.
+
+Not all Cene modes will necessarily support the `make-promise-later` side effect.
+
+```
+\= TODO: Don't implement this as a primitive. Implement it in terms of
+\= `make-promise-later`.
+(defn later-concurrent-later a b then ...)
+(a a-then)
+(b b-then)
+(a-then a-result)
+(b-then b-result)
+(then a-result b-result)
+Monadically, takes two functions that monadically pass results to
+callbacks in later ticks, calls each of them in a separate later tick,
+and in a third later tick, passes their results monadically to the
+given two-argument callback.
+```
+
 -
 ```
 (defn definer-define definer value ...)
@@ -223,6 +282,8 @@ Returns `(nil)`. The given modality must be the current one. If it isn't, this c
 (defn compile-expression unique-ns definition-ns stx out-definer ...)
 ```
 Constructs a monad that, if invoked, macroexpands the given `stx` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce a fully compiled expression. If the expression is successfully computed, it is defined in the given `out-definer`.
+
+(**TODO**: Decide if this should conform to the `...-later` calling convention with a simple callback or if all the `...-later` utilities should instead conform to the `compile-expression` calling convention with an `out-definer`.)
 
 -
 ```
