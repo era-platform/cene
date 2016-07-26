@@ -370,6 +370,13 @@ function stcNameSetContains( nameSet, name ) {
     return nameSet( name );
 }
 
+function stcForeignInt( n ) {
+    if ( n !== n || n + 1 === n || n - 1 === n )
+        throw new Error();
+    // We convert negative zero to positive zero.
+    return new StcForeign( "int", n === -0 ? 0 : n );
+}
+
 function macLookupRet( result ) {
     return { type: "ret", val: result };
 }
@@ -499,18 +506,21 @@ StcForeign.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcForeign.prototype.toName = function () {
-    if ( this.purpose === "string" || this.purpose === "name" )
+    if ( this.purpose === "string" || this.purpose === "name" ) {
         return this.foreignVal;
-    
-    if ( this.purpose === "table" ) {
+    } else if ( this.purpose === "table" ) {
         var result = [ "table" ];
         this.foreignVal.each( function ( k, v ) {
             result.push( [ k, v ] );
         } );
         return result;
+    } else if ( this.purpose === "int" ) {
+        return [ "int", this.foreignVal ];
+    } else {
+        throw new Error(
+            "Cene internal language error: Tried to call toName on " +
+            "a StcForeign that didn't support it" );
     }
-    
-    throw new Error();
 };
 StcForeign.prototype.pretty = function () {
     return "(foreign " + this.purpose + " " +
@@ -831,6 +841,27 @@ StcDexTable.prototype.toName = function () {
 StcDexTable.prototype.pretty = function () {
     return "(dex-table " + this.dexVal.pretty() + ")";
 };
+function StcDexInt() {
+    // We do nothing.
+}
+StcDexInt.prototype.affiliation = "dex";
+StcDexInt.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcDexInt.prototype.dexHas = function ( rt, x ) {
+    return macLookupRet(
+        rt.fromBoolean(
+            x instanceof StcForeign && x.purpose === "int" ) );
+};
+StcDexInt.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
+};
+StcDexInt.prototype.toName = function () {
+    return [ "dex-int" ];
+};
+StcDexInt.prototype.pretty = function () {
+    return "(dex-int)";
+};
 function StcMergeByDex( dexToUse ) {
     if ( dexToUse.affiliation !== "dex" )
         throw new Error();
@@ -889,6 +920,58 @@ StcFuseByMerge.prototype.toName = function () {
 };
 StcFuseByMerge.prototype.pretty = function () {
     return "(fuse-by-merge " + this.mergeToUse.pretty() + ")";
+};
+function StcFuseIntByPlus() {
+    // We do nothing.
+}
+StcFuseIntByPlus.prototype.affiliation = "fuse";
+StcFuseIntByPlus.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcFuseIntByPlus.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+StcFuseIntByPlus.prototype.fuse = function ( rt, a, b ) {
+    if ( !(a instanceof StcForeign
+        && a.purpose === "int") )
+        throw new Error();
+    if ( !(b instanceof StcForeign
+        && b.purpose === "int") )
+        throw new Error();
+    return macLookupRet(
+        stcForeignInt( a.foreignVal + b.foreignVal ) );
+};
+StcFuseIntByPlus.prototype.toName = function () {
+    return [ "fuse-int-by-plus" ];
+};
+StcFuseIntByPlus.prototype.pretty = function () {
+    return "(fuse-int-by-plus)";
+};
+function StcFuseIntByTimes() {
+    // We do nothing.
+}
+StcFuseIntByTimes.prototype.affiliation = "fuse";
+StcFuseIntByTimes.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcFuseIntByTimes.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+StcFuseIntByTimes.prototype.fuse = function ( rt, a, b ) {
+    if ( !(a instanceof StcForeign
+        && a.purpose === "int") )
+        throw new Error();
+    if ( !(b instanceof StcForeign
+        && b.purpose === "int") )
+        throw new Error();
+    return macLookupRet(
+        stcForeignInt( a.foreignVal * b.foreignVal ) );
+};
+StcFuseIntByTimes.prototype.toName = function () {
+    return [ "fuse-int-by-times" ];
+};
+StcFuseIntByTimes.prototype.pretty = function () {
+    return "(fuse-int-by-times)";
 };
 function StcFuseStruct(
     nameTag, affiliation, expectedTupleTag, projFuses ) {
@@ -2829,6 +2912,11 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
+        effectfulFun( "dex-int", function ( rt, ignored ) {
+            return macLookupRet( new StcDexInt() );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
         fun( "call-dex", function ( rt, dex ) {
             return stcFnPure( function ( rt, a ) {
                 return new StcFn( function ( rt, b ) {
@@ -2993,6 +3081,16 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
+        effectfulFun( "fuse-int-by-plus", function ( rt, ignored ) {
+            return macLookupRet( new StcFuseIntByPlus() );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        effectfulFun( "fuse-int-by-times", function ( rt, ignored ) {
+            return macLookupRet( new StcFuseIntByTimes() );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
         fun( "call-fuse", function ( rt, fuse ) {
             return stcFnPure( function ( rt, a ) {
                 return new StcFn( function ( rt, b ) {
@@ -3154,6 +3252,74 @@ function usingDefinitionNs( macroDefNs ) {
                         } );
                     }
                 } );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "int-zero", function ( rt, ignored ) {
+            return stcForeignInt( 0 );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "int-one", function ( rt, ignored ) {
+            return stcForeignInt( 1 );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        //
+        // TODO: See if we should make this available as a dex
+        // (becoming the first dex with a visible order to it) or as a
+        // merge (in the form of a max or min operation).
+        //
+        fun( "int-compare", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                if ( !(a instanceof StcForeign
+                    && a.purpose === "int") )
+                    throw new Error();
+                if ( !(b instanceof StcForeign
+                    && b.purpose === "int") )
+                    throw new Error();
+                
+                if ( a.foreignVal < b.foreignVal )
+                    return stcYep.ofNow( stcNil.ofNow() );
+                else if ( b.foreignVal < a.foreignVal )
+                    return stcNope.ofNow( stcNil.ofNow() );
+                else
+                    return stcNil.ofNow();
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "int-minus", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                if ( !(a instanceof StcForeign
+                    && a.purpose === "int") )
+                    throw new Error();
+                if ( !(b instanceof StcForeign
+                    && b.purpose === "int") )
+                    throw new Error();
+                return stcForeignInt( a.foreignVal - b.foreignVal );
+            } );
+        } );
+        
+        // TODO: Add documentation of this somewhere.
+        fun( "int-div-rounded-down", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                if ( !(a instanceof StcForeign
+                    && a.purpose === "int") )
+                    throw new Error();
+                if ( !(b instanceof StcForeign
+                    && b.purpose === "int") )
+                    throw new Error();
+                
+                if ( b.foreignVal === 0 )
+                    return stcNil.ofNow();
+                
+                var div = Math.floor( a.foreignVal / b.foreignVal );
+                var mod = a.foreignVal - div * b.foreignVal;
+                return stcCarried.ofNow(
+                    stcForeignInt( div ),
+                    stcForeignInt( mod ) );
             } );
         } );
         
@@ -3777,6 +3943,11 @@ function usingDefinitionNs( macroDefNs ) {
         // TODO: Add documentation for this somewhere.
         type( "dexable", [ "dex", "val" ] );
         
+        // This constructor is needed to deconstruct the result of
+        // `int-div-rounded-down`.
+        // TODO: Add documentation for this somewhere.
+        type( "carried", [ "main", "carry" ] );
+        
         // These s-expression constructors are needed so that macros
         // can parse their s-expression arguments. The `cons` and
         // `nil` constructors are also needed for parsing and
@@ -3791,13 +3962,6 @@ function usingDefinitionNs( macroDefNs ) {
         // This constructor is needed so that macros can parse their
         // located syntax arguments.
         type( "stx", [ "stx-details", "s-expr" ] );
-        
-        // These constructors aren't strictly needed, but several
-        // built-in operators use these constructors so that it's more
-        // convenient for user-level code to detect what type of value
-        // it's dealing with.
-        type( "string", [ "val" ] );
-        type( "name", [ "val" ] );
         
         commitDummyMode( namespaceDefs, dummyMode );
     }
