@@ -339,7 +339,6 @@
 
 (def-type
   fixops zero one complement compare plus minus times div dual-div)
-(def-type carried main carry)
 
 (defn fixops-zero fixops
   (cast fixops
