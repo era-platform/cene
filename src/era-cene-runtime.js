@@ -2903,15 +2903,15 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
-        effectfulFun( "dex-table", function ( rt, dexVal ) {
+        fun( "dex-table", function ( rt, dexVal ) {
             if ( dexVal.affiliation !== "dex" )
                 throw new Error();
-            return macLookupRet( new StcDexTable( dexVal ) );
+            return new StcDexTable( dexVal );
         } );
         
         // TODO: Add documentation of this somewhere.
-        effectfulFun( "dex-int", function ( rt, ignored ) {
-            return macLookupRet( new StcDexInt() );
+        fun( "dex-int", function ( rt, ignored ) {
+            return new StcDexInt();
         } );
         
         // TODO: Add documentation of this somewhere.
@@ -2955,8 +2955,8 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
-        effectfulFun( "merge-by-dex", function ( rt, dex ) {
-            return macLookupRet( new StcMergeByDex( dex ) );
+        fun( "merge-by-dex", function ( rt, dex ) {
+            return new StcMergeByDex( dex );
         } );
         
         // TODO: Add documentation of this somewhere.
@@ -3005,10 +3005,9 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
-        effectfulFun( "merge-table", function ( rt, mergeVal ) {
-            return macLookupRet(
-                new StcFuseTable( "merge-table", "merge",
-                    mergeVal ) );
+        fun( "merge-table", function ( rt, mergeVal ) {
+            return new StcFuseTable( "merge-table", "merge",
+                mergeVal );
         } );
         
         // TODO: Add documentation of this somewhere.
@@ -3023,8 +3022,8 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
-        effectfulFun( "fuse-by-merge", function ( rt, merge ) {
-            return macLookupRet( new StcFuseByMerge( merge ) );
+        fun( "fuse-by-merge", function ( rt, merge ) {
+            return new StcFuseByMerge( merge );
         } );
         
         // TODO: Add documentation of this somewhere.
@@ -3073,19 +3072,18 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
-        effectfulFun( "fuse-table", function ( rt, fuseVal ) {
-            return macLookupRet(
-                new StcFuseTable( "fuse-table", "fuse", fuseVal ) );
+        fun( "fuse-table", function ( rt, fuseVal ) {
+            return new StcFuseTable( "fuse-table", "fuse", fuseVal );
         } );
         
         // TODO: Add documentation of this somewhere.
-        effectfulFun( "fuse-int-by-plus", function ( rt, ignored ) {
-            return macLookupRet( new StcFuseIntByPlus() );
+        fun( "fuse-int-by-plus", function ( rt, ignored ) {
+            return new StcFuseIntByPlus();
         } );
         
         // TODO: Add documentation of this somewhere.
-        effectfulFun( "fuse-int-by-times", function ( rt, ignored ) {
-            return macLookupRet( new StcFuseIntByTimes() );
+        fun( "fuse-int-by-times", function ( rt, ignored ) {
+            return new StcFuseIntByTimes();
         } );
         
         // TODO: Add documentation of this somewhere.
