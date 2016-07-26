@@ -2353,15 +2353,22 @@
 \= see anything but the first successful outcome of the backtracking,
 \= so we're using a simplified subset of regexes where backtracking is
 \= unnecessary.
+\=
+\= TODO: Actually, implement Cene primitives by these particular
+\= names. Use different names for the big versions we implement here.
+\=
+\= TODO: Reconsider whether to use the term "regex" in these names,
+\= since these don't even have all the capabilities of mathematical
+\= regular expressions.
+\=
 \;rm[
 
 (defn finite-regex-zero - ...)
 Creates a finite regex that matches zero characters.
 
-(defn finite-regex-one-from-string-maybe string ...)
-Creates a finite regex that matches one character if it's contained
-in the given string. Returns (yep ...) on success and (nil) if the
-result would be too complicated to represent.
+(defn finite-regex-one-from-string string ...)
+Creates a finite regex that matches one character if it's contained in
+the given string.
 
 (defn finite-regex-one-from-range a b ...)
 Creates a finite regex that matches one character if it falls
@@ -2371,45 +2378,59 @@ string, inclusive.
 (defn finite-regex-one - ...)
 Creates a finite regex that matches one character.
 
-(defn finite-regex-not-maybe finite-regex ...)
+(defn finite-regex-not finite-regex ...)
 Creates a finite regex that matches if the given finite regex does not
-match it. It matches the same number of characters the given regex
-generally matches. Returns (yep ...) on success and (nil) if the
-result would be too complicated to represent.
+match. It matches the same number of characters the given regex
+generally matches.
 
-(defn finite-regex-and-maybe a b ...)
+(defn finite-regex-and a b ...)
 Creates a finite regex that matches if the two given finite regexes
 both match. The given finite regexes must have the same match length,
-or this call is an error. Returns (yep ...) on success and (nil) if
-the result would be too complicated to represent.
+or this call is an error.
 
-(defn finite-regex-then-maybe a b ...)
+(defn finite-regex-then a b ...)
 Creates a finite regex that matches whatever the first given finite
 regex matches, together with whatever the second given finite regex
-matches after that. Returns (yep ...) on success and (nil) if the
-result would be too complicated to represent.
+matches after that.
 
-(defn optimistic-regex-repeat-maybe finite-regex ...)
-Creates an optimistic regex that matches the given finite regex as
-many times at it can successively. Returns (yep ...) on success and
-(nil) if the result would be too complicated to represent.
+(defn suspendable-regex-repeat finite-regex ...)
+Creates a suspendable regex that matches the given finite regex as
+many times at it can successively.
 
-(defn optimistic-regex-or-maybe a b ...)
-Creates an optimistic regex that matches if the first given optimistic
-regex matches and otherwise matches if the second given optimistic
-regex matches. Returns (yep ...) on success and (nil) if the result
-would be too complicated to represent.
+(defn suspendable-regex-or a b ...)
+Creates a suspendable regex that matches if the first given
+suspendable regex matches and otherwise matches if the second given
+suspendable regex matches.
 
-(defn optimistic-regex-then-maybe finite-regex optimistic-regex ...)
-Creates an optimistic regex that matches whatever given finite regex
-matches, together with whatever the given optimistic regex matches
-after that. Returns (yep ...) on success and (nil) if the
-result would be too complicated to represent.
+(defn suspendable-regex-then finite-regex optimistic-regex ...)
+Creates a suspendable regex that matches whatever given finite regex
+matches, together with whatever the given suspendable regex matches
+after that.
 
-(defn optimistic-regex-match optimistic-regex ...)
-Takes an optimistic regex and produces an optimized function that
-takes a starting position and a string and returns the ending position
-of the match.
+(defn optimize-suspendable-regex-later suspendable-regex then ...)
+(then optimized-suspendable-regex)
+Monadically, takes a suspendable regex and a callback, and in a later
+tick, monadically passes the callback an optimized suspendable regex.
+
+(def-type suspendable-regex-result-success stop)
+(def-type suspendable-regex-result-failure)
+(def-type suspendable-regex-result-continue
+  result-if-at-end optimized-suspendable-regex)
+
+(defn optimized-suspendable-regex-match
+  optimized-suspendable-regex string start then
+  ...)
+(then suspendable-regex-result)
+Monadically takes an optimized suspendable regex, a starting position,
+a string, and a callback, and in a later tick, monadically passes the
+callback a suspendable regex result. A suspendable regex result can
+be a `(suspendable-regex-result-success ...)` containing the ending
+position of the match, a `(suspendable-regex-result-failure)`
+indicating that the match failed, or a
+`(suspendable-regex-result-continue ...)` containing a suspendable
+regex result to use if this is the end of the string and another
+suspendable regex to apply in the future if there's more string
+content to match against.
 
 ]
 
