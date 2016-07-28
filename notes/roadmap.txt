@@ -2,7 +2,7 @@ Cene tasks, in roughly highest-priority-first order:
 
 - Try to implement an example of an extensible framework (such as multimethods) in terms of the various "contribute" primitives.
 
-- Implement a live service API as described in the "Implementing Blade" note in old-roadmap-notes.txt. This basically amounts to implementing lifelines.
+- Implement the live service API described in live-services.txt.
 
 - Cene's namespaces are going to have lots of functionality already, but see if we need to design any more LVar primitives according to the laws described in lvars.md.
 
