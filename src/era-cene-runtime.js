@@ -3407,6 +3407,18 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        function parseSingleUnicodeScalar( string ) {
+            var parsedString = parseString( string );
+            if ( parsedString.paddedStr.length !== 2 )
+                throw new Error();
+            
+            return anyUnicodeCodePoint( parsedString.jsStr,
+                function ( codePointInfo ) {
+                
+                return { val: codePointInfo.codePoint };
+            } ).val;
+        }
+        
         // TODO: Add documentation of this somewhere.
         fun( "string-get-unicode-scalar-later",
             function ( rt, string ) {
@@ -3425,18 +3437,13 @@ function usingDefinitionNs( macroDefNs ) {
                         && start * 2 < stringInternal.length) )
                         throw new Error();
                     
-                    var result = anyUnicodeCodePoint(
-                        stcForeignStrFromPadded(
-                            stringInternal.substring(
-                                start * 2, (start + 1) * 2 )
-                        ).foreignVal.jsStr,
-                        function ( codePointInfo ) {
-                        
-                        return { val: codePointInfo.codePoint };
-                    } ).val;
-                    
                     return callStcLater( rt, then,
-                        stcForeignInt( result ) );
+                        stcForeignInt(
+                            parseSingleUnicodeScalar(
+                                stcForeignStrFromPadded(
+                                    stringInternal.substring(
+                                        start * 2, (start + 1) * 2 )
+                                ) ) ) );
                 } );
             } );
         } );
@@ -3450,6 +3457,580 @@ function usingDefinitionNs( macroDefNs ) {
                     return callStcLater( rt, then,
                         stcForeignStrFromPadded(
                             aInternal + bInternal ) );
+                } );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "finite-regex-zero-give-up", function ( rt, ignored ) {
+            return new StcForeign( "finite-regex", {
+                length: 0,
+                compile: function () {
+                    return {
+                        jsRegexes: []
+                    };
+                }
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "finite-regex-zero", function ( rt, ignored ) {
+            return new StcForeign( "finite-regex", {
+                length: 0,
+                compile: function () {
+                    return {
+                        jsRegexes: [ [] ]
+                    };
+                }
+            } );
+        } );
+        
+        function escapeRegex( jsStr ) {
+            return jsStr.replace( /[\\^$.|?*+()[\]{}]/g, "\\$&" );
+        }
+        function escapeRegexCharacterSet( jsStr ) {
+            return jsStr.replace( /[\\^-[\]]/g, "\\$&" );
+        }
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "finite-regex-one-in-string", function ( rt, string ) {
+            var stringInternal = parseString( string ).paddedStr;
+            
+            return new StcForeign( "finite-regex", {
+                length: 1,
+                compile: function () {
+                    return {
+                        jsRegexes: [ [ "(?:[^\d\D]" +
+                            stringInternal.replace( /[\d\D][\d\D]/g,
+                                function (
+                                    scalarStr, i, stringInternal ) {
+                                
+                                return "|" + escapeRegex( scalarStr );
+                            } ) +
+                        ")" ] ]
+                    };
+                }
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "finite-regex-one-in-range", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                var aScalar = parseSingleUnicodeScalar( a );
+                var bScalar = parseSingleUnicodeScalar( b );
+                
+                if ( !(aScalar <= bScalar) )
+                    throw new Error();
+                
+                var aParsed = parseString( a ).paddedStr;
+                var bParsed = parseString( b ).paddedStr;
+                var a0 = aParsed.charAt( 0 );
+                var a1 = aParsed.charAt( 1 );
+                var b0 = bParsed.charAt( 0 );
+                var b1 = bParsed.charAt( 1 );
+                
+                return new StcForeign( "finite-regex", {
+                    length: 1,
+                    compile: function () {
+                        return {
+                            jsRegexes: [ [ a0 === b0 ?
+                                escapeRegex( a0 ) +
+                                    (a1 === b1 ?
+                                        escapeRegex( a1 ) :
+                                        "[" + escapeRegexCharacterSet( a1 ) + "-" +
+                                            escapeRegexCharacterSet( b1 ) + "]") :
+                                "(?:" + escapeRegex( a0 ) +
+                                    "[" + escapeRegexCharacterSet( a1 ) + "-\uFFFF]|" +
+                                    (a0 + 1 === b0 ? "" :
+                                        "[" + escapeRegexCharacterSet( a0 + 1 ) + "-" +
+                                            escapeRegexCharacterSet( b0 - 1 ) + "][\d\D]|") +
+                                    escapeRegex( a1 ) + "[\x00-" + escapeRegexCharacterSet( b1 ) + "])"
+                            ] ]
+                        };
+                    }
+                } );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "finite-regex-one", function ( rt, ignored ) {
+            return new StcForeign( "finite-regex", {
+                length: 1,
+                compile: function () {
+                    return {
+                        jsRegexes: [ [ "[\d\D]{2}" ] ]
+                    };
+                }
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "finite-regex-one-not", function ( rt, finiteRegex ) {
+            if ( !(finiteRegex instanceof StcForeign
+                && finiteRegex.purpose === "finite-regex") )
+                throw new Error();
+            var finiteRegexInternal = finiteRegex.foreignVal;
+            var finiteRegexFunc = finiteRegexInternal.compile;
+            
+            return new StcForeign( "finite-regex", {
+                length: 1,
+                compile: function () {
+                    var subResult = finiteRegexFunc();
+                    
+                    return {
+                        jsRegexes: [ [
+                            arrMap( subResult.jsRegexes,
+                                function ( r ) {
+                                
+                                return "(?!" + r[ 0 ] + ")";
+                            } ).join( "" ) + "[\d\D]{2}"
+                        ] ]
+                    };
+                }
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "finite-regex-and", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                if ( !(a instanceof StcForeign
+                    && a.purpose === "finite-regex") )
+                    throw new Error();
+                var aInternal = a.foreignVal;
+                var aFunc = aInternal.compile;
+                if ( !(b instanceof StcForeign
+                    && b.purpose === "finite-regex") )
+                    throw new Error();
+                var bInternal = b.foreignVal;
+                var bFunc = bInternal.compile;
+                
+                if ( aInternal.length !== bInternal.length )
+                    throw new Error();
+                
+                return new StcForeign( "finite-regex", {
+                    length: aInternal.length,
+                    compile: function () {
+                        var aResult = aFunc();
+                        var bResult = bFunc();
+                        
+                        return {
+                            jsRegexes:
+                                arrMappend( aResult.jsRegexes,
+                                    function ( a ) {
+                                return arrMappend( bResult.jsRegexes,
+                                    function ( b ) {
+                                
+                                var jsRegexes = [];
+                                for ( var i = 0; i < n; i++ )
+                                    jsRegexes.push( "(?=" + a[ i ] + ")" + b[ i ] );
+                                return [ jsRegexes ];
+                                
+                                } );
+                                } )
+                        };
+                    }
+                } );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "finite-regex-or", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                if ( !(a instanceof StcForeign
+                    && a.purpose === "finite-regex") )
+                    throw new Error();
+                var aInternal = a.foreignVal;
+                var aFunc = aInternal.compile;
+                if ( !(b instanceof StcForeign
+                    && b.purpose === "finite-regex") )
+                    throw new Error();
+                var bInternal = b.foreignVal;
+                var bFunc = bInternal.compile;
+                
+                if ( aInternal.length !== bInternal.length )
+                    throw new Error();
+                
+                return new StcForeign( "finite-regex", {
+                    length: aInternal.length,
+                    compile: function () {
+                        var aResult = aFunc();
+                        var bResult = bFunc();
+                        
+                        return {
+                            jsRegexes: [].concat(
+                                aResult.jsRegexes,
+                                bResult.jsRegexes )
+                        };
+                    }
+                } );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "finite-regex-then", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                if ( !(a instanceof StcForeign
+                    && a.purpose === "finite-regex") )
+                    throw new Error();
+                var aInternal = a.foreignVal;
+                var aFunc = aInternal.compile;
+                if ( !(b instanceof StcForeign
+                    && b.purpose === "finite-regex") )
+                    throw new Error();
+                var bInternal = b.foreignVal;
+                var bFunc = bInternal.compile;
+                
+                return new StcForeign( "finite-regex", {
+                    length: aInternal.length + bInternal.length,
+                    compile: function () {
+                        var aResult = aFunc();
+                        var bResult = bFunc();
+                        
+                        return {
+                            jsRegexes:
+                                arrMappend( aResult.jsRegexes,
+                                    function ( a ) {
+                                return arrMappend( bResult.jsRegexes,
+                                    function ( b ) {
+                                
+                                return [ [].concat( a, b ) ];
+                                
+                                } );
+                                } )
+                        };
+                    }
+                } );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "suspendable-regex-finite",
+            function ( rt, finiteRegex ) {
+            
+            if ( !(finiteRegex instanceof StcForeign
+                && finiteRegex.purpose === "finite-regex") )
+                throw new Error();
+            var finiteRegexInternal = finiteRegex.foreignVal;
+            var finiteRegexFunc = finiteRegexInternal.compile;
+            
+            return new StcForeign( "suspendable-regex", {
+                compile: function () {
+                    var subResult = finiteRegexFunc();
+                    
+                    return {
+                        jsRegexes: arrMap( subResult.jsRegexes,
+                            function ( r ) {
+                            
+                            return {
+                                finitePart: r,
+                                repeatPart: []
+                            };
+                        } )
+                    };
+                }
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "suspendable-regex-repeat",
+            function ( rt, finiteRegex ) {
+            
+            if ( !(finiteRegex instanceof StcForeign
+                && finiteRegex.purpose === "finite-regex") )
+                throw new Error();
+            var finiteRegexInternal = finiteRegex.foreignVal;
+            var finiteRegexFunc = finiteRegexInternal.compile;
+            
+            return new StcForeign( "suspendable-regex", {
+                compile: function () {
+                    var subResult = finiteRegexFunc();
+                    
+                    return {
+                        jsRegexes: arrMap( subResult.jsRegexes,
+                            function ( r ) {
+                            
+                            return {
+                                finitePart: [],
+                                repeatPart: r
+                            };
+                        } )
+                    };
+                }
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "suspendable-regex-and", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                if ( !(a instanceof StcForeign
+                    && a.purpose === "suspendable-regex") )
+                    throw new Error();
+                var aInternal = a.foreignVal;
+                var aFunc = aInternal.compile;
+                if ( !(b instanceof StcForeign
+                    && b.purpose === "suspendable-regex") )
+                    throw new Error();
+                var bInternal = b.foreignVal;
+                var bFunc = bInternal.compile;
+                
+                return new StcForeign( "suspendable-regex", {
+                    compile: function () {
+                        var aResult = aFunc();
+                        var bResult = bFunc();
+                        
+                        return {
+                            jsRegexes:
+                                arrMappend( aResult.jsRegexes,
+                                    function ( a ) {
+                                return arrMappend( bResult.jsRegexes,
+                                    function ( b ) {
+                                
+                                function andI( i ) {
+                                    function getFrom( side ) {
+                                        var n = side.finitePart.length;
+                                        return i < n ? side.finitePart[ i ] :
+                                            side.repeatPart[ (i - n) % side.repeatPart.length ];
+                                    }
+                                    return "(?=" + getFrom( a ) + ")" + getIFrom( b );
+                                }
+                                
+                                var newFiniteLength = Math.max(
+                                    a.finitePart.length,
+                                    b.finitePart.length );
+                                
+                                function gcd( a, b ) {
+                                    var currentA = a;
+                                    var currentB = b;
+                                    while ( true ) {
+                                        if ( currentA < currentB ) {
+                                            currentB %= currentA;
+                                        } else if ( currentB < currentA ) {
+                                            currentA %= currentB;
+                                        } else {
+                                            return currentA;
+                                        }
+                                    }
+                                }
+                                function lcm( a, b ) {
+                                    return a / gcd( a, b ) * b;
+                                }
+                                var newRepeatLength =
+                                    lcm( a.repeatPart.length, b.repeatPart.length );
+                                
+                                var finitePart = [];
+                                for ( var i = 0;
+                                    i < newFiniteLength; i++ )
+                                    finitePart.push( andI( i ) );
+                                
+                                var repeatPart = [];
+                                for ( var i = 0;
+                                    i < newRepeatLength; i++ )
+                                    repeatPart.push( andI( newFiniteLength + i ) );
+                                
+                                return [ {
+                                    finitePart: finitePart,
+                                    repeatPart: repeatpart
+                                } ];
+                                
+                                } );
+                                } )
+                        };
+                    }
+                } );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "suspendable-regex-or", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                if ( !(a instanceof StcForeign
+                    && a.purpose === "suspendable-regex") )
+                    throw new Error();
+                var aInternal = a.foreignVal;
+                var aFunc = aInternal.compile;
+                if ( !(b instanceof StcForeign
+                    && b.purpose === "suspendable-regex") )
+                    throw new Error();
+                var bInternal = b.foreignVal;
+                var bFunc = bInternal.compile;
+                
+                if ( aInternal.length !== bInternal.length )
+                    throw new Error();
+                
+                return new StcForeign( "suspendable-regex", {
+                    compile: function () {
+                        var aResult = aFunc();
+                        var bResult = bFunc();
+                        
+                        return {
+                            jsRegexes: [].concat(
+                                aResult.jsRegexes,
+                                bResult.jsRegexes )
+                        };
+                    }
+                } );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "suspendable-regex-then",
+            function ( rt, finiteRegex ) {
+            
+            return stcFnPure( function ( rt, suspendableRegex ) {
+                
+                if ( !(finiteRegex instanceof StcForeign
+                    && finiteRegex.purpose === "finite-regex") )
+                    throw new Error();
+                var finiteRegexInternal = finiteRegex.foreignVal;
+                var finiteRegexFunc = finiteRegexInternal.compile;
+                
+                if ( !(suspendableRegex instanceof StcForeign
+                    && suspendableRegex.purpose ===
+                        "suspendable-regex") )
+                    throw new Error();
+                var suspendableRegexInternal =
+                    suspendableRegex.foreignVal;
+                var suspendableRegexFunc =
+                    suspendableRegexInternal.compile;
+                
+                return new StcForeign( "suspendable-regex", {
+                    compile: function () {
+                        var finiteResult = finiteRegexFunc();
+                        var suspendableResult =
+                            suspendableRegexFunc();
+                        
+                        return {
+                            jsRegexes:
+                                arrMappend( finiteResult.jsRegexes,
+                                    function ( f ) {
+                                return arrMappend(
+                                    suspendableResult.jsRegexes,
+                                    function ( s ) {
+                                
+                                return [ {
+                                    finitePart: [].concat( f, s.finitePart ),
+                                    repeatPart: s.repeatPart
+                                } ];
+                                
+                                } );
+                                } )
+                        };
+                    }
+                } );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "optimize-suspendable-regex-later",
+            function ( rt, suspendableRegex ) {
+            
+            return stcFnPure( function ( rt, then ) {
+                if ( !(suspendableRegex instanceof StcForeign
+                    && suspendableRegex.purpose ===
+                        "suspendable-regex") )
+                    throw new Error();
+                var suspendableRegexInternal =
+                    suspendableRegex.foreignVal;
+                var suspendableRegexFunc =
+                    suspendableRegexInternal.compile;
+                
+                return callStcLater( rt, then,
+                    new StcForeign( "optimized-suspendable-regex",
+                        suspendableRegexFunc().jsRegexes ) );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        // TODO: Implement this properly.
+        fun( "optimized-suspendable-regex-match-later",
+            function ( rt, regex ) {
+            
+            return stcFnPure( function ( rt, string ) {
+                return stcFnPure( function ( rt, start ) {
+                    return stcFnPure( function ( rt, then ) {
+                        
+                        if ( !(regex instanceof StcForeign
+                            && regex.purpose ===
+                                "optimized-suspendable-regex") )
+                            throw new Error();
+                        var regexInternal = regex.foreignVal;
+                        
+                        var stringInternal =
+                            parseString( string ).paddedStr;
+                        
+                        if ( !(start instanceof StcForeign
+                            && start.purpose === "int") )
+                            throw new Error();
+                        var startInternal = start.foreignVal;
+                        
+                        if ( !(0 <= start
+                            && start * 2 <= stringInternal.length) )
+                            throw new Error();
+                        
+                        function regexesToChain( regexes ) {
+                            return regexes.join( "" );
+                        }
+                        function regexesToOptionalChain( regexes ) {
+                            var result = "";
+                            for ( var i = regexes.length - 1; 0 <= i; i-- )
+                                result =
+                                    "(?:" + regexes[ i ] + result + ")?";
+                            return result;
+                        }
+                        function finiteAndRepeatPartsToRegex(
+                            parts ) {
+                            
+                            return new RegExp(
+                                regexesToOptionalChain( [].concat(
+                                    parts.finitePart,
+                                    [ parts.repeatPart.length === 0 ?
+                                        "()" :
+                                        "((?:" + regexesToChain( parts.repeatPart ) + ")*)" +
+                                            regexesToOptionalChain( parts.repeatPart ) ]
+                                ) ) );
+                        }
+                        
+                        var start2 = start * 2;
+                        var newRegexInternal = [];
+                        arrEach( regexInternal, function ( parts ) {
+                            var jsRegex =
+                                finiteAndRepeatPartsToRegex( parts );
+                            jsRegex.lastIndex = start2;
+                            var match =
+                                jsRegex.exec( stringInternal );
+                            var stop2 = start2 + match[ 0 ].length;
+                            var finished = match[ 1 ] !== void 0 &&
+                                match[ 1 ].length === 0;
+                            
+                            if ( stop2 === stringInternal.length ) {
+                                // TODO: Implement this.
+                            } else {
+                                // TODO: Implement this.
+                            }
+                        } );
+                        
+                        // TODO: Implement this.
+                        var result = stcNil.ofNow();
+                        
+                        return callStcLater( rt, then,
+                            result );
+                    } );
                 } );
             } );
         } );
