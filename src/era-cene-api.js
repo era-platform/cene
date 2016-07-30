@@ -267,13 +267,12 @@ function ceneApiUsingDefinitionNs(
         function unparseNonUnicodeString( string ) {
             if ( typeof string !== "string" )
                 throw new Error();
-            return new StcForeign( "string",
-                toValidUnicode( string ) );
+            return stcForeignStrFromJs( toValidUnicode( string ) );
         }
         function parsePossiblyEncapsulatedString( string ) {
             if ( string instanceof StcForeign
                 && string.purpose === "string" ) {
-                var result = parseString( string );
+                var result = parseString( string ).jsStr;
                 return function () {
                     return result;
                 };
@@ -344,7 +343,7 @@ function ceneApiUsingDefinitionNs(
                     && inputPath.purpose === "input-path") )
                     throw new Error();
                 
-                var nameInternal = parseString( name );
+                var nameInternal = parseString( name ).jsStr;
                 
                 return new StcForeign( "input-path",
                     apiOps.inputPathGet(
@@ -424,7 +423,7 @@ function ceneApiUsingDefinitionNs(
                     && outputPath.purpose === "output-path") )
                     throw new Error();
                 
-                var nameInternal = parseString( name );
+                var nameInternal = parseString( name ).jsStr;
                 
                 return new StcForeign( "output-path",
                     apiOps.outputPathGet(
@@ -468,7 +467,7 @@ function ceneApiUsingDefinitionNs(
             function ( rt, key ) {
             
             return stcFnPure( function ( rt, value ) {
-                var keyInternal = parseString( key );
+                var keyInternal = parseString( key ).jsStr;
                 
                 return new StcForeign( "effects",
                     function ( rawMode ) {
@@ -507,7 +506,7 @@ function ceneApiUsingDefinitionNs(
                     var dedupVars = [];
                     var dedupVarsMap = {};
                     eachConsList( topLevelVars, function ( va ) {
-                        var vaInternal = parseString( va );
+                        var vaInternal = parseString( va ).jsStr;
                         var k = "|" + vaInternal;
                         if ( dedupVarsMap[ k ] )
                             return;
@@ -527,7 +526,8 @@ function ceneApiUsingDefinitionNs(
         } );
         
         fun( "string-to-javascript-utf-16", function ( rt, string ) {
-            return new StcForeign( "foreign", parseString( string ) );
+            return new StcForeign( "foreign",
+                parseString( string ).jsStr );
         } );
         
         fun( "javascript-utf-16-to-string", function ( rt, string ) {
@@ -605,10 +605,10 @@ function ceneApiUsingDefinitionNs(
                 
                 var paramsInternal = mapConsListToArr( params,
                     function ( param ) {
-                        return parseString( param );
+                        return parseString( param ).jsStr;
                     } );
                 
-                var bodyInternal = parseString( body );
+                var bodyInternal = parseString( body ).jsStr;
                 
                 return new StcForeign( "js-effects", function () {
                     // TODO: Stop putting a potentially large array

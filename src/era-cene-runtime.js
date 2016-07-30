@@ -377,6 +377,20 @@ function stcForeignInt( n ) {
     return new StcForeign( "int", n === -0 ? 0 : n );
 }
 
+function stcForeignStrFromJs( jsStr ) {
+    return new StcForeign( "string", {
+        jsStr: jsStr,
+        paddedStr: jsStr.replace( /[^\uD800-\uDE00]/g, "\x00$&" )
+    } );
+}
+function stcForeignStrFromPadded( paddedStr ) {
+    return new StcForeign( "string", {
+        // NOTE: We use [\d\D] to match any character, even newlines.
+        jsStr: paddedStr.replace( /\x00([\d\D])/g, '$1' ),
+        paddedStr: paddedStr
+    } );
+}
+
 function macLookupRet( result ) {
     return { type: "ret", val: result };
 }
@@ -506,7 +520,9 @@ StcForeign.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcForeign.prototype.toName = function () {
-    if ( this.purpose === "string" || this.purpose === "name" ) {
+    if ( this.purpose === "string" ) {
+        return this.foreignVal.jsStr;
+    } else if ( this.purpose === "name" ) {
         return this.foreignVal;
     } else if ( this.purpose === "table" ) {
         var result = [ "table" ];
@@ -524,7 +540,9 @@ StcForeign.prototype.toName = function () {
 };
 StcForeign.prototype.pretty = function () {
     return "(foreign " + this.purpose + " " +
-        JSON.stringify( this.foreignVal ) + ")";
+        JSON.stringify( this.purpose === "string" ?
+            this.foreignVal.jsStr :
+            this.foreignVal ) + ")";
 };
 function StcDexDefault( first, second ) {
     if ( !(first.affiliation === "dex"
@@ -1728,7 +1746,8 @@ function stcExecute( rt, expr ) {
     // #GEN
     return Function(
         "rt", "Stc", "StcFn", "StcForeign", "StcDexStruct",
-        "StcFuseStruct", "macLookupRet", "macLookupThen",
+        "StcFuseStruct", "stcForeignStrFromJs", "macLookupRet",
+        "macLookupThen",
         
         // NOTE: When the code we generate for this has local
         // variables, we consistently prefix them with "stcLocal_" or
@@ -1737,7 +1756,8 @@ function stcExecute( rt, expr ) {
         "return " + expr + ";"
         
     )( rt, Stc, StcFn, StcForeign, StcDexStruct,
-        StcFuseStruct, macLookupRet, macLookupThen );
+        StcFuseStruct, stcForeignStrFromJs, macLookupRet,
+        macLookupThen );
 }
 
 function nsToDefiner( ns ) {
@@ -1848,7 +1868,7 @@ function usingDefinitionNs( macroDefNs ) {
             return name.foreignVal;
         } else if ( stcIstringNil.tags( sExpr ) ) {
             return parseString(
-                stcIstringNil.getProj( sExpr, "string" ) );
+                stcIstringNil.getProj( sExpr, "string" ) ).jsStr;
         } else {
             return null;
         }
@@ -2549,8 +2569,7 @@ function usingDefinitionNs( macroDefNs ) {
                                         new StcForeign( "name",
                                             stcMacroName( macroDefNs, "err" ) ) ) ),
                                 stcStx.ofNow( myStxDetails,
-                                    stcIstringNil.ofNow(
-                                        new StcForeign( "string", "Internal error" ) ) )
+                                    stcIstringNil.ofNow( stcForeignStrFromJs( "Internal error" ) ) )
                             ] ) ),
                         va
                     ] ),
@@ -2643,7 +2662,7 @@ function usingDefinitionNs( macroDefNs ) {
                         stcErr(
                             stxToDefiniteString(
                                 stcCons.getProj(
-                                    body, "car" ) ) ) ) );
+                                    body, "car" ) ).jsStr ) ) );
             } );
         } );
         
@@ -2657,9 +2676,9 @@ function usingDefinitionNs( macroDefNs ) {
                 return macLookupThenRunEffects( rawMode,
                     then(
                         "macLookupRet( " +
-                            "new StcForeign( \"string\", " +
+                            "stcForeignStrFromJs( " +
                                 jsStr(
-                                    stxToDefiniteString( stcCons.getProj( body, "car" ) ) ) +
+                                    stxToDefiniteString( stcCons.getProj( body, "car" ) ).jsStr ) +
                             " ) )" ) );
             } );
         } );
@@ -3320,23 +3339,16 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: Add documentation of this somewhere.
-        // TODO: Optimize this. Iterating from the beginning of the
-        // string is pretty bad.
         fun( "string-length", function ( rt, string ) {
-            var stringInternal = parseString( string );
-            
-            var n = 0;
-            eachUnicodeCodePoint( stringInternal,
-                function ( codePointInfo ) {
-                
-                n++;
-            } );
-            return stcForeignInt( n );
+            var stringInternal = parseString( string ).paddedStr;
+            if ( stringInternal.length % 2 !== 0 )
+                throw new Error();
+            return stcForeignInt( stringInternal.length / 2 );
         } );
         
         // TODO: Add documentation of this somewhere.
         fun( "string-empty", function ( rt, ignored ) {
-            return new StcForeign( "string", "" );
+            return stcForeignStrFromJs( "" );
         } );
         
         // TODO: Add documentation of this somewhere.
@@ -3349,7 +3361,7 @@ function usingDefinitionNs( macroDefNs ) {
             if ( result === null )
                 throw new Error();
             
-            return new StcForeign( "string", result );
+            return stcForeignStrFromJs( result );
         } );
         
         function callStcLater( rt, func, arg ) {
@@ -3366,14 +3378,13 @@ function usingDefinitionNs( macroDefNs ) {
         }
         
         // TODO: Add documentation of this somewhere.
-        // TODO: Optimize this. Iterating from the beginning of the
-        // string is pretty bad.
         fun( "string-cut-later", function ( rt, string ) {
             return stcFnPure( function ( rt, start ) {
                 return stcFnPure( function ( rt, stop ) {
                     return stcFnPure( function ( rt, then ) {
                         
-                        var stringInternal = parseString( string );
+                        var stringInternal =
+                            parseString( string ).paddedStr;
                         
                         if ( !(start instanceof StcForeign
                             && start.purpose === "int") )
@@ -3382,72 +3393,50 @@ function usingDefinitionNs( macroDefNs ) {
                             && stop.purpose === "int") )
                             throw new Error();
                         
-                        var startUtf16 = null;
-                        var stopUtf16 = null;
-                        var i = 0;
-                        var iUtf16 = 0;
-                        eachUnicodeCodePoint( stringInternal,
-                            function ( codePointInfo ) {
-                            
-                            if ( i === start.foreignVal )
-                                startUtf16 = iUtf16;
-                            if ( i === stop.foreignVal )
-                                stopUtf16 = iUtf16;
-                            i++;
-                            iUtf16 += codePointInfo.charString.length;
-                        } );
-                        if ( i === start.foreignVal )
-                            startUtf16 = iUtf16;
-                        if ( i === stop.foreignVal )
-                            stopUtf16 = iUtf16;
-                        
-                        if ( startUtf16 === null )
-                            throw new Error();
-                        if ( stopUtf16 === null )
-                            throw new Error();
-                        if ( !(0 <= startUtf16
-                            && startUtf16 <= stopUtf16) )
+                        if ( !(0 <= start
+                            && start <= stop
+                            && stop * 2 <= stringInternal.length) )
                             throw new Error();
                         
                         return callStcLater( rt, then,
-                            new StcForeign( "string",
+                            stcForeignStrFromPadded(
                                 stringInternal.substring(
-                                    startUtf16, stopUtf16 ) ) );
+                                    start * 2, stop * 2 ) ) );
                     } );
                 } );
             } );
         } );
         
         // TODO: Add documentation of this somewhere.
-        // TODO: Optimize this. Iterating from the beginning of the
-        // string is pretty bad.
         fun( "string-get-unicode-scalar-later",
             function ( rt, string ) {
             
             return stcFnPure( function ( rt, start ) {
                 return stcFnPure( function ( rt, then ) {
                     
-                    var stringInternal = parseString( string );
+                    var stringInternal =
+                        parseString( string ).paddedStr;
                     
                     if ( !(start instanceof StcForeign
                         && start.purpose === "int") )
                         throw new Error();
                     
-                    var i = 0;
-                    var result = anyUnicodeCodePoint( stringInternal,
-                        function ( codePointInfo ) {
-                        
-                        if ( i === start.foreignVal )
-                            return { val: codePointInfo.codePoint };
-                        i++;
-                        return false;
-                    } );
-                    
-                    if ( !result )
+                    if ( !(0 <= start
+                        && start * 2 < stringInternal.length) )
                         throw new Error();
                     
+                    var result = anyUnicodeCodePoint(
+                        stcForeignStrFromPadded(
+                            stringInternal.substring(
+                                start * 2, (start + 1) * 2 )
+                        ).foreignVal.jsStr,
+                        function ( codePointInfo ) {
+                        
+                        return { val: codePointInfo.codePoint };
+                    } ).val;
+                    
                     return callStcLater( rt, then,
-                        stcForeignInt( result.val ) );
+                        stcForeignInt( result ) );
                 } );
             } );
         } );
@@ -3455,11 +3444,11 @@ function usingDefinitionNs( macroDefNs ) {
         fun( "string-append-later", function ( rt, a ) {
             return stcFnPure( function ( rt, b ) {
                 return stcFnPure( function ( rt, then ) {
-                    var aInternal = parseString( a );
-                    var bInternal = parseString( b );
+                    var aInternal = parseString( a ).paddedStr;
+                    var bInternal = parseString( b ).paddedStr;
                     
                     return callStcLater( rt, then,
-                        new StcForeign( "string",
+                        stcForeignStrFromPadded(
                             aInternal + bInternal ) );
                 } );
             } );
@@ -3845,7 +3834,7 @@ function usingDefinitionNs( macroDefNs ) {
         
         fun( "read-all-force", function ( rt, string ) {
             return stcArrayToConsList( arrMap(
-                readAll( parseString( string ) ),
+                readAll( parseString( string ).jsStr ),
                 function ( tryExpr ) {
                 
                 if ( !tryExpr.ok )
@@ -4098,12 +4087,12 @@ function usingDefinitionNs( macroDefNs ) {
         } else if ( readerExpr.type === "stringNil" ) {
             return stcStx.ofNow( myStxDetails,
                 stcIstringNil.ofNow(
-                    new StcForeign( "string",
+                    stcForeignStrFromJs(
                         readerStringNilToString( readerExpr ) ) ) );
         } else if ( readerExpr.type === "stringCons" ) {
             return stcStx.ofNow( myStxDetails,
                 stcIstringCons.ofNow(
-                    new StcForeign( "string",
+                    stcForeignStrFromJs(
                         readerStringListToString(
                             readerExpr.string ) ),
                     readerExprToStc( myStxDetails,
