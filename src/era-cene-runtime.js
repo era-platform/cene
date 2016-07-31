@@ -3364,14 +3364,16 @@ function usingDefinitionNs( macroDefNs ) {
             return stcForeignStrFromJs( result );
         } );
         
-        function callStcLater( rt, func, arg ) {
+        function callStcLater( rt, func, var_args ) {
+            var args = [].slice.call( arguments, 2 );
             return new StcForeign( "effects", function ( rawMode ) {
                 if ( rawMode.type !== "macro" )
                     throw new Error();
                 collectDefer( rawMode, rawMode.contributingOnlyTo,
                     function () {
                     
-                    return func.callStc( rt, arg );
+                    return callStcMulti.call( null,
+                        [ rt, func ].concat( args ) );
                 } );
                 return macLookupRet( stcNil.ofNow() );
             } );
@@ -3407,6 +3409,18 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        function parseSingleUnicodeScalar( string ) {
+            var parsedString = parseString( string );
+            if ( parsedString.paddedStr.length !== 2 )
+                throw new Error();
+            
+            return anyUnicodeCodePoint( parsedString.jsStr,
+                function ( codePointInfo ) {
+                
+                return { val: codePointInfo.codePoint };
+            } ).val;
+        }
+        
         // TODO: Add documentation of this somewhere.
         fun( "string-get-unicode-scalar-later",
             function ( rt, string ) {
@@ -3425,18 +3439,13 @@ function usingDefinitionNs( macroDefNs ) {
                         && start * 2 < stringInternal.length) )
                         throw new Error();
                     
-                    var result = anyUnicodeCodePoint(
-                        stcForeignStrFromPadded(
-                            stringInternal.substring(
-                                start * 2, (start + 1) * 2 )
-                        ).foreignVal.jsStr,
-                        function ( codePointInfo ) {
-                        
-                        return { val: codePointInfo.codePoint };
-                    } ).val;
-                    
                     return callStcLater( rt, then,
-                        stcForeignInt( result ) );
+                        stcForeignInt(
+                            parseSingleUnicodeScalar(
+                                stcForeignStrFromPadded(
+                                    stringInternal.substring(
+                                        start * 2, (start + 1) * 2 )
+                                ) ) ) );
                 } );
             } );
         } );
@@ -3450,6 +3459,589 @@ function usingDefinitionNs( macroDefNs ) {
                     return callStcLater( rt, then,
                         stcForeignStrFromPadded(
                             aInternal + bInternal ) );
+                } );
+            } );
+        } );
+        
+        function regexOptionalTrivial( necessary ) {
+            var commitNecessary = "\\d^";
+            return {
+                optional: necessary,
+                necessary: necessary,
+                commitOptional: commitNecessary,
+                commitNecessary: commitNecessary
+            };
+        }
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "regex-or-unit", function ( rt, ignored ) {
+            return new StcForeign( "regex", function () {
+                return regexOptionalTrivial( "\\d^" );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "regex-then-unit", function ( rt, ignored ) {
+            return new StcForeign( "regex", function () {
+                return regexOptionalTrivial( "" );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "regex-commit", function ( rt, ignored ) {
+            return new StcForeign( "regex", function () {
+                var necessary = "";
+                var commitNecessary = "";
+                return {
+                    optional: necessary,
+                    necessary: necessary,
+                    commitOptional: commitNecessary,
+                    commitNecessary: commitNecessary
+                };
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "regex-from-string", function ( rt, string ) {
+            var stringRep = parseString( string ).paddedStr;
+            
+            return new StcForeign( "regex", function () {
+                var commitNecessary = "\\d^";
+                return {
+                    optional:
+                        stringRep.replace( /[\d\D]{2}/g,
+                            function ( scalarStr, i, stringRep ) {
+                                return "(?:" +
+                                    escapeRegex( scalarStr );
+                            } ) +
+                        stringRep.replace( /[\d\D]{2}(?:$()|)/g,
+                            function (
+                                scalarStr, atEnd, i, stringRep ) {
+                                
+                                return atEnd === "" ? ")" : "|$)";
+                            } ),
+                    necessary: escapeRegex( string ),
+                    commitOptional: commitNecessary,
+                    commitNecessary: commitNecessary
+                };
+            } );
+        } );
+        
+        function escapeRegex( jsStr ) {
+            return jsStr.replace( /[\\^$.|?*+()[\]{}]/g, "\\$&" );
+        }
+        function escRegexSet( jsStr ) {
+            return jsStr.replace( /[\\^-[\]]/g, "\\$&" );
+        }
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "regex-one-in-string", function ( rt, string ) {
+            var stringRep = parseString( string ).paddedStr;
+            
+            return new StcForeign( "regex", function () {
+                return regexOptionalTrivial( "(?:\\d^" +
+                    stringRep.replace( /[\d\D]{2}/g,
+                        function ( scalarStr, i, stringRep ) {
+                            return "|" + escapeRegex( scalarStr );
+                        } ) + ")" );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "regex-one-in-range", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                var aScalar = parseSingleUnicodeScalar( a );
+                var bScalar = parseSingleUnicodeScalar( b );
+                
+                if ( !(aScalar <= bScalar) )
+                    throw new Error();
+                
+                var aParsed = parseString( a ).paddedStr;
+                var bParsed = parseString( b ).paddedStr;
+                var a0 = aParsed.charAt( 0 );
+                var a1 = aParsed.charAt( 1 );
+                var b0 = bParsed.charAt( 0 );
+                var b1 = bParsed.charAt( 1 );
+                
+                return new StcForeign( "regex", function () {
+                    return regexOptionalTrivial( a0 === b0 ?
+                        escapeRegex( a0 ) +
+                            (a1 === b1 ?
+                                escapeRegex( a1 ) :
+                                "[" + escRegexSet( a1 ) + "-" +
+                                    escRegexSet( b1 ) + "]") :
+                        "(?:" + escapeRegex( a0 ) +
+                            "[" + escRegexSet( a1 ) + "-\\uFFFF]|" +
+                            (a0 + 1 === b0 ? "" :
+                                "[" + escRegexSet( a0 + 1 ) + "-" +
+                                    escRegexSet( b0 - 1 ) + "][\\d\\D]|") +
+                            escapeRegex( a1 ) +
+                            "[\\x00-" + escRegexSet( b1 ) + "])" );
+                } );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "finite-regex-one", function ( rt, ignored ) {
+            return new StcForeign( "regex", function () {
+                return regexOptionalTrivial( "[\\d\\D]{2}" );
+            } );
+        } );
+        
+        function compileRegex( regex ) {
+            if ( !(regex instanceof StcForeign
+                && regex.purpose === "regex") )
+                throw new Error();
+            var regexFunc = regex.foreignVal;
+            var regexData = regexFunc();
+            
+            var optional = regexData.optional;
+            if ( optional === void 0 )
+                optional = null;
+            var necessary = regexData.necessary;
+            if ( necessary === void 0 )
+                necessary = null;
+            var commitOptional = regexData.commitOptional;
+            if ( commitOptional === void 0 )
+                commitOptional = null;
+            var commitNecessary = regexData.commitNecessary;
+            if ( commitNecessary === void 0 )
+                commitNecessary = null;
+            var makeFunc = regexData.makeFunc;
+            if ( makeFunc === void 0 ) {
+                makeFunc = function () {
+                    
+                    function regexThatCanReachEnd( optional ) {
+                        if ( optional === null )
+                            throw new Error();
+                        // NOTE: There's a difference between `(?:_|)`
+                        // and `_?` when `_` contains capture groups.
+                        // The latter discards the groups if `_`
+                        // matches an empty string.
+                        var compiled = new RegExp(
+                            "(?:" + optional + "()|)(?:$()|)" );
+                        return function ( string, start, stop ) {
+                            compiled.lastIndex = start * 2;
+                            var s = string.length === stop * 2 ?
+                                string :
+                                string.substring( 0, stop * 2 );
+                            var match = compiled.exec( s );
+                            var matched = !!match[ 1 ];
+                            var passedEnd = !!match[ 2 ];
+                            
+                            if ( matched )
+                                return { type: "matched",
+                                    stop: start + match[ 0 ].length / 2 };
+                            else if ( passedEnd )
+                                return { type: "passedEnd" };
+                            else
+                                return { type: "failed" };
+                        };
+                    }
+                    
+                    var func = regexData.func;
+                    if ( func === void 0 ) {
+                        var commitCompiled =
+                            regexThatCanReachEnd( commitOptional );
+                        var compiled =
+                            regexThatCanReachEnd( optional );
+                        func = function ( string, start, stop ) {
+                            return {
+                                commit: commitCompiled(
+                                    string, start, stop ),
+                                match: compiled( string, start, stop )
+                            };
+                        };
+                    }
+                    return func;
+                };
+            }
+            
+            return {
+                optional: optional,
+                necessary: necessary,
+                commitOptional: commitOptional,
+                commitNecessary: commitNecessary,
+                makeFunc: makeFunc
+            };
+        }
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "regex-one-but-not-in-regex", function ( rt, regex ) {
+            if ( !(regex instanceof StcForeign
+                && regex.purpose === "regex") )
+                throw new Error();
+            
+            return new StcForeign( "regex", function () {
+                var subCompiled = compileRegex( regex ).makeFunc();
+                
+                return { func: function ( string, start, stop ) {
+                    if ( start === stop )
+                        return { commit: { type: "failed" },
+                            match: { type: "passedEnd" } };
+                    var result =
+                        subCompiled( string, start, start + 1 );
+                    if ( result.match.type === "matched"
+                        && result.match.stop === start + 1 )
+                        return { commit: { type: "failed" },
+                            match: { type: "failed" } };
+                    else
+                        return { commit: { type: "failed" }, match:
+                            { type: "matched", stop: start + 1 } };
+                } };
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        // TODO: Turn this into `merge-regex-or`.
+        fun( "regex-or", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                if ( !(a instanceof StcForeign
+                    && a.purpose === "regex") )
+                    throw new Error();
+                if ( !(b instanceof StcForeign
+                    && b.purpose === "regex") )
+                    throw new Error();
+                
+                return new StcForeign( "regex", function () {
+                    var aCompiled = compileRegex( a );
+                    var bCompiled = compileRegex( b );
+                    var aOptional = aCompiled.optional;
+                    var bOptional = bCompiled.optional;
+                    var aCommitOpt = aCompiled.commitOptional;
+                    var bCommitOpt = bCompiled.commitOptional;
+                    var aCommitNec = aCompiled.commitNecessary;
+                    var bCommitNec = bCompiled.commitNecessary;
+                    
+                    function passEnd( opt, nec ) {
+                        return "(?!" + nec + ")" + opt;
+                    }
+                    var hasCommitOptsAndNecs = !(
+                        aCommitOpt === null ||
+                        bCommitOpt === null ||
+                        aCommitNec === null ||
+                        bCommitNec === null);
+                    var passEndIfCommitsDo =
+                        !hasCommitOptsAndNecs ? null :
+                        "(?:" +
+                            passEnd( aCommitOpt, aCommitNec ) + "|"
+                            passEnd( bCommitOpt, aCommitNec ) + ")";
+                    
+                    function altPassing( a, b ) {
+                        return "(?:" + passEndIfCommitsDo + "|" +
+                            a + "|" +
+                            b + ")";
+                    }
+                    function altGuarding( a, b ) {
+                        return altPassing(
+                            "(?=" + aCommitNec + ")" +
+                            "(?!" + bCommitNec + ")" +
+                                a,
+                            "(?!" + aCommitNec + ")" +
+                            "(?=" + bCommitNec + ")" +
+                                b );
+                    }
+                    
+                    return {
+                        optional:
+                            aOptional === null ? null :
+                            bOptional === null ? null :
+                            !hasCommitOptsAndNecs ? null :
+                            altGuarding( aOptional, bOptional ),
+                        necessary:
+                            aCompiled.necessary === null ? null :
+                            bCompiled.necessary === null ? null :
+                            !hasCommitOptsAndNecs ? null :
+                            altGuarding(
+                                aCompiled.necessary,
+                                bCompiled.necessary ),
+                        commitOptional:
+                            !hasCommitOptsAndNecs ? null :
+                            altPassing( aCommitOpt, bCommitOpt ),
+                        commitNecessary:
+                            !hasCommitOptsAndNecs ? null :
+                            altPassing( aCommitNec, bCommitNec ),
+                        makeFunc: function () {
+                            var aFunc = aCompiled.makeFunc();
+                            var bFunc = aCompiled.makeFunc();
+                            
+                            return function ( string, start, stop ) {
+                                var aResult =
+                                    aFunc( string, start, stop );
+                                var bResult =
+                                    bFunc( string, start, stop );
+                                
+                                if ( aResult.commit.type ===
+                                        "passedEnd"
+                                    || bResult.commit.type ===
+                                        "passedEnd" )
+                                    return {
+                                        commit: { type: "passedEnd" },
+                                        match: { type: "passedEnd" }
+                                    };
+                                
+                                if ( aResult.commit.type === "matched"
+                                    && bResult.commit.type ===
+                                        "matched" )
+                                    return {
+                                        commit: { type: "matched",
+                                            stop: start },
+                                        match: { type: "failed" }
+                                    };
+                                
+                                if ( aResult.commit.type === "failed"
+                                    && bResult.commit.type ===
+                                        "failed" )
+                                    return {
+                                        commit: { type: "failed" },
+                                        match: { type: "failed" }
+                                    };
+                                
+                                if ( aResult.commit.type ===
+                                    "matched" )
+                                    return aResult;
+                                if ( bResult.commit.type ===
+                                    "matched" )
+                                    return bResult;
+                                
+                                throw new Error();
+                            };
+                        }
+                    };
+                } );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "regex-then", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                if ( !(a instanceof StcForeign
+                    && a.purpose === "regex") )
+                    throw new Error();
+                if ( !(b instanceof StcForeign
+                    && b.purpose === "regex") )
+                    throw new Error();
+                
+                return new StcForeign( "regex", function () {
+                    var aCompiled = compileRegex( a );
+                    var bCompiled = compileRegex( b );
+                    var aOptional = aCompiled.optional;
+                    var bOptional = bCompiled.optional;
+                    var aNecessary = aCompiled.necessary;
+                    var bNecessary = bCompiled.necessary;
+                    var aCommitOpt = aCompiled.commitOptional;
+                    var bCommitOpt = bCompiled.commitOptional;
+                    var aCommitNec = aCompiled.commitNecessary;
+                    var bCommitNec = bCompiled.commitNecessary;
+                    
+                    return {
+                        optional:
+                            aOptional === null ? null :
+                            bOptional === null ? null :
+                            aOptional + "(?:" + bOptional + "|$)",
+                        necessary:
+                            aNecessary === null ? null :
+                            bNecessary === null ? null :
+                            aNecessary + bNecessary,
+                        commitOptional:
+                            aCommitOpt === null ? null :
+                            aOptional === null ? null :
+                            bCommitOpt === null ? null :
+                            "(?:" + aCommitOpt + "|" +
+                                aOptional +
+                                    "(?:" + bCommitOpt + "|$))",
+                        commitNecessary:
+                            aCommitNec === null ? null :
+                            aNecessary === null ? null :
+                            bCommitNec === null ? null :
+                            "(?:" + aCommitNec + "|" +
+                                aNecessary + bCommitNec + ")",
+                        makeFunc: function () {
+                            var aFunc = aCompiled.makeFunc();
+                            var bFunc = aCompiled.makeFunc();
+                            
+                            return function ( string, start, stop ) {
+                                var aResult =
+                                    aFunc( string, start, stop );
+                                
+                                if ( aResult.match.type !==
+                                    "matched" )
+                                    return aResult;
+                                
+                                if ( aResult.commit.type ===
+                                    "passedEnd" )
+                                    throw new Error();
+                                
+                                var bResult =
+                                    bFunc( string, aResult.match.stop, stop );
+                                
+                                return {
+                                    commit: aResult.commit.type === "matched" ?
+                                        aResult.commit :
+                                        bResult.commit,
+                                    match: bResult.match
+                                };
+                            };
+                        }
+                    };
+                } );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "regex-star", function ( rt, regex ) {
+            if ( !(regex instanceof StcForeign
+                && regex.purpose === "regex") )
+                throw new Error();
+            
+            return new StcForeign( "regex", function () {
+                var subCompiled = compileRegex( regex );
+                var subOptional = subCompiled.optional;
+                var subNecessary = subCompiled.necessary;
+                var subCommitOpt = subCompiled.commitOptional;
+                var subCommitNec = subCompiled.commitNecessary;
+                
+                return {
+                    // TODO: These generated regexes look horribly
+                    // complicated, and they're probably broken. Do
+                    // thorough testing and review before recommending
+                    // that anyone actually use Cene's regexes.
+                    optional:
+                        subOptional === null ? null :
+                        subNecessary === null ? null :
+                        subCommitOpt === null ? null :
+                        subCommitNec === null ? null :
+                        "(?:" + subNecessary + ")*?" +
+                        "(?:(?!" + subCommitNec + ")" +
+                            subCommitOpt + "|" +
+                            "(?=" + subCommitNec + ")" +
+                            "(?:" + subNecessary + ")*?" +
+                            "(?:(?!" + subCommitNec + ")" +
+                                subCommitOpt + "|" +
+                                "(?=" + subCommitNec + ")" +
+                                    subOptional + "|" +
+                                "$))",
+                    necessary:
+                        subNecessary === null ? null :
+                        subCommitOpt === null ? null :
+                        subCommitNec === null ? null :
+                        "(?:(?:" + subNecessary + ")*?" +
+                            "(?=" + subCommitNec + ")" +
+                            "(?:" + subNecessary + ")*?|)" +
+                        "(?!" + subCommitOpt + ")",
+                    commitOptional:
+                        subNecessary === null ? null :
+                        subCommitOpt === null ? null :
+                        "(?:" + subNecessary + ")*?" +
+                        "(?=" + subCommitOpt + ")",
+                    commitNecessary:
+                        subNecessary === null ? null :
+                        subCommitNec === null ? null :
+                        "(?:" + subNecessary + ")*?" +
+                        "(?=" + subCommitNec + ")",
+                    makeFunc: function () {
+                        var func = subCompiled.makeFunc();
+                        
+                        return function ( string, start, stop ) {
+                            var subResult = {
+                                commit: { type: "failed" },
+                                match: { type: "matched",
+                                    stop: start }
+                            };
+                            while ( true ) {
+                                var nextResult =
+                                    func( string, subResult.match.stop, stop );
+                                
+                                if ( nextResult.match.type !==
+                                    "matched"
+                                    || nextResult.match.stop ===
+                                        subResult.match.stop )
+                                    return {
+                                        commit: subResult.commit.type === "matched" ?
+                                            subResult.commit :
+                                            nextResult.commit,
+                                        match: nextResult.match
+                                    };
+                                
+                                subResult = nextResult;
+                            }
+                        };
+                    }
+                };
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "optimize-regex-later", function ( rt, regex ) {
+            return stcFnPure( function ( rt, then ) {
+                if ( !(regex instanceof StcForeign
+                    && regex.purpose === "finite-regex") )
+                    throw new Error();
+                var compiled = compileRegex( regex ).makeFunc();
+                
+                return callStcLater( rt, then,
+                    new StcForeign( "optimized-regex", compiled ) );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "optimized-regex-match-later",
+            function ( rt, optimizedRegex ) {
+            
+            return stcFnPure( function ( rt, string ) {
+                return stcFnPure( function ( rt, start ) {
+                    return stcFnPure( function ( rt, stop ) {
+                        return stcFnPure( function ( rt, then ) {
+                            
+                            if ( !(optimizedRegex instanceof
+                                    StcForeign
+                                && optimizedRegex.purpose ===
+                                    "optimized-regex") )
+                                throw new Error();
+                            var regexFunc = optimizedRegex.foreignVal;
+                            
+                            var stringInternal =
+                                parseString( string ).paddedStr;
+                            
+                            if ( !(start instanceof StcForeign
+                                && start.purpose === "int") )
+                                throw new Error();
+                            var startI = start.foreignVal;
+                            
+                            if ( !(stop instanceof StcForeign
+                                && stop.purpose === "int") )
+                                throw new Error();
+                            var stopI = stop.foreignVal;
+                            
+                            if ( !(0 <= startI
+                                && startI <= stopI
+                                && stopI * 2 <=
+                                    stringInternal.length) )
+                                throw new Error();
+                            
+                            // TODO: Return more of the result.
+                            var result =
+                                regexFunc( string, startI, stopI );
+                            
+                            return callStcLater( rt, then,
+                                result.match.type === "match" ?
+                                    stcYep.ofNow( stcForeignInt( result.match.stop ) ) :
+                                    stcNil.ofNow() );
+                        } );
+                    } );
                 } );
             } );
         } );
@@ -3742,26 +4334,15 @@ function usingDefinitionNs( macroDefNs ) {
             var definer =
                 { type: "object", visited: false, value: null };
             
-            return new StcForeign( "effects",
-                function ( rawMode ) {
-                
-                if ( rawMode.type !== "macro" )
-                    throw new Error();
-                collectDefer( rawMode,
-                    rawMode.contributingOnlyTo,
-                    function () {
-                    
-                    return callStcMulti( rt, then,
-                        new StcForeign( "definer", definer ),
-                        new StcFn( function ( rt, ignored ) {
-                            return macLookupGet( definer,
-                                function () {
-                                    throw new Error( "Never fulfilled a promise" );
-                                } );
-                        } ) );
-                } );
-                return macLookupRet( stcNil.ofNow() );
-            } );
+            return callStcLater( rt, then,
+                new StcForeign( "definer", definer ),
+                new StcFn( function ( rt, ignored ) {
+                    return macLookupGet( definer,
+                        function () {
+                            throw new Error(
+                                "Never fulfilled a promise" );
+                        } );
+                } ) );
         } );
         
         fun( "definer-define", function ( rt, definer ) {
