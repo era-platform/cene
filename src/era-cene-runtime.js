@@ -3912,44 +3912,51 @@ function usingDefinitionNs( macroDefNs ) {
                 var subCommitOpt = subCompiled.commitOptional;
                 var subCommitNec = subCompiled.commitNecessary;
                 
+                function passEnd( opt, nec, alternative ) {
+                    return "(?:(?!" + nec + ")(?:" + opt + "|$)|" +
+                        alternative + ")";
+                }
+                function repeat( body ) {
+                    return "(?:" + body + ")*(?!" + body + ")";
+                }
+                function repeatUntilThen( body, next ) {
+                    return repeat( "(?!" + next + ")" + body ) + next;
+                }
+                
                 return {
-                    // TODO: These generated regexes look horribly
+                    // TODO: These generated regexes look very
                     // complicated, and they're probably broken. Do
-                    // thorough testing and review before recommending
-                    // that anyone actually use Cene's regexes.
+                    // further review and some testing before
+                    // recommending that anyone actually use Cene's
+                    // regexes.
                     optional:
                         subOptional === null ? null :
                         subNecessary === null ? null :
                         subCommitOpt === null ? null :
                         subCommitNec === null ? null :
-                        "(?:" + subNecessary + ")*?" +
-                        "(?:(?!" + subCommitNec + ")" +
-                            subCommitOpt + "|" +
-                            "(?=" + subCommitNec + ")" +
-                            "(?:" + subNecessary + ")*?" +
-                            "(?:(?!" + subCommitNec + ")" +
-                                subCommitOpt + "|" +
-                                "(?=" + subCommitNec + ")" +
-                                    subOptional + "|" +
-                                "$))",
+                        repeatUntilThen( subNecessary,
+                            passEnd( subCommitOpt, subCommitNec,
+                                passEnd( subOptional, subNecessary,
+                                    "" ) ) ),
                     necessary:
                         subNecessary === null ? null :
                         subCommitOpt === null ? null :
                         subCommitNec === null ? null :
-                        "(?:(?:" + subNecessary + ")*?" +
-                            "(?=" + subCommitNec + ")" +
-                            "(?:" + subNecessary + ")*?|)" +
-                        "(?!" + subCommitOpt + ")",
+                        "(?!" +
+                            repeatUntilThen( subNecessary,
+                                passEnd( subCommitOpt, subCommitNec,
+                                    passEnd(
+                                        subOptional, subNecessary,
+                                        "\\d^" ) ) ) + ")" +
+                        repeat( subNecessary ),
                     commitOptional:
                         subNecessary === null ? null :
                         subCommitOpt === null ? null :
-                        "(?:" + subNecessary + ")*?" +
-                        "(?=" + subCommitOpt + ")",
+                        repeatUntilThen( subNecessary, subCommitOpt ),
                     commitNecessary:
                         subNecessary === null ? null :
                         subCommitNec === null ? null :
-                        "(?:" + subNecessary + ")*?" +
-                        "(?=" + subCommitNec + ")",
+                        repeatUntilThen( subNecessary, subCommitNec ),
                     makeFunc: function () {
                         var func = subCompiled.makeFunc();
                         
