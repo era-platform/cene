@@ -2361,51 +2361,73 @@
 \=
 \;rm[
 
-(defn regex-or-unit - ...)
-Creates a regex that doesn't commit.
+(defn regex-give-up - ...)
+Creates a regex that doesn't match.
 
-(defn merge-regex-or - ...)
-Merges regexes by creating a regex that commits if either but not both
-of the originals commit and matches according to the one that commits
-(if any).
+(defn regex-if condition-regex then-regex else-regex ...)
+Creates a regex that first tries to match the first given regex. If it
+succeeds, it tries to match the second given regex after that. If it
+fails, it tries to match the third given regex at the original
+location instead.
 
-(defn regex-then-unit - ...)
-Creates a regex that doesn't commit, but matches the empty string.
+(defn regex-negative-lookahead regex
+  (regex-if regex (regex-give-up/nil) (regex-empty/nil)))
 
-(defn regex-then a b ...)
-Creates a regex that matches by first matching the first given regex,
-then matching the second given regex at the next position. It commits
-if either regex commits.
+(defn regex-positive-lookahead regex
+  (regex-negative-lookahead/regex-negative-lookahead regex))
 
-(defn regex-star regex ...)
-Creates a regex that matches by matching the given regex any number of
-times in succession. It commits if the given regex commits in any of
-the iterations.
+(defn regex-then a b
+  (regex-if a b (regex-give-up/nil)))
 
-(defn regex-commit - ...)
-Creates a regex that commits and matches the empty string.
+(defn regex-empty - ...)
+Creates a regex that matches the empty string.
+
+(defn regex-while condition-regex body-regex ...)
+Creates a regex that matches by matching the two given regexes in
+succession any number of times until the first given regex doesn't
+match. If the first ever matches and the second doesn't match, the
+overall match is a failure.
+
+(defn regex-until body-regex condition-regex ...)
+Creates a regex that matches by matching the first given regex in
+succession any number of times as long as the second given regex
+wouldn't match instead, then finally matches the second given regex
+and finishes. If any iteration determines that the second regex
+doesn't match but the first one doesn't either, the overall match is a
+failure.
+
+\= TODO: Determine if we should implement `regex-while` in terms of
+\= `regex-until` or vice versa. They're interdefinable:
+
+(defn regex-while condition-regex body-regex
+  (regex-until (regex-then condition-regex body-regex)
+  /regex-negative-lookahead condition-regex))
+
+(defn regex-until body-regex condition-regex
+  (regex-then
+    (regex-while
+    /regex-then body-regex /regex-negative-lookahead condition-regex)
+    condition-regex))
 
 (defn regex-one-in-string string ...)
-Creates a regex that doesn't commit, but matches one Unicode scalar if
-it appears in the given string.
+Creates a regex that matches one Unicode scalar if it appears in the
+given string.
 
 (defn regex-one-in-range min max ...)
-Creates a regex that doesn't commit, but matches one Unicode scalar if
-it's at least the given minimum and at most the given maximum.
+Creates a regex that matches one Unicode scalar if it's at least the
+given minimum and at most the given maximum.
 
 (defn regex-from-string string ...)
-Creates a regex that that doesn't commit, but matches the given
-string.
-
-(defn regex-one-but-not-in-regex regex ...)
-Creates a regex that doesn't commit, but matches one Unicode scalar if
-it isn't fully matched by the given regex. This regex doesn't commit
-even if the given regex does commit.
+Creates a regex that matches the given string.
 
 (defn optimize-regex-later regex then ...)
 then (fn optimized-regex ...)
 Monadically, takes a regex and a callback, and in a later tick,
 monadically calls the callback with an optimized regex.
+
+(def-type regex-result-matched stop)
+(def-type regex-result-failed)
+(def-type regex-result-passed-end)
 
 (defn optimized-regex-match-later
   optimized-regex string start stop then
@@ -2413,10 +2435,9 @@ monadically calls the callback with an optimized regex.
 then (fn maybe-stop ...)
 Monadically, takes an optimized regex, a string, a starting position
 in the string, a stopping position in the string, and a callback, and
-in a later tick, monadically calls the callback with a `(nil)` or
-`(yep ...)` indicating a match stopping position (if found). (TODO:
-Modify this design to return more of the result, such as "passedEnd"
-information.)
+in a later tick, monadically calls the callback with a
+`(regex-result-matched <stop>)` indicating a match stopping position,
+a `(regex-result-failed)`, or a `(regex-result-passed-end)`.
 
 ]
 
