@@ -3601,45 +3601,43 @@ function usingDefinitionNs( macroDefNs ) {
             var necessary = regexData.necessary;
             if ( necessary === void 0 )
                 necessary = null;
-            var makeFunc = regexData.makeFunc;
-            if ( makeFunc === void 0 ) {
-                makeFunc = function () {
-                    var func = regexData.func;
-                    if ( func === void 0 ) {
-                        if ( optional === null )
+            
+            function makeFunc() {
+                if ( optional !== null && necessary !== null ) {
+                    // NOTE: There's a difference between `(?:_|)` and
+                    // `_?` when `_` contains capture groups. The
+                    // latter discards the groups if `_` matches an
+                    // empty string.
+                    var compiled = new RegExp( "(?:" +
+                        necessary + "()|" +
+                        optional( "" ) + "()|)" );
+                    return function ( string, start, stop ) {
+                        compiled.lastIndex = start * 2;
+                        var s = string.length === stop * 2 ?
+                            string :
+                            string.substring( 0, stop * 2 );
+                        var match = compiled.exec( s );
+                        var matchedNec = match[ 1 ] !== void 0;
+                        var matchedOpt = match[ 2 ] !== void 0;
+                        var length2 = match[ 0 ].length;
+                        if ( length2 % 2 !== 0 )
                             throw new Error();
-                        if ( necessary === null )
-                            throw new Error();
-                        // NOTE: There's a difference between `(?:_|)`
-                        // and `_?` when `_` contains capture groups.
-                        // The latter discards the groups if `_`
-                        // matches an empty string.
-                        var compiled = new RegExp( "(?:" +
-                            necessary + "()|" +
-                            optional( "" ) + "()|)" );
-                        func = function ( string, start, stop ) {
-                            compiled.lastIndex = start * 2;
-                            var s = string.length === stop * 2 ?
-                                string :
-                                string.substring( 0, stop * 2 );
-                            var match = compiled.exec( s );
-                            var matchedNec = match[ 1 ] !== void 0;
-                            var matchedOpt = match[ 2 ] !== void 0;
-                            var length2 = match[ 0 ].length;
-                            if ( length2 % 2 !== 0 )
-                                throw new Error();
-                            
-                            if ( matchedNec )
-                                return { type: "matched",
-                                    stop: start + length2 / 2 };
-                            else if ( matchedOpt )
-                                return { type: "passedEnd" };
-                            else
-                                return { type: "failed" };
-                        };
-                    }
-                    return func;
-                };
+                        
+                        if ( matchedNec )
+                            return { type: "matched",
+                                stop: start + length2 / 2 };
+                        else if ( matchedOpt )
+                            return { type: "passedEnd" };
+                        else
+                            return { type: "failed" };
+                    };
+                }
+                
+                var makeFunc = regexDta.makeFunc;
+                if ( makeFunc !== void 0 )
+                    return makeFunc();
+                
+                throw new Error();
             }
             
             return {
