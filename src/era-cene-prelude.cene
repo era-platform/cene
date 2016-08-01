@@ -2386,27 +2386,28 @@ Creates a regex that matches the empty string.
 Creates a regex that matches by matching the two given regexes in
 succession any number of times until the first given regex doesn't
 match. If the first ever matches and the second doesn't match, the
-overall match is a failure.
+overall match fails. If any iteration's combined match is empty, that
+must be the last iteration, or the overall match fails.
 
 (defn regex-until body-regex condition-regex ...)
 Creates a regex that matches by matching the first given regex in
 succession any number of times as long as the second given regex
 wouldn't match instead, then finally matches the second given regex
 and finishes. If any iteration determines that the second regex
-doesn't match but the first one doesn't either, the overall match is a
-failure.
+doesn't match but the first one doesn't either, the overall match
+fails. If any iteration's match is empty, that must be the last
+iteration, or the overall match fails.
 
 \= TODO: Determine if we should implement `regex-while` in terms of
 \= `regex-until` or vice versa. They're interdefinable:
 
 (defn regex-while condition-regex body-regex
   (regex-until (regex-then condition-regex body-regex)
-  /regex-negative-lookahead condition-regex))
+    regex-negative-lookahead.condition-regex))
 
 (defn regex-until body-regex condition-regex
   (regex-then
-    (regex-while
-    /regex-then body-regex /regex-negative-lookahead condition-regex)
+    (regex-while regex-negative-lookahead.condition-regex body-regex)
     condition-regex))
 
 (defn regex-one-in-string string ...)
