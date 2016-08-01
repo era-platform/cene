@@ -3780,6 +3780,7 @@ function usingDefinitionNs( macroDefNs ) {
                             
                             return function ( string, start, stop ) {
                                 var thisStart = start;
+                                var encounteredEmpty = false;
                                 while ( true ) {
                                     var cResult = cFunc( string, thisStart, stop );
                                     if ( cResult.type === "failed" )
@@ -3787,9 +3788,15 @@ function usingDefinitionNs( macroDefNs ) {
                                     else if ( cResult.type === "passedEnd" )
                                         return cResult;
                                     
+                                    if ( encounteredEmpty )
+                                        return { type: "failed" };
+                                    
                                     var bResult = bFunc( string, cResult.stop, stop );
                                     if ( bResult.type !== "matched" )
                                         return bResult;
+                                    
+                                    if ( thisStart === bResult.stop )
+                                        encounteredEmpty = true;
                                     
                                     thisStart = bResult.stop;
                                 }
@@ -3853,14 +3860,21 @@ function usingDefinitionNs( macroDefNs ) {
                             
                             return function ( string, start, stop ) {
                                 var thisStart = start;
+                                var encounteredEmpty = false;
                                 while ( true ) {
                                     var cResult = cFunc( string, thisStart, stop );
                                     if ( cResult.type !== "failed" )
                                         return cResult;
                                     
+                                    if ( encounteredEmpty )
+                                        return { type: "failed" };
+                                    
                                     var bResult = bFunc( string, cResult.stop, stop );
                                     if ( bResult.type !== "matched" )
                                         return bResult;
+                                    
+                                    if ( thisStart === bResult.stop )
+                                        encounteredEmpty = true;
                                     
                                     thisStart = bResult.stop;
                                 }
