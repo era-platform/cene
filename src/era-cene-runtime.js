@@ -1814,6 +1814,12 @@ function usingDefinitionNs( macroDefNs ) {
     var stcDexable = stcType( macroDefNs, "dexable", "dex", "val" );
     var stcCarried =
         stcType( macroDefNs, "carried", "main", "carry" );
+    var stcRegexResultMatched =
+        stcType( macroDefNs, "regex-result-matched", "stop" );
+    var stcRegexResultFailed =
+        stcType( macroDefNs, "regex-result-failed" );
+    var stcRegexResultPassedEnd =
+        stcType( macroDefNs, "regex-result-passed-end" );
     
     // NOTE: The "rt" stands for "runtime." This carries things that
     // are relevant at run time.
@@ -3463,71 +3469,37 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        function regexOptionalTrivial( necessary ) {
-            var commitNecessary = "\\d^";
+        function regexTrivial( regex ) {
             return {
-                optional: necessary,
-                necessary: necessary,
-                commitOptional: commitNecessary,
-                commitNecessary: commitNecessary
+                optional: function ( next ) {
+                    return regex + next;
+                },
+                necessary: regex
+            };
+        }
+        
+        function regexOptionalTrivial( necessary ) {
+            return {
+                optional: function ( next ) {
+                    return "(?:" + necessary + next + "|$)";
+                },
+                necessary: necessary
             };
         }
         
         // TODO: Document this using the comment in
         // era-cene-prelude.cene.
-        fun( "regex-or-unit", function ( rt, ignored ) {
+        fun( "regex-give-up", function ( rt, ignored ) {
             return new StcForeign( "regex", function () {
-                return regexOptionalTrivial( "\\d^" );
+                return regexTrivial( "\\d^" );
             } );
         } );
         
         // TODO: Document this using the comment in
         // era-cene-prelude.cene.
-        fun( "regex-then-unit", function ( rt, ignored ) {
+        fun( "regex-empty", function ( rt, ignored ) {
             return new StcForeign( "regex", function () {
-                return regexOptionalTrivial( "" );
-            } );
-        } );
-        
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
-        fun( "regex-commit", function ( rt, ignored ) {
-            return new StcForeign( "regex", function () {
-                var necessary = "";
-                var commitNecessary = "";
-                return {
-                    optional: necessary,
-                    necessary: necessary,
-                    commitOptional: commitNecessary,
-                    commitNecessary: commitNecessary
-                };
-            } );
-        } );
-        
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
-        fun( "regex-from-string", function ( rt, string ) {
-            var stringRep = parseString( string ).paddedStr;
-            
-            return new StcForeign( "regex", function () {
-                var commitNecessary = "\\d^";
-                return {
-                    optional:
-                        stringRep.replace( /[\d\D]{2}/g,
-                            function ( scalarStr, i, stringRep ) {
-                                return "(?:" +
-                                    escapeRegex( scalarStr );
-                            } ) +
-                        stringRep.replace( /[\d\D]{2}(?:$()|)/g,
-                            function (
-                                scalarStr, atEnd, i, stringRep ) {
-                                
-                                return atEnd === "" ? ")" : "|$)";
-                            } ),
-                    necessary: escapeRegex( string ),
-                    commitOptional: commitNecessary,
-                    commitNecessary: commitNecessary
-                };
+                return regexTrivial( "" );
             } );
         } );
         
@@ -3537,6 +3509,27 @@ function usingDefinitionNs( macroDefNs ) {
         function escRegexSet( jsStr ) {
             return jsStr.replace( /[\\^-[\]]/g, "\\$&" );
         }
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "regex-from-string", function ( rt, string ) {
+            var stringRep = parseString( string ).paddedStr;
+            
+            return new StcForeign( "regex", function () {
+                return {
+                    optional: function ( next ) {
+                        return stringRep.replace( /[\d\D]{2}/g,
+                            function ( scalarStr, i, stringRep ) {
+                                return "(?:" +
+                                    escapeRegex( scalarStr );
+                            } ) +
+                            next +
+                            stringRep.replace( /[\d\D]{2}/g, "|$$)" );
+                    },
+                    necessary: escapeRegex( string )
+                };
+            } );
+        } );
         
         // TODO: Document this using the comment in
         // era-cene-prelude.cene.
@@ -3608,56 +3601,41 @@ function usingDefinitionNs( macroDefNs ) {
             var necessary = regexData.necessary;
             if ( necessary === void 0 )
                 necessary = null;
-            var commitOptional = regexData.commitOptional;
-            if ( commitOptional === void 0 )
-                commitOptional = null;
-            var commitNecessary = regexData.commitNecessary;
-            if ( commitNecessary === void 0 )
-                commitNecessary = null;
             var makeFunc = regexData.makeFunc;
             if ( makeFunc === void 0 ) {
                 makeFunc = function () {
-                    
-                    function regexThatCanReachEnd( optional ) {
+                    var func = regexData.func;
+                    if ( func === void 0 ) {
                         if ( optional === null )
+                            throw new Error();
+                        if ( necessary === null )
                             throw new Error();
                         // NOTE: There's a difference between `(?:_|)`
                         // and `_?` when `_` contains capture groups.
                         // The latter discards the groups if `_`
                         // matches an empty string.
-                        var compiled = new RegExp(
-                            "(?:" + optional + "()|)(?:$()|)" );
-                        return function ( string, start, stop ) {
+                        var compiled = new RegExp( "(?:" +
+                            necessary + "()|" +
+                            optional( "" ) + "()|)" );
+                        func = function ( string, start, stop ) {
                             compiled.lastIndex = start * 2;
                             var s = string.length === stop * 2 ?
                                 string :
                                 string.substring( 0, stop * 2 );
                             var match = compiled.exec( s );
-                            var matched = !!match[ 1 ];
-                            var passedEnd = !!match[ 2 ];
+                            var matchedNec = match[ 1 ] !== void 0;
+                            var matchedOpt = match[ 2 ] !== void 0;
+                            var length2 = match[ 0 ].length;
+                            if ( length2 % 2 !== 0 )
+                                throw new Error();
                             
-                            if ( matched )
+                            if ( matchedNec )
                                 return { type: "matched",
-                                    stop: start + match[ 0 ].length / 2 };
-                            else if ( passedEnd )
+                                    stop: start + length2 / 2 };
+                            else if ( matchedOpt )
                                 return { type: "passedEnd" };
                             else
                                 return { type: "failed" };
-                        };
-                    }
-                    
-                    var func = regexData.func;
-                    if ( func === void 0 ) {
-                        var commitCompiled =
-                            regexThatCanReachEnd( commitOptional );
-                        var compiled =
-                            regexThatCanReachEnd( optional );
-                        func = function ( string, start, stop ) {
-                            return {
-                                commit: commitCompiled(
-                                    string, start, stop ),
-                                match: compiled( string, start, stop )
-                            };
                         };
                     }
                     return func;
@@ -3667,325 +3645,231 @@ function usingDefinitionNs( macroDefNs ) {
             return {
                 optional: optional,
                 necessary: necessary,
-                commitOptional: commitOptional,
-                commitNecessary: commitNecessary,
                 makeFunc: makeFunc
             };
         }
         
         // TODO: Document this using the comment in
         // era-cene-prelude.cene.
-        fun( "regex-one-but-not-in-regex", function ( rt, regex ) {
-            if ( !(regex instanceof StcForeign
-                && regex.purpose === "regex") )
-                throw new Error();
-            
-            return new StcForeign( "regex", function () {
-                var subCompiled = compileRegex( regex ).makeFunc();
-                
-                return { func: function ( string, start, stop ) {
-                    if ( start === stop )
-                        return { commit: { type: "failed" },
-                            match: { type: "passedEnd" } };
-                    var result =
-                        subCompiled( string, start, start + 1 );
-                    if ( result.match.type === "matched"
-                        && result.match.stop === start + 1 )
-                        return { commit: { type: "failed" },
-                            match: { type: "failed" } };
-                    else
-                        return { commit: { type: "failed" }, match:
-                            { type: "matched", stop: start + 1 } };
-                } };
-            } );
-        } );
-        
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
-        // TODO: Turn this into `merge-regex-or`.
-        fun( "regex-or", function ( rt, a ) {
-            return stcFnPure( function ( rt, b ) {
-                if ( !(a instanceof StcForeign
-                    && a.purpose === "regex") )
-                    throw new Error();
-                if ( !(b instanceof StcForeign
-                    && b.purpose === "regex") )
-                    throw new Error();
-                
-                return new StcForeign( "regex", function () {
-                    var aCompiled = compileRegex( a );
-                    var bCompiled = compileRegex( b );
-                    var aOptional = aCompiled.optional;
-                    var bOptional = bCompiled.optional;
-                    var aCommitOpt = aCompiled.commitOptional;
-                    var bCommitOpt = bCompiled.commitOptional;
-                    var aCommitNec = aCompiled.commitNecessary;
-                    var bCommitNec = bCompiled.commitNecessary;
+        fun( "regex-if", function ( rt, conditionRegex ) {
+            return stcFnPure( function ( rt, thenRegex ) {
+                return stcFnPure( function ( rt, elseRegex ) {
+                    if ( !(conditionRegex instanceof StcForeign
+                        && conditionRegex.purpose === "regex") )
+                        throw new Error();
+                    if ( !(thenRegex instanceof StcForeign
+                        && thenRegex.purpose === "regex") )
+                        throw new Error();
+                    if ( !(elseRegex instanceof StcForeign
+                        && elseRegex.purpose === "regex") )
+                        throw new Error();
                     
-                    function passEnd( opt, nec ) {
-                        return "(?!" + nec + ")" + opt;
-                    }
-                    var hasCommitOptsAndNecs = !(
-                        aCommitOpt === null ||
-                        bCommitOpt === null ||
-                        aCommitNec === null ||
-                        bCommitNec === null);
-                    var passEndIfCommitsDo =
-                        !hasCommitOptsAndNecs ? null :
-                        "(?:" +
-                            passEnd( aCommitOpt, aCommitNec ) + "|"
-                            passEnd( bCommitOpt, aCommitNec ) + ")";
-                    
-                    function altPassing( a, b ) {
-                        return "(?:" + passEndIfCommitsDo + "|" +
-                            a + "|" +
-                            b + ")";
-                    }
-                    function altGuarding( a, b ) {
-                        return altPassing(
-                            "(?=" + aCommitNec + ")" +
-                            "(?!" + bCommitNec + ")" +
-                                a,
-                            "(?!" + aCommitNec + ")" +
-                            "(?=" + bCommitNec + ")" +
-                                b );
-                    }
-                    
-                    return {
-                        optional:
-                            aOptional === null ? null :
-                            bOptional === null ? null :
-                            !hasCommitOptsAndNecs ? null :
-                            altGuarding( aOptional, bOptional ),
-                        necessary:
-                            aCompiled.necessary === null ? null :
-                            bCompiled.necessary === null ? null :
-                            !hasCommitOptsAndNecs ? null :
-                            altGuarding(
-                                aCompiled.necessary,
-                                bCompiled.necessary ),
-                        commitOptional:
-                            !hasCommitOptsAndNecs ? null :
-                            altPassing( aCommitOpt, bCommitOpt ),
-                        commitNecessary:
-                            !hasCommitOptsAndNecs ? null :
-                            altPassing( aCommitNec, bCommitNec ),
-                        makeFunc: function () {
-                            var aFunc = aCompiled.makeFunc();
-                            var bFunc = aCompiled.makeFunc();
-                            
-                            return function ( string, start, stop ) {
-                                var aResult =
-                                    aFunc( string, start, stop );
-                                var bResult =
-                                    bFunc( string, start, stop );
-                                
-                                if ( aResult.commit.type ===
-                                        "passedEnd"
-                                    || bResult.commit.type ===
-                                        "passedEnd" )
-                                    return {
-                                        commit: { type: "passedEnd" },
-                                        match: { type: "passedEnd" }
-                                    };
-                                
-                                if ( aResult.commit.type === "matched"
-                                    && bResult.commit.type ===
-                                        "matched" )
-                                    return {
-                                        commit: { type: "matched",
-                                            stop: start },
-                                        match: { type: "failed" }
-                                    };
-                                
-                                if ( aResult.commit.type === "failed"
-                                    && bResult.commit.type ===
-                                        "failed" )
-                                    return {
-                                        commit: { type: "failed" },
-                                        match: { type: "failed" }
-                                    };
-                                
-                                if ( aResult.commit.type ===
-                                    "matched" )
-                                    return aResult;
-                                if ( bResult.commit.type ===
-                                    "matched" )
-                                    return bResult;
-                                
-                                throw new Error();
-                            };
-                        }
-                    };
-                } );
-            } );
-        } );
-        
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
-        fun( "regex-then", function ( rt, a ) {
-            return stcFnPure( function ( rt, b ) {
-                if ( !(a instanceof StcForeign
-                    && a.purpose === "regex") )
-                    throw new Error();
-                if ( !(b instanceof StcForeign
-                    && b.purpose === "regex") )
-                    throw new Error();
-                
-                return new StcForeign( "regex", function () {
-                    var aCompiled = compileRegex( a );
-                    var bCompiled = compileRegex( b );
-                    var aOptional = aCompiled.optional;
-                    var bOptional = bCompiled.optional;
-                    var aNecessary = aCompiled.necessary;
-                    var bNecessary = bCompiled.necessary;
-                    var aCommitOpt = aCompiled.commitOptional;
-                    var bCommitOpt = bCompiled.commitOptional;
-                    var aCommitNec = aCompiled.commitNecessary;
-                    var bCommitNec = bCompiled.commitNecessary;
-                    
-                    return {
-                        optional:
-                            aOptional === null ? null :
-                            bOptional === null ? null :
-                            aOptional + "(?:" + bOptional + "|$)",
-                        necessary:
-                            aNecessary === null ? null :
-                            bNecessary === null ? null :
-                            aNecessary + bNecessary,
-                        commitOptional:
-                            aCommitOpt === null ? null :
-                            aOptional === null ? null :
-                            bCommitOpt === null ? null :
-                            "(?:" + aCommitOpt + "|" +
-                                aOptional +
-                                    "(?:" + bCommitOpt + "|$))",
-                        commitNecessary:
-                            aCommitNec === null ? null :
-                            aNecessary === null ? null :
-                            bCommitNec === null ? null :
-                            "(?:" + aCommitNec + "|" +
-                                aNecessary + bCommitNec + ")",
-                        makeFunc: function () {
-                            var aFunc = aCompiled.makeFunc();
-                            var bFunc = aCompiled.makeFunc();
-                            
-                            return function ( string, start, stop ) {
-                                var aResult =
-                                    aFunc( string, start, stop );
-                                
-                                if ( aResult.match.type !==
-                                    "matched" )
-                                    return aResult;
-                                
-                                if ( aResult.commit.type ===
-                                    "passedEnd" )
-                                    throw new Error();
-                                
-                                var bResult =
-                                    bFunc( string, aResult.match.stop, stop );
-                                
-                                return {
-                                    commit: aResult.commit.type === "matched" ?
-                                        aResult.commit :
-                                        bResult.commit,
-                                    match: bResult.match
-                                };
-                            };
-                        }
-                    };
-                } );
-            } );
-        } );
-        
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
-        fun( "regex-star", function ( rt, regex ) {
-            if ( !(regex instanceof StcForeign
-                && regex.purpose === "regex") )
-                throw new Error();
-            
-            return new StcForeign( "regex", function () {
-                var subCompiled = compileRegex( regex );
-                var subOptional = subCompiled.optional;
-                var subNecessary = subCompiled.necessary;
-                var subCommitOpt = subCompiled.commitOptional;
-                var subCommitNec = subCompiled.commitNecessary;
-                
-                function passEnd( opt, nec, alternative ) {
-                    return "(?:(?!" + nec + ")(?:" + opt + "|$)|" +
-                        alternative + ")";
-                }
-                function repeat( body ) {
-                    return "(?:" + body + ")*(?!" + body + ")";
-                }
-                function repeatUntilThen( body, next ) {
-                    return repeat( "(?!" + next + ")" + body ) + next;
-                }
-                
-                return {
-                    // TODO: These generated regexes look very
-                    // complicated, and they're probably broken. Do
-                    // further review and some testing before
-                    // recommending that anyone actually use Cene's
-                    // regexes.
-                    optional:
-                        subOptional === null ? null :
-                        subNecessary === null ? null :
-                        subCommitOpt === null ? null :
-                        subCommitNec === null ? null :
-                        repeatUntilThen( subNecessary,
-                            passEnd( subCommitOpt, subCommitNec,
-                                passEnd( subOptional, subNecessary,
-                                    "" ) ) ),
-                    necessary:
-                        subNecessary === null ? null :
-                        subCommitOpt === null ? null :
-                        subCommitNec === null ? null :
-                        "(?!" +
-                            repeatUntilThen( subNecessary,
-                                passEnd( subCommitOpt, subCommitNec,
-                                    passEnd(
-                                        subOptional, subNecessary,
-                                        "\\d^" ) ) ) + ")" +
-                        repeat( subNecessary ),
-                    commitOptional:
-                        subNecessary === null ? null :
-                        subCommitOpt === null ? null :
-                        repeatUntilThen( subNecessary, subCommitOpt ),
-                    commitNecessary:
-                        subNecessary === null ? null :
-                        subCommitNec === null ? null :
-                        repeatUntilThen( subNecessary, subCommitNec ),
-                    makeFunc: function () {
-                        var func = subCompiled.makeFunc();
+                    return new StcForeign( "regex", function () {
+                        var cCompiled =
+                            compileRegex( conditionRegex );
+                        var tCompiled = compileRegex( thenRegex );
+                        var eCompiled = compileRegex( elseRegex );
+                        var cOpt = cCompiled.optional;
+                        var tOpt = tCompiled.optional;
+                        var eOpt = eCompiled.optional;
+                        var cNec = cCompiled.necessary;
+                        var tNec = tCompiled.necessary;
+                        var eNec = eCompiled.necessary;
                         
-                        return function ( string, start, stop ) {
-                            var subResult = {
-                                commit: { type: "failed" },
-                                match: { type: "matched",
-                                    stop: start }
-                            };
-                            while ( true ) {
-                                var nextResult =
-                                    func( string, subResult.match.stop, stop );
+                        return {
+                            optional:
+                                cNec === null ? null :
+                                cOpt === null ? null :
+                                tOpt === null ? null :
+                                eOpt === null ? null :
+                                function ( next ) {
+                                    return "(?:" +
+                                        "(?!" + cNec + ")(?:" +
+                                            
+                                            // We may run out of room matching the condition.
+                                            cOpt( "" ) + "|" +
+                                            
+                                            // We may match the else clause.
+                                            eOpt( next ) +
+                                        ")|" +
+                                        
+                                        // We may match the then clause.
+                                        cNec + tOpt( next ) +
+                                    ")";
+                                },
+                            necessary:
+                                cNec === null ? null :
+                                tNec === null ? null :
+                                eNec === null ? null :
+                                "(?:" +
+                                    
+                                    // We may match the then clause.
+                                    cNec + tNec + "|" +
+                                    
+                                    // We may match the else clause.
+                                    "(?!" + cNec + ")" + eNec +
+                                ")",
+                            makeFunc: function () {
+                                var cFunc = cCompiled.makeFunc();
+                                var tFunc = tCompiled.makeFunc();
+                                var eFunc = eCompiled.makeFunc();
                                 
-                                if ( nextResult.match.type !==
-                                    "matched"
-                                    || nextResult.match.stop ===
-                                        subResult.match.stop )
-                                    return {
-                                        commit: subResult.commit.type === "matched" ?
-                                            subResult.commit :
-                                            nextResult.commit,
-                                        match: nextResult.match
-                                    };
-                                
-                                subResult = nextResult;
+                                return function ( string, start, stop ) {
+                                    var cResult = cFunc( string, start, stop );
+                                    
+                                    if ( cResult.type === "matched" )
+                                        return tFunc( string, cResult.stop, stop );
+                                    else if ( cResult.type === "failed" )
+                                        return eFunc( string, start, stop );
+                                    else
+                                        return cResult;
+                                };
                             }
                         };
-                    }
-                };
+                    } );
+                } );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "regex-while", function ( rt, conditionRegex ) {
+            return stcFnPure( function ( rt, bodyRegex ) {
+                if ( !(conditionRegex instanceof StcForeign
+                    && conditionRegex.purpose === "regex") )
+                    throw new Error();
+                if ( !(bodyRegex instanceof StcForeign
+                    && bodyRegex.purpose === "regex") )
+                    throw new Error();
+                
+                return new StcForeign( "regex", function () {
+                    var cCompiled = compileRegex( conditionRegex );
+                    var bCompiled = compileRegex( bodyRegex );
+                    var cOpt = cCompiled.optional;
+                    var bOpt = bCompiled.optional;
+                    var cNec = cCompiled.necessary;
+                    var bNec = bCompiled.necessary;
+                    
+                    return {
+                        optional:
+                            cNec === null ? null :
+                            cOpt === null ? null :
+                            bNec === null ? null :
+                            bOpt === null ? null :
+                            function ( next ) {
+                                return "(?:" + cNec + bNec + ")*(?:" +
+                                    "(?!" + cNec + ")(?:" +
+                                        
+                                        // We may run out of room matching the condition.
+                                        cOpt( "" ) + "|" +
+                                        
+                                        // We may have a complete match.
+                                        next +
+                                    ")|" +
+                                    
+                                    // We may run out of room matching the body.
+                                    cNec + "(?!" + bNec + ")" + bOpt( "" ) +
+                                ")";
+                            },
+                        necessary:
+                            cNec === null ? null :
+                            bNec === null ? null :
+                            "(?:" + cNec + bNec + ")*" +
+                            "(?!" + cNec + ")",
+                        makeFunc: function () {
+                            var cFunc = cCompiled.makeFunc();
+                            var bFunc = bCompiled.makeFunc();
+                            
+                            return function ( string, start, stop ) {
+                                var thisStart = start;
+                                while ( true ) {
+                                    var cResult = cFunc( string, thisStart, stop );
+                                    if ( cResult.type === "failed" )
+                                        return { type: "matched", stop: thisStart };
+                                    else if ( cResult.type === "passedEnd" )
+                                        return cResult;
+                                    
+                                    var bResult = bFunc( string, cResult.stop, stop );
+                                    if ( bResult.type !== "matched" )
+                                        return bResult;
+                                    
+                                    thisStart = bResult.stop;
+                                }
+                            };
+                        }
+                    };
+                } );
+            } );
+        } );
+        
+        // TODO: Document this using the comment in
+        // era-cene-prelude.cene.
+        fun( "regex-until", function ( rt, bodyRegex ) {
+            return stcFnPure( function ( rt, conditionRegex ) {
+                if ( !(bodyRegex instanceof StcForeign
+                    && bodyRegex.purpose === "regex") )
+                    throw new Error();
+                if ( !(conditionRegex instanceof StcForeign
+                    && conditionRegex.purpose === "regex") )
+                    throw new Error();
+                
+                return new StcForeign( "regex", function () {
+                    var bCompiled = compileRegex( bodyRegex );
+                    var cCompiled = compileRegex( conditionRegex );
+                    var bOpt = bCompiled.optional;
+                    var cOpt = cCompiled.optional;
+                    var bNec = bCompiled.necessary;
+                    var cNec = cCompiled.necessary;
+                    
+                    return {
+                        optional:
+                            bNec === null ? null :
+                            bOpt === null ? null :
+                            cNec === null ? null :
+                            cOpt === null ? null :
+                            function ( next ) {
+                                return "(?:" +
+                                    "(?!" + cOpt( "" ) + ")" + bNec +
+                                ")*(?:" +
+                                    "(?!" + cNec + ")(?:" +
+                                        
+                                        // We may run out of room matching the condition.
+                                        cOpt( "" ) + "|" +
+                                        
+                                        // We may run out of room matching the body.
+                                        "(?!" + bNec + ")" + bOpt( "" ) +
+                                    ")|" +
+                                    
+                                    // We may have a complete match.
+                                    cNec + next +
+                                ")";
+                            },
+                        necessary:
+                            bNec === null ? null :
+                            cNec === null ? null :
+                            "(?:(?!" + cNec + ")" + bNec + ")*" +
+                            cNec,
+                        makeFunc: function () {
+                            var bFunc = bCompiled.makeFunc();
+                            var cFunc = cCompiled.makeFunc();
+                            
+                            return function ( string, start, stop ) {
+                                var thisStart = start;
+                                while ( true ) {
+                                    var cResult = cFunc( string, thisStart, stop );
+                                    if ( cResult.type !== "failed" )
+                                        return cResult;
+                                    
+                                    var bResult = bFunc( string, cResult.stop, stop );
+                                    if ( bResult.type !== "matched" )
+                                        return bResult;
+                                    
+                                    thisStart = bResult.stop;
+                                }
+                            };
+                        }
+                    };
+                } );
             } );
         } );
         
@@ -4039,14 +3923,23 @@ function usingDefinitionNs( macroDefNs ) {
                                     stringInternal.length) )
                                 throw new Error();
                             
-                            // TODO: Return more of the result.
-                            var result =
+                            var funcResult =
                                 regexFunc( string, startI, stopI );
                             
-                            return callStcLater( rt, then,
-                                result.match.type === "match" ?
-                                    stcYep.ofNow( stcForeignInt( result.match.stop ) ) :
-                                    stcNil.ofNow() );
+                            if ( funcResult.type === "matched" )
+                                var result =
+                                    stcRegexResultMatched.ofNow( stcForeignInt( funcResult.stop ) );
+                            else if ( funcResult.type === "failed" )
+                                var result =
+                                    stcRegexResultFailed.ofNow();
+                            else if (
+                                funcResult.type === "passedEnd" )
+                                var result =
+                                    stcRegexResultPassedEnd.ofNow();
+                            else
+                                throw new Error();
+                            
+                            return callStcLater( rt, then, result );
                         } );
                     } );
                 } );
@@ -4641,6 +4534,14 @@ function usingDefinitionNs( macroDefNs ) {
         // `int-div-rounded-down`.
         // TODO: Add documentation for this somewhere.
         type( "carried", [ "main", "carry" ] );
+        
+        // These constructors are needed to deconstruct the results of
+        // `optimized-regex-match-later`.
+        // TODO: Add documentation for these somewhere. They're listed
+        // in era-cene-prelude.cene but without comment.
+        type( "regex-result-matched", [ "stop" ] );
+        type( "regex-result-failed", [] );
+        type( "regex-result-passed-end", [] );
         
         // These s-expression constructors are needed so that macros
         // can parse their s-expression arguments. The `cons` and
