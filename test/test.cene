@@ -10,7 +10,9 @@
   /dex-default (dex-struct yep dex-test-fix)
   /dex-default (dex-struct nope dex-test-fix)
   /dex-default (dex-struct cons dex-test-fix dex-test-fix)
+  /dex-default (dex-struct regex-result-matched dex-test-fix)
   /dex-default (dex-dex/nil)
+  /dex-default (dex-int/nil)
   /dex-give-up/nil))
 
 (defn dex-test -
@@ -73,3 +75,36 @@
     (table-shadow (dexable (dex-string/nil) str.woo) (yep/nope/nil)
     /table-empty/nil))
   (yep/nope/nil))
+
+(defn int-plus a b /call-fuse (fuse-int-by-plus/nil) a b)
+
+(defn int0 - /int-zero/nil)
+(defn int1 - /int-one/nil)
+(defn int-succ n /int-plus n /int1/nil)
+(defn int2 - /int-succ/int1/nil)
+(defn int3 - /int-succ/int2/nil)
+(defn int4 - /int-succ/int3/nil)
+(defn int5 - /int-succ/int4/nil)
+(defn int6 - /int-succ/int5/nil)
+(defn int7 - /int-succ/int6/nil)
+(defn int8 - /int-succ/int7/nil)
+(defn int9 - /int-succ/int8/nil)
+
+(defn regex-if-consume condition else
+  (regex-if condition (regex-while condition /regex-empty/nil) else))
+
+(test-async (dex-test/nil)
+  (fn out
+  /optimize-regex-later
+    (regex-if-consume (regex-from-string str.\;qq[a])
+    /regex-if-consume (regex-from-string str.\;qq[b])
+    /regex-if-consume (regex-from-string str.\;qq[c])
+    /regex-give-up/nil)
+  /fn optimized-regex
+  /let subject str.\;qq[aaabbbccc]
+  /optimized-regex-match-later optimized-regex subject
+    (int0/nil)
+    string-length.subject
+  /fn stop
+  /definer-define out stop)
+  (fn out /definer-define out /regex-result-matched/int3/nil))

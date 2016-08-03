@@ -1718,6 +1718,7 @@ function runTopLevelMacLookupsSync(
             return false;
         
         raiseErrorsForStalledThread( thread );
+        rt.anyTestFailed = true;
         return true;
     } ) )
         return;
@@ -1739,6 +1740,7 @@ function runTopLevelMacLookupsSync(
     // blocking on definitions that will never come.
     arrEach( threads.slice(), function ( thread ) {
         raiseErrorsForStalledThread( thread );
+        rt.anyTestFailed = true;
     } );
 }
 
@@ -2429,6 +2431,130 @@ function usingDefinitionNs( macroDefNs ) {
                     stcCons.getProj( body1, "car" ),
                     function ( rawMode, a ) {
                 return evalExpr( nssGet( nss, "b" ), rawMode,
+                    stcCons.getProj( body2, "car" ),
+                    function ( rawMode, b ) {
+                return rt.dexHas( dex, a, function ( hasA ) {
+                return rt.dexHas( dex, b, function ( hasB ) {
+                
+                var succeeded = hasA && hasB &&
+                    nameCompare( a.toName(), b.toName() ) === 0;
+                if ( succeeded )
+                    console.log( "Test succeeded" );
+                else if ( !hasA && !hasB )
+                    console.log(
+                        "Test failed: Expected things that matched " +
+                        dex.pretty() + ", got " + a.pretty() + " " +
+                        "and " + b.pretty() );
+                else
+                    console.log(
+                        "Test failed: Expected " +
+                        b.pretty() + ", got " + a.pretty() );
+                
+                if ( !succeeded )
+                    rt.anyTestFailed = true;
+                
+                return macLookupRet( stcNil.ofNow() );
+                
+                } );
+                } );
+                } );
+                } );
+                } );
+                
+                return macLookupThenRunEffects( rawMode,
+                    then( stcNil.of() ) );
+            } );
+        } );
+        
+        // TODO: See if we should design a different approach to unit
+        // tests. Perhaps they should allow asynchronous computation.
+        // Perhaps the results should be installed as definitions
+        // somewhere. Perhaps we should be able to control the order.
+        //
+        // TODO: Make this expand multiple expressions concurrently.
+        //
+        mac( "test-async",
+            function ( nss, myStxDetails, body, then ) {
+            
+            if ( !stcCons.tags( body ) )
+                throw new Error();
+            var body1 = stcCons.getProj( body, "cdr" );
+            if ( !stcCons.tags( body1 ) )
+                throw new Error();
+            var body2 = stcCons.getProj( body1, "cdr" );
+            if ( !stcCons.tags( body2 ) )
+                throw new Error();
+            var body3 = stcCons.getProj( body2, "cdr" );
+            if ( stcCons.tags( body3 ) )
+                throw new Error();
+            
+            return new StcForeign( "effects", function ( rawMode ) {
+                
+                function evalExpr( nss, rawMode, expr, then ) {
+                    return macroexpand(
+                        nssGet( nss, "unique" ),
+                        rawMode,
+                        expr,
+                        nssGet( nss, "outbox" ).uniqueNs,
+                        function ( rawMode, expanded ) {
+                        
+                        return macLookupThen(
+                            evalStcForTest( rt, expanded ),
+                            function ( evaluated ) {
+                            
+                            return then( rawMode, evaluated );
+                        } );
+                    } );
+                }
+                
+                function evalExprAndRun( nss, rawMode, expr, then ) {
+                    return evalExpr( nss, rawMode, expr,
+                        function ( rawMode, evaluated ) {
+                    
+                    var definer = { type: "object", visited: false,
+                        value: null };
+                    
+                    collectDefer( rawMode, rawMode.contributingOnlyTo,
+                        function () {
+                        
+                        return macLookupThen(
+                            macLookupGet( definer, function () {
+                                throw new Error(
+                                    "Never completed a side of a test-async" );
+                            } ),
+                            function ( defined ) {
+                            
+                            return macLookupRet(
+                                new StcForeign( "effects",
+                                    function ( rawMode ) {
+                                
+                                return then( rawMode, defined );
+                            } ) );
+                            
+                        } );
+                    } );
+                    
+                    // TODO: Currently, these tests can probably
+                    // install definitions if they obtain access to a
+                    // macroexpansion-time namespace value by calling
+                    // a function that carries it. Make it impossible
+                    // for test code to install definitions that way.
+                    return macLookupThenRunEffects( rawMode,
+                        evaluated.callStc( rt,
+                            new StcForeign( "definer", definer ) ) );
+                    
+                    } );
+                }
+                
+                // NOTE: This `evalExpr` call is the only place we
+                // ignore `macroexpand`'s result.
+                evalExpr( nssGet( nss, "dex" ), rawMode,
+                    stcCons.getProj( body, "car" ),
+                    function ( rawMode, dex ) {
+                return evalExprAndRun( nssGet( nss, "a" ), rawMode,
+                    stcCons.getProj( body1, "car" ),
+                    function ( rawMode, a ) {
+                return evalExprAndRun( nssGet( nss, "b" ), rawMode,
                     stcCons.getProj( body2, "car" ),
                     function ( rawMode, b ) {
                 return rt.dexHas( dex, a, function ( hasA ) {
@@ -3378,7 +3504,7 @@ function usingDefinitionNs( macroDefNs ) {
                 collectDefer( rawMode, rawMode.contributingOnlyTo,
                     function () {
                     
-                    return callStcMulti.call( null,
+                    return callStcMulti.apply( null,
                         [ rt, func ].concat( args ) );
                 } );
                 return macLookupRet( stcNil.ofNow() );
@@ -3526,7 +3652,7 @@ function usingDefinitionNs( macroDefNs ) {
                             next +
                             stringRep.replace( /[\d\D]{2}/g, "|$$)" );
                     },
-                    necessary: escapeRegex( string )
+                    necessary: escapeRegex( stringRep )
                 };
             } );
         } );
@@ -3582,7 +3708,7 @@ function usingDefinitionNs( macroDefNs ) {
         
         // TODO: Document this using the comment in
         // era-cene-prelude.cene.
-        fun( "finite-regex-one", function ( rt, ignored ) {
+        fun( "regex-one", function ( rt, ignored ) {
             return new StcForeign( "regex", function () {
                 return regexOptionalTrivial( "[\\d\\D]{2}" );
             } );
@@ -3890,7 +4016,7 @@ function usingDefinitionNs( macroDefNs ) {
         fun( "optimize-regex-later", function ( rt, regex ) {
             return stcFnPure( function ( rt, then ) {
                 if ( !(regex instanceof StcForeign
-                    && regex.purpose === "finite-regex") )
+                    && regex.purpose === "regex") )
                     throw new Error();
                 var compiled = compileRegex( regex ).makeFunc();
                 
@@ -3935,8 +4061,8 @@ function usingDefinitionNs( macroDefNs ) {
                                     stringInternal.length) )
                                 throw new Error();
                             
-                            var funcResult =
-                                regexFunc( string, startI, stopI );
+                            var funcResult = regexFunc(
+                                stringInternal, startI, stopI );
                             
                             if ( funcResult.type === "matched" )
                                 var result =
