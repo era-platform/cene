@@ -580,7 +580,14 @@ if ( tasks.length === 0 ) {
     }, function ( e ) {
         if ( e ) throw e;
         
-        process.exit( shouldExitWithErrorCode ? 1 : 0 );
+        if ( shouldExitWithErrorCode ) {
+            console.log( "" );
+            console.log( "   *** Tests failed. ***" );
+            console.log( "" );
+            process.exitCode = 1;
+        } else {
+            // Do nothing.
+        }
     } );
 }
 
