@@ -94,6 +94,10 @@
   (regex-if condition (regex-while condition /regex-empty/nil) else))
 
 (test-async (dex-test/nil)
+  (fn out /definer-define out /nil)
+  (fn out /definer-define out /nil))
+
+(test-async (dex-test/nil)
   (fn out
   /optimize-regex-later
     (regex-if-consume (regex-from-string str.\;qq[a])

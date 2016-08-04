@@ -120,12 +120,8 @@ function ceneApiUsingDefinitionNs(
     }
     function simpleEffects( body ) {
         return new StcForeign( "effects", function ( rawMode ) {
-            if ( rawMode.type !== "macro" )
-                throw new Error();
-            collectDefer( rawMode, rawMode.contributingOnlyTo,
-                function () {
-                
-                body();
+            collectDefer( rawMode, {}, function ( rawMode ) {
+                body( rawMode );
                 return macLookupRet( new StcForeign( "effects",
                     function ( rawMode ) {
                     
@@ -301,12 +297,15 @@ function ceneApiUsingDefinitionNs(
         type( "file-type-blob", [] );
         type( "file-type-missing", [] );
         
+        function rawModeSupportsObserveCli( rawMode ) {
+            return isMacroOrUnitTestRawMode( rawMode );
+        }
+        function rawModeSupportsContributeCli( rawMode ) {
+            return isMacroRawMode( rawMode );
+        }
+        
         fun( "cli-arguments", function ( rt, mode ) {
-            if ( !(mode instanceof StcForeign
-                && mode.purpose === "mode"
-                && mode.foreignVal.current
-                && mode.foreignVal.type === "macro") )
-                throw new Error();
+            assertMode( rawModeSupportsObserveCli, mode );
             
             var args = apiOps.cliArguments();
             return usingDefNs.stcArrayToConsList(
@@ -316,22 +315,14 @@ function ceneApiUsingDefinitionNs(
         } );
         
         fun( "cli-input-directory", function ( rt, mode ) {
-            if ( !(mode instanceof StcForeign
-                && mode.purpose === "mode"
-                && mode.foreignVal.current
-                && mode.foreignVal.type === "macro") )
-                throw new Error();
+            assertMode( rawModeSupportsObserveCli, mode );
             
             return new StcForeign( "input-path",
                 apiOps.cliInputDirectory() );
         } );
         
         fun( "cli-output-directory", function ( rt, mode ) {
-            if ( !(mode instanceof StcForeign
-                && mode.purpose === "mode"
-                && mode.foreignVal.current
-                && mode.foreignVal.type === "macro") )
-                throw new Error();
+            assertMode( rawModeSupportsObserveCli, mode );
             
             return new StcForeign( "output-path",
                 apiOps.cliOutputDirectory() );
@@ -353,11 +344,7 @@ function ceneApiUsingDefinitionNs(
         
         fun( "input-path-type", function ( rt, mode ) {
             return stcFnPure( function ( rt, inputPath ) {
-                if ( !(mode instanceof StcForeign
-                    && mode.purpose === "mode"
-                    && mode.foreignVal.current
-                    && mode.foreignVal.type === "macro") )
-                    throw new Error();
+                assertMode( rawModeSupportsObserveCli, mode );
                 
                 if ( !(inputPath instanceof StcForeign
                     && inputPath.purpose === "input-path") )
@@ -378,11 +365,7 @@ function ceneApiUsingDefinitionNs(
         
         fun( "input-path-directory-list", function ( rt, mode ) {
             return stcFnPure( function ( rt, inputPath ) {
-                if ( !(mode instanceof StcForeign
-                    && mode.purpose === "mode"
-                    && mode.foreignVal.current
-                    && mode.foreignVal.type === "macro") )
-                    throw new Error();
+                assertMode( rawModeSupportsObserveCli, mode );
                 
                 if ( !(inputPath instanceof StcForeign
                     && inputPath.purpose === "input-path") )
@@ -401,11 +384,7 @@ function ceneApiUsingDefinitionNs(
         
         fun( "input-path-blob-utf-8", function ( rt, mode ) {
             return stcFnPure( function ( rt, inputPath ) {
-                if ( !(mode instanceof StcForeign
-                    && mode.purpose === "mode"
-                    && mode.foreignVal.current
-                    && mode.foreignVal.type === "macro") )
-                    throw new Error();
+                assertMode( rawModeSupportsObserveCli, mode );
                 
                 if ( !(inputPath instanceof StcForeign
                     && inputPath.purpose === "input-path") )
@@ -436,7 +415,9 @@ function ceneApiUsingDefinitionNs(
                 && outputPath.purpose === "output-path") )
                 throw new Error();
             
-            return simpleEffects( function () {
+            return simpleEffects( function ( rawMode ) {
+                assertRawMode(
+                    rawModeSupportsContributeCli, rawMode );
                 apiOps.outputPathDirectory( outputPath.foreignVal );
             } );
         } );
@@ -450,7 +431,10 @@ function ceneApiUsingDefinitionNs(
                 var getContent =
                     parsePossiblyEncapsulatedString( outputString );
                 
-                return simpleEffects( function () {
+                return simpleEffects( function ( rawMode ) {
+                    assertRawMode(
+                        rawModeSupportsContributeCli, rawMode );
+                    
                     // TODO: Figure out if we actually need
                     // onceDependenciesComplete. We were already using
                     // defer to run these write effects after the read
@@ -493,11 +477,7 @@ function ceneApiUsingDefinitionNs(
             return stcFnPure( function ( rt, constructorTag ) {
                 return stcFnPure( function ( rt, topLevelVars ) {
                     
-                    if ( !(mode instanceof StcForeign
-                        && mode.purpose === "mode"
-                        && mode.foreignVal.current
-                        && mode.foreignVal.type === "macro") )
-                        throw new Error();
+                    assertMode( rawModeSupportsObserveCli, mode );
                     
                     if ( !(constructorTag instanceof StcForeign
                         && constructorTag.purpose === "name") )
