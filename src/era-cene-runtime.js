@@ -1269,20 +1269,109 @@ function getMacroFunctionNamespace( definitionNs, name ) {
             stcNsGet( "macros", definitionNs ) ) );
 }
 
+function parseMode( mode ) {
+    if ( !(mode instanceof StcForeign
+        && mode.purpose === "mode") )
+        throw new Error();
+    return mode.foreignVal;
+}
+function assertRawMode( check, rawMode ) {
+    if ( !rawMode.current )
+        throw new Error();
+    if ( !check( rawMode ) )
+        throw new Error();
+}
+function assertMode( check, mode ) {
+    assertRawMode( check, parseMode( mode ) );
+}
+function isMacroRawMode( rawMode ) {
+    return rawMode.type === "macro";
+}
+function isUnitTestRawMode( rawMode ) {
+    return rawMode.type === "unit-test";
+}
+function isMacroOrUnitTestRawMode( rawMode ) {
+    return isMacroRawMode( rawMode ) || isUnitTestRawMode( rawMode );
+}
+function isMacroOrUnitTestOrJsRawMode( rawMode ) {
+    return isMacroOrUnitTestRawMode( rawMode ) ||
+        rawMode.type === "js";
+}
+function isMacroOrDummyRawMode( rawMode ) {
+    return isMacroRawMode( rawMode ) || rawMode.type === "dummy-mode";
+}
+function rawModeSupportsDefer( rawMode ) {
+    return isMacroOrUnitTestRawMode( rawMode );
+}
+function rawModeSupportsContribute( ns ) {
+    return function ( rawMode ) {
+        return isMacroOrDummyRawMode( rawMode ) &&
+            stcNameSetContains( rawMode.contributingOnlyTo, ns );
+    };
+}
+function rawModeSupportsContributeDefiner( definer ) {
+    return function ( rawMode ) {
+        return isMacroOrDummyRawMode( rawMode ) ||
+            (isUnitTestRawMode( rawMode )
+                && definer.type === "object"
+                && nameCompare(
+                    definer.unitTestId, rawMode.unitTestId ) === 0);
+    };
+}
+function rawModeSupportsName( ns ) {
+    return function ( rawMode ) {
+        return isMacroOrUnitTestRawMode( rawMode );
+    };
+}
+function rawModeSupportsObserveDefiner( definer ) {
+    return function ( rawMode ) {
+        // NOTE: We let JS through because it looks up defined values
+        // when it does function calls.
+        return isMacroOrUnitTestOrJsRawMode( rawMode );
+    };
+}
+function rawModeSupportsObserveContributedElements( ns ) {
+    return function ( rawMode ) {
+        return isMacroOrUnitTestRawMode( rawMode ) &&
+            !rawModeSupportsContribute( ns )( rawMode );
+    };
+}
+function rawModeSupportsListen( ns ) {
+    return function ( rawMode ) {
+        return isMacroOrUnitTestRawMode( rawMode );
+    };
+}
+
 function collectPutDefined( rawMode, definer, value ) {
+    assertRawMode( rawModeSupportsContributeDefiner( definer ),
+        rawMode );
     rawMode.putDefined.push( { definer: definer, value: value } );
 }
 function collectPutElement( rawMode, namespace, name, element ) {
+    assertRawMode( rawModeSupportsContribute( namespace ), rawMode );
     rawMode.putElement.push(
         { namespace: namespace, name: name, element: element } );
 }
 function collectPutListener( rawMode, namespace, name, listener ) {
+    assertRawMode( rawModeSupportsListen( namespace ), rawMode );
     rawMode.putListener.push(
         { namespace: namespace, name: name, listener: listener } );
 }
-function collectDefer( rawMode, contributingOnlyTo, body ) {
+function collectDefer( rawMode, partialAttenuation, body ) {
+    assertRawMode( rawModeSupportsDefer, rawMode );
     rawMode.defer.push( {
-        contributingOnlyTo: contributingOnlyTo,
+        attenuation: {
+            type: partialAttenuation.type !== void 0 ?
+                partialAttenuation.type :
+                rawMode.type,
+            unitTestId: partialAttenuation.unitTestId !== void 0 ?
+                partialAttenuation.unitTestId :
+                rawMode.unitTestId,
+            contributingOnlyTo:
+                partialAttenuation.contributingOnlyTo !== void 0 ?
+                    partialAttenuation.contributingOnlyTo :
+                    rawMode.contributingOnlyTo
+        },
         body: body
     } );
 }
@@ -1393,7 +1482,11 @@ function runPuts( namespaceDefs, rawMode ) {
         if ( contribs.listeners.has( put.name ) )
             throw new Error();
         var listenerObj = {
-            contributingOnlyTo: rawMode.contributingOnlyTo,
+            attenuation: {
+                type: rawMode.type,
+                unitTestId: rawMode.unitTestId,
+                contributingOnlyTo: rawMode.contributingOnlyTo
+            },
             listener: put.listener
         };
         contribs.listeners.set( put.name, listenerObj );
@@ -1432,23 +1525,23 @@ function runTopLevelMacLookupsSync(
         return result;
     }
     function currentlyThread( thread, body ) {
-        if ( thread.isJs )
-            return body();
         return currentlyMode( thread.rawMode, body );
     }
     
     var threads = [];
     
-    function addMacroThread( contributingOnlyTo, thread ) {
+    function addMacroThread( attenuation, thread ) {
         var rawMode = {
-            type: "macro",
+            type: attenuation.type,
+            unitTestId: attenuation.unitTestId,
+            contributingOnlyTo: attenuation.contributingOnlyTo,
             current: false,
-            contributingOnlyTo: contributingOnlyTo,
             putDefined: [],
             putElement: [],
             putListener: [],
             defer: []
         };
+        
         var monad = macLookupThen( macLookupRet( null ),
             function ( ignored ) {
         return macLookupThen(
@@ -1459,8 +1552,7 @@ function runTopLevelMacLookupsSync(
             
             var listenersFired = runPuts( namespaceDefs, rawMode );
             arrEach( listenersFired, function ( listenerFired ) {
-                addMacroThread(
-                    listenerFired.listener.contributingOnlyTo,
+                addMacroThread( listenerFired.listener.attenuation,
                     function ( rawMode ) {
                     
                     return macLookupThen(
@@ -1475,11 +1567,11 @@ function runTopLevelMacLookupsSync(
                 } );
             } );
             arrEach( rawMode.defer, function ( deferred ) {
-                addMacroThread( deferred.contributingOnlyTo,
+                addMacroThread( deferred.attenuation,
                     function ( rawMode ) {
                     
                     var body = deferred.body;
-                    return macLookupThen( body(),
+                    return macLookupThen( body( rawMode ),
                         function ( effects ) {
                         
                         return currentlyMode( rawMode, function () {
@@ -1497,15 +1589,17 @@ function runTopLevelMacLookupsSync(
             isJs: false,
             failedAdvances: 0,
             rawMode: rawMode,
-            contributingOnlyTo: contributingOnlyTo,
             monad: monad
         } );
     }
     
     arrEach( originalThreads, function ( thread ) {
         if ( thread.type === "topLevelDefinitionThread" ) {
-            addMacroThread( stcNameSetAll(),
-                thread.macLookupEffectsOfDefinitionEffects );
+            addMacroThread( {
+                type: "macro",
+                unitTestId: null,
+                contributingOnlyTo: stcNameSetAll()
+            }, thread.macLookupEffectsOfDefinitionEffects );
         } else if ( thread.type === "jsEffectsThread" ) {
             var monad = macLookupThen(
                 thread.macLookupEffectsOfJsEffects,
@@ -1521,8 +1615,15 @@ function runTopLevelMacLookupsSync(
             threads.push( {
                 isJs: true,
                 failedAdvances: 0,
-                rawMode: null,
-                contributingOnlyTo: stcNameSetEmpty(),
+                rawMode: {
+                    type: "js",
+                    unitTestId: null,
+                    contributingOnlyTo: stcNameSetEmpty(),
+                    current: true,
+                    putDefined: [],
+                    putElement: [],
+                    putListener: []
+                },
                 monad: monad
             } );
         } else {
@@ -1538,7 +1639,6 @@ function runTopLevelMacLookupsSync(
                 isJs: thread.isJs,
                 failedAdvances: 0,
                 rawMode: thread.rawMode,
-                contributingOnlyTo: thread.contributingOnlyTo,
                 monad: monad
             };
             return true;
@@ -1560,7 +1660,15 @@ function runTopLevelMacLookupsSync(
                         return then( thread.monad.first.val );
                     } ) );
             } else if ( thread.monad.first.type === "get" ) {
+                
                 var definer = thread.monad.first.definer;
+                
+                currentlyThread( thread, function () {
+                    assertRawMode(
+                        rawModeSupportsObserveDefiner( definer ),
+                        thread.rawMode );
+                } );
+                
                 if ( definer.type === "namespace" ) {
                     var maybeValue =
                         namespaceDefs.has( definer.namespace.name ) ?
@@ -1588,31 +1696,32 @@ function runTopLevelMacLookupsSync(
                 
                 // We check that the current thread has stopped
                 // contributing to this state.
-                if ( stcNameSetContains(
-                    thread.contributingOnlyTo,
-                    thread.monad.first.name ) )
-                    throw new Error();
+                currentlyThread( thread, function () {
+                    assertRawMode(
+                        rawModeSupportsObserveContributedElements(
+                            thread.monad.first.name ),
+                        thread.rawMode );
+                } );
                 
                 // We wait for all the other threads to stop
                 // contributing to this state.
-                if ( !arrAny( threads, function ( otherThread ) {
-                    return stcNameSetContains(
-                        otherThread.contributingOnlyTo,
-                        thread.monad.first.name );
+                if ( arrAny( threads, function ( otherThread ) {
+                    return rawModeSupportsContribute(
+                        thread.monad.first.name
+                    )( otherThread.rawMode );
                 } ) ) {
-                    var result = new StcForeign( "table",
-                        (namespaceDefs.get(
-                            [ "contributions",
-                                thread.monad.first.name ] )
-                            || { elements: jsnMap() }).elements );
-                    return replaceThread(
-                        currentlyThread( thread, function () {
-                            return then( result );
-                        } ) );
-                } else {
                     thread.failedAdvances++;
                     return false;
                 }
+                
+                var result = new StcForeign( "table",
+                    (namespaceDefs.get(
+                        [ "contributions", thread.monad.first.name ] )
+                        || { elements: jsnMap() }).elements );
+                return replaceThread(
+                    currentlyThread( thread, function () {
+                        return then( result );
+                    } ) );
             } else if ( thread.monad.first.type === "then" ) {
                 return replaceThread( macLookupThen(
                     thread.monad.first.first,
@@ -2240,6 +2349,9 @@ function usingDefinitionNs( macroDefNs ) {
     function makeDummyMode() {
         return {
             type: "dummy-mode",
+            unitTestId: null,
+            contributingOnlyTo: stcNameSetAll(),
+            current: true,
             putDefined: [],
             putElement: [],
             putListener: []
@@ -2467,9 +2579,9 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: See if we should design a different approach to unit
-        // tests. Perhaps they should allow asynchronous computation.
-        // Perhaps the results should be installed as definitions
-        // somewhere. Perhaps we should be able to control the order.
+        // tests. Perhaps the results should be installed as
+        // definitions somewhere. Perhaps we should be able to control
+        // the order.
         //
         // TODO: Make this expand multiple expressions concurrently.
         //
@@ -2490,33 +2602,49 @@ function usingDefinitionNs( macroDefNs ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
                 
-                function evalExpr( nss, rawMode, expr, then ) {
-                    return macroexpand(
+                function makeEvalExpr( nss, rawMode, expr, then ) {
+                    
+                    // NOTE: This is the only place we ignore
+                    // `macroexpand`'s return value.
+                    macroexpand(
                         nssGet( nss, "unique" ),
                         rawMode,
                         expr,
                         nssGet( nss, "outbox" ).uniqueNs,
                         function ( rawMode, expanded ) {
                         
-                        return macLookupThen(
-                            evalStcForTest( rt, expanded ),
-                            function ( evaluated ) {
+                        return then( rawMode,
+                            function ( rawMode, then ) {
                             
-                            return then( rawMode, evaluated );
+                            return macLookupThen(
+                                evalStcForTest( rt, expanded ),
+                                function ( evaluated ) {
+                                
+                                return then( rawMode, evaluated );
+                            } );
                         } );
                     } );
+                    
+                    return macLookupRet( stcNil.ofNow() );
                 }
                 
-                function evalExprAndRun( nss, rawMode, expr, then ) {
-                    return evalExpr( nss, rawMode, expr,
+                function makeEvalExprAndRun(
+                    nss, rawMode, expr, then ) {
+                    
+                    return makeEvalExpr( nss, rawMode, expr,
+                        function ( rawMode, evalExpr ) {
+                    return then( rawMode, function ( rawMode, then ) {
+                    return evalExpr( rawMode,
                         function ( rawMode, evaluated ) {
                     
-                    var definer = { type: "object", visited: false,
-                        value: null };
+                    var definer = {
+                        type: "object",
+                        visited: false,
+                        unitTestId: rawMode.unitTestId,
+                        value: null
+                    };
                     
-                    collectDefer( rawMode, rawMode.contributingOnlyTo,
-                        function () {
-                        
+                    collectDefer( rawMode, {}, function ( rawMode ) {
                         return macLookupThen(
                             macLookupGet( definer, function () {
                                 throw new Error(
@@ -2534,29 +2662,37 @@ function usingDefinitionNs( macroDefNs ) {
                         } );
                     } );
                     
-                    // TODO: Currently, these tests can probably
-                    // install definitions if they obtain access to a
-                    // macroexpansion-time namespace value by calling
-                    // a function that carries it. Make it impossible
-                    // for test code to install definitions that way.
                     return macLookupThenRunEffects( rawMode,
                         evaluated.callStc( rt,
                             new StcForeign( "definer", definer ) ) );
                     
                     } );
+                    } );
+                    } );
                 }
                 
-                // NOTE: This `evalExpr` call is the only place we
-                // ignore `macroexpand`'s result.
-                evalExpr( nssGet( nss, "dex" ), rawMode,
+                makeEvalExpr( nssGet( nss, "dex" ), rawMode,
                     stcCons.getProj( body, "car" ),
-                    function ( rawMode, dex ) {
-                return evalExprAndRun( nssGet( nss, "a" ), rawMode,
+                    function ( rawMode, evalDex ) {
+                return makeEvalExprAndRun( nssGet( nss, "a" ),
+                    rawMode,
                     stcCons.getProj( body1, "car" ),
-                    function ( rawMode, a ) {
-                return evalExprAndRun( nssGet( nss, "b" ), rawMode,
+                    function ( rawMode, evalA ) {
+                return makeEvalExprAndRun( nssGet( nss, "b" ),
+                    rawMode,
                     stcCons.getProj( body2, "car" ),
-                    function ( rawMode, b ) {
+                    function ( rawMode, evalB ) {
+                
+                collectDefer( rawMode, {
+                    type: "unit-test",
+                    unitTestId: nssGet( nss, "dex" ).uniqueNs.name,
+                    contributingOnlyTo: stcNameSetEmpty()
+                }, function ( rawMode ) {
+                return macLookupRet(
+                    new StcForeign( "effects", function ( rawMode ) {
+                return evalDex( rawMode, function ( rawMode, dex ) {
+                return evalA( rawMode, function ( rawMode, a ) {
+                return evalB( rawMode, function ( rawMode, b ) {
                 return rt.dexHas( dex, a, function ( hasA ) {
                 return rt.dexHas( dex, b, function ( hasB ) {
                 
@@ -2581,6 +2717,14 @@ function usingDefinitionNs( macroDefNs ) {
                 
                 } );
                 } );
+                } );
+                } );
+                } );
+                } ) );
+                } );
+                
+                return macLookupRet( stcNil.ofNow() );
+                
                 } );
                 } );
                 } );
@@ -3499,11 +3643,7 @@ function usingDefinitionNs( macroDefNs ) {
         function callStcLater( rt, func, var_args ) {
             var args = [].slice.call( arguments, 2 );
             return new StcForeign( "effects", function ( rawMode ) {
-                if ( rawMode.type !== "macro" )
-                    throw new Error();
-                collectDefer( rawMode, rawMode.contributingOnlyTo,
-                    function () {
-                    
+                collectDefer( rawMode, {}, function ( rawMode ) {
                     return callStcMulti.apply( null,
                         [ rt, func ].concat( args ) );
                 } );
@@ -4144,15 +4284,12 @@ function usingDefinitionNs( macroDefNs ) {
                 return new StcForeign( "effects",
                     function ( rawMode ) {
                     
-                    if ( rawMode.type !== "macro" )
-                        throw new Error();
-                    collectDefer( rawMode,
-                        stcNameSetIntersection(
+                    collectDefer( rawMode, {
+                        contributingOnlyTo: stcNameSetIntersection(
                             rawMode.contributingOnlyTo,
                             stcNameSetNsDescendants(
-                                ns.foreignVal ) ),
-                        function () {
-                        
+                                ns.foreignVal ) )
+                    }, function ( rawMode ) {
                         return macLookupRet( effects );
                     } );
                     return macLookupRet( stcNil.ofNow() );
@@ -4203,15 +4340,12 @@ function usingDefinitionNs( macroDefNs ) {
         
         fun( "procure-name", function ( rt, mode ) {
             return stcFnPure( function ( rt, ns ) {
-                if ( !(mode instanceof StcForeign
-                    && mode.purpose === "mode"
-                    && mode.foreignVal.current
-                    && mode.foreignVal.type === "macro") )
-                    throw new Error();
-                
                 if ( !(ns instanceof StcForeign
                     && ns.purpose === "ns") )
                     throw new Error();
+                
+                assertMode( rawModeSupportsName( ns.foreignVal ),
+                    mode );
                 
                 return new StcForeign( "name", ns.foreignVal.name );
             } );
@@ -4219,22 +4353,20 @@ function usingDefinitionNs( macroDefNs ) {
         
         fun( "procure-defined", function ( rt, mode ) {
             return new StcFn( function ( rt, ns ) {
-                if ( !(mode instanceof StcForeign
-                    && mode.purpose === "mode"
-                    && mode.foreignVal.current
-                    && mode.foreignVal.type === "macro") )
-                    throw new Error();
-                
                 if ( !(ns instanceof StcForeign
                     && ns.purpose === "ns") )
                     throw new Error();
                 
-                return macLookupGet( nsToDefiner( ns.foreignVal ),
-                    function () {
-                        throw new Error(
-                            "No such defined value: " +
-                            JSON.stringify( ns.foreignVal.name ) );
-                    } );
+                var definer = nsToDefiner( ns.foreignVal );
+                
+                assertMode( rawModeSupportsObserveDefiner( definer ),
+                    mode );
+                
+                return macLookupGet( definer, function () {
+                    throw new Error(
+                        "No such defined value: " +
+                        JSON.stringify( ns.foreignVal.name ) );
+                } );
             } );
         } );
         
@@ -4261,9 +4393,6 @@ function usingDefinitionNs( macroDefNs ) {
                             new StcForeign( "effects",
                                 function ( rawMode ) {
                             
-                            if ( rawMode.type !== "macro" )
-                                throw new Error();
-                            
                             collectPutElement( rawMode, ns.foreignVal,
                                 key.toName(), element );
                             return macLookupRet( stcNil.ofNow() );
@@ -4287,9 +4416,6 @@ function usingDefinitionNs( macroDefNs ) {
                             new StcForeign( "effects",
                                 function ( rawMode ) {
                             
-                            if ( rawMode.type !== "macro" )
-                                throw new Error();
-                            
                             collectPutListener( rawMode,
                                 ns.foreignVal,
                                 key.toName(), listener );
@@ -4302,15 +4428,14 @@ function usingDefinitionNs( macroDefNs ) {
         
         fun( "procure-contributed-elements", function ( rt, mode ) {
             return new StcFn( function ( rt, ns ) {
-                if ( !(mode instanceof StcForeign
-                    && mode.purpose === "mode"
-                    && mode.foreignVal.current
-                    && mode.foreignVal.type === "macro") )
-                    throw new Error();
-                
                 if ( !(ns instanceof StcForeign
                     && ns.purpose === "ns") )
                     throw new Error();
+                
+                assertMode(
+                    rawModeSupportsObserveContributedElements(
+                        ns.foreignVal ),
+                    mode );
                 
                 return macLookupProcureContributedElements(
                     ns.foreignVal.name,
@@ -4357,11 +4482,7 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
-                if ( rawMode.type !== "macro" )
-                    throw new Error();
-                collectDefer( rawMode, rawMode.contributingOnlyTo,
-                    function () {
-                    
+                collectDefer( rawMode, {}, function ( rawMode ) {
                     return macLookupRet( effects );
                 } );
                 return macLookupRet( stcNil.ofNow() );
@@ -4369,18 +4490,26 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         fun( "make-promise-later", function ( rt, then ) {
-            var definer =
-                { type: "object", visited: false, value: null };
-            
-            return callStcLater( rt, then,
-                new StcForeign( "definer", definer ),
-                new StcFn( function ( rt, ignored ) {
-                    return macLookupGet( definer,
-                        function () {
-                            throw new Error(
-                                "Never fulfilled a promise" );
-                        } );
-                } ) );
+            return new StcForeign( "effects", function ( rawMode ) {
+                collectDefer( rawMode, {}, function ( rawMode ) {
+                    var definer = {
+                        type: "object",
+                        visited: false,
+                        unitTestId: rawMode.unitTestId,
+                        value: null
+                    };
+                    return callStcMulti( rt, then,
+                        new StcForeign( "definer", definer ),
+                        new StcFn( function ( rt, ignored ) {
+                            return macLookupGet( definer,
+                                function () {
+                                    throw new Error(
+                                        "Never fulfilled a promise" );
+                                } );
+                        } ) );
+                } );
+                return macLookupRet( stcNil.ofNow() );
+            } );
         } );
         
         fun( "definer-define", function ( rt, definer ) {
@@ -4391,9 +4520,6 @@ function usingDefinitionNs( macroDefNs ) {
                 
                 return new StcForeign( "effects",
                     function ( rawMode ) {
-                    
-                    if ( rawMode.type !== "macro" )
-                        throw new Error();
                     
                     collectPutDefined( rawMode, definer.foreignVal,
                         value );
@@ -4428,10 +4554,6 @@ function usingDefinitionNs( macroDefNs ) {
                         
                         return new StcForeign( "effects",
                             function ( rawMode ) {
-                            
-                            if ( !(rawMode.current
-                                && rawMode.type === "macro") )
-                                throw new Error();
                             
                             return macroexpandToDefiner( {
                                 definitionNs: definitionNs.foreignVal,
@@ -4471,11 +4593,7 @@ function usingDefinitionNs( macroDefNs ) {
         nss, rawMode, locatedExpr, outDefiner ) {
         
         // #GEN
-        if ( rawMode.type !== "macro" )
-            throw new Error();
-        collectDefer( rawMode, rawMode.contributingOnlyTo,
-            function () {
-            
+        collectDefer( rawMode, {}, function ( rawMode ) {
             var identifier = stxToMaybeName( locatedExpr );
             if ( identifier !== null )
                 return macLookupRet( new StcForeign( "effects",
@@ -4539,11 +4657,7 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function macroexpand( nss, rawMode, locatedExpr, outNs, then ) {
-        if ( rawMode.type !== "macro" )
-            throw new Error();
-        collectDefer( rawMode, rawMode.contributingOnlyTo,
-            function () {
-            
+        collectDefer( rawMode, {}, function ( rawMode ) {
             return macLookupThen(
                 macLookupGet( nsToDefiner( outNs ), function () {
                     if ( !stcStx.tags( locatedExpr ) )
