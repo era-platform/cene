@@ -32,12 +32,12 @@
     /fn expr state
       (cast state folding unique-ns launch-rest
         err.\;qq[Internal error]
-      /folding (ns-get-string str.rest unique-ns)
+      /folding (ns-get str.rest unique-ns)
       /join-effects launch-rest
-      /let first-ns (ns-get-string str.first unique-ns)
+      /let first-ns (ns-get str.first unique-ns)
       /make-promise-later/fn outbox-definer get-outbox
       /compile-expression
-        (ns-get-string str.unique first-ns)
+        (ns-get str.unique first-ns)
         definition-ns
         expr
         outbox-definer))
