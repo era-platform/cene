@@ -2,44 +2,7 @@
 \= Copyright 2015, 2016 Ross Angle. Released under the MIT License.
 
 
-\= ===== Former built-in operations ==================================
-
-\= TODO: Put these somewhere better. See if we should still document
-\= them in docs.md.
-
-(defn ns-get-string string ns
-  (table-get-singleton/procure-sub-ns-table
-    (table-shadow (dexable (dex-string/nil) string) (yep/nil)
-    /table-empty/nil)
-    ns))
-
-(defn ns-get-name name ns
-  (table-get-singleton/procure-sub-ns-table
-    (table-shadow (dexable (dex-name/nil) name) (yep/nil)
-    /table-empty/nil)
-    ns))
-
-(defn ns-shadow-string string sub-ns ns
-  (shadow-procure-sub-ns-table
-    (table-shadow (dexable (dex-string/nil) string) yep.sub-ns
-    /table-empty/nil)
-    ns))
-
-(defn ns-shadow-name name sub-ns ns
-  (shadow-procure-sub-ns-table
-    (table-shadow (dexable (dex-name/nil) name) yep.sub-ns
-    /table-empty/nil)
-    ns))
-
-
 \= ===== Lists, boolean tags, and macro utilities ====================
-
-\= TODO: Put the commented-out types in a separate file so the
-\= non-mini runner can see them, since it doesn't have them built in.
-\;rm(def-type cons car cdr)
-\;rm(def-type yep val)
-\;rm(def-type nope val)
-\;rm(def-type nil)
 
 (def-type pair first second)
 
@@ -82,6 +45,17 @@
   (cast list cons first rest state
   /c-new foldl (c combiner state first) rest combiner))
 
+(defn ns-path ns path
+  (let dex-component (dex-default (dex-string/nil) (dex-name/nil))
+  /foldl ns path /fn ns component
+    (table-get-singleton/procure-sub-ns-table
+      (table-shadow (dexable dex-component component) (yep/nil)
+      /table-empty/nil)
+      ns)))
+
+(defn ns-get key ns
+  (ns-path ns /cons key /nil))
+
 (defn double-any-foldl state list-a list-b combiner
   (cast list-a cons first-a rest-a nope.state
   /cast list-b cons first-b rest-b nope.state
@@ -109,9 +83,8 @@
   /case (in-dex (dex-name/nil) name) yep - name
   /case (in-dex (dex-string/nil) name) yep -
     (procure-name mode
-    /ns-get-string str.name
-    /ns-get-string name
-    /ns-get-string str.macro-names definition-ns)
+    /ns-path definition-ns
+    /cons str.macro-names /cons name /cons str.name /nil)
     
     err.\;qq[Expected a name value of type name or string]))
 
@@ -125,11 +98,11 @@
     (fn str rest
       (cons (c s /foreign/macro-name mode definition-ns str) rest))
   /join-effects (later/get-mode/fn mode /c then /c get-outbox mode)
-  /cast (c body (ns-get-string str.body unique-ns) s mac)
+  /cast (c body (ns-get str.body unique-ns) s mac)
     basic-macro-result effects expression
     err.\;qq[Expected a body result of type basic-macro-result]
   /join-effects effects
-  /compile-expression (ns-get-string str.compilation unique-ns)
+  /compile-expression (ns-get str.compilation unique-ns)
     definition-ns expression outbox-definer))
 
 (defn basic-pure-macro
@@ -170,8 +143,8 @@
   /cast args nil
     err.\;qq[Called after-cwa with too many arguments]
   
-  /contributing-only-to (ns-get-string str.no-contributions unique-ns)
-  /let unique-ns (ns-get-string str.body unique-ns)
+  /contributing-only-to (ns-get str.no-contributions unique-ns)
+  /let unique-ns (ns-get str.body unique-ns)
   
   \= TODO: Actually, maybe we just want to do this:
 \=  /contributing-only-to unique-ns

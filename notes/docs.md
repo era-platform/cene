@@ -133,41 +133,21 @@ Monadically, schedules the effects to occur in a future tick where contributing 
 
 -
 ```
-(defn ns-get-name name ns ...)
-```
-Obtains a sub-namespace determined by the given namespace, using the given name as a "folder name." Unless the sub-namespaces are shadowed, distinct "folder names" will yield distinct sub-namespaces.
-
--
-```
-(defn ns-get-string string ns ...)
-```
-Obtains a sub-namespace determined by the first namespace, using the given string as a "folder name." Unless the sub-namespaces are shadowed, distinct "folder names" will yield distinct sub-namespaces.
-
--
-```
 (defn procure-sub-ns-table table ns ...)
 ```
-Makes a table with entries corresponding to the given table, except each value is a namespace uniquely determined by the given namespace and the entry's key. The entry's value is ignored.
+Makes a table with entries corresponding to the given table, except each value is replaced with a sub-namespace, which is to say a namespace uniquely determined by the given namespace and the entry's key. The entry's value is ignored.
 
--
-```
-(defn ns-shadow-name name sub-ns ns ...)
-```
-Creates a new namespace that behaves like the second namespace in almost every way, except when the given name is requested as a "folder name", in which case the first namespace is returned instead.
-
--
-```
-(defn ns-shadow-string string sub-ns ns ...)
-```
-Creates a new namespace that behaves like the second namespace in almost every way, except when the given string is requested as a "folder name", in which case the first namespace is returned instead.
-
-The `ns-shadow-name` and `ns-shadow-string` functions can be used to establish local macros. A namespace created this way even works the same way as the old one when it's used in a `procure-...` primitive. This way, we can imagine that the namespace's own identity is stored under an entry somewhere in the namespace, just using a key that we don't have the ability to construct.
+Unless the sub-namespaces are shadowed (which can happen using `shadow-procure-sub-ns-table`), distinct keys will yield distinct sub-namespaces.
 
 -
 ```
 (defn shadow-procure-sub-ns-table table ns ...)
 ```
-Creates a new namespace that behaves like the given namespace in almost every way, except when a key from the given table is requested as a "folder name", in which case the corresponding value of the table is returned instead. The values of the table must be namespaces.
+Creates a new namespace that behaves like the given namespace in almost every way, except that when it's used with `procure-sub-ns-table` where some of the keys are from the given table, the corresponding values of the table are returned as the sub-namespaces instead. The values of the table must be namespaces.
+
+A namespace created this way works the same way as the old one when it's used in any other `procure-...` primitive. This way, we can imagine that the namespace's identity (`procure-name`) and contribution state are stored under a sub-namespace somewhere, just using a key that we don't have the ability to construct.
+
+One useful purpose of this tool is to establish local macros. The layout of the definition namespace has been designed so that specific parts can be shadowed conveniently.
 
 -
 ```

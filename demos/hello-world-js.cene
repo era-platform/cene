@@ -22,14 +22,11 @@
     (output-path-get (cli-output-directory mode)
       str.\;qq[hello-world.js])
   /sloppy-javascript-quine mode
-    (procure-name mode
-    /ns-get-string str.tag
-    /ns-get-name
-      (procure-name mode
-      /ns-get-string str.name
-      /ns-get-string str.js-main
-      /ns-get-string str.constructor-names definition-ns)
-    /ns-get-string str.constructors definition-ns)
+    (procure-name mode /ns-path definition-ns /list
+      str.constructors
+      (procure-name mode /ns-path definition-ns /list
+        str.constructor-names str.js-main str.name)
+      str.tag)
   /nil))
 
 (go)
