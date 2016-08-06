@@ -462,7 +462,7 @@ function ceneApiUsingDefinitionNs(
                     // Maybe we don't actually need this to be a
                     // built-in function.
                     collectPutDefined( rawMode,
-                        nsToDefiner(
+                        nsToDefiner( rt,
                             stcNsGet( keyInternal,
                                 stcNsGet(
                                     "cli-output-environment-variable-shadows",

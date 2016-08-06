@@ -35,11 +35,12 @@
       /folding (ns-get-string str.rest unique-ns)
       /join-effects launch-rest
       /let first-ns (ns-get-string str.first unique-ns)
+      /make-promise-later/fn outbox-definer get-outbox
       /compile-expression
         (ns-get-string str.unique first-ns)
         definition-ns
         expr
-        (procure-definer/ns-get-string str.outbox first-ns)))
+        outbox-definer))
     folding unique-ns launch-rest
     err.\;qq[Internal error]
     
