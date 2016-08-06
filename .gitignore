@@ -2,5 +2,8 @@
 /node_modules/
 /npm-debug.log
 
-# Added by the build process.
+# Added by all build processes.
 /fin/
+
+# Added only by the documentation build process.
+/build/
