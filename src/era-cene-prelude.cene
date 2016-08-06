@@ -118,20 +118,19 @@
 (def-type basic-macro-result effects expression)
 
 (defn basic-macro unique-ns definition-ns my-stx-details then body
-  (get-mode/fn mode
+  (make-promise-later/fn outbox-definer get-outbox
+  /get-mode/fn mode
   /let s (fn it /stx my-stx-details it)
   /let mac
     (fn str rest
       (cons (c s /foreign/macro-name mode definition-ns str) rest))
-  /let outbox (ns-get-string str.outbox unique-ns)
-  /join-effects
-    (later/get-mode/fn mode /c then /procure-defined mode outbox)
+  /join-effects (later/get-mode/fn mode /c then /c get-outbox mode)
   /cast (c body (ns-get-string str.body unique-ns) s mac)
     basic-macro-result effects expression
     err.\;qq[Expected a body result of type basic-macro-result]
   /join-effects effects
   /compile-expression (ns-get-string str.compilation unique-ns)
-    definition-ns expression procure-definer.outbox))
+    definition-ns expression outbox-definer))
 
 (defn basic-pure-macro
   unique-ns definition-ns my-stx-details then body
@@ -156,8 +155,8 @@
 
 \= Macro calls appearing inside an `(after-cwa ...)` form will be able
 \= to depend on anything that uses `procure-contributed-elements`
-\= during macroexpansion, and they won't be able to do
-\= `procure-contribute-element` at all. The "cwa" stands for
+\= during macroexpansion, and they won't be able to do fulfill a
+\= `procure-contributed-element-definer` at all. The "cwa" stands for
 \= "closed world assumption."
 \=
 \= TODO: Use this. Once we're using it, we'll probably have other

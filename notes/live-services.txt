@@ -1,15 +1,5 @@
 \= TODO: Implement the things in this file.
 
-## Refactoring
-
-\= TODO: Replace `procure-defined`, `procure-definer`, and `procure-contribute-element` with the following designs, `procure-contributed-element` and `procure-contributed-element-definer`.
-
-(defn procure-contributed-element mode ns dexable-key ...)
-Blocks until the given namespace has a contributed element under the given key, and returns that element value. The given modality must be the current one.
-
-(defn procure-contributed-element-definer mode ns dexable-key ...)
-Construts a definer that contributes its defined value to the element contribution map on the namespace. The given modality must be the current one. When the definer is used, if more than one element contribution is given for the same key at the same timestamp, an error occurs; all listener contributors, element contributors, and ticks begun by these contributions are in error, and their ticks' side effects are invalidated. When the definer is used, the then-current modality's ancestors must not have used `contributing-only-to` to disallow making element contributions to the given namespace. Furthermore, if the then-current modality is a live service modality, the ancestors must not have used `contributing-only-to-unless-after` or `contributing-only-to-unless-before` in a way that conflicts with the timestamp at which the definer was obtained.
-
 
 ## Times and durations
 

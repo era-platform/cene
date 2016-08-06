@@ -397,9 +397,9 @@ function macLookupRet( result ) {
 function macLookupGet( definer, err ) {
     return { type: "get", definer: definer, err: err };
 }
-function macLookupProcureContributedElements( name, err ) {
+function macLookupProcureContributedElements( namespace, err ) {
     return { type: "procureContributedElements",
-        name: name, err: err };
+        namespace: namespace, err: err };
 }
 function macLookupThen( macLookupEffects, then ) {
     return { type: "then", first: macLookupEffects, then: then };
@@ -439,10 +439,8 @@ Stc.prototype.callStc = function ( rt, arg ) {
     
     return macLookupThen(
         macLookupGet(
-            nsToDefiner(
-                stcNsGet( "call",
-                    stcNsGet( JSON.parse( self.tupleTag ),
-                        stcNsGet( "functions", rt.defNs ) ) ) ),
+            getFunctionCoercerDefiner( rt.defNs,
+                JSON.parse( self.tupleTag ) ),
             function () {
                 throw new Error(
                     "No such function definition: " + self.tupleTag );
@@ -1263,10 +1261,27 @@ function stcTrivialStxDetails() {
     return new StcForeign( "macro-stx-details", null );
 }
 
-function getMacroFunctionNamespace( definitionNs, name ) {
-    return stcNsGet( "function",
-        stcNsGet( stcMacroName( definitionNs, name ),
-            stcNsGet( "macros", definitionNs ) ) );
+function elementDefiner( name, ns ) {
+    return { type: "contributedElement", namespace: ns, name: name };
+}
+
+function getMacroFunctionDefiner( definitionNs, name ) {
+    return elementDefiner( "val",
+        stcNsGet( "function",
+            stcNsGet( stcMacroName( definitionNs, name ),
+                stcNsGet( "macros", definitionNs ) ) ) );
+}
+function getProjectionListDefiner( definitionNs, tupleName ) {
+    return elementDefiner( "val",
+        stcNsGet( "projection-list",
+            stcNsGet( stcConstructorName( definitionNs, tupleName ),
+                stcNsGet( "constructors", definitionNs ) ) ) );
+}
+function getFunctionCoercerDefiner( definitionNs, tupleTagName ) {
+    return elementDefiner( "val",
+        stcNsGet( "call",
+            stcNsGet( tupleTagName,
+                stcNsGet( "functions", definitionNs ) ) ) );
 }
 
 function parseMode( mode ) {
@@ -1303,20 +1318,32 @@ function isMacroOrDummyRawMode( rawMode ) {
 function rawModeSupportsDefer( rawMode ) {
     return isMacroOrUnitTestRawMode( rawMode );
 }
-function rawModeSupportsContribute( ns ) {
-    return function ( rawMode ) {
-        return isMacroOrDummyRawMode( rawMode ) &&
-            stcNameSetContains( rawMode.contributingOnlyTo, ns );
-    };
-}
 function rawModeSupportsContributeDefiner( definer ) {
     return function ( rawMode ) {
-        return isMacroOrDummyRawMode( rawMode ) ||
-            (isUnitTestRawMode( rawMode )
-                && definer.type === "object"
+        
+        if ( definer.type === "contributedElement"
+            && !stcNameSetContains(
+                rawMode.contributingOnlyTo, definer.namespace ) )
+            return false;
+        
+        if ( isMacroOrDummyRawMode( rawMode ) )
+            return true;
+        
+        if ( isUnitTestRawMode( rawMode ) )
+            return (definer.type === "object"
+                && definer.unitTestId !== null
                 && nameCompare(
                     definer.unitTestId, rawMode.unitTestId ) === 0);
+        
+        return false;
     };
+}
+function rawModeSupportsContribute( ns ) {
+    return rawModeSupportsContributeDefiner( {
+        type: "contributedElement",
+        namespace: ns,
+        name: null
+    } );
 }
 function rawModeSupportsName( ns ) {
     return function ( rawMode ) {
@@ -1347,11 +1374,6 @@ function collectPutDefined( rawMode, definer, value ) {
         rawMode );
     rawMode.putDefined.push( { definer: definer, value: value } );
 }
-function collectPutElement( rawMode, namespace, name, element ) {
-    assertRawMode( rawModeSupportsContribute( namespace ), rawMode );
-    rawMode.putElement.push(
-        { namespace: namespace, name: name, element: element } );
-}
 function collectPutListener( rawMode, namespace, name, listener ) {
     assertRawMode( rawModeSupportsListen( namespace ), rawMode );
     rawMode.putListener.push(
@@ -1381,36 +1403,37 @@ function runPuts( namespaceDefs, rawMode ) {
     // First we do sanity checks to make sure the puts are not
     // overlapping and don't conflict with existing state.
     
-    function assertNamesUniqueAndUnset( arr, getName ) {
+    function assertJsnUnique( arr, getJsn ) {
         var seenAlready = jsnMap();
         arrEach( arr, function ( put ) {
-            var name = getName( put );
-            if ( namespaceDefs.has( name ) )
+            var jsn = getJsn( put );
+            if ( seenAlready.has( jsn ) )
                 throw new Error();
-            if ( seenAlready.has( name ) )
-                throw new Error();
-            seenAlready.set( name, true );
+            seenAlready.set( jsn, true );
         } );
     }
     
     arrEach( rawMode.putDefined, function ( put ) {
         var type = put.definer.type;
-        if ( !(type === "namespace" || type === "object") )
+        if ( !(type === "contributedElement" || type === "object") )
             throw new Error();
     } );
-    var putDefinedNamespaces =
+    var putDefinedContributedElements =
         arrKeep( rawMode.putDefined, function ( put ) {
-            return put.definer.type === "namespace";
+            return put.definer.type === "contributedElement";
         } );
     var putDefinedObjects =
         arrKeep( rawMode.putDefined, function ( put ) {
             return put.definer.type === "object";
         } );
     
-    assertNamesUniqueAndUnset( putDefinedNamespaces,
-        function ( put ) {
-        
-        return put.definer.namespace.name;
+    assertJsnUnique( putDefinedContributedElements, function ( put ) {
+        var nsName = put.definer.namespace.name;
+        if ( namespaceDefs.has( nsName )
+            && namespaceDefs.get( nsName
+                ).elements.has( put.definer.name ) )
+            throw new Error();
+        return [ nsName, put.definer.name ];
     } );
     
     var unique = !arrAny( putDefinedObjects, function ( put ) {
@@ -1429,19 +1452,17 @@ function runPuts( namespaceDefs, rawMode ) {
             throw new Error();
     } );
     
-    assertNamesUniqueAndUnset( rawMode.putElement, function ( put ) {
-        return put.namespace.name;
-    } );
-    assertNamesUniqueAndUnset( rawMode.putListener, function ( put ) {
-        return put.namespace.name;
+    assertJsnUnique( rawMode.putListener, function ( put ) {
+        var nsName = put.namespace.name;
+        if ( namespaceDefs.has( nsName )
+            && namespaceDefs.get( nsName ).listeners.has( put.name ) )
+            throw new Error();
+        return [ nsName, put.name ];
     } );
     
     
     // Now that we know the puts are valid, we follow through on them.
     
-    arrEach( putDefinedNamespaces, function ( put ) {
-        namespaceDefs.set( put.definer.namespace.name, put.value );
-    } );
     arrEach( putDefinedObjects, function ( put ) {
         put.definer.value = { val: put.value };
     } );
@@ -1449,24 +1470,24 @@ function runPuts( namespaceDefs, rawMode ) {
     var listenersFired = [];
     
     function getContributionTable( name ) {
-        var k = [ "contributions", name ];
-        if ( !namespaceDefs.has( k ) )
-            namespaceDefs.set( k, {
+        if ( !namespaceDefs.has( name ) )
+            namespaceDefs.set( name, {
                 elements: jsnMap(),
                 listeners: jsnMap()
             } );
-        return namespaceDefs.get( k );
+        return namespaceDefs.get( name );
     }
     
     // NOTE: This adds the `listenersFired` entries for preexisting
     // listeners and new elements.
-    arrEach( rawMode.putElement, function ( put ) {
-        var contribs = getContributionTable( put.namespace.name );
-        if ( contribs.elements.has( put.name ) )
+    arrEach( putDefinedContributedElements, function ( put ) {
+        var contribs =
+            getContributionTable( put.definer.namespace.name );
+        if ( contribs.elements.has( put.definer.name ) )
             throw new Error();
-        contribs.elements.set( put.name, put.element );
+        contribs.elements.set( put.definer.name, put.value );
         var singletonTable = new StcForeign( "table",
-            jsnMap().plusEntry( put.name, put.element ) );
+            jsnMap().plusEntry( put.definer.name, put.value ) );
         contribs.listeners.each( function ( k, v ) {
             listenersFired.push(
                 { singletonTable: singletonTable, listener: v } );
@@ -1537,7 +1558,6 @@ function runTopLevelMacLookupsSync(
             contributingOnlyTo: attenuation.contributingOnlyTo,
             current: false,
             putDefined: [],
-            putElement: [],
             putListener: [],
             defer: []
         };
@@ -1621,7 +1641,6 @@ function runTopLevelMacLookupsSync(
                     contributingOnlyTo: stcNameSetEmpty(),
                     current: true,
                     putDefined: [],
-                    putElement: [],
                     putListener: []
                 },
                 monad: monad
@@ -1669,13 +1688,17 @@ function runTopLevelMacLookupsSync(
                         thread.rawMode );
                 } );
                 
-                if ( definer.type === "namespace" ) {
-                    var maybeValue =
-                        namespaceDefs.has( definer.namespace.name ) ?
-                            { val:
-                                namespaceDefs.get(
-                                    definer.namespace.name ) } :
-                            null;
+                if ( definer.type === "contributedElement" ) {
+                    var maybeValue = null;
+                    var k = definer.namespace.name;
+                    if ( namespaceDefs.has( k ) ) {
+                        var contributions = namespaceDefs.get( k );
+                        if ( contributions.elements.has(
+                            definer.name ) )
+                            maybeValue = { val:
+                                contributions.elements.get(
+                                    definer.name ) };
+                    }
                 } else if ( definer.type === "object" ) {
                     var maybeValue = definer.value;
                 } else {
@@ -1699,7 +1722,7 @@ function runTopLevelMacLookupsSync(
                 currentlyThread( thread, function () {
                     assertRawMode(
                         rawModeSupportsObserveContributedElements(
-                            thread.monad.first.name ),
+                            thread.monad.first.namespace ),
                         thread.rawMode );
                 } );
                 
@@ -1707,7 +1730,7 @@ function runTopLevelMacLookupsSync(
                 // contributing to this state.
                 if ( arrAny( threads, function ( otherThread ) {
                     return rawModeSupportsContribute(
-                        thread.monad.first.name
+                        thread.monad.first.namespace
                     )( otherThread.rawMode );
                 } ) ) {
                     thread.failedAdvances++;
@@ -1716,7 +1739,7 @@ function runTopLevelMacLookupsSync(
                 
                 var result = new StcForeign( "table",
                     (namespaceDefs.get(
-                        [ "contributions", thread.monad.first.name ] )
+                        thread.monad.first.namespace.name )
                         || { elements: jsnMap() }).elements );
                 return replaceThread(
                     currentlyThread( thread, function () {
@@ -1871,18 +1894,11 @@ function stcExecute( rt, expr ) {
         macLookupThen );
 }
 
-function nsToDefiner( ns ) {
-    return { type: "namespace", namespace: ns };
-}
-
 function addFunctionNativeDefinition(
     defNs, rawMode, tupleTagName, impl ) {
     
     collectPutDefined( rawMode,
-        nsToDefiner(
-            stcNsGet( "call",
-                stcNsGet( tupleTagName,
-                    stcNsGet( "functions", defNs ) ) ) ),
+        getFunctionCoercerDefiner( defNs, tupleTagName ),
         new StcForeign( "native-definition", impl ) );
 }
 function stcAddDefun( rt, defNs, rawMode, name, argName, body ) {
@@ -2010,15 +2026,9 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function getType( definitionNs, tupleName ) {
-        var constructorName =
-            stcConstructorName( definitionNs, tupleName );
         return macLookupThen(
             macLookupGet(
-                nsToDefiner(
-                    stcNsGet( "projection-list",
-                        stcNsGet( constructorName,
-                            stcNsGet( "constructors",
-                                definitionNs ) ) ) ),
+                getProjectionListDefiner( definitionNs, tupleName ),
                 function () {
                     throw new Error(
                         "No such type: " +
@@ -2307,8 +2317,7 @@ function usingDefinitionNs( macroDefNs ) {
         definitionNs, rawMode, name, macroFunctionImpl ) {
         
         collectPutDefined( rawMode,
-            nsToDefiner(
-                getMacroFunctionNamespace( definitionNs, name ) ),
+            getMacroFunctionDefiner( definitionNs, name ),
             stcFnPure( function ( rt, uniqueNs ) {
                 return stcFnPure( function ( rt, definitionNs ) {
                     return stcFnPure( function ( rt, myStxDetails ) {
@@ -2353,7 +2362,6 @@ function usingDefinitionNs( macroDefNs ) {
             contributingOnlyTo: stcNameSetAll(),
             current: true,
             putDefined: [],
-            putElement: [],
             putListener: []
         };
     }
@@ -2482,9 +2490,7 @@ function usingDefinitionNs( macroDefNs ) {
                     function ( executedFn ) {
                 
                 collectPutDefined( rawMode,
-                    nsToDefiner(
-                        getMacroFunctionNamespace(
-                            nss.definitionNs, name ) ),
+                    getMacroFunctionDefiner( nss.definitionNs, name ),
                     executedFn );
                 
                 return macLookupThenRunEffects( rawMode,
@@ -4351,37 +4357,9 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "procure-defined", function ( rt, mode ) {
-            return new StcFn( function ( rt, ns ) {
-                if ( !(ns instanceof StcForeign
-                    && ns.purpose === "ns") )
-                    throw new Error();
-                
-                var definer = nsToDefiner( ns.foreignVal );
-                
-                assertMode( rawModeSupportsObserveDefiner( definer ),
-                    mode );
-                
-                return macLookupGet( definer, function () {
-                    throw new Error(
-                        "No such defined value: " +
-                        JSON.stringify( ns.foreignVal.name ) );
-                } );
-            } );
-        } );
-        
-        fun( "procure-definer", function ( rt, ns ) {
-            if ( !(ns instanceof StcForeign
-                && ns.purpose === "ns") )
-                throw new Error();
-            
-            return new StcForeign( "definer",
-                nsToDefiner( ns.foreignVal ) );
-        } );
-        
-        fun( "procure-contribute-element", function ( rt, ns ) {
-            return stcFnPure( function ( rt, dexableKey ) {
-                return new StcFn( function ( rt, element ) {
+        fun( "procure-contributed-element", function ( rt, mode ) {
+            return stcFnPure( function ( rt, ns ) {
+                return new StcFn( function ( rt, dexableKey ) {
                     if ( !(ns instanceof StcForeign
                         && ns.purpose === "ns") )
                         throw new Error();
@@ -4389,15 +4367,43 @@ function usingDefinitionNs( macroDefNs ) {
                     return assertValidDexable( rt, dexableKey,
                         function ( key ) {
                         
-                        return macLookupRet(
-                            new StcForeign( "effects",
-                                function ( rawMode ) {
-                            
-                            collectPutElement( rawMode, ns.foreignVal,
-                                key.toName(), element );
-                            return macLookupRet( stcNil.ofNow() );
-                        } ) );
+                        var definer = {
+                            type: "contributedElement",
+                            namespace: ns.foreignVal,
+                            name: key.toName()
+                        };
+                        
+                        assertMode(
+                            rawModeSupportsObserveDefiner( definer ),
+                            mode );
+                        
+                        return macLookupGet( definer, function () {
+                            throw new Error(
+                                "No such defined value: " +
+                                ns.pretty() + " element " +
+                                key.pretty() );
+                        } );
                     } );
+                } );
+            } );
+        } );
+        
+        fun( "procure-contributed-element-definer",
+            function ( rt, ns ) {
+            
+            return new StcFn( function ( rt, dexableKey ) {
+                if ( !(ns instanceof StcForeign
+                    && ns.purpose === "ns") )
+                    throw new Error();
+                
+                return assertValidDexable( rt, dexableKey,
+                    function ( key ) {
+                    
+                    return macLookupRet( new StcForeign( "definer", {
+                        type: "contributedElement",
+                        namespace: ns.foreignVal,
+                        name: key.toName()
+                    } ) );
                 } );
             } );
         } );
@@ -4438,7 +4444,7 @@ function usingDefinitionNs( macroDefNs ) {
                     mode );
                 
                 return macLookupProcureContributedElements(
-                    ns.foreignVal.name,
+                    ns.foreignVal,
                     function () {
                         throw new Error(
                             "No such defined value: " +
@@ -4500,7 +4506,13 @@ function usingDefinitionNs( macroDefNs ) {
                     };
                     return callStcMulti( rt, then,
                         new StcForeign( "definer", definer ),
-                        new StcFn( function ( rt, ignored ) {
+                        new StcFn( function ( rt, mode ) {
+                            
+                            assertMode(
+                                rawModeSupportsObserveDefiner(
+                                    definer ),
+                                mode );
+                            
                             return macLookupGet( definer,
                                 function () {
                                     throw new Error(
@@ -4618,16 +4630,11 @@ function usingDefinitionNs( macroDefNs ) {
             var macroName = stxToMaybeName( macroNameStx );
             if ( macroName === null )
                 throw new Error();
-            var resolvedMacroName =
-                stcMacroName( nss.definitionNs, macroName );
             
             return macLookupThen(
                 macLookupGet(
-                    nsToDefiner(
-                        stcNsGet( "function",
-                            stcNsGet( resolvedMacroName,
-                                stcNsGet( "macros",
-                                    nss.definitionNs ) ) ) ),
+                    getMacroFunctionDefiner( nss.definitionNs,
+                        macroName ),
                     function () {
                         throw new Error(
                             "No such macro: " +
@@ -4657,9 +4664,11 @@ function usingDefinitionNs( macroDefNs ) {
     }
     
     function macroexpand( nss, rawMode, locatedExpr, outNs, then ) {
+        var definer = elementDefiner( "val", outNs );
+        
         collectDefer( rawMode, {}, function ( rawMode ) {
             return macLookupThen(
-                macLookupGet( nsToDefiner( outNs ), function () {
+                macLookupGet( definer, function () {
                     if ( !stcStx.tags( locatedExpr ) )
                         throw new Error();
                     var sExpr =
@@ -4686,7 +4695,7 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         return macroexpandToDefiner( nss, rawMode, locatedExpr,
-            nsToDefiner( outNs ) );
+            definer );
     }
     
     function processDefType(
@@ -4694,14 +4703,8 @@ function usingDefinitionNs( macroDefNs ) {
         
         var n = projNames.length;
         var type = stcTypeArr( definitionNs, tupleName, projNames );
-        var constructorName =
-            stcConstructorName( definitionNs, tupleName );
         collectPutDefined( rawMode,
-            nsToDefiner(
-                stcNsGet( "projection-list",
-                    stcNsGet( constructorName,
-                        stcNsGet( "constructors",
-                            definitionNs ) ) ) ),
+            getProjectionListDefiner( definitionNs, tupleName ),
             stcArrayToConsList( arrMap( type.unsortedProjNames,
                 function ( entry ) {
                 
