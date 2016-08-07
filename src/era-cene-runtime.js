@@ -3759,16 +3759,12 @@ function usingDefinitionNs( macroDefNs ) {
             };
         }
         
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
         fun( "regex-give-up", function ( rt, ignored ) {
             return new StcForeign( "regex", function () {
                 return regexTrivial( "\\d^" );
             } );
         } );
         
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
         fun( "regex-empty", function ( rt, ignored ) {
             return new StcForeign( "regex", function () {
                 return regexTrivial( "" );
@@ -3782,8 +3778,6 @@ function usingDefinitionNs( macroDefNs ) {
             return jsStr.replace( /[\\^-[\]]/g, "\\$&" );
         }
         
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
         fun( "regex-from-string", function ( rt, string ) {
             var stringRep = parseString( string ).paddedStr;
             
@@ -3803,8 +3797,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
         fun( "regex-one-in-string", function ( rt, string ) {
             var stringRep = parseString( string ).paddedStr;
             
@@ -3817,8 +3809,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
         fun( "regex-one-in-range", function ( rt, a ) {
             return stcFnPure( function ( rt, b ) {
                 var aScalar = parseSingleUnicodeScalar( a );
@@ -3852,8 +3842,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
         fun( "regex-one", function ( rt, ignored ) {
             return new StcForeign( "regex", function () {
                 return regexOptionalTrivial( "[\\d\\D]{2}" );
@@ -3919,8 +3907,6 @@ function usingDefinitionNs( macroDefNs ) {
             };
         }
         
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
         fun( "regex-if", function ( rt, conditionRegex ) {
             return stcFnPure( function ( rt, thenRegex ) {
                 return stcFnPure( function ( rt, elseRegex ) {
@@ -4001,8 +3987,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
         fun( "regex-while", function ( rt, conditionRegex ) {
             return stcFnPure( function ( rt, bodyRegex ) {
                 if ( !(conditionRegex instanceof StcForeign
@@ -4079,8 +4063,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
         fun( "regex-until", function ( rt, bodyRegex ) {
             return stcFnPure( function ( rt, conditionRegex ) {
                 if ( !(bodyRegex instanceof StcForeign
@@ -4157,8 +4139,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
         fun( "optimize-regex-later", function ( rt, regex ) {
             return stcFnPure( function ( rt, then ) {
                 if ( !(regex instanceof StcForeign
@@ -4171,8 +4151,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Document this using the comment in
-        // era-cene-prelude.cene.
         fun( "optimized-regex-match-later",
             function ( rt, optimizedRegex ) {
             
@@ -4792,8 +4770,6 @@ function usingDefinitionNs( macroDefNs ) {
         
         // These constructors are needed to deconstruct the results of
         // `optimized-regex-match-later`.
-        // TODO: Add documentation for these somewhere. They're listed
-        // in era-cene-prelude.cene but without comment.
         type( "regex-result-matched", [ "stop" ] );
         type( "regex-result-failed", [] );
         type( "regex-result-passed-end", [] );

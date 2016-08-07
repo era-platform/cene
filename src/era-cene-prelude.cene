@@ -2318,29 +2318,17 @@
     (bftree fix-ftree-ops early-tree)
     (bftree fix-ftree-ops late-tree)))
 
-\= TODO: Add more finger tree operations so we can do things that
-\= compile to JavaScript regexes for efficiency. Here's a potential
-\= basis. Unfortunately, JavaScript regexes have a backtracking
-\= semantics to find their match, but they don't allow the client to
-\= see anything but the first successful outcome of the backtracking,
-\= so we're using a simplified subset of JavaScript regexes where
-\= backtracking is unnecessary. These are actually even closer to
-\= being regular expressions in the mathematical sense.
-\=
-\= TODO: Actually, we implement Cene primitives by these particular
-\= names. Use different names for the big versions we'll implement
-\= here.
+\= TODO: Add more finger tree operations corresponding to the regex
+\= primitives. That way we can implement a nearly metacircular Cene
+\= interpreter where Cene strings and regexes are implemented in terms
+\= of finger trees of bounded-length Cene strings that are in turn
+\= implemented in terms of JavaScript strings and regexes for
+\= efficiency.
+
+
+\= TODO: See if we should add these definitions somewhere around here.
 \=
 \;rm[
-
-(defn regex-give-up - ...)
-Creates a regex that doesn't match.
-
-(defn regex-if condition-regex then-regex else-regex ...)
-Creates a regex that first tries to match the first given regex. If it
-succeeds, it tries to match the second given regex after that. If it
-fails, it tries to match the third given regex at the original
-location instead.
 
 (defn regex-negative-lookahead regex
   (regex-if regex (regex-give-up/nil) (regex-empty/nil)))
@@ -2351,27 +2339,8 @@ location instead.
 (defn regex-then a b
   (regex-if a b (regex-give-up/nil)))
 
-(defn regex-empty - ...)
-Creates a regex that matches the empty string.
-
-(defn regex-while condition-regex body-regex ...)
-Creates a regex that matches by matching the two given regexes in
-succession any number of times until the first given regex doesn't
-match. If the first ever matches and the second doesn't match, the
-overall match fails. If any iteration's combined match is empty, that
-must be the last iteration, or the overall match fails.
-
-(defn regex-until body-regex condition-regex ...)
-Creates a regex that matches by matching the first given regex in
-succession any number of times as long as the second given regex
-wouldn't match instead, then finally matches the second given regex
-and finishes. If any iteration determines that the second regex
-doesn't match but the first one doesn't either, the overall match
-fails. If any iteration's match is empty, that must be the last
-iteration, or the overall match fails.
-
-\= TODO: Determine if we should implement `regex-while` in terms of
-\= `regex-until` or vice versa. They're interdefinable:
+\= TODO: Determine if we should implement the primitive `regex-while`
+\= in terms of `regex-until` or vice versa. They're interdefinable:
 
 (defn regex-while condition-regex body-regex
   (regex-until (regex-then condition-regex body-regex)
@@ -2381,36 +2350,6 @@ iteration, or the overall match fails.
   (regex-then
     (regex-while regex-negative-lookahead.condition-regex body-regex)
     condition-regex))
-
-(defn regex-one-in-string string ...)
-Creates a regex that matches one Unicode scalar if it appears in the
-given string.
-
-(defn regex-one-in-range min max ...)
-Creates a regex that matches one Unicode scalar if it's at least the
-given minimum and at most the given maximum.
-
-(defn regex-from-string string ...)
-Creates a regex that matches the given string.
-
-(defn optimize-regex-later regex then ...)
-then (fn optimized-regex ...)
-Monadically, takes a regex and a callback, and in a later tick,
-monadically calls the callback with an optimized regex.
-
-(def-type regex-result-matched stop)
-(def-type regex-result-failed)
-(def-type regex-result-passed-end)
-
-(defn optimized-regex-match-later
-  optimized-regex string start stop then
-  ...)
-then (fn maybe-stop ...)
-Monadically, takes an optimized regex, a string, a starting position
-in the string, a stopping position in the string, and a callback, and
-in a later tick, monadically calls the callback with a
-`(regex-result-matched <stop>)` indicating a match stopping position,
-a `(regex-result-failed)`, or a `(regex-result-passed-end)`.
 
 ]
 
