@@ -4,60 +4,7 @@
 
 ## Built-in definitions
 
-(**TODO**: Add documentation for all the other primitives defined in era-cene-runtime.js and era-cene-api.js. Some of this documentation has already been written in cene-design-goals.txt.)
-
--
-```
-\= TODO: Document all of these. (These aren't the only undocumented
-primitives.)
-
-
-### Integers
-
-(defn dex-int - ...)
-(defn fuse-int-by-plus - ...)
-(defn fuse-int-by-times - ...)
-
-(defn int-zero - ...)
-(defn int-one - ...)
-(defn int-compare a b ...)
-  \= TODO: See if we should make this available as a dex (becoming the
-  \= first dex with a visible order to it) or as a merge (in the form
-  \= of a max or min operation).
-(defn int-minus a b ...)
-(defn int-div-rounded-down a b ...)
-  \= NOTE: This one's result uses (carried main carry), where `carry`
-  \= is the remainder. It may also return (nil) for a zero divisor.
-  \= TODO: See if we should choose a different rounding policy.
-
-
-### Strings
-
-(defn string-length string ...)
-
-(defn string-empty - ...)
-
-(defn string-singleton unicode-scalar ...)
-
-(defn string-cut-later string start stop then ...)
-(then substring)
-
-(defn string-get-unicode-scalar-later string start then ...)
-(then unicode-scalar)
-```
-
--
-```
-(defn string-append-later a b then ...)
-(then result)
-```
-Monadically, concatenates two strings, and calls the given callback monadically in a future tick.
-
--
-```
-macro (str \;qq[example string])
-```
-Obtains a first-class string value with the given literal text.
+(**TODO**: Add documentation for all the other primitives defined in era-cene-runtime.js and era-cene-api.js. Some of this documentation has already been written in cene-design-goals.txt. Now we're gradually putting these docs in the docs/ directory instead of this file, and we're tracking our progress in notes/docs-todo.txt.)
 
 -
 ```
@@ -111,7 +58,7 @@ An interpolated string s-expression that consists of a string, a single interpol
 ```
 (def-type foreign val)
 ```
-An s-expression that consists of an embedded value of any type, but usually a name. The program may not know of a way to encode the name as serializable data, but it can still be passed to `(compile ...)`.
+An s-expression that consists of an embedded value of any type, but usually a name. The program may not know of a way to encode the name as serializable data, but it can still be passed to `(compile-expression ...)`.
 
 -
 ```
@@ -131,93 +78,6 @@ Constructs a syntax details object that refers to a macro's input, so that the m
 ```
 Monadically, schedules the effects to occur in a future tick where contributing to multimethods outside the given namespace is not allowed, but reading closed-world-assumption collections of contributions outside the given namespace is allowed.
 
--
-```
-(defn procure-sub-ns-table table ns ...)
-```
-Makes a table with entries corresponding to the given table, except each value is replaced with a sub-namespace, which is to say a namespace uniquely determined by the given namespace and the entry's key. The entry's value is ignored.
-
-Unless the sub-namespaces are shadowed (which can happen using `shadow-procure-sub-ns-table`), distinct keys will yield distinct sub-namespaces.
-
--
-```
-(defn shadow-procure-sub-ns-table table ns ...)
-```
-Creates a new namespace that behaves like the given namespace in almost every way, except that when it's used with `procure-sub-ns-table` where some of the keys are from the given table, the corresponding values of the table are returned as the sub-namespaces instead. The values of the table must be namespaces.
-
-A namespace created this way works the same way as the old one when it's used in any other `procure-...` primitive. This way, we can imagine that the namespace's identity (`procure-name`) and contribution state are stored under a sub-namespace somewhere, just using a key that we don't have the ability to construct.
-
-One useful purpose of this tool is to establish local macros. The layout of the definition namespace has been designed so that specific parts can be shadowed conveniently.
-
--
-```
-(defn procure-name mode ns ...)
-```
-Uses the given namespace to obtain a first-class name value. The given modality must be the current one.
-
--
-```
-(defn procure-contributed-element-definer ns dexable-key ...)
-```
-Construts a definer that contributes its defined value to the element contribution map on the namespace. The given modality must be the current one. When the definer is used, if more than one element contribution is given for the same key at the same timestamp, an error occurs; all listener contributors, element contributors, and ticks begun by these contributions are in error, and their ticks' side effects are invalidated. When the definer is used, the then-current modality's ancestors must not have used `contributing-only-to` to disallow making element contributions to the given namespace. Furthermore, if the then-current modality is a live service modality, the ancestors must not have used `contributing-only-to-unless-after` or `contributing-only-to-unless-before` in a way that conflicts with the timestamp at which the definer was obtained.
-
-(**TODO**: Implement `contributing-only-to-unless-before`, `contributing-only-to-unless-after`, and live service modalities.)
-
--
-```
-(defn procure-contributed-element mode ns dexable-key ...)
-```
-Blocks until the given namespace has a contributed element under the given key, and returns that element value. The given modality must be the current one.
-
--
-```
-(defn procure-contribute-listener ns dexable-key listener ...)
-(listener singleton-table)
-```
-Monadically, contributes to the listener contribution map on the namespace. The listener will be called monadically in a different future tick each time an entry is contributed to the namespace's element contribution map. The listener is given a singleton table containing the entry contributed. If more than one listener contribution is given for the same key, an error occurs; all listener contributors, element contributors, and ticks begun by these contributions are in error, and their ticks' side effects are invalidated.
-
-This is a way to make frameworks that are extensible in the sense of the open-world assumption (OWA).
-
--
-```
-(defn procure-contributed-elements mode ns ...)
-```
-Gets the namespace's full element contribution map as a table. The given modality must be the current one, and its ancestors must have used `contributing-only-to` to disallow making contributions to the given namespace. During macroexpansion, this operation will not compute a result until at least all the original macroexpansion ticks have completed, since they are capable of contributing to any namespace.
-
-This is a way to make frameworks that are extensible in the sense of the closed-world assumption (CWA).
-
--
-```
-(defn no-effects ignored ...)
-```
-Constructs a monad that, if invoked, does nothing.
-
--
-```
-(defn join-effects a b ...)
-```
-Constructs a monad that, if invoked, performs the effects of both of the given monads.
-
--
-```
-(defn later effects ...)
-```
-Monadically, executes the effects in a later tick.
-
-This is useful mainly for concurrency. It allows the given effects' computation to depend on values that might not be available right now.
-
--
-```
-(defn make-promise-later then ...)
-then (fn definer read ...)
-read (fn mode ...)
-```
-Monadically, calls a callback in a later tick with a definer and a pure function that takes the current mode and reads the defined value. The read function must be called in a later tick than the one the value is defined in.
-
-**Rationale**: Cene expressions are designed so they can have consistent performance each time they run. Therefore, algorithms written as Cene expressions cannot rely on laziness or JIT techniques (even though an implementation of Cene may in fact implement such things as optimizations). However, laziness is useful to reduce the amortized computational complexity of data structures like finger trees, which are good for representing strings. To support this data structure technique, Cene offers `make-promise-later`, a standard way to allocate promise state even from a computation that has no other access to state.
-
-Not all Cene modes will necessarily support the `make-promise-later` side effect.
-
 ```
 \= TODO: Don't implement this as a primitive. Implement it in terms of
 \= `make-promise-later`.
@@ -235,47 +95,11 @@ given two-argument callback.
 
 -
 ```
-(defn definer-define definer value ...)
-```
-Monadically, writes to the given definer. If the definition cannot be installed, the program is in error; other computations that depend on the defined value may or may not be canceled or retroactively voided.
-
--
-```
-(defn definer-commit-later definer effects ...)
-```
-(**TODO**: Implement and use this.)
-
-Monadically, executes the effects in a later tick and commits to writing to the given definer in that tick or later. This is only useful to suppress error messages about the definition not existing if there's an error in this logical thread.
-
--
-```
-(defn assert-current-modality mode ...)
-```
-Returns `(nil)`. The given modality must be the current one. If it isn't, this causes an error.
-
--
-```
 (defn compile-expression unique-ns definition-ns stx out-definer ...)
 ```
 Constructs a monad that, if invoked, macroexpands the given `stx` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce a fully compiled expression. If the expression is successfully computed, it is defined in the given `out-definer`.
 
 (**TODO**: Decide if this should conform to the `...-later` calling convention with a simple callback or if all the `...-later` utilities should instead conform to the `compile-expression` calling convention with an `out-definer`.)
-
--
-```
-(defn get-mode body ...)
-body (fn mode ...)
-```
-Constructs a monad. If invoked, it calls the callback in the same tick with the current modality, and it performs the callback's monadic side effects.
-
-A modality must be passed to certain effectful primitives as a way to give the effects something to be deterministic by. (The terms "mode" and "modality" might be idiosyncrasies of this codebase. A more standard term is "world-passing style.")
-
--
-```
-(defn table-zip a b func ...)
-(func maybe-a-val maybe-b-val)
-```
-Given two tables and a function to combine values, makes a new table by iterating over the tables' combined set of keys, calling the function with both tables' `(yep ...)` or `(nil)` values for the keys, and using the function's `(yep ...)` or `(nil)` result to determine the value for the final table. The function will never be called with `(nil)` and `(nil)`.
 
 -
 

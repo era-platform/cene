@@ -3,23 +3,23 @@ In the following, any line with a leading // or surrounded by leading /* */ is a
 
 From era-cene-runtime.js:
 
-        mac( "def-type", function ( nss, myStxDetails, body, then ) {
+/*        mac( "def-type", function ( nss, myStxDetails, body, then ) {
         mac( "defn", function ( nss, myStxDetails, body, then ) {
-        mac( "def-macro", function ( nss, myStxDetails, body, then ) {
+*/        mac( "def-macro", function ( nss, myStxDetails, body, then ) {
         mac( "test", function ( nss, myStxDetails, body, then ) {
         mac( "test-async",
             function ( nss, myStxDetails, body, then ) {
-        mac( "case", function ( nss, myStxDetails, body, then ) {
+/*        mac( "case", function ( nss, myStxDetails, body, then ) {
         mac( "caselet", function ( nss, myStxDetails, body, then ) {
         mac( "cast", function ( nss, myStxDetails, body, then ) {
         mac( "isa", function ( nss, myStxDetails, body, then ) {
         mac( "proj1", function ( nss, myStxDetails, body, then ) {
         mac( "c", function ( nss, myStxDetails, body, then ) {
         mac( "c-new", function ( nss, myStxDetails, body, then ) {
-        mac( "err", function ( nss, myStxDetails, body, then ) {
-//        mac( "str", function ( nss, myStxDetails, body, then ) {
+*/        mac( "err", function ( nss, myStxDetails, body, then ) {
+/*        mac( "str", function ( nss, myStxDetails, body, then ) {
         mac( "fn", function ( nss, myStxDetails, body, then ) {
-        mac( "let", function ( nss, myStxDetails, body, then ) {
+*/        mac( "let", function ( nss, myStxDetails, body, then ) {
 /*        effectfulMac( "dex-struct",
             function ( nss, myStxDetails, body, then ) {
         fun( "dex-default", function ( rt, first ) {
@@ -136,7 +136,7 @@ From era-cene-runtime.js:
                     return stcFnPure( function ( rt, stx ) {
         fun( "contributing-only-to", function ( rt, ns ) {
             return stcFnPure( function ( rt, effects ) {
-        fun( "procure-sub-ns-table", function ( rt, table ) {
+/*        fun( "procure-sub-ns-table", function ( rt, table ) {
             return new StcFn( function ( rt, ns ) {
         fun( "shadow-procure-sub-ns-table", function ( rt, table ) {
             return new StcFn( function ( rt, ns ) {
@@ -164,21 +164,21 @@ From era-cene-runtime.js:
         fun( "definer-define", function ( rt, definer ) {
             return stcFnPure( function ( rt, value ) {
         fun( "assert-current-modality", function ( rt, mode ) {
-        fun( "compile-expression", function ( rt, uniqueNs ) {
+*/        fun( "compile-expression", function ( rt, uniqueNs ) {
             return stcFnPure( function ( rt, definitionNs ) {
                 return stcFnPure( function ( rt, stx ) {
                     return stcFnPure( function ( rt, outDefiner ) {
-        fun( "get-mode", function ( rt, body ) {
+//        fun( "get-mode", function ( rt, body ) {
         fun( "read-all-force", function ( rt, string ) {
         
         
         // These constructors are needed for interpreting the results
         // of certain built-in operators, namely `isa` and the dex
         // operations.
-//        type( "yep", [ "val" ] );
+/*        type( "yep", [ "val" ] );
         type( "nope", [ "val" ] );
         
-/*        // This constructor is needed for constructing the input to
+        // This constructor is needed for constructing the input to
         // certain operations.
         type( "dexable", [ "dex", "val" ] );
         

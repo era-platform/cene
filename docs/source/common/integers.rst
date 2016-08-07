@@ -9,7 +9,7 @@ dex-int
 
 Call with ``(ignored)``
 
-.. todo:: Document this.
+Returns a dex that applies to all integers.
 
 
 .. _int-compare:
@@ -19,7 +19,10 @@ int-compare
 
 Call with ``a b``
 
-.. todo:: Document this.
+Compares the given integers. Returns (:ref:`nil`) if they are equal, (:ref:`yep`/:ref:`nil`) if they were provided in ascending order, and (:ref:`nope`/:ref:`nil`) if they were not.
+
+..
+  TODO: See if we should make this available as a dex (becoming the first dex with a visible order to it) or as a merge (in the form of a max or min operation).
 
 
 .. _int-zero:
@@ -29,7 +32,7 @@ int-zero
 
 Call with ``(ignored)``
 
-.. todo:: Document this.
+Returns the integer 0.
 
 
 .. _int-one:
@@ -39,7 +42,7 @@ int-one
 
 Call with ``(ignored)``
 
-.. todo:: Document this.
+Returns the integer 1.
 
 
 .. _fuse-int-by-plus:
@@ -49,7 +52,7 @@ fuse-int-by-plus
 
 Call with ``(ignored)``
 
-.. todo:: Document this.
+Returns a fuse that fuses integers by adding them together.
 
 
 .. _fuse-int-by-times:
@@ -59,7 +62,7 @@ fuse-int-by-times
 
 Call with ``(ignored)``
 
-.. todo:: Document this.
+Returns a fuse that fuses integers by multiplying them.
 
 
 .. _int-minus:
@@ -67,9 +70,9 @@ Call with ``(ignored)``
 int-minus
 ---------
 
-Call with ``a b``
+Call with ``minuend subtrahend``
 
-.. todo:: Document this.
+Subtracts the second given integer from the first.
 
 
 .. _int-div-rounded-down:
@@ -77,9 +80,9 @@ Call with ``a b``
 int-div-rounded-down
 --------------------
 
-Call with ``a b``
+Call with ``dividend divisor``
 
-.. todo:: Document this.
+Divides the first given integer by the second. Returns (:ref:`nil`) for a zero divisor or otherwise (:ref:`carried` ``<quotient>`` ``<remainder>``), where ``<quotient>`` is the greatest integer that when multiplied by the divisor is no greater than the dividend and ``<remainder>`` is the remaining amount that must be added to reach the dividend.
 
 
 .. _carried:

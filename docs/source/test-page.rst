@@ -1,7 +1,9 @@
-Test page 1
-===========
+Sphinx/reStructuredText test page
+=================================
 
-This is a test page.
+This is a page where we're testing Sphinx/reStructuredText syntaxes as we develop the Cene documentation.
+
+No highlighting:
 
 .. code-block:: none
 
@@ -17,7 +19,7 @@ This is a test page.
           /table-empty/nil)
           ns)))
 
-::
+Default code highlighting (Cene)::
 
     \;rm(def-type foo a b c)
     
@@ -31,6 +33,8 @@ This is a test page.
           /table-empty/nil)
           ns)))
 
+Scheme highlighting, which apparently doesn't look very good applied to Cene code:
+
 .. code-block:: scheme
 
     (defn ns-path ns path
@@ -40,6 +44,8 @@ This is a test page.
           (table-shadow (dexable dex-component component) (yep/nil)
           /table-empty/nil)
           ns)))
+
+Explicit Cene highlighting:
 
 .. code-block:: cene
 
