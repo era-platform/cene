@@ -76,6 +76,9 @@ Call with ``(ignored)``
 
 Creates a regex that matches any one Unicode scalar.
 
+..
+  NOTE: Due to :ref:`regex-one-in-range`, this is redundant, but we keep it for efficiency.
+
 
 .. _regex-from-string:
 
@@ -86,6 +89,9 @@ Call with ``string``
 
 Creates a regex that matches the given string.
 
+..
+  NOTE: Due to :ref:`regex-one-in-range` and :ref:`regex-if`, this is redundant, but we keep it for efficiency.
+
 
 .. _regex-one-in-string:
 
@@ -95,6 +101,9 @@ regex-one-in-string
 Call with ``string``
 
 Creates a regex that matches one Unicode scalar if it appears in the given string.
+
+..
+  NOTE: Due to :ref:`regex-one-in-range` and :ref:`regex-if`, this is redundant, but we keep it for efficiency.
 
 
 .. _optimize-regex-later:
