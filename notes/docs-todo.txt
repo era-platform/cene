@@ -1,0 +1,264 @@
+In the following, any line with a leading // or surrounded by leading /* */ is already placed in some page of the Sphinx documentation. The others still need to be placed.
+
+
+From era-cene-runtime.js:
+
+        mac( "def-type", function ( nss, myStxDetails, body, then ) {
+        mac( "defn", function ( nss, myStxDetails, body, then ) {
+        mac( "def-macro", function ( nss, myStxDetails, body, then ) {
+        mac( "test", function ( nss, myStxDetails, body, then ) {
+        mac( "test-async",
+            function ( nss, myStxDetails, body, then ) {
+        mac( "case", function ( nss, myStxDetails, body, then ) {
+        mac( "caselet", function ( nss, myStxDetails, body, then ) {
+        mac( "cast", function ( nss, myStxDetails, body, then ) {
+        mac( "isa", function ( nss, myStxDetails, body, then ) {
+        mac( "proj1", function ( nss, myStxDetails, body, then ) {
+        mac( "c", function ( nss, myStxDetails, body, then ) {
+        mac( "c-new", function ( nss, myStxDetails, body, then ) {
+        mac( "err", function ( nss, myStxDetails, body, then ) {
+//        mac( "str", function ( nss, myStxDetails, body, then ) {
+        mac( "fn", function ( nss, myStxDetails, body, then ) {
+        mac( "let", function ( nss, myStxDetails, body, then ) {
+/*        effectfulMac( "dex-struct",
+            function ( nss, myStxDetails, body, then ) {
+        fun( "dex-default", function ( rt, first ) {
+            return stcFnPure( function ( rt, second ) {
+        fun( "dex-give-up", function ( rt, ignored ) {
+        fun( "dex-dex", function ( rt, ignored ) {
+        fun( "dex-merge", function ( rt, ignored ) {
+        fun( "dex-fuse", function ( rt, ignored ) {
+        fun( "dex-name", function ( rt, ignored ) {
+        fun( "dex-string", function ( rt, ignored ) {
+        effectfulFun( "dex-by-own-method",
+            function ( rt, dexableGetMethod ) {
+        effectfulFun( "dex-fix", function ( rt, dexableUnwrap ) {
+        fun( "dex-table", function ( rt, dexVal ) {
+        fun( "dex-int", function ( rt, ignored ) {
+        fun( "call-dex", function ( rt, dex ) {
+            return stcFnPure( function ( rt, a ) {
+                return new StcFn( function ( rt, b ) {
+        fun( "in-dex", function ( rt, dex ) {
+            return new StcFn( function ( rt, x ) {
+        fun( "merge-by-dex", function ( rt, dex ) {
+        effectfulMac( "merge-struct",
+            function ( nss, myStxDetails, body, then ) {
+        fun( "merge-default", function ( rt, first ) {
+            return stcFnPure( function ( rt, second ) {
+        effectfulFun( "merge-by-own-method",
+            function ( rt, dexableGetMethod ) {
+        effectfulFun( "merge-fix", function ( rt, dexableUnwrap ) {
+            return assertValidDexable( rt, dexableUnwrap,
+                function ( unwrap ) {
+        fun( "merge-table", function ( rt, mergeVal ) {
+        fun( "call-merge", function ( rt, merge ) {
+            return stcFnPure( function ( rt, a ) {
+                return new StcFn( function ( rt, b ) {
+        fun( "fuse-by-merge", function ( rt, merge ) {
+        effectfulMac( "fuse-struct",
+            function ( nss, myStxDetails, body, then ) {
+        fun( "fuse-default", function ( rt, first ) {
+            return stcFnPure( function ( rt, second ) {
+        effectfulFun( "fuse-by-own-method",
+            function ( rt, dexableGetMethod ) {
+        effectfulFun( "fuse-fix", function ( rt, dexableUnwrap ) {
+        fun( "fuse-table", function ( rt, fuseVal ) {
+        fun( "fuse-int-by-plus", function ( rt, ignored ) {
+        fun( "fuse-int-by-times", function ( rt, ignored ) {
+        fun( "call-fuse", function ( rt, fuse ) {
+            return stcFnPure( function ( rt, a ) {
+                return new StcFn( function ( rt, b ) {
+        fun( "table-empty", function ( rt, ignored ) {
+        fun( "table-shadow", function ( rt, dexableKey ) {
+            return stcFnPure( function ( rt, maybeVal ) {
+                return new StcFn( function ( rt, table ) {
+        fun( "table-get", function ( rt, dexableKey ) {
+            return new StcFn( function ( rt, table ) {
+        fun( "table-zip", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                return new StcFn( function ( rt, combiner ) {
+        fun( "table-get-singleton", function ( rt, table ) {
+        fun( "table-fuse", function ( rt, table ) {
+            return stcFnPure( function ( rt, init ) {
+                return new StcFn( function ( rt, fuse ) {
+        fun( "int-zero", function ( rt, ignored ) {
+        fun( "int-one", function ( rt, ignored ) {
+        fun( "int-compare", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+        fun( "int-minus", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+        fun( "int-div-rounded-down", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+        fun( "string-length", function ( rt, string ) {
+        fun( "string-empty", function ( rt, ignored ) {
+        fun( "string-singleton", function ( rt, unicodeScalar ) {
+        fun( "string-cut-later", function ( rt, string ) {
+            return stcFnPure( function ( rt, start ) {
+                return stcFnPure( function ( rt, stop ) {
+                    return stcFnPure( function ( rt, then ) {
+        fun( "string-get-unicode-scalar-later",
+            function ( rt, string ) {
+            
+            return stcFnPure( function ( rt, start ) {
+                return stcFnPure( function ( rt, then ) {
+        fun( "string-append-later", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+                return stcFnPure( function ( rt, then ) {
+        fun( "regex-give-up", function ( rt, ignored ) {
+        fun( "regex-empty", function ( rt, ignored ) {
+        fun( "regex-from-string", function ( rt, string ) {
+        fun( "regex-one-in-string", function ( rt, string ) {
+        fun( "regex-one-in-range", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+        fun( "regex-one", function ( rt, ignored ) {
+        fun( "regex-if", function ( rt, conditionRegex ) {
+            return stcFnPure( function ( rt, thenRegex ) {
+                return stcFnPure( function ( rt, elseRegex ) {
+        fun( "regex-while", function ( rt, conditionRegex ) {
+            return stcFnPure( function ( rt, bodyRegex ) {
+        fun( "regex-until", function ( rt, bodyRegex ) {
+            return stcFnPure( function ( rt, conditionRegex ) {
+        fun( "optimize-regex-later", function ( rt, regex ) {
+            return stcFnPure( function ( rt, then ) {
+        fun( "optimized-regex-match-later",
+            function ( rt, optimizedRegex ) {
+            
+            return stcFnPure( function ( rt, string ) {
+                return stcFnPure( function ( rt, start ) {
+                    return stcFnPure( function ( rt, stop ) {
+                        return stcFnPure( function ( rt, then ) {
+*/        fun( "make-tuple-tag", function ( rt, tupleName ) {
+            return stcFnPure( function ( rt, projNames ) {
+        fun( "function-implementation-opaque", function ( rt, impl ) {
+        fun( "macro-stx-details", function ( rt, mode ) {
+            return stcFnPure( function ( rt, uniqueNs ) {
+                return stcFnPure( function ( rt, definitionNs ) {
+                    return stcFnPure( function ( rt, stx ) {
+        fun( "contributing-only-to", function ( rt, ns ) {
+            return stcFnPure( function ( rt, effects ) {
+        fun( "procure-sub-ns-table", function ( rt, table ) {
+            return new StcFn( function ( rt, ns ) {
+        fun( "shadow-procure-sub-ns-table", function ( rt, table ) {
+            return new StcFn( function ( rt, ns ) {
+        fun( "procure-name", function ( rt, mode ) {
+            return stcFnPure( function ( rt, ns ) {
+        fun( "procure-contributed-element", function ( rt, mode ) {
+            return stcFnPure( function ( rt, ns ) {
+                return new StcFn( function ( rt, dexableKey ) {
+        fun( "procure-contributed-element-definer",
+            function ( rt, ns ) {
+            
+            return new StcFn( function ( rt, dexableKey ) {
+        fun( "procure-contribute-listener", function ( rt, ns ) {
+            return stcFnPure( function ( rt, dexableKey ) {
+                return new StcFn( function ( rt, listener ) {
+        fun( "procure-contributed-elements", function ( rt, mode ) {
+            return new StcFn( function ( rt, ns ) {
+        fun( "no-effects", function ( rt, ignored ) {
+            return new StcForeign( "effects", function ( rawMode ) {
+        fun( "join-effects", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
+        fun( "later", function ( rt, effects ) {
+        fun( "make-promise-later", function ( rt, then ) {
+            return new StcForeign( "effects", function ( rawMode ) {
+        fun( "definer-define", function ( rt, definer ) {
+            return stcFnPure( function ( rt, value ) {
+        fun( "assert-current-modality", function ( rt, mode ) {
+        fun( "compile-expression", function ( rt, uniqueNs ) {
+            return stcFnPure( function ( rt, definitionNs ) {
+                return stcFnPure( function ( rt, stx ) {
+                    return stcFnPure( function ( rt, outDefiner ) {
+        fun( "get-mode", function ( rt, body ) {
+        fun( "read-all-force", function ( rt, string ) {
+        
+        
+        // These constructors are needed for interpreting the results
+        // of certain built-in operators, namely `isa` and the dex
+        // operations.
+//        type( "yep", [ "val" ] );
+        type( "nope", [ "val" ] );
+        
+/*        // This constructor is needed for constructing the input to
+        // certain operations.
+        // TODO: Add documentation for this somewhere.
+        type( "dexable", [ "dex", "val" ] );
+        
+        // This constructor is needed to deconstruct the result of
+        // `int-div-rounded-down`.
+        // TODO: Add documentation for this somewhere.
+        type( "carried", [ "main", "carry" ] );
+        
+        // These constructors are needed to deconstruct the results of
+        // `optimized-regex-match-later`.
+        // TODO: Add documentation for these somewhere. They're listed
+        // in era-cene-prelude.cene but without comment.
+        type( "regex-result-matched", [ "stop" ] );
+        type( "regex-result-failed", [] );
+        type( "regex-result-passed-end", [] );
+        
+        // These s-expression constructors are needed so that macros
+        // can parse their s-expression arguments. The `cons` and
+        // `nil` constructors are also needed for parsing and
+        // generating projection lists.
+        type( "nil", [] );
+*/        type( "cons", [ "car", "cdr" ] );
+        type( "istring-nil", [ "string" ] );
+        type( "istring-cons",
+            [ "string-past", "interpolated", "istring-rest" ] );
+        type( "foreign", [ "val" ] );
+        
+        // This constructor is needed so that macros can parse their
+        // located syntax arguments.
+        type( "stx", [ "stx-details", "s-expr" ] );
+
+
+
+
+
+
+
+
+
+
+
+From era-cene-api.js:
+
+        type( "encapsulated-string", [ "val" ] );
+        type( "file-type-directory", [] );
+        type( "file-type-blob", [] );
+        type( "file-type-missing", [] );
+        
+        fun( "cli-arguments", function ( rt, mode ) {
+        fun( "cli-input-directory", function ( rt, mode ) {
+        fun( "cli-output-directory", function ( rt, mode ) {
+        fun( "input-path-get", function ( rt, inputPath ) {
+            return stcFnPure( function ( rt, name ) {
+        fun( "input-path-type", function ( rt, mode ) {
+            return stcFnPure( function ( rt, inputPath ) {
+        fun( "input-path-directory-list", function ( rt, mode ) {
+            return stcFnPure( function ( rt, inputPath ) {
+        fun( "input-path-blob-utf-8", function ( rt, mode ) {
+            return stcFnPure( function ( rt, inputPath ) {
+        fun( "output-path-get", function ( rt, outputPath ) {
+            return stcFnPure( function ( rt, name ) {
+        fun( "output-path-directory", function ( rt, outputPath ) {
+        fun( "output-path-blob-utf-8", function ( rt, outputPath ) {
+            return stcFnPure( function ( rt, outputString ) {
+        fun( "cli-output-environment-variable-shadow",
+            function ( rt, key ) {
+            
+            return stcFnPure( function ( rt, value ) {
+        fun( "sloppy-javascript-quine", function ( rt, mode ) {
+            return stcFnPure( function ( rt, constructorTag ) {
+                return stcFnPure( function ( rt, topLevelVars ) {
+        fun( "string-to-javascript-utf-16", function ( rt, string ) {
+        fun( "javascript-utf-16-to-string", function ( rt, string ) {
+        fun( "done-js-effects", function ( rt, result ) {
+        fun( "then-js-effects", function ( rt, jsEffects ) {
+            return stcFnPure( function ( rt, then ) {
+        fun( "give-unwrapped-js-effects", function ( rt, val ) {
+            return stcFnPure( function ( rt, jsThen ) {
+        fun( "give-js-effects", function ( rt, val ) {
+            return stcFnPure( function ( rt, jsThen ) {
+        fun( "compile-function-js-effects", function ( rt, params ) {
+            return stcFnPure( function ( rt, body ) {
