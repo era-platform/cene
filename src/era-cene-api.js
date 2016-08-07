@@ -10,7 +10,6 @@ function ceneApiUsingDefinitionNs(
     var stcCons = stcType( macroDefNs, "cons", "car", "cdr" );
     var stcNil = stcType( macroDefNs, "nil" );
     var stcForeign = stcType( macroDefNs, "foreign", "val" );
-    var stcAssoc = stcType( macroDefNs, "assoc", "key", "value" );
     var stcEncapsulatedString =
         stcType( macroDefNs, "encapsulated-string", "val" );
     var stcFileTypeDirectory =
@@ -292,7 +291,6 @@ function ceneApiUsingDefinitionNs(
         }
         
         type( "encapsulated-string", [ "val" ] );
-        type( "assoc", [ "key", "value" ] );
         type( "file-type-directory", [] );
         type( "file-type-blob", [] );
         type( "file-type-missing", [] );

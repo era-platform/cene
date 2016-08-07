@@ -23,7 +23,6 @@ Options:
 To interact with the outside world, the Cene code has access to a few things in the form of nonstandard definitions:
 
 (def-type encapsulated-string val)
-(def-type assoc key value)
 (def-type file-type-directory)
 (def-type file-type-blob)
 (def-type file-type-missing)

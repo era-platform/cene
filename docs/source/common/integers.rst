@@ -80,3 +80,15 @@ int-div-rounded-down
 Call with ``a b``
 
 .. todo:: Document this.
+
+
+.. _carried:
+
+carried
+-------
+
+Construct with ``main carry``
+
+An approximated value along with a carry value that makes up for the missing information.
+
+This constructor is needed to deconstruct the result of :ref:`int-div-rounded-down`.
