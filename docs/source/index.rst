@@ -8,3 +8,6 @@ Contents:
 
    test-page
    test-page-2/test-page-2
+   common/integers
+   common/strings
+   common/regexes
