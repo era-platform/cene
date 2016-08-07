@@ -5,8 +5,8 @@ From era-cene-runtime.js:
 
 /*        mac( "def-type", function ( nss, myStxDetails, body, then ) {
         mac( "defn", function ( nss, myStxDetails, body, then ) {
-*/        mac( "def-macro", function ( nss, myStxDetails, body, then ) {
-        mac( "test", function ( nss, myStxDetails, body, then ) {
+        mac( "def-macro", function ( nss, myStxDetails, body, then ) {
+*/        mac( "test", function ( nss, myStxDetails, body, then ) {
         mac( "test-async",
             function ( nss, myStxDetails, body, then ) {
 /*        mac( "case", function ( nss, myStxDetails, body, then ) {
@@ -19,8 +19,8 @@ From era-cene-runtime.js:
 */        mac( "err", function ( nss, myStxDetails, body, then ) {
 /*        mac( "str", function ( nss, myStxDetails, body, then ) {
         mac( "fn", function ( nss, myStxDetails, body, then ) {
-*/        mac( "let", function ( nss, myStxDetails, body, then ) {
-/*        effectfulMac( "dex-struct",
+        mac( "let", function ( nss, myStxDetails, body, then ) {
+        effectfulMac( "dex-struct",
             function ( nss, myStxDetails, body, then ) {
         fun( "dex-default", function ( rt, first ) {
             return stcFnPure( function ( rt, second ) {
@@ -127,7 +127,7 @@ From era-cene-runtime.js:
                 return stcFnPure( function ( rt, start ) {
                     return stcFnPure( function ( rt, stop ) {
                         return stcFnPure( function ( rt, then ) {
-*/        fun( "make-tuple-tag", function ( rt, tupleName ) {
+        fun( "make-tuple-tag", function ( rt, tupleName ) {
             return stcFnPure( function ( rt, projNames ) {
         fun( "function-implementation-opaque", function ( rt, impl ) {
         fun( "macro-stx-details", function ( rt, mode ) {
@@ -136,7 +136,7 @@ From era-cene-runtime.js:
                     return stcFnPure( function ( rt, stx ) {
         fun( "contributing-only-to", function ( rt, ns ) {
             return stcFnPure( function ( rt, effects ) {
-/*        fun( "procure-sub-ns-table", function ( rt, table ) {
+        fun( "procure-sub-ns-table", function ( rt, table ) {
             return new StcFn( function ( rt, ns ) {
         fun( "shadow-procure-sub-ns-table", function ( rt, table ) {
             return new StcFn( function ( rt, ns ) {
@@ -164,18 +164,18 @@ From era-cene-runtime.js:
         fun( "definer-define", function ( rt, definer ) {
             return stcFnPure( function ( rt, value ) {
         fun( "assert-current-modality", function ( rt, mode ) {
-*/        fun( "compile-expression", function ( rt, uniqueNs ) {
+        fun( "compile-expression", function ( rt, uniqueNs ) {
             return stcFnPure( function ( rt, definitionNs ) {
                 return stcFnPure( function ( rt, stx ) {
                     return stcFnPure( function ( rt, outDefiner ) {
-//        fun( "get-mode", function ( rt, body ) {
+        fun( "get-mode", function ( rt, body ) {
         fun( "read-all-force", function ( rt, string ) {
         
         
         // These constructors are needed for interpreting the results
         // of certain built-in operators, namely `isa` and the dex
         // operations.
-/*        type( "yep", [ "val" ] );
+        type( "yep", [ "val" ] );
         type( "nope", [ "val" ] );
         
         // This constructor is needed for constructing the input to
@@ -197,7 +197,7 @@ From era-cene-runtime.js:
         // `nil` constructors are also needed for parsing and
         // generating projection lists.
         type( "nil", [] );
-*/        type( "cons", [ "car", "cdr" ] );
+        type( "cons", [ "car", "cdr" ] );
         type( "istring-nil", [ "string" ] );
         type( "istring-cons",
             [ "string-past", "interpolated", "istring-rest" ] );
@@ -206,7 +206,7 @@ From era-cene-runtime.js:
         // This constructor is needed so that macros can parse their
         // located syntax arguments.
         type( "stx", [ "stx-details", "s-expr" ] );
-
+*/
 
 
 
