@@ -34,7 +34,7 @@ regex-one
 
 Call with ``-``
 
-.. todo:: Document this.
+Creates a regex that matches any one Unicode scalar.
 
 
 .. _regex-if:
