@@ -7,7 +7,7 @@ Integers
 dex-int
 -------
 
-Call with ``-``
+Call with ``(ignored)``
 
 .. todo:: Document this.
 
@@ -27,7 +27,7 @@ Call with ``a b``
 int-zero
 --------
 
-Call with ``-``
+Call with ``(ignored)``
 
 .. todo:: Document this.
 
@@ -37,7 +37,7 @@ Call with ``-``
 int-one
 -------
 
-Call with ``-``
+Call with ``(ignored)``
 
 .. todo:: Document this.
 
@@ -47,7 +47,7 @@ Call with ``-``
 fuse-int-by-plus
 ----------------
 
-Call with ``-``
+Call with ``(ignored)``
 
 .. todo:: Document this.
 
@@ -57,7 +57,7 @@ Call with ``-``
 fuse-int-by-times
 -----------------
 
-Call with ``-``
+Call with ``(ignored)``
 
 .. todo:: Document this.
 

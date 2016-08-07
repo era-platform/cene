@@ -12,7 +12,7 @@ On the other hand, Cene's regexes are a little different. For the sake of using 
 regex-give-up
 -------------
 
-Call with ``-``
+Call with ``(ignored)``
 
 Creates a regex that doesn't match.
 
@@ -22,7 +22,7 @@ Creates a regex that doesn't match.
 regex-empty
 -----------
 
-Call with ``-``
+Call with ``(ignored)``
 
 Creates a regex that matches the empty string.
 
@@ -32,7 +32,7 @@ Creates a regex that matches the empty string.
 regex-one
 ---------
 
-Call with ``-``
+Call with ``(ignored)``
 
 Creates a regex that matches any one Unicode scalar.
 

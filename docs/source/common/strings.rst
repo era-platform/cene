@@ -7,7 +7,7 @@ Strings
 dex-string
 ----------
 
-Call with ``-``
+Call with ``(ignored)``
 
 .. todo:: Document this.
 
@@ -17,7 +17,7 @@ Call with ``-``
 string-empty
 ------------
 
-Call with ``-``
+Call with ``(ignored)``
 
 .. todo:: Document this.
 
