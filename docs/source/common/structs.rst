@@ -35,6 +35,29 @@ Macro. Example:
 .. todo:: Document this.
 
 
+.. _make-tuple-tag:
+
+make-tuple-tag
+--------------
+
+Call with ``tuple-name proj-names``
+
+Takes a name for the constructor and a list of names for the projections, and returns the name used to dynamically tag a tuple of that combination of names. The projection name list must be made out of (:ref:`cons` ``car cdr``) and (:ref:`nil`) values, with elements that are strings, and the list must not have duplicates. The order of the list will be ignored.
+
+..
+  TODO: For now, this is the only thing that actually uses :ref:`cons` outside of a macro context. Even this should be changed to use tables, though. If anything else uses :ref:`cons`, we should take :ref:`cons` out of the macro docs and put it in miscellaneous.
+
+
+.. function-implementation-opaque:
+
+function-implementation-opaque
+------------------------------
+
+Call with ``impl``
+
+.. todo:: Document this.
+
+
 .. _def-type:
 
 def-type

@@ -12,6 +12,7 @@ Contents:
   common/tables
   common/effects
   common/namespaces
+  common/macros
   
   common/integers
   common/strings

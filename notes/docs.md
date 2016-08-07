@@ -8,12 +8,6 @@
 
 -
 ```
-(defn make-tuple-tag tuple-name proj-names)
-```
-Takes a name for the constructor and a list of names for the projections, and returns the name used to dynamically tag a tuple of that combination of names. The projection name list must be made out of `(cons car cdr)` and `(nil)` values, with elements that are strings, and the list must not have duplicates. The order of the list will be ignored.
-
--
-```
 (defn name-metacompare a b ...)
 ```
 (**TODO**: Figure out where to put this extensive documentation now that `name-metacompare` is implemented in era-cene-prelude.cene. It's not a built-in definition anymore.)
@@ -40,44 +34,6 @@ In the process, a lot of ugliness may arise: If concatenation of encapsulated AV
 
 For now, we can start small, merely providing a single metacomparator over names (`name-metacompare`), rather than aiming for efficiency and general computation. As long as we have that, we can use inefficient association lists to track free variables (`free-vars-object`).
 
--
-```
-(def-type istring-nil string)
-```
-An interpolated string s-expression that consists of a string with no interpolations.
-
--
-```
-(def-type istring-cons string-past interpolated istring-rest)
-```
-(**TODO**: Use this.)
-
-An interpolated string s-expression that consists of a string, a single interpolated value to go after that string, and a remaining interpolated string s-expression to go after that.
-
--
-```
-(def-type foreign val)
-```
-An s-expression that consists of an embedded value of any type, but usually a name. The program may not know of a way to encode the name as serializable data, but it can still be passed to `(compile-expression ...)`.
-
--
-```
-(def-type stx stx-details s-expr)
-```
-An s-expression tagged with source location information.
-
--
-```
-(defn macro-stx-details mode unique-ns definition-ns stx ...)
-```
-Constructs a syntax details object that refers to a macro's input, so that the macro's output can be associated with it. The `stx` must be a located cons list whose first element is a string or foreign name referring to a macro.
-
--
-```
-(defn contributing-only-to ns effects ...)
-```
-Monadically, schedules the effects to occur in a future tick where contributing to multimethods outside the given namespace is not allowed, but reading closed-world-assumption collections of contributions outside the given namespace is allowed.
-
 ```
 \= TODO: Don't implement this as a primitive. Implement it in terms of
 \= `make-promise-later`.
@@ -92,14 +48,6 @@ callbacks in later ticks, calls each of them in a separate later tick,
 and in a third later tick, passes their results monadically to the
 given two-argument callback.
 ```
-
--
-```
-(defn compile-expression unique-ns definition-ns stx out-definer ...)
-```
-Constructs a monad that, if invoked, macroexpands the given `stx` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce a fully compiled expression. If the expression is successfully computed, it is defined in the given `out-definer`.
-
-(**TODO**: Decide if this should conform to the `...-later` calling convention with a simple callback or if all the `...-later` utilities should instead conform to the `compile-expression` calling convention with an `out-definer`.)
 
 -
 

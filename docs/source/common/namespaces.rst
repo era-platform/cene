@@ -92,3 +92,13 @@ Gets the namespace's full element contribution map as a table. The given modalit
 During macroexpansion, this operation will not compute a result until at least all the original macroexpansion ticks have completed, since they are not limited by any ``contributing-only-...`` restrictions.
 
 This is a way to make frameworks that are extensible in the sense of the closed-world assumption (CWA).
+
+
+.. _contributing-only-to:
+
+contributing-only-to
+--------------------
+
+Call with ``ns effects``
+
+Monadically, schedules the effects to occur in a future tick where contributing to multimethods outside the given namespace is not allowed, but reading closed-world-assumption collections of contributions outside the given namespace is allowed.
