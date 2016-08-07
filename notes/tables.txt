@@ -70,7 +70,6 @@ def-type (dexable dex val)
   \= Given a dexable function, returns a fuse that works by passing itself to the function and then invoking the resulting fuse.
 (fuse-table <val-fuse>)
 (call-fuse <fuse> <a> <b>)
-\= TODO: Add some way to fuse numbers by addition. Figure out if there's a way to do it that is compatible with various number encodings or other commutative monoids.
 
 (table-empty <ignored>)
 (table-shadow <dexable-key> <maybe-val> <table>)
