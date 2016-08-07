@@ -27,16 +27,6 @@ Call with ``(ignored)``
 Creates a regex that matches the empty string.
 
 
-.. _regex-one:
-
-regex-one
----------
-
-Call with ``(ignored)``
-
-Creates a regex that matches any one Unicode scalar.
-
-
 .. _regex-if:
 
 regex-if
@@ -67,6 +57,26 @@ Call with ``body-regex condition-regex``
 Creates a regex that matches by matching the first given regex in succession any number of times as long as the second given regex wouldn't match instead, then finally matches the second given regex and finishes. If any iteration determines that the second regex doesn't match but the first one doesn't either, the overall match fails. If any iteration's match is empty, that must be the last iteration, or the overall match fails.
 
 
+.. _regex-one-in-range:
+
+regex-one-in-range
+------------------
+
+Call with ``min max``
+
+Creates a regex that matches one Unicode scalar if it's at least the given minimum and at most the given maximum.
+
+
+.. _regex-one:
+
+regex-one
+---------
+
+Call with ``(ignored)``
+
+Creates a regex that matches any one Unicode scalar.
+
+
 .. _regex-from-string:
 
 regex-from-string
@@ -85,16 +95,6 @@ regex-one-in-string
 Call with ``string``
 
 Creates a regex that matches one Unicode scalar if it appears in the given string.
-
-
-.. _regex-one-in-range:
-
-regex-one-in-range
-------------------
-
-Call with ``min max``
-
-Creates a regex that matches one Unicode scalar if it's at least the given minimum and at most the given maximum.
 
 
 .. _optimize-regex-later:
