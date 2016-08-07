@@ -180,18 +180,14 @@ From era-cene-runtime.js:
         
 /*        // This constructor is needed for constructing the input to
         // certain operations.
-        // TODO: Add documentation for this somewhere.
         type( "dexable", [ "dex", "val" ] );
         
         // This constructor is needed to deconstruct the result of
         // `int-div-rounded-down`.
-        // TODO: Add documentation for this somewhere.
         type( "carried", [ "main", "carry" ] );
         
         // These constructors are needed to deconstruct the results of
         // `optimized-regex-match-later`.
-        // TODO: Add documentation for these somewhere. They're listed
-        // in era-cene-prelude.cene but without comment.
         type( "regex-result-matched", [ "stop" ] );
         type( "regex-result-failed", [] );
         type( "regex-result-passed-end", [] );

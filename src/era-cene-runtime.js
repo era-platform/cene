@@ -2502,9 +2502,9 @@ function usingDefinitionNs( macroDefNs ) {
         } );
         
         // TODO: See if we should design a different approach to unit
-        // tests. Perhaps they should allow asynchronous computation.
-        // Perhaps the results should be installed as definitions
-        // somewhere. Perhaps we should be able to control the order.
+        // tests. Perhaps the results should be installed as
+        // definitions somewhere. Perhaps we should be able to control
+        // the order.
         //
         // TODO: Make this expand multiple expressions concurrently.
         //
@@ -3134,7 +3134,6 @@ function usingDefinitionNs( macroDefNs ) {
             }
         }
         
-        // TODO: Add documentation of this somewhere.
         effectfulMac( "dex-struct",
             function ( nss, myStxDetails, body, then ) {
             
@@ -3145,44 +3144,36 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "dex-default", function ( rt, first ) {
             return stcFnPure( function ( rt, second ) {
                 return new StcDexDefault( first, second );
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "dex-give-up", function ( rt, ignored ) {
             return new StcDexGiveUp();
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "dex-dex", function ( rt, ignored ) {
             return new StcDexDex();
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "dex-merge", function ( rt, ignored ) {
             return new StcDexMerge();
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "dex-fuse", function ( rt, ignored ) {
             return new StcDexFuse();
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "dex-name", function ( rt, ignored ) {
             return new StcDexName();
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "dex-string", function ( rt, ignored ) {
             return new StcDexString();
         } );
         
-        // TODO: Add documentation of this somewhere.
         effectfulFun( "dex-by-own-method",
             function ( rt, dexableGetMethod ) {
             
@@ -3194,7 +3185,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         effectfulFun( "dex-fix", function ( rt, dexableUnwrap ) {
             return assertValidDexable( rt, dexableUnwrap,
                 function ( unwrap ) {
@@ -3203,19 +3193,16 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "dex-table", function ( rt, dexVal ) {
             if ( dexVal.affiliation !== "dex" )
                 throw new Error();
             return new StcDexTable( dexVal );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "dex-int", function ( rt, ignored ) {
             return new StcDexInt();
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "call-dex", function ( rt, dex ) {
             return stcFnPure( function ( rt, a ) {
                 return new StcFn( function ( rt, b ) {
@@ -3248,19 +3235,16 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "in-dex", function ( rt, dex ) {
             return new StcFn( function ( rt, x ) {
                 return dex.dexHas( rt, x );
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "merge-by-dex", function ( rt, dex ) {
             return new StcMergeByDex( dex );
         } );
         
-        // TODO: Add documentation of this somewhere.
         effectfulMac( "merge-struct",
             function ( nss, myStxDetails, body, then ) {
             
@@ -3272,7 +3256,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "merge-default", function ( rt, first ) {
             return stcFnPure( function ( rt, second ) {
                 return new StcFuseDefault( "merge-default", "merge",
@@ -3280,7 +3263,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         effectfulFun( "merge-by-own-method",
             function ( rt, dexableGetMethod ) {
             
@@ -3294,7 +3276,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         effectfulFun( "merge-fix", function ( rt, dexableUnwrap ) {
             return assertValidDexable( rt, dexableUnwrap,
                 function ( unwrap ) {
@@ -3305,13 +3286,11 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "merge-table", function ( rt, mergeVal ) {
             return new StcFuseTable( "merge-table", "merge",
                 mergeVal );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "call-merge", function ( rt, merge ) {
             return stcFnPure( function ( rt, a ) {
                 return new StcFn( function ( rt, b ) {
@@ -3322,12 +3301,10 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "fuse-by-merge", function ( rt, merge ) {
             return new StcFuseByMerge( merge );
         } );
         
-        // TODO: Add documentation of this somewhere.
         effectfulMac( "fuse-struct",
             function ( nss, myStxDetails, body, then ) {
             
@@ -3339,7 +3316,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "fuse-default", function ( rt, first ) {
             return stcFnPure( function ( rt, second ) {
                 return new StcFuseDefault( "fuse-default", "fuse",
@@ -3347,7 +3323,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         effectfulFun( "fuse-by-own-method",
             function ( rt, dexableGetMethod ) {
             
@@ -3361,7 +3336,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         effectfulFun( "fuse-fix", function ( rt, dexableUnwrap ) {
             return assertValidDexable( rt, dexableUnwrap,
                 function ( unwrap ) {
@@ -3372,22 +3346,18 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "fuse-table", function ( rt, fuseVal ) {
             return new StcFuseTable( "fuse-table", "fuse", fuseVal );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "fuse-int-by-plus", function ( rt, ignored ) {
             return new StcFuseIntByPlus();
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "fuse-int-by-times", function ( rt, ignored ) {
             return new StcFuseIntByTimes();
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "call-fuse", function ( rt, fuse ) {
             return stcFnPure( function ( rt, a ) {
                 return new StcFn( function ( rt, b ) {
@@ -3398,12 +3368,10 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "table-empty", function ( rt, ignored ) {
             return new StcForeign( "table", jsnMap() );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "table-shadow", function ( rt, dexableKey ) {
             return stcFnPure( function ( rt, maybeVal ) {
                 return new StcFn( function ( rt, table ) {
@@ -3429,7 +3397,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "table-get", function ( rt, dexableKey ) {
             return new StcFn( function ( rt, table ) {
                 if ( !(table instanceof StcForeign
@@ -3499,7 +3466,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "table-get-singleton", function ( rt, table ) {
             if ( !(table instanceof StcForeign
                 && table.purpose === "table") )
@@ -3518,7 +3484,6 @@ function usingDefinitionNs( macroDefNs ) {
             return result;
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "table-fuse", function ( rt, table ) {
             return stcFnPure( function ( rt, init ) {
                 return new StcFn( function ( rt, fuse ) {
@@ -3552,22 +3517,17 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "int-zero", function ( rt, ignored ) {
             return stcForeignInt( 0 );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "int-one", function ( rt, ignored ) {
             return stcForeignInt( 1 );
         } );
         
-        // TODO: Add documentation of this somewhere.
-        //
         // TODO: See if we should make this available as a dex
         // (becoming the first dex with a visible order to it) or as a
         // merge (in the form of a max or min operation).
-        //
         fun( "int-compare", function ( rt, a ) {
             return stcFnPure( function ( rt, b ) {
                 if ( !(a instanceof StcForeign
@@ -3586,7 +3546,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "int-minus", function ( rt, a ) {
             return stcFnPure( function ( rt, b ) {
                 if ( !(a instanceof StcForeign
@@ -3599,7 +3558,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "int-div-rounded-down", function ( rt, a ) {
             return stcFnPure( function ( rt, b ) {
                 if ( !(a instanceof StcForeign
@@ -3620,7 +3578,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "string-length", function ( rt, string ) {
             var stringInternal = parseString( string ).paddedStr;
             if ( stringInternal.length % 2 !== 0 )
@@ -3628,12 +3585,10 @@ function usingDefinitionNs( macroDefNs ) {
             return stcForeignInt( stringInternal.length / 2 );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "string-empty", function ( rt, ignored ) {
             return stcForeignStrFromJs( "" );
         } );
         
-        // TODO: Add documentation of this somewhere.
         fun( "string-singleton", function ( rt, unicodeScalar ) {
             if ( !(unicodeScalar instanceof StcForeign
                 && unicodeScalar.purpose === "int") )
@@ -3657,7 +3612,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         }
         
-        // TODO: Add documentation of this somewhere.
         fun( "string-cut-later", function ( rt, string ) {
             return stcFnPure( function ( rt, start ) {
                 return stcFnPure( function ( rt, stop ) {
@@ -3699,7 +3653,6 @@ function usingDefinitionNs( macroDefNs ) {
             } ).val;
         }
         
-        // TODO: Add documentation of this somewhere.
         fun( "string-get-unicode-scalar-later",
             function ( rt, string ) {
             
@@ -4760,12 +4713,10 @@ function usingDefinitionNs( macroDefNs ) {
         
         // This constructor is needed for constructing the input to
         // certain operations.
-        // TODO: Add documentation for this somewhere.
         type( "dexable", [ "dex", "val" ] );
         
         // This constructor is needed to deconstruct the result of
         // `int-div-rounded-down`.
-        // TODO: Add documentation for this somewhere.
         type( "carried", [ "main", "carry" ] );
         
         // These constructors are needed to deconstruct the results of
