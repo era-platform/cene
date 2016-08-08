@@ -2469,8 +2469,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Write documentation for this in docs.md and/or
-        // cene-design-goals.txt.
         mac( "def-macro", function ( nss, myStxDetails, body, then ) {
             if ( !stcCons.tags( body ) )
                 throw new Error();
@@ -4188,7 +4186,6 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        // TODO: Add documentation of this somewhere.
         // NOTE: This is the only way to establish a function behavior
         // for a struct that has more than zero projections.
         fun( "function-implementation-opaque", function ( rt, impl ) {

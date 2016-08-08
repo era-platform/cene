@@ -112,3 +112,14 @@
   /fn stop
   /definer-define out stop)
   (fn out /definer-define out /regex-result-matched/int3/nil))
+
+
+(test (dex-int/nil)
+  (string-length str.\;qq[Hello])
+  (string-length str.\;qq[world]))
+
+(test-async (dex-string/nil)
+  (fn out
+    (string-append-later str.\;qq[Hello,\s] str.\;qq[world!] /fn str
+    /definer-define out str))
+  (fn out /definer-define out str.\;qq[Hello, world!]))
