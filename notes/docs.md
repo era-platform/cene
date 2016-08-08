@@ -1,10 +1,10 @@
 # Cene language reference
 
 
+(**TODO**: The docs now reside in the docs/ directory instead of this file. This file contains only some lingering documentation that hasn't been organized yet.)
 
-## Built-in definitions
 
-(**TODO**: Add documentation for all the other primitives defined in era-cene-runtime.js and era-cene-api.js. Some of this documentation has already been written in cene-design-goals.txt. Now we're gradually putting these docs in the docs/ directory instead of this file, and we're tracking our progress in notes/docs-todo.txt.)
+## Candidate built-in definitions
 
 -
 ```
@@ -97,7 +97,7 @@ The proper identity to use for the macro in everything except manually keyboarde
 ```
 ./macros/<macro identity>/function/val.el
 ```
-A value that can be invoked with the arguments of a macro call, as described below.
+A value that can be invoked with the arguments of a macro call, as described in the documentation for `def-macro`.
 
 -
 ```
@@ -120,23 +120,3 @@ The usual definition forms generate various definitions (plus potential intermed
 
 #### `(def-macro ...)`
   * The macro desired.
-
-
-
-## Parameters to a macro
-
-When a macro is expanded, its implementation function is called with several arguments: `unique-ns definition-ns my-stx-details args then`
-
-`unique-ns`: A namespace that is supposedly used exclusively for this macroexpansion. It's useful in the way that gensyms are typically useful in other macro-capable languages, but the uniqueness is achieved by playing along: If the macro compiles more than one subexpression, each subexpression should be given a `unique-ns` derived in different ways from each other.
-
-`definition-ns`: A namespace that is supposedly shared across all nearby macroexpansions. If the macro needs to install any definitions or look up any definitions, this is the namespace for that purpose. It should usually be passed as-is to any compiled subexpressions, except when a macro needs to establish a local definition scope.
-
-`my-stx-details`: A collection of source location information. This is a value user-level code doesn't know how to deconstruct, but it conveys information about this macro invocation, so the macro can attach it to the `stx` values it creates in order to receive proper attribution for them.
-
-(**TODO**: Figure out what the format of source location information actually is. For now, this is sort of just an unspecified area, but at least a language implementation can use this to hold filenames and line numbers in practice. An implementation should be able to treat this as a completely empty data structure; it's not needed for any variable scoping purposes.)
-
-`args`: The cons list of `(stx stx-details s-expr)` values that correspond to the subexpressions at the macro call site.
-
-`then`: A callable value that takes compiled code (the result of `compile-expression`) and returns a monadic effect. Invoking this effect causes the compiled code to be used as the macro result. The macro must invoke this effect exactly once, or else there's an error. The effect doesn't necessarily need to be invoked right away; the macro can use `later` to invoke more effects in a future tick.
-
-The macro's return value is a monadic effect, which will be invoked by the macroexpander.

@@ -30,3 +30,13 @@ nope
 Construct with ``nope``
 
 A value that signifies an unsuccessful result or an ordered comparison that determines the inputs were not successfully in ascending order already.
+
+
+.. _cons:
+
+cons
+----
+
+Construct with ``car cdr``
+
+Represents a linked list with the indicated ``car`` as its head element and the indicated ``cdr`` as its linked list tail.
