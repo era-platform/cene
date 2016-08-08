@@ -1,5 +1,5 @@
-Structs
-=======
+Structs and function calls
+==========================
 
 
 .. _dex-struct:
