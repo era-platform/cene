@@ -22,7 +22,7 @@ Cene tasks, in roughly highest-priority-first order:
 
   - Finish documenting the built-in operations that don't have documentation yet.
 
-  - Subdivide the operations in docs.md based on topic.
+  - Integrate the remaining documentation in docs.md into the docs. Especially focus on the part about the definition namespace layout.
 
 - Implement a multi-backend compiler of Cene in Cene.
 
