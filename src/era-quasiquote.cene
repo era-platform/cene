@@ -121,7 +121,7 @@
   (or (isa istring-nil x) (isa istring-cons x)))
 
 (defn parse-quasiquotation-escape-remainder-later
-  qq-env unwrap rewrap-suppressed expr
+  qq-env unwrap rewrap-suppressed expr then
   
   (cast qq-env qq-env-stack qq-stack
     err.\;qq[Expected a qq-env of type qq-env-stack]
@@ -140,7 +140,7 @@
     /cast rest nil
       err.\;qq[Too many arguments to quasiquotation escape -]
     /case qq-stack nil
-      (nope/foreign yep.expr)
+      (later/c then /nope/foreign yep.expr)
     /c-new parse-quasiquotation-subexpr-later qq-env unwrap expr
     /fn parsed
     /c then /nope/c rewrap-suppressed /c rewrap-expr /cons original-op
@@ -291,18 +291,6 @@
     remainder
     then))
 
-(defn parse-quasiquotation-for-macro-later expr then
-  (parse-quasiquotation-escape-later (qq-env-stack/nil)
-    (fn expr
-      (cast expr stx stx-details expr (nil)
-      /unwrapped expr /fn new-expr
-        (stx stx-details new-expr)))
-    expr
-  /fn parsed
-  /cast parsed nope non-spliceable
-    err.\;qq[Tried to splice into the quasiquotation root]
-  /c then non-spliceable))
-
 (defn parse-quasiquotation-subexpr-later qq-env unwrap expr then
   (cast (c unwrap expr) unwrapped unwrapped-expr rewrap-expr
     err.\;qq[
@@ -393,4 +381,123 @@
   /case unwrapped-expr
     foreign elem (c-later then /foreign nope.elem)
     err.\;qq[
-      Tried to parse a quasiquotation that wasn't an s-expression])
+      Tried to parse a quasiquotation that wasn't an s-expression]))
+
+(defn unwrap-for-macro expr
+  (cast expr stx stx-details expr (nil)
+  /unwrapped expr /fn new-expr /stx stx-details new-expr))
+
+(defn parse-quasiquotation-for-macro-later expr then
+  (parse-quasiquotation-escape-later (qq-env-stack/nil)
+    (unwrap-for-macro)
+    expr
+  /fn parsed
+  /cast parsed nope non-spliceable
+    err.\;qq[Tried to splice into the quasiquotation root]
+  /c then non-spliceable))
+
+(defn s-expr-leaves unwrap expr
+  (cast (c unwrap expr) unwrapped expr rewrap
+    err.\;qq[
+      Tried to get the leaves of an expression that couldn't be
+      unwrapped]
+  /case expr nil
+    (nil)
+  /case expr cons first rest
+    (append
+      (c-new s-expr-leaves unwrap first)
+      (c-new s-expr-leaves unwrap /c rewrap rest))
+  /case expr istring-nil string
+    (nil)
+  /case expr istring-cons prefix interpolation rest
+    (append
+      (c-new s-expr-leaves unwrap interpolation)
+      (c-new s-expr-leaves unwrap /c rewrap rest))
+  /case expr foreign val
+    list.val
+    err.\;qq[Expected an expr that was an s-expression]))
+
+(defn s-expr-splice-leaves-later unwrap expr leaves then
+  (cast (c unwrap expr) unwrapped unwrapped-expr rewrap
+    err.\;qq[
+      Tried to splice the leaves of an expression that couldn't be
+      unwrapped]
+  /case unwrapped-expr nil
+    (later/c then nope.expr leaves)
+  /case unwrapped-expr cons first rest
+    (c-new s-expr-splice-leaves-later unwrap first leaves
+    /fn first leaves
+    /let first
+      (case first yep spliceable spliceable
+      /case first nope non-spliceable list.non-spliceable
+        err.\;qq[Internal error])
+    /c-new s-expr-splice-leaves-later unwrap (c rewrap rest) leaves
+    /fn rest leaves
+    /cast rest nope rest
+      err.\;qq[Expected an expr that had proper lists]
+    /cast (c unwrap rest) unwrapped rest -
+      err.\;qq[
+        Encountered trouble unwrapping an expression that had been
+        rewrapped]
+    /c then (nope/c rewrap /append first rest) leaves)
+  /case unwrapped-expr istring-nil string
+    (later/c then nope.expr leaves)
+  /case unwrapped-expr istring-cons prefix interpolation rest
+    (c-new s-expr-splice-leaves-later unwrap interpolation leaves
+    /fn interpolation leaves
+    /c-new s-expr-splice-leaves-later unwrap rest leaves
+    /fn rest leaves
+    /cast rest nope rest
+      err.\;qq[
+        Expected an expr that had proper interpolated strings]
+    /cast (c unwrap rest) unwrapped rest -
+      err.\;qq[
+        Encountered trouble unwrapping an expression that had been
+        rewrapped]
+    /case interpolation yep spliceable
+      (istring-append-later spliceable rest /fn rest
+      /istring-append-later istring-nil.prefix rest /fn result
+      /c then /c rewrap result)
+    /case interpolation nope non-spliceable
+      (later/c then /c rewrap /istring-cons prefix non-spliceable rest)
+      err.\;qq[Internal error])
+  /case unwrapped-expr foreign val
+    (cast leaves cons leaf leaves
+      err.\;qq[
+        Encountered more leaves in the s-expression than the list]
+    /cast (or (isa yep leaf) (isa nope leaf)) yep -
+      err.\;qq[
+        Expected every leaf in the list to be of type yep or nope]
+    /later/c then leaf leaves)
+    err.\;qq[Expected an expr that was an s-expression]))
+
+(defn unique-ns-spread unique-ns list combiner
+  (cast list cons first rest (nil)
+  /cons (c combiner (ns-get-string str.first unique-ns) first)
+  /c-new unique-ns-spread (ns-get-string str.rest unique-ns) rest))
+
+(def-macro qlet unique-ns definition-ns my-stx-details args then
+  (cast args cons body args
+    err.\;qq[Called qlet without any arguments]
+  /cast args nil
+    err.\;qq[Called qlet with more than one argument]
+  /parse-quasiquotation-for-macro-later body /fn body
+  /get-mode/fn mode
+  /let bindings
+    (unique-ns-spread (ns-get-string str.bindings unique-ns)
+      (s-expr-leaves (unwrap-for-macro) body)
+    /fn unique-ns leaf
+      (list (foreign/procure-name mode unique-ns) leaf))
+  /s-expr-splice-leaves-later (unwrap-for-macro) body
+    (map bindings /fn binding
+      (cast binding cons var -
+        err.\;qq[Internal error]
+        nope.var))
+  /fn body leaves
+  /cast leaves nil
+    err.\;qq[Internal error]
+  /basic-pure-macro (ns-get-string str.body unique-ns)
+    definition-ns my-stx-details then
+  /fn unique-ns s mac
+  /c s mac str.let /append (mappend bindings /fn binding binding)
+    list.body))
