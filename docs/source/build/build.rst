@@ -42,9 +42,9 @@ Call with ``mode``
 Gets an output path that corresponds to the output directory provided at the command line. The given mode must be a current one, and it must permit CLI-time operations.
 
 
-.. _cli-input-path-get:
+.. _input-path-get:
 
-cli-input-path-get
+input-path-get
 ------------------
 
 Call with ``input-path string``
