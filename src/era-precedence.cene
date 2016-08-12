@@ -33,7 +33,7 @@
   (table-shadow (dexable dex-val val) yep.val table))
 
 (defn table-map table func
-  (table-zip table table /fn maybe-val -
+  (table-zip table table /fn - maybe-val -
     (cast maybe-val yep val
       err.\;qq[Internal error]
     /yep/c func val)))
