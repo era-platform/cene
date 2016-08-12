@@ -402,10 +402,15 @@ function runCeneSync(
     return usingDefNs.rt.anyTestFailed;
 }
 
-var preludeFiles = _.arrMap( [
-    "src/era-cene-prelude.cene"
-], function ( path ) {
-    return $path.resolve( __dirname, path );
+var preludeFilenamesShort = [
+    "era-cene-prelude.cene",
+    "era-quasiquote.cene"
+];
+
+var preludeFiles = _.arrMap( preludeFilenamesShort,
+    function ( filenameShort ) {
+    
+    return $path.resolve( __dirname, "src/" + filenameShort );
 } );
 
 exports.preludeFiles = preludeFiles;
@@ -513,10 +518,13 @@ if ( args.test_era ) tasks.push( function ( then ) {
 
 
 if ( args.demo_cene ) tasks.push( function ( then ) {
-    arrEachAsyncNodeExn( [
-        { dir: "src/", name: "era-cene-prelude.cene" },
+    arrEachAsyncNodeExn( [].concat(
+        _.arrMap( preludeFilenamesShort, function ( name ) {
+            return { dir: "src/", name: name };
+        } ),
+    [
         { dir: "test/", name: "test.cene" }
-    ], function ( i, file, then ) {
+    ] ), function ( i, file, then ) {
         ltf.readTextFile(
             $path.resolve( __dirname, file.dir + file.name ), "utf-8",
             function ( e, text ) {

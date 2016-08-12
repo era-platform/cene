@@ -123,3 +123,16 @@
     (string-append-later str.\;qq[Hello,\s] str.\;qq[world!] /fn str
     /definer-define out str))
   (fn out /definer-define out str.\;qq[Hello, world!]))
+
+(test (dex-int/nil)
+  (qlet/^/qq/-/int-plus (int1/nil) (int1/nil))
+  (int2/nil))
+
+(test (dex-int/nil)
+  (qlet/^/qq/-/int-plus (^/uq/-/int1/nil) (^/uq/-/int1/nil))
+  (int2/nil))
+
+(test (dex-int/nil)
+  (qlet/^/qq/-/int-plus (^/uq/-/int1/nil)
+  /qlet/^/qq/-/int-plus (^/uq/-/int2/nil) (^/uq/uq/-/int3/nil))
+  (int6/nil))
