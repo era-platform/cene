@@ -42,40 +42,6 @@ Make a not-so-sloppy version of `sloppy-javascript-quine`. Namely, the implement
 Redesign `compile-function-js-effects` to a macro `js.\;qq[return 1 + 2;]` that creates a JavaScript effects value that executes the given code. The code is put into a `Function(...)` expression that's run at the time the program's JavaScript code first runs, rather than putting off the execution of `Function(...)` to the time these JavaScript effects are run. Hmm... One problem with this is that it's not well-defined what happens if more than one of these expressions has a syntax error.
 Hmm. We probably want a way to construct JavaScript regexes at JavaScript load time too. We'll be able to do this in a sloppy way for a while, by generating compiled expressions that refer to macroexpansion-time first-class values, but maybe we should add another primitive so we don't have to mess with run time regexes until run time. Perhaps a macro `(js-early js-effects)` can cause the expression `js-effects` to be executed in an empty environment at compile time. Again, one problem with this is that it's not well-defined what happens if more than one of these expressions encounters an error.
 
---
-
-Consider refactoring `(table-fuse table init fuse)` and `(table-get-singleton table)` into a single `(table-just-fuse table fuse)` that requires a nonempty table. We can almost reimplement the old operations as follows:
-
-  (defn table-fuse-dexable-into dexable-table init fuse
-    (cast dexable-table dexable table-dex table
-      err.\;qq[Expected a dexable-table of type dexable]
-    /table-just-fuse (table-shadow dexable-table init table) fuse))
-  
-  (defn table-get-singleton-force table
-    (table-just-fuse table /fuse-by-merge/merge-by-dex/dex-give-up/nil))
-
-On the other hand, `table-fuse-dexable-into` is strictly less flexible than the `table-fuse` we have now, and this new `table-get-singleton-force` cannot gracefully detect empty tables, which means we'll need another operation to do that. It looks like this is an overall bad idea after all.
-
-  (defn table-just-fuse table fuse
-    (case (table-fuse table (nil) /fuse-by-merge/merge-by-dex/dex-give-up/nil) nil
-      (nil)
-    /caselet result table-get-singleton.table yep -
-      result
-    /table-fuse table ...))
-
-Err...  I guess we can't quite implement `table-just-fuse` in terms of the others. Add it as a primitive, then.
-
-How about this: Replace all three with `(tables-fuse table-a table-b fuse)`. It fuses all the things in the first table and the second table, if any. If there aren't any elements at all to fuse, it returns `(nil)`.
-
-  (defn table-fuse table init fuse
-    (tables-fuse table (table-shadow (dexable dex-struct.nil /nil) init /table-empty/nil) fuse))
-  
-  (defn table-just-fuse table fuse
-    (tables-fuse table (table-empty/nil) fuse))
-  
-  (defn table-get-singleton table
-    (table-just-fuse table /fuse-by-merge/merge-by-dex/dex-give-up/nil))
-
 
 
 --------

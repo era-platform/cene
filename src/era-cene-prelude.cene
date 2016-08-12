@@ -51,16 +51,21 @@
   (cast list cons first rest state
   /c-new foldl (c combiner state first) rest combiner))
 
-(defn ns-path ns path
-  (let dex-component (dex-default (dex-string/nil) (dex-name/nil))
-  /foldl ns path /fn ns component
-    (table-get-singleton/procure-sub-ns-table
-      (table-shadow (dexable dex-component component) (yep/nil)
-      /table-empty/nil)
-      ns)))
+(defn table-get-singleton table
+  (tables-fuse table (table-empty/nil)
+  /fuse-by-merge/merge-by-dex/dex-give-up/nil))
 
 (defn ns-get key ns
-  (ns-path ns /cons key /nil))
+  (proj1 yep /table-get-singleton/procure-sub-ns-table
+    (table-shadow
+      (dexable (dex-default (dex-string/nil) (dex-name/nil)) key)
+      (yep/nil)
+    /table-empty/nil)
+    ns))
+
+(defn ns-path ns path
+  (foldl ns path /fn ns component
+    (ns-get component ns)))
 
 (defn double-any-foldl state list-a list-b combiner
   (cast list-a cons first-a rest-a nope.state
