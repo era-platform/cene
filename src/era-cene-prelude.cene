@@ -2,6 +2,12 @@
 \= Copyright 2015, 2016 Ross Angle. Released under the MIT License.
 
 
+\= TODO: Find a good place for this.
+(defn fix func
+  (fn arg
+    (c func (c-new fix func) arg)))
+
+
 \= ===== Lists, boolean tags, and macro utilities ====================
 
 (def-type pair first second)
