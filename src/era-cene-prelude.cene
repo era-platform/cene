@@ -90,7 +90,7 @@
   (foldl state rev.list /fn state elem /c combiner elem state))
 
 (defn macro-name mode definition-ns name
-  (let - assert-current-modality.mode
+  (let - assert-current-mode.mode
   /case (in-dex (dex-name/nil) name) yep - name
   /case (in-dex (dex-string/nil) name) yep -
     (procure-name mode

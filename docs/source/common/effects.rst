@@ -34,10 +34,10 @@ Monadically, passes the current modality to the given monadic callback in the sa
 A modality must be passed to certain effectful primitives as a way to give the effects something to be deterministic by. (The terms "mode" and "modality" might be idiosyncrasies of Cene. A more standard term is "world-passing style.")
 
 
-.. _assert-current-modality:
+.. _assert-current-mode:
 
-assert-current-modality
------------------------
+assert-current-mode
+-------------------
 
 Call with ``mode``
 

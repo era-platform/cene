@@ -24,7 +24,6 @@ Implement a non-macro version of `let`: Given a "bindings" ordered association l
 Specify how `fn` determines a unique constructor name, and programmatically enforce the illusion that it does work that way. Ideally, `fn` looks up a sub-namespace by a standard key from the unique namespace it's expanded in, and that namespace's name is the constructor name it uses. The standard key is consistent in every `fn` invocation, but it is not directly available to Cene progams. A complete plan for this is below; it's the "substantial refactoring" section.
 
 Make `join-effects` into a merge, or at least a fuse. We might want it to be a fuse just because the performance of joining an effect to itself is inequal to the performance of the original effect.
-Rename `assert-current-modality` to `assert-current-mode`.
 Consider renaming "mode" to "world" throughout.
 See if there's any real point to calling things "...-later", since errors that happen in the "later" portion are escalated to invalidate the prior portion anyway. Maybe we even want the mode to remain current across these operations. That could make it confusing when some operations change the mode and others don't.
 Rename `make-promise-later` to `new-definer-later`.

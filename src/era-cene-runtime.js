@@ -4463,7 +4463,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "assert-current-modality", function ( rt, mode ) {
+        fun( "assert-current-mode", function ( rt, mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
                 && mode.foreignVal.current) )
