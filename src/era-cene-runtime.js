@@ -286,6 +286,12 @@ function stcNsRoot() {
         shadows: jsnMap()
     };
 }
+function stcNsHiddenRoot() {
+    return {
+        name: [ "hidden-root" ],
+        shadows: jsnMap()
+    };
+}
 function stcNameGet( stringOrName, parent ) {
     
     // TODO: Determine a good value for this.
@@ -338,6 +344,54 @@ function stcType( definitionNs, tupleStringyName, var_args ) {
     return stcTypeArr( definitionNs, tupleStringyName,
         [].slice.call( arguments, 2 ) );
 }
+
+var builtInTypesToAdd = [];
+function builtInType( tupleStringyName, var_args ) {
+    var type =
+        stcTypeArr( hiddenDefNs, tupleStringyName,
+            [].slice.call( arguments, 1 ) );
+    builtInTypesToAdd.push( type );
+    return type;
+}
+
+var hiddenDefNs = stcNsHiddenRoot();
+
+// These constructors are needed for interpreting the results of
+// certain built-in operators, namely `isa` and the dex operations.
+var stcYep = builtInType( "yep", "val" );
+var stcNope = builtInType( "nope", "val" );
+
+// This constructor is needed for constructing the input to certain
+// operations.
+var stcDexable = builtInType( "dexable", "dex", "val" );
+
+// This constructor is needed to deconstruct the result of
+// `int-div-rounded-down`.
+var stcCarried = builtInType( "carried", "main", "carry" );
+
+// These constructors are needed to deconstruct the results of
+// `optimized-regex-match-later`.
+var stcRegexResultMatched =
+    builtInType( "regex-result-matched", "stop" );
+var stcRegexResultFailed = builtInType( "regex-result-failed" );
+var stcRegexResultPassedEnd =
+    builtInType( "regex-result-passed-end" );
+
+// These s-expression constructors are needed so that macros can parse
+// their s-expression arguments. The `cons` and `nil` constructors are
+// also needed for parsing and generating projection lists.
+var stcNil = builtInType( "nil" );
+var stcCons = builtInType( "cons", "car", "cdr" );
+var stcIstringNil = builtInType( "istring-nil", "string" );
+var stcIstringCons = builtInType( "istring-cons",
+    "string-past", "interpolated", "istring-rest" );
+var stcForeign = builtInType( "foreign", "val" );
+
+// This constructor is needed so that macros can parse their located
+// syntax arguments.
+var stcStx = builtInType( "stx", "stx-details", "s-expr" );
+
+
 
 function stcNameSetEmpty() {
     return function ( name ) {
@@ -585,9 +639,6 @@ StcDexGiveUp.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
 StcDexGiveUp.prototype.dexHas = function ( rt, x ) {
-    var stcNil = stcType( rt.defNs, "nil" );
-    var stcNope = stcType( rt.defNs, "nope", "val" );
-    
     return macLookupRet( stcNope.ofNow( stcNil.ofNow() ) );
 };
 StcDexGiveUp.prototype.fuse = function ( rt, a, b ) {
@@ -612,10 +663,6 @@ StcDexStruct.prototype.callStc = function ( rt, arg ) {
 };
 StcDexStruct.prototype.dexHas = function ( rt, x ) {
     var self = this;
-    
-    var stcNil = stcType( rt.defNs, "nil" );
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    var stcNope = stcType( rt.defNs, "nope", "val" );
     
     if ( !(x instanceof Stc && x.tupleTag === self.expectedTupleTag) )
         return macLookupRet( stcNope.ofNow( stcNil.ofNow() ) );
@@ -761,10 +808,6 @@ StcDexByOwnMethod.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
 StcDexByOwnMethod.prototype.dexHas = function ( rt, x ) {
-    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
-    var stcNil = stcType( rt.defNs, "nil" );
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    
     return macLookupThen(
         stcDexable.getProj( this.dexableGetMethod, "val"
             ).stcCall( rt, x ),
@@ -797,8 +840,6 @@ StcDexFix.prototype.callStc = function ( rt, arg ) {
     throw new Error();
 };
 StcDexFix.prototype.dexHas = function ( rt, x ) {
-    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
-    
     return macLookupThen(
         stcDexable.getProj( this.dexableUnwrap, "val"
             ).callStc( rt, this ),
@@ -892,9 +933,6 @@ StcMergeByDex.prototype.dexHas = function ( rt, x ) {
 };
 StcMergeByDex.prototype.fuse = function ( rt, a, b ) {
     var self = this;
-    
-    var stcNil = stcType( rt.defNs, "nil" );
-    var stcYep = stcType( rt.defNs, "yep", "val" );
     
     return rt.dexHas( self.dexToUse, a, function ( hasA ) {
         if ( !hasA )
@@ -1010,9 +1048,6 @@ StcFuseStruct.prototype.dexHas = function ( rt, x ) {
 StcFuseStruct.prototype.fuse = function ( rt, a, b ) {
     var self = this;
     
-    var stcNil = stcType( rt.defNs, "nil" );
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    
     if ( !(a instanceof Stc && a.tupleTag === self.expectedTupleTag) )
         return macLookupRet( stcNil.ofNow() );
     if ( !(b instanceof Stc && b.tupleTag === self.expectedTupleTag) )
@@ -1084,8 +1119,6 @@ StcFuseDefault.prototype.dexHas = function ( rt, x ) {
 StcFuseDefault.prototype.fuse = function ( rt, a, b ) {
     var self = this;
     
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    
     return macLookupThen( self.first.fuse( rt, a, b ),
         function ( firstResult ) {
     
@@ -1120,10 +1153,6 @@ StcFuseByOwnMethod.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
 StcFuseByOwnMethod.prototype.fuse = function ( rt, a, b ) {
-    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
-    var stcNil = stcType( rt.defNs, "nil" );
-    var stcYep = stcType( rt.defNs, "yep", "val" );
-    
     var getMethod =
         stcDexable.getProj( this.dexableGetMethod, "val" );
     
@@ -1175,9 +1204,6 @@ StcFuseFix.prototype.dexHas = function ( rt, x ) {
 };
 StcFuseFix.prototype.fuse = function ( rt, a, b ) {
     var self = this;
-    
-    var stcDexable = stcType( rt.defNs, "dexable", "dex", "val" );
-    
     return macLookupThen(
         stcDexable.getProj( self.dexableUnwrap, "val"
             ).callStc( rt, self ),
@@ -1927,27 +1953,6 @@ function evalStcForTest( rt, expr ) {
 }
 
 function usingDefinitionNs( macroDefNs ) {
-    var stcCons = stcType( macroDefNs, "cons", "car", "cdr" );
-    var stcNil = stcType( macroDefNs, "nil" );
-    var stcIstringNil =
-        stcType( macroDefNs, "istring-nil", "string" );
-    var stcIstringCons = stcType( macroDefNs, "istring-cons",
-        "string-past", "interpolated", "istring-rest" );
-    var stcYep = stcType( macroDefNs, "yep", "val" );
-    var stcNope = stcType( macroDefNs, "nope", "val" );
-    var stcStx =
-        stcType( macroDefNs, "stx", "stx-details", "s-expr" );
-    var stcForeign = stcType( macroDefNs, "foreign", "val" );
-    var stcDexable = stcType( macroDefNs, "dexable", "dex", "val" );
-    var stcCarried =
-        stcType( macroDefNs, "carried", "main", "carry" );
-    var stcRegexResultMatched =
-        stcType( macroDefNs, "regex-result-matched", "stop" );
-    var stcRegexResultFailed =
-        stcType( macroDefNs, "regex-result-failed" );
-    var stcRegexResultPassedEnd =
-        stcType( macroDefNs, "regex-result-passed-end" );
-    
     // NOTE: The "rt" stands for "runtime." This carries things that
     // are relevant at run time.
     // TODO: See if we should add `namespaceDefs` to this.
@@ -4702,40 +4707,18 @@ function usingDefinitionNs( macroDefNs ) {
                 definitionNs, dummyMode, tupleName, projNames );
         }
         
-        // These constructors are needed for interpreting the results
-        // of certain built-in operators, namely `isa` and the dex
-        // operations.
-        type( "yep", [ "val" ] );
-        type( "nope", [ "val" ] );
-        
-        // This constructor is needed for constructing the input to
-        // certain operations.
-        type( "dexable", [ "dex", "val" ] );
-        
-        // This constructor is needed to deconstruct the result of
-        // `int-div-rounded-down`.
-        type( "carried", [ "main", "carry" ] );
-        
-        // These constructors are needed to deconstruct the results of
-        // `optimized-regex-match-later`.
-        type( "regex-result-matched", [ "stop" ] );
-        type( "regex-result-failed", [] );
-        type( "regex-result-passed-end", [] );
-        
-        // These s-expression constructors are needed so that macros
-        // can parse their s-expression arguments. The `cons` and
-        // `nil` constructors are also needed for parsing and
-        // generating projection lists.
-        type( "nil", [] );
-        type( "cons", [ "car", "cdr" ] );
-        type( "istring-nil", [ "string" ] );
-        type( "istring-cons",
-            [ "string-past", "interpolated", "istring-rest" ] );
-        type( "foreign", [ "val" ] );
-        
-        // This constructor is needed so that macros can parse their
-        // located syntax arguments.
-        type( "stx", [ "stx-details", "s-expr" ] );
+        arrEach( builtInTypesToAdd, function ( type ) {
+            // TODO NOW: Implement this. We need to:
+            //
+            // Shadow ./constructors/<constructor identity>/tag/ to commandeer its .name.
+            // Shadow ./constructors/<constructor identity>/projection-names/<string: projection name>/name/ to commandeer its .name.
+            // Define ./constructors/<constructor identity>/projection-list/val.el.
+            // Define ./macro-names/<string: macro name>/name/.name.
+            //
+            // A call to processDefType will take care of the latter
+            // two, but that must be done after the shadowing has been
+            // done.
+        } );
         
         commitDummyMode( namespaceDefs, dummyMode );
     }
