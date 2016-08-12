@@ -7,11 +7,13 @@ Rename `def-type` to `def-struct`.
 Change the definition namespace layout so it doesn't use strings, but instead uses built-in names. Sure, the names are accessed by calling functions that have their own string names, but another API (e.g. in another language) may expose the same names by way of differently named functions.
 Consider changing `contributing-only-to` to accept a collection (e.g. a table) of namespaces-with-holes-in-them, rather than a single namespace.
 
-In the following, "identifier" means any valid dexable. Each operation validates the identifiers it receives to be sure they're valid dexables.
+In the following, "identifier" means a singleton table containing nil. Each operation validates the identifiers it receives to be sure it's a singleton and contains `(nil)`.
+
+Change `table-get` to take an identifier instead of a dexable key.
 
 Update the various built-in macros that accept names of the form `(istring-nil <string>)` or `(foreign <name>)` to also accept `(foreign <identifier>)`. Consider discontinuing support for `(foreign <name>)`.
 
-Implement a non-macro version of `case`: Given a constructor tag, a one-to-one table from projection names to valid identifiers, a "then" compiled expression, and an "else" compiled expression, obtain another compiled expression with all the free identifiers of "else" and all but the given identifiers out of the free identifiers of "then."
+Implement a non-macro version of `case`: Given a constructor tag, a "subject" compiled expression, a one-to-one table from projection names to valid identifiers, a "then" compiled expression, and an "else" compiled expression, obtain another compiled expression with all the free identifiers of "subject" and "else" and all but the given identifiers out of the free identifiers of "then."
 Implement a non-macro version of `def-type` construction: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free identifiers.
 Implement a non-macro version of `c`: Given a "func" compiled expression and an "arg" compiled expression, obtain another compiled expression with the union of their free identifiers.
 Implement a non-macro version of `compile-expression` on a variable access: Given an identifier, obtain a compiled expression with just that identifier in its free identifiers.
