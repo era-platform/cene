@@ -37,7 +37,6 @@ Implement `read-all-force` instead of having it built in.
 Consider making `int-compare` a dex, which would make it the first visibly ordered dex.
 Rename `string-get-unicode-scalar-later` to `string-get-unicode-scalar`, and make it non-monadic.
 Refactor the entire "File I/O for simple builds" system so that it looks like it could use namespaces, but doesn't actually use any sub-namespaces the Cene code has access to. See the "substantial refactoring" session for this illusion applied to the macroexpansion state model (function, macro, and constructor definitions).
-Bring consistency to the names `cli-input-path-get` and `output-path-get`. Actually, this is a documentation error. It's already `input-path-get`.
 Revisit `output-path-directory`, `output-path-utf-8`, and especially `cli-output-environment-variable-shadow` to be sure they behave as though they contribute to a namespace the user-level Cene code has no access to. Right now, I think `cli-output-environment-variable-shadow` outputs to a visible place in the definition namespace.
 Implement the `--command` command line option.
 
