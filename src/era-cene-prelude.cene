@@ -10,10 +10,10 @@
 
 \= ===== Lists, boolean tags, and macro utilities ====================
 
-(def-type pair first second)
+(def-struct pair first second)
 
 \= TODO: Find a better name for this.
-(def-type folding state val)
+(def-struct folding state val)
 
 (defn map-any-foldl state list combiner
   (cast list cons first rest (folding state list)
@@ -99,7 +99,7 @@
     
     err.\;qq[Expected a name value of type name or string]))
 
-(def-type basic-macro-result effects expression)
+(def-struct basic-macro-result effects expression)
 
 (defn basic-macro unique-ns definition-ns my-stx-details then body
   (make-promise-later/fn outbox-definer get-outbox
@@ -245,7 +245,7 @@
 (defn all list check
   (not/any list /fn elem /not/c check elem))
 
-(def-type rev-cut-result rev-past rest)
+(def-struct rev-cut-result rev-past rest)
 
 (defn maybe-rev-cut list-to-measure-by list-to-cut
   (case
@@ -265,7 +265,7 @@
       Expected a list-to-measure-by no longer than the list-to-cut]
     result))
 
-(def-type cut-result past rest)
+(def-struct cut-result past rest)
 
 (defn maybe-cut list-to-measure-by list-to-cut
   (cast (maybe-rev-cut list-to-measure-by list-to-cut)
@@ -288,8 +288,8 @@
 
 \= ===== Lazy lists ==================================================
 
-(def-type lazy-cons get-first get-rest)
-(def-type lazy-nil)
+(def-struct lazy-cons get-first get-rest)
+(def-struct lazy-nil)
 
 (defn lazy-append a b
   (cast a lazy-cons a-first a-rest b
@@ -320,7 +320,7 @@
 \= NOTE: Although they're separated into different sections, fixops
 \= and digpairs are actually interdependent.
 
-(def-type
+(def-struct
   fixops zero one complement compare plus minus times div dual-div)
 
 (defn fixops-zero fixops
@@ -383,7 +383,7 @@
 
 \= ===== "Digit pairs," fixnums built out of two smaller fixnums =====
 
-(def-type digpair fixops is-zero bdig ldig)
+(def-struct digpair fixops is-zero bdig ldig)
 
 (defn make-digpair fixops bdig ldig
   (let is-zero
@@ -840,8 +840,8 @@
 
 \= ===== Big, zero-based natural numbers =============================
 
-(def-type binat-internals depth fixnum)
-(def-type binat fixops maybe-internals)
+(def-struct binat-internals depth fixnum)
+(def-struct binat fixops maybe-internals)
 
 (defn binat-zero-for-fixops fixops
   (binat fixops /nil))
@@ -1045,7 +1045,7 @@
 \= These might even be integers that carry a big sign. You can't say
 \= they aren't.
 
-(def-type bigint fixops nat)
+(def-struct bigint fixops nat)
 
 (defn bigint-zero-for-fixops fixops
   (bigint fixops /nil))
@@ -1191,11 +1191,11 @@
 \= TODO: See if our use of binary bigints is less efficient than
 \= era-avl.js's use of unary bigints in the main Era project.
 
-(def-type avl-leaf fixops compare)
-(def-type
+(def-struct avl-leaf fixops compare)
+(def-struct
   avl-branches nope-unbalance nope-branch yep-unbalance yep-branch)
-(def-type avl-branch fixops compare key val branches)
-(def-type depth-modified depth-was-modified result)
+(def-struct avl-branch fixops compare key val branches)
+(def-struct depth-modified depth-was-modified result)
 
 (defn avl-branches-swap polarity branches
   (case polarity yep - branches
@@ -1220,7 +1220,7 @@
       yep.val)
     err.\;qq[Expected a tree value of type avl-leaf or avl-branch]))
 
-(def-type
+(def-struct
   depth-changed nope-depth-change yep-depth-change balanced-tree)
 
 (defn depth-changed-swap polarity balance-result
@@ -1230,7 +1230,7 @@
     err.\;qq[Expected a balance-result value of type depth-changed]
   /depth-changed yep-depth-change nope-depth-change balanced-tree))
 
-(def-type avl-minus-extreme-entry-succeeded
+(def-struct avl-minus-extreme-entry-succeeded
   max-depth-decreased k v tree-remaining)
 
 (defn improper-avl-branch-balance tree
@@ -1339,7 +1339,7 @@
   /c attempt-shift (nope/nil) /fn -
    yep.ybranch))
 
-(def-type entry k v)
+(def-struct entry k v)
 
 (defn avl-lazy-entries-asc tree
   (case tree avl-leaf fixops compare
@@ -1407,7 +1407,7 @@
       nbranch)
     err.\;qq[Expected a tree value of type avl-leaf or avl-branch]))
 
-(def-type avl-merge-val a b)
+(def-struct avl-merge-val a b)
 
 (defn avl-merge a b maybe-process-both
   \= TOOD: Make sure this algorithm is near-optimal both when
@@ -1775,7 +1775,7 @@
 \= When it implements pure thunks, all four of these operations run in
 \= logarithmic time. (TODO: Is that true?)
 
-(def-type lazy-ops done then make-lazy force)
+(def-struct lazy-ops done then make-lazy force)
 
 (defn make-immediate-lazy lazy-ops val
   (cast lazy-ops lazy-ops done then make-lazy force
@@ -1785,24 +1785,24 @@
 (defn list-order-swap polarity list
   (case polarity yep - list rev.list))
 
-(def-type ftree-meta lazy-ops measure plus)
-(def-type ftree-node summary elements)
+(def-struct ftree-meta lazy-ops measure plus)
+(def-struct ftree-node summary elements)
 
 \= NOTE: The values of `n-digits` and `y-digits` are lists of one to
 \= four elements. When used directly in an `ftree-deep`, the elements
 \= in `n-digits` are the first ones, and the keys in `y-digits` are
 \= the last ones.
-(def-type ftree-digits n-digits y-digits)
+(def-struct ftree-digits n-digits y-digits)
 
-(def-type ftree-empty meta)
-(def-type ftree-single meta element)
+(def-struct ftree-empty meta)
+(def-struct ftree-single meta element)
 
 \= NOTE: The value of `lazy-next` is a `make-lazy` object that
 \= calculates a finger tree containing "nodes" containing the type of
 \= elements of this finger tree. A node is an object of the form
 \= (ftree-node summary elements), where `elements` is a list of two or
 \= three elements.
-(def-type ftree-deep meta digits lazy-next)
+(def-struct ftree-deep meta digits lazy-next)
 
 (defn ftree-digits-swap polarity digits
   (case polarity yep - digits
@@ -1892,7 +1892,7 @@
       (fn tree /c then (ftree-push tree polarity elem) done))
   /c done tree))
 
-(def-type ftree-pop-result maybe-popped-val tree)
+(def-struct ftree-pop-result maybe-popped-val tree)
 
 (defn ftree-pop tree polarity
   (case tree ftree-empty meta
@@ -1989,9 +1989,9 @@
     /ftree-digits w-digits (list-order-swap polarity elements))
     lazy-next))
 
-(def-type ftree-split-iter-state summary-so-far rev-before after)
-(def-type ftree-split-iter-result-fell-off summary-so-far)
-(def-type ftree-split-iter-result-completed early-tree late-tree)
+(def-struct ftree-split-iter-state summary-so-far rev-before after)
+(def-struct ftree-split-iter-result-fell-off summary-so-far)
+(def-struct ftree-split-iter-result-completed early-tree late-tree)
 
 (defn ftree-split-iter
   tree summary-so-far summary-stack polarity test-is-early
@@ -2159,7 +2159,7 @@
   /c done
   /ftree-deep a-meta (ftree-digits an-digits by-digits) lazy-next))
 
-(def-type ftree-split-result early-tree late-tree)
+(def-struct ftree-split-result early-tree late-tree)
 
 \= This looks through every segment of the tree starting from the end
 \= that corresponds with `polarity` until it can drill down to the one
@@ -2220,8 +2220,8 @@
 \= finger-tree-style interface, with the anomaly that the elements'
 \= concatenation operation doesn't have to be total.
 
-(def-type fix-ftree-ops done then push pop maybe-plus split)
-(def-type bftree fix-ftree-ops ftree)
+(def-struct fix-ftree-ops done then push pop maybe-plus split)
+(def-struct bftree fix-ftree-ops ftree)
 
 (defn ftree-is-too-empty-to-pop done then pop elem
   (c then (c pop elem /yep/nil) /fn ftree-pop-result
@@ -2384,7 +2384,7 @@
     err.\;qq[Called string-metacompare with non-string values]))
 
 
-(def-type comparable compare val)
+(def-struct comparable compare val)
 
 (defn comparable-compare a b
   (cast a comparable compare a-val
@@ -2397,9 +2397,9 @@
 \= more easily define ordered abstract data types. For instance:
 \= -----
 \;rm(
-  (def-type foo x y)
-  (def-type bar x)
-  (def-type baz)
+  (def-struct foo x y)
+  (def-struct bar x)
+  (def-struct baz)
   
   (defn foo-bar-baz-compare a b
     (bimap (cmpd-compare) a b /fn it
@@ -2418,9 +2418,9 @@
   (c combine (c func a) (c func b)))
 
 \= NOTE: The "cmpd" stands for "comparison delegate."
-(def-type cmpd-succ rest)
-(def-type cmpd-cons compare val rest)
-(def-type cmpd-nil)
+(def-struct cmpd-succ rest)
+(def-struct cmpd-cons compare val rest)
+(def-struct cmpd-nil)
 
 (defn cmpd-compare a b
   (case a cmpd-succ a-rest
@@ -2460,7 +2460,7 @@
 
 \= ===== Sets (bags) =================================================
 
-(def-type bag avl-tree)
+(def-struct bag avl-tree)
 
 (defn bag-all bag check
   (cast bag bag avl-tree
@@ -2533,7 +2533,7 @@
 
 \= ===== Lenses ======================================================
 
-(def-type lens get replace)
+(def-struct lens get replace)
 
 (defn lens-get lens
   (cast lens lens get replace

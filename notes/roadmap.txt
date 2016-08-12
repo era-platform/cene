@@ -3,9 +3,7 @@ Low-level Cene tasks, in roughly the order of the Sphinx documentation table of 
 
 Add a `follow-heart` operation, and implement `err` in terms of it. More details about this are already described in a TODO.
 Rename `make-tuple-tag` to `make-struct-tag`, have it take a table instead of a list, and perhaps just make it a constructor instead of a function. A complete plan for this is below; it's the "substantial refactoring" section.
-Rename `def-type` to `def-struct`.
-Change the definition namespace layout so it doesn't use strings, but instead uses built-in names. Sure, the names are accessed by calling functions that have their own string names, but another API (e.g. in another language) may expose the same names by way of differently named functions.
-Consider changing `contributing-only-to` to accept a collection (e.g. a table) of namespaces-with-holes-in-them, rather than a single namespace.
+Change `contributing-only-to` to accept a collection (e.g. a table) of namespaces-with-holes-in-them, rather than a single namespace.
 Consider renaming "type" to "constructor," "struct," and "tag" throughout.
 
 In the following, "identifier" means a singleton table containing `(nil)`. Each operation validates the identifiers it receives to be sure it's a singleton and contains `(nil)`.
@@ -15,7 +13,7 @@ Change `table-get` to take an identifier instead of a dexable key.
 Update the various built-in macros that accept names of the form `(istring-nil <string>)` or `(foreign <name>)` to also accept `(foreign <identifier>)`. Consider discontinuing support for `(foreign <name>)`.
 
 Implement a non-macro version of `case`: Given a constructor tag, a "subject" compiled expression, a one-to-one table from projection names to valid identifiers, a "then" compiled expression, and an "else" compiled expression, obtain another compiled expression with all the free identifiers of "subject" and "else" and all but the given identifiers out of the free identifiers of "then."
-Implement a non-macro version of `def-type` construction: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free identifiers.
+Implement a non-macro version of `def-struct` construction: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free identifiers.
 Implement a non-macro version of `c`: Given a "func" compiled expression and an "arg" compiled expression, obtain another compiled expression with the union of their free identifiers.
 Implement a non-macro version of `compile-expression` on a variable access: Given an identifier, obtain a compiled expression with just that identifier in its free identifiers.
 Implement a non-second-class version of `function-implementation-opaque`: Given any value, obtain a compiled expression with no free identifiers.
@@ -26,7 +24,6 @@ Specify how `fn` determines a unique constructor name, and programmatically enfo
 Make `join-effects` into a merge, or at least a fuse. We might want it to be a fuse just because the performance of joining an effect to itself is inequal to the performance of the original effect.
 Consider renaming "mode" to "world" throughout.
 See if there's any real point to calling things "...-later", since errors that happen in the "later" portion are escalated to invalidate the prior portion anyway. Maybe we even want the mode to remain current across these operations. That could make it confusing when some operations change the mode and others don't.
-Rename `make-promise-later` to `new-definer-later`.
 Implement and use `definer-commit-later`.
 Rename `test` to `test-sync`, and derive it in terms of `test-async`. Then rename `test-async` to `test`.
 Consider renaming `contributing-only-to` to `contributing-only-to-later`, since it "changes" the current mode.
@@ -34,7 +31,6 @@ Reconsider the parameters to `macro-stx-details`. The mode really should be the 
 Implement `compile-expression` instead of having it built in. If it must be built in, consider whether it should be named `compile-expression-later` and whether it should conform to that calling convention.
 Implement `read-all-force` instead of having it built in.
 Consider making `int-compare` a dex, which would make it the first visibly ordered dex.
-Rename `string-get-unicode-scalar-later` to `string-get-unicode-scalar`, and make it non-monadic.
 Refactor the entire "File I/O for simple builds" system so that it looks like it could use namespaces, but doesn't actually use any sub-namespaces the Cene code has access to. See the "substantial refactoring" session for this illusion applied to the macroexpansion state model (function, macro, and constructor definitions).
 Revisit `output-path-directory`, `output-path-utf-8`, and especially `cli-output-environment-variable-shadow` to be sure they behave as though they contribute to a namespace the user-level Cene code has no access to. Right now, I think `cli-output-environment-variable-shadow` outputs to a visible place in the definition namespace.
 Implement the `--command` command line option.
@@ -65,7 +61,7 @@ Let's do this: A constructor tag is a `(struct-tag ...)` struct containing an id
 
 For most of the built-in types, the keys are unique name values, not equivalent to any names the Cene code could generate on its own.
 
-For types defined by `(def-type ...)`, the projection names are taken deterministically from standard but obscure locations in the macro call's unique namespace, but the details of this deterministic algorithm are impossible to detect because two calls to `(def-type ...)` with the same unique namespace will try to write to the same location and cause an error. Namely, they use `(claim-unique-ns ...)`, described below.
+For types defined by `(def-struct ...)`, the projection names are taken deterministically from standard but obscure locations in the macro call's unique namespace, but the details of this deterministic algorithm are impossible to detect because two calls to `(def-struct ...)` with the same unique namespace will try to write to the same location and cause an error. Namely, they use `(claim-unique-ns ...)`, described below.
 
 --
 
@@ -106,8 +102,8 @@ So, to implement this, we just need a few obscure names that Cene code doesn't k
 
 ...plus various other specific locations under <unique-ns> for different macros:
 
-<unique-ns>/$$claimed/for-def-type/main-tag/.name
-<unique-ns>/$$claimed/for-def-type/projection-tag/<projection name string>/.name
+<unique-ns>/$$claimed/for-def-struct/main-tag/.name
+<unique-ns>/$$claimed/for-def-struct/projection-tag/<projection name string>/.name
 <unique-ns>/$$claimed/for-fn/main-tag/.name
 <unique-ns>/$$claimed/for-fn/body/...
 <unique-ns>/$$claimed/for-defn/body/...
@@ -116,7 +112,7 @@ So, to implement this, we just need a few obscure names that Cene code doesn't k
 <unique-ns>/$$claimed/for-isa/projection-var/<projection identifier>/.name
 ...(potentially more)...
 
-(We don't just use <unique-ns>/$$claimed.el or <definition-ns>/$$function-coercers.el. If we did, a listener on the namespace could notice. Similarly, we don't just use <unique-ns>/for-def-type/main-tag/.name because the caller could construct a name by the same path and notice they were the same name. However, the <unique-ns>/$$claimed/... names in this list do use a lot of superfluous elements.)
+(We don't just use <unique-ns>/$$claimed.el or <definition-ns>/$$function-coercers.el. If we did, a listener on the namespace could notice. Similarly, we don't just use <unique-ns>/for-def-struct/main-tag/.name because the caller could construct a name by the same path and notice they were the same name. However, the <unique-ns>/$$claimed/... names in this list do use a lot of superfluous elements.)
 
 
 

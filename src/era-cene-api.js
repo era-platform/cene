@@ -235,7 +235,7 @@ function ceneApiUsingDefinitionNs(
         var dummyMode = usingDefNs.makeDummyMode();
         
         function type( tupleName, projNames ) {
-            usingDefNs.processDefType(
+            usingDefNs.processDefStruct(
                 targetDefNs, dummyMode, tupleName, projNames );
         }
         function fun( name, body ) {
@@ -249,7 +249,7 @@ function ceneApiUsingDefinitionNs(
                 
                 return macLookupRet( body( rt, argVal ) );
             } );
-            usingDefNs.processDefType(
+            usingDefNs.processDefStruct(
                 targetDefNs, dummyMode, name, [] );
         }
         

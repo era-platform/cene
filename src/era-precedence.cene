@@ -94,11 +94,11 @@
 \= <http://r6.ca/blog/20110808T035622Z.html>, "A Very General Method
 \= of Computing Shortest Paths" by Russell O'Connor.
 
-(def-type spg dex-node nodes edges-to-basises)
+(def-struct spg dex-node nodes edges-to-basises)
 
-(def-type di-edge start stop)
+(def-struct di-edge start stop)
 
-(def-type spg-assert-compatible-result
+(def-struct spg-assert-compatible-result
   dex-node nodes a-edges-to-basises b-edges-to-basises)
 
 (defn spg-assert-compatible a b
@@ -205,7 +205,7 @@
 
 \= Recommendation graphs =============================================
 
-(def-type rg dex-node nodes edges-recommended)
+(def-struct rg dex-node nodes edges-recommended)
 
 (defn rg-to-spg rg node
   (cast rg dex-node nodes edges-recommended
