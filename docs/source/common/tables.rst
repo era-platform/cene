@@ -57,9 +57,9 @@ Call with ``dexable-key maybe-val table``
 table-zip
 ---------
 
-Call with ``as bs (fn maybe-a maybe-b)``
+Call with ``as bs (fn key-table maybe-a maybe-b)``
 
-Given two tables and a function to combine values, makes a new table by iterating over the tables' combined set of keys, calling the function with both tables' (:ref:`yep` ...) or (:ref:`nil`) values for the keys, and using the function's (:ref:`yep` ...) or (:ref:`nil`) result to determine the value for the final table. The function will never be called with (:ref:`nil`) and (:ref:`nil`).
+Given two tables and a function, makes a new table by iterating over the tables' combined set of keys; calling the function with a singleton table with (:ref:`nil`) under that key and with both tables' (:ref:`yep` ...) or (:ref:`nil`) obtained by that key; and using the function's (:ref:`yep` ...) or (:ref:`nil`) result to determine the value for the final table. The function will never be called with (:ref:`nil`) and (:ref:`nil`).
 
 
 .. _table-fuse:

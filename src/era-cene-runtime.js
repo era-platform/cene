@@ -3448,7 +3448,11 @@ function usingDefinitionNs( macroDefNs ) {
                         var entry = entries[ i ];
                         return macLookupThen(
                             callStcMulti( rt, combiner,
-                                entry.a, entry.b ),
+                                new StcForeign( "table",
+                                    jsnMap().plusEntry(
+                                        entry.k, stcNil.ofNow() ) ),
+                                entry.a,
+                                entry.b ),
                             function ( v ) {
                             
                             if ( stcNil.tags( v ) )
