@@ -38,6 +38,12 @@
       err.\;qq[Internal error]
     /yep/c func val)))
 
+(defn table-fuse table init fuse
+  (tables-fuse table
+    (table-shadow (dexable dex-struct.nil /nil) yep.init
+    /table-empty/nil)
+    fuse))
+
 (defn table-map-fuse table init fuse func
   (table-fuse (table-map table func) init fuse))
 

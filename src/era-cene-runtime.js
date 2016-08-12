@@ -3468,42 +3468,33 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "table-get-singleton", function ( rt, table ) {
-            if ( !(table instanceof StcForeign
-                && table.purpose === "table") )
-                throw new Error();
-            
-            var foundResult = false;
-            var result = null;
-            table.foreignVal.each( function ( k, v ) {
-                if ( foundResult )
-                    throw new Error();
-                foundResult = true;
-                result = v;
-            } );
-            if ( !foundResult )
-                throw new Error();
-            return result;
-        } );
-        
-        fun( "table-fuse", function ( rt, table ) {
-            return stcFnPure( function ( rt, init ) {
+        fun( "tables-fuse", function ( rt, a ) {
+            return stcFnPure( function ( rt, b ) {
                 return new StcFn( function ( rt, fuse ) {
-                    if ( !(table instanceof StcForeign
-                        && table.purpose === "table") )
+                    if ( !(a instanceof StcForeign
+                        && a.purpose === "table") )
+                        throw new Error();
+                    if ( !(b instanceof StcForeign
+                        && b.purpose === "table") )
                         throw new Error();
                     if ( fuse.affiliation !== "fuse" )
                         throw new Error();
                     
                     var vals = [];
-                    table.foreignVal.each( function ( k, v ) {
+                    a.foreignVal.each( function ( k, v ) {
+                        vals.push( v );
+                    } );
+                    b.foreignVal.each( function ( k, v ) {
                         vals.push( v );
                     } );
                     var n = vals.length;
-                    return loop( 0, init );
+                    if ( n === 0 )
+                        return macLookupret( stcNil.ofNow() );
+                    return loop( 1, vals[ 0 ] );
                     function loop( i, state ) {
                         if ( n <= i )
-                            return macLookupRet( state );
+                            return macLookupRet(
+                                stcYep.ofNow( state ) );
                         return macLookupThen(
                             fuse.fuse( rt, state, vals[ i ] ),
                             function ( state ) {
