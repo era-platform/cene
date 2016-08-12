@@ -109,7 +109,7 @@ A value that can be invoked with a value of the specified tuple tag (constructor
 
 The usual definition forms generate various definitions (plus potential intermediate definitions using names the Cene program doesn't know how to obtain):
 
-#### `(def-type ...)`
+#### `(def-struct ...)`
   * The constructor name information desired.
   * A macro so that it's easy to construct and call values with this constructor. The macro implementation is a value user-level code doesn't know how to deconstruct, but it may be called as a macro.
 

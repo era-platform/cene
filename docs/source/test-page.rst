@@ -7,7 +7,7 @@ No highlighting:
 
 .. code-block:: none
 
-    \;rm(def-type foo a b c)
+    \;rm(def-struct foo a b c)
     
     str.\;qq[Hello, world!]  \= Hello, comment!
     
@@ -21,7 +21,7 @@ No highlighting:
 
 Default code highlighting (Cene)::
 
-    \;rm(def-type foo a b c)
+    \;rm(def-struct foo a b c)
     
     str.\;qq[Hello, world!]  \= Hello, comment!
     
@@ -49,7 +49,7 @@ Explicit Cene highlighting:
 
 .. code-block:: cene
 
-    \;rm(def-type foo a b c)
+    \;rm(def-struct foo a b c)
     
     str.\;qq[Hello, world!]  \= Hello, comment!
     

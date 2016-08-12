@@ -71,12 +71,12 @@
     
     err.\;qq[Expected a past of type istring-nil or istring-cons]))
 
-(def-type unwrapped val rewrap)
+(def-struct unwrapped val rewrap)
 
-(def-type qq-env-stack stack)
-(def-type qq-env-frame-qq)
-(def-type qq-env-frame-wq var)
-(def-type qq-env-frame-lq var layer)
+(def-struct qq-env-stack stack)
+(def-struct qq-env-frame-qq)
+(def-struct qq-env-frame-wq var)
+(def-struct qq-env-frame-lq var layer)
 
 (defn qq-stack-uq qq-stack
   (cast qq-stack cons frame rest (nil)

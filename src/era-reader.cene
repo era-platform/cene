@@ -59,11 +59,11 @@
 \=   
 \=   result)
 \=
-(def-type reader-ops init feed feed-end)
+(def-struct reader-ops init feed feed-end)
 
-(def-type read-result-block output-segment reader)
-(def-type read-result-end output-segment)
-(def-type read-result-error output-segment error)
+(def-struct read-result-block output-segment reader)
+(def-struct read-result-end output-segment)
+(def-struct read-result-error output-segment error)
 
 \= Returns an unended reader that has no input.
 (defn reader-init reader-ops

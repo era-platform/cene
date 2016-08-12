@@ -58,12 +58,12 @@ Call with ``impl``
 .. todo:: Document this.
 
 
-.. _def-type:
+.. _def-struct:
 
-def-type
+def-struct
 --------
 
-Macro. Example: ``(def-type cons car cdr)``
+Macro. Example: ``(def-struct cons car cdr)``
 
 .. todo:: Document this.
 

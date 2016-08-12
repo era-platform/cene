@@ -62,21 +62,21 @@ Call with ``string``
 .. todo:: Document this.
 
 
+.. _string-get-unicode-scalar:
+
+string-get-unicode-scalar
+-------------------------
+
+Call with ``string start``
+
+.. todo:: Document this.
+
+
 .. _string-cut-later:
 
 string-cut-later
 ----------------
 
 Call with ``string start stop (fn substring)``
-
-.. todo:: Document this.
-
-
-.. _string-get-unicode-scalar-later:
-
-string-get-unicode-scalar-later
--------------------------------
-
-Call with ``string start (fn unicode-scalar)``
 
 .. todo:: Document this.

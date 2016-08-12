@@ -2394,7 +2394,7 @@ function usingDefinitionNs( macroDefNs ) {
                 
                 return body( rt, argVal );
             } );
-            processDefType( targetDefNs, dummyMode, name, [] );
+            processDefStruct( targetDefNs, dummyMode, name, [] );
         }
         function fun( name, body ) {
             effectfulFun( name, function ( rt, argVal ) {
@@ -2402,7 +2402,9 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         }
         
-        mac( "def-type", function ( nss, myStxDetails, body, then ) {
+        mac( "def-struct",
+            function ( nss, myStxDetails, body, then ) {
+            
             if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2422,7 +2424,7 @@ function usingDefinitionNs( macroDefNs ) {
                         return projStringyName;
                     } );
                 
-                processDefType(
+                processDefStruct(
                     nss.definitionNs, rawMode, tupleName, projNames );
                 return macLookupThenRunEffects( rawMode,
                     then( stcNil.of() ) );
@@ -2460,7 +2462,7 @@ function usingDefinitionNs( macroDefNs ) {
                             "macLookupRet( " +
                                 stcIdentifier( firstArg ) + " )"
                             ) );
-                    processDefType(
+                    processDefStruct(
                         nss.definitionNs, rawMode, name, [] );
                     
                     return macLookupThenRunEffects( rawMode,
@@ -3646,31 +3648,23 @@ function usingDefinitionNs( macroDefNs ) {
             } ).val;
         }
         
-        fun( "string-get-unicode-scalar-later",
-            function ( rt, string ) {
-            
+        fun( "string-get-unicode-scalar", function ( rt, string ) {
             return stcFnPure( function ( rt, start ) {
-                return stcFnPure( function ( rt, then ) {
-                    
-                    var stringInternal =
-                        parseString( string ).paddedStr;
-                    
-                    if ( !(start instanceof StcForeign
-                        && start.purpose === "int") )
-                        throw new Error();
-                    
-                    if ( !(0 <= start
-                        && start * 2 < stringInternal.length) )
-                        throw new Error();
-                    
-                    return callStcLater( rt, then,
-                        stcForeignInt(
-                            parseSingleUnicodeScalar(
-                                stcForeignStrFromPadded(
-                                    stringInternal.substring(
-                                        start * 2, (start + 1) * 2 )
-                                ) ) ) );
-                } );
+                var stringInternal = parseString( string ).paddedStr;
+                
+                if ( !(start instanceof StcForeign
+                    && start.purpose === "int") )
+                    throw new Error();
+                
+                if ( !(0 <= start
+                    && start * 2 < stringInternal.length) )
+                    throw new Error();
+                
+                return stcForeignInt(
+                    parseSingleUnicodeScalar(
+                        stcForeignStrFromPadded(
+                            stringInternal.substring(
+                                start * 2, (start + 1) * 2 ) ) ) );
             } );
         } );
         
@@ -4463,7 +4457,7 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "assert-current-modality", function ( rt, mode ) {
+        fun( "assert-current-mode", function ( rt, mode ) {
             if ( !(mode instanceof StcForeign
                 && mode.purpose === "mode"
                 && mode.foreignVal.current) )
@@ -4621,7 +4615,7 @@ function usingDefinitionNs( macroDefNs ) {
             definer );
     }
     
-    function processDefType(
+    function processDefStruct(
         definitionNs, rawMode, tupleName, projNames ) {
         
         var n = projNames.length;
@@ -4693,7 +4687,7 @@ function usingDefinitionNs( macroDefNs ) {
         var dummyMode = makeDummyMode();
         
         function type( tupleName, projNames ) {
-            processDefType(
+            processDefStruct(
                 definitionNs, dummyMode, tupleName, projNames );
         }
         
@@ -4813,7 +4807,7 @@ function usingDefinitionNs( macroDefNs ) {
         runTopLevelTryExprsSync: runTopLevelTryExprsSync,
         
         // NOTE: These are only needed for era-cene-api.js.
-        processDefType: processDefType,
+        processDefStruct: processDefStruct,
         stcArrayToConsList: stcArrayToConsList,
         makeDummyMode: makeDummyMode,
         commitDummyMode: commitDummyMode
