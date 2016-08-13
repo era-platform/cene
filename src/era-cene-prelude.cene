@@ -102,7 +102,9 @@
 (def-struct basic-macro-result effects expression)
 
 (defn basic-macro unique-ns definition-ns my-stx-details then body
-  (make-promise-later/fn outbox-definer get-outbox
+  (make-promise-later/fn outbox-getdef
+  /cast outbox-getdef getdef get-outbox outbox-definer
+    err.\;qq[Internal error]
   /get-mode/fn mode
   /let s (fn it /stx my-stx-details it)
   /let mac
@@ -140,8 +142,8 @@
 \= Macro calls appearing inside an `(after-cwa ...)` form will be able
 \= to depend on anything that uses `procure-contributed-elements`
 \= during macroexpansion, and they won't be able to do fulfill a
-\= `procure-contributed-element-definer` at all. The "cwa" stands for
-\= "closed world assumption."
+\= `procure-contributed-element-getdef` definer at all. The "cwa"
+\= stands for "closed world assumption."
 \=
 \= TODO: Use this. Once we're using it, we'll probably have other
 \= assorted tools for doing closed world assumption extensibility at

@@ -1947,6 +1947,7 @@ function usingDefinitionNs( macroDefNs ) {
         stcType( macroDefNs, "regex-result-failed" );
     var stcRegexResultPassedEnd =
         stcType( macroDefNs, "regex-result-passed-end" );
+    var stcGetdef = stcType( macroDefNs, "getdef", "get", "def" );
     
     // NOTE: The "rt" stands for "runtime." This carries things that
     // are relevant at run time.
@@ -4274,38 +4275,18 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "procure-contributed-element", function ( rt, mode ) {
-            return stcFnPure( function ( rt, ns ) {
-                return new StcFn( function ( rt, dexableKey ) {
-                    if ( !(ns instanceof StcForeign
-                        && ns.purpose === "ns") )
-                        throw new Error();
-                    
-                    return assertValidDexable( rt, dexableKey,
-                        function ( key ) {
-                        
-                        var definer = {
-                            type: "contributedElement",
-                            namespace: ns.foreignVal,
-                            name: key.toName()
-                        };
-                        
-                        assertMode(
-                            rawModeSupportsObserveDefiner( definer ),
-                            mode );
-                        
-                        return macLookupGet( definer, function () {
-                            throw new Error(
-                                "No such defined value: " +
-                                ns.pretty() + " element " +
-                                key.pretty() );
-                        } );
-                    } );
-                } );
-            } );
-        } );
+        function getdef( definer, err ) {
+            return stcGetdef.ofNow(
+                new StcFn( function ( rt, mode ) {
+                    assertMode(
+                        rawModeSupportsObserveDefiner( definer ),
+                        mode );
+                    return macLookupGet( definer, err );
+                } ),
+                new StcForeign( "definer", definer ) );
+        }
         
-        fun( "procure-contributed-element-definer",
+        fun( "procure-contributed-element-getdef",
             function ( rt, ns ) {
             
             return new StcFn( function ( rt, dexableKey ) {
@@ -4316,11 +4297,17 @@ function usingDefinitionNs( macroDefNs ) {
                 return assertValidDexable( rt, dexableKey,
                     function ( key ) {
                     
-                    return macLookupRet( new StcForeign( "definer", {
-                        type: "contributedElement",
-                        namespace: ns.foreignVal,
-                        name: key.toName()
-                    } ) );
+                    return macLookupRet(
+                        getdef( {
+                            type: "contributedElement",
+                            namespace: ns.foreignVal,
+                            name: key.toName()
+                        }, function () {
+                            throw new Error(
+                                "No such defined value: " +
+                                ns.pretty() + " element " +
+                                key.pretty() );
+                        } ) );
                 } );
             } );
         } );
@@ -4414,30 +4401,17 @@ function usingDefinitionNs( macroDefNs ) {
         
         fun( "make-promise-later", function ( rt, then ) {
             return new StcForeign( "effects", function ( rawMode ) {
-                collectDefer( rawMode, {}, function ( rawMode ) {
-                    var definer = {
-                        type: "object",
-                        visited: false,
-                        unitTestId: rawMode.unitTestId,
-                        value: null
-                    };
-                    return callStcMulti( rt, then,
-                        new StcForeign( "definer", definer ),
-                        new StcFn( function ( rt, mode ) {
-                            
-                            assertMode(
-                                rawModeSupportsObserveDefiner(
-                                    definer ),
-                                mode );
-                            
-                            return macLookupGet( definer,
-                                function () {
-                                    throw new Error(
-                                        "Never fulfilled a promise" );
-                                } );
-                        } ) );
-                } );
-                return macLookupRet( stcNil.ofNow() );
+                return runEffects( rawMode,
+                    callStcLater( rt, then,
+                        getdef( {
+                            type: "object",
+                            visited: false,
+                            unitTestId: rawMode.unitTestId,
+                            value: null
+                        }, function () {
+                            throw new Error(
+                                "Never fulfilled a promise" );
+                        } ) ) );
             } );
         } );
         
@@ -4725,6 +4699,10 @@ function usingDefinitionNs( macroDefNs ) {
         // This constructor is needed so that macros can parse their
         // located syntax arguments.
         type( "stx", [ "stx-details", "s-expr" ] );
+        
+        // This constructor is needed to deconstruct the result of
+        // certain operations.
+        type( "getdef", [ "get", "def" ] );
         
         commitDummyMode( namespaceDefs, dummyMode );
     }

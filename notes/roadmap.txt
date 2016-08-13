@@ -69,7 +69,7 @@ For types defined by `(def-struct ...)`, the projection names are taken determin
 Constructs a value that can be used to refer to the tag of a struct value. This is used by `define-function`.
 
 (constructor-string-reference main-tag strings-to-projection-entries)
-Constructs a value that's useful when looking up a constructor name string with `constructor-string-reference-definer`. It indicates what the struct's main tag is and provides an association list for looking up projection name strings. The association list should be a list containing `assoc` values mapping mutually unique strings to mutually unique projection identifiers.
+Constructs a value that's useful when looking up a constructor name string with `procure-constructor-string-reference-getdef`. It indicates what the struct's main tag is and provides an association list for looking up projection name strings. The association list should be a list containing `assoc` values mapping mutually unique strings to mutually unique projection identifiers.
 
 (assoc key val)
 Constructs a value that represents a key-value pair.
@@ -77,17 +77,20 @@ Constructs a value that represents a key-value pair.
 (claim-unique-ns ns)
 Monadically, writes to a standard but obscure location in the given namespace. The point of this is to ensure that two macro calls that use the same unique namespace will cause an error.
 
-(constructor-string-reference-definer mode ns constructor-name-string)
-From a standard but obscure location in the given namespace, obtains a definer that is used to associate the given source-level string with data about a constructor. The built-in macros that deal with constructors (e.g. `case`) will expect the value to be a `(constructor-string-reference ...)` struct containing an identifier (the main tag) and a table from strings to `assoc` values of the same string and a mutually unique identifier. The key strings are source-level representations of the projections, and the identifiers are the actual projections of the constructor.
+(procure-constructor-string-reference-getdef ns constructor-name-string)
+From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level string with data about a constructor. The built-in macros that deal with constructors (e.g. `case`) will expect the value to be a `(constructor-string-reference ...)` struct containing an identifier (the main tag) and a table from strings to `assoc` values of the same string and a mutually unique identifier. The key strings are source-level representations of the projections, and the identifiers are the actual projections of the constructor.
 
-(macro-string-reference-definer mode ns macro-name-string)
-From a standard but obscure location in the given namespace, obtains a definer that is used to associate the given source-level string with a macro implementation.
+(procure-implementation-for-macro-string-getdef ns macro-name-string)
+From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level string with a macro implementation.
+
+(committing-to-define-function-coercers ns effects)
+Monadically, runs the given effects under a commitment to define a function coercer namespace on the given namespace (using `copy-function-coercers`).
 
 (copy-function-coercers from-ns to-ns)
-Monadically, as soon as the first given namespace has a function coercer namespace defined (at a standard but obscure location shared with `define-function`), defines it in the second given namespace. If the first given namespace never has a function coercer namespace defined, this causes an error.
+Monadically, blocks until the first given namespace has a function coercer namespace defined (at a standard but obscure location shared with `define-function`) and defines it in the second given namespace.
 
-(define-function ns constructor-tag function-implementation)
-Monadically, as soon as the given namespace has a function coercer namespace defined (at a standard but obscure location shared with `copy-function-coercers`), defines within it an association from a given constructor tag (map of `(nil)`) to a given compiled function implementation. If the given namespace never has a function coercer namespace defined, this causes an error.
+(procure-function-definer ns constructor-tag)
+Blocks until the given namespace has a function coercer namespace defined (at a standard but obscure location shared with `copy-function-coercers`) and obtains a definer that establishes an association from a given constructor tag (map of `(nil)`) to a defined compiled function implementation.
 
 --
 
@@ -102,14 +105,15 @@ So, to implement this, we just need a few obscure names that Cene code doesn't k
 
 ...plus various other specific locations under <unique-ns> for different macros:
 
-<unique-ns>/$$claimed/for-def-struct/main-tag/.name
-<unique-ns>/$$claimed/for-def-struct/projection-tag/<projection name string>/.name
+<unique-ns>/$$claimed/for-def-struct/<main tag and list of projection name strings>/main-tag/.name
+<unique-ns>/$$claimed/for-def-struct/<main tag and list of projection name strings>/projection-tag/<projection name string>/.name
 <unique-ns>/$$claimed/for-fn/main-tag/.name
+<unique-ns>/$$claimed/for-fn/projection-tag/<free identifier>/.name
 <unique-ns>/$$claimed/for-fn/body/...
 <unique-ns>/$$claimed/for-defn/body/...
 <unique-ns>/$$claimed/for-def-macro/body/...
-<unique-ns>/$$claimed/for-proj1/projection-var/<projection identifier>/.name
-<unique-ns>/$$claimed/for-isa/projection-var/<projection identifier>/.name
+<unique-ns>/$$claimed/for-proj1/<struct tag>/projection-var/<projection identifier>/.name
+<unique-ns>/$$claimed/for-isa/<struct tag>/projection-var/<projection identifier>/.name
 ...(potentially more)...
 
 (We don't just use <unique-ns>/$$claimed.el or <definition-ns>/$$function-coercers.el. If we did, a listener on the namespace could notice. Similarly, we don't just use <unique-ns>/for-def-struct/main-tag/.name because the caller could construct a name by the same path and notice they were the same name. However, the <unique-ns>/$$claimed/... names in this list do use a lot of superfluous elements.)

@@ -55,7 +55,7 @@ given two-argument callback.
 
 ## Layout of the definition namespace
 
-During macroexpansion, Cene code may interact with the definition namespace by using operations like the referentially transparent `procure-contributed-element` and `procure-contributed-element-definer` and the monadic `definer-define`. (Putting two definitions into one name is an error.) Even the built-in definitions reside in the definition namespace.
+During macroexpansion, Cene code may interact with the definition namespace by using operations like the referentially transparent `procure-name` and the monadic `procure-contribute-listener`. Even the built-in definitions reside in the definition namespace.
 
 The namespace also has standard places to find fully qualified names for various concepts. These are just like any other name, but the specific location to obtain them from is standardized.
 
