@@ -135,16 +135,6 @@ Macro. Example: ``(isa nil /append (nil) (nil))``
 .. todo:: Document this.
 
 
-.. _proj1:
-
-proj1
------
-
-Macro. Example: ``(proj1 yep /risky-operation/nil)``
-
-.. todo:: Document this.
-
-
 .. _c:
 
 c

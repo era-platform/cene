@@ -114,14 +114,6 @@ function stcProjectionName(
                         definitionNs ) ) ) ) ).name;
 }
 
-function stcMacroName( definitionNs, stringyName ) {
-    if ( typeof stringyName !== "string" )
-        return stringyName;
-    return stcNsGet( "name",
-        stcNsGet( stringyName,
-            stcNsGet( "macro-names", definitionNs ) ) ).name;
-}
-
 function jsnCompare( a, b ) {
     function rank( x ) {
         var result = 0;
@@ -282,7 +274,7 @@ function stcTypeArr(
 
 function stcNsRoot() {
     return {
-        name: [ "root" ],
+        name: [ "n:root" ],
         shadows: jsnMap()
     };
 }
@@ -291,11 +283,11 @@ function stcNameGet( stringOrName, parent ) {
     // TODO: Determine a good value for this.
     var maxRepetitions = 1000;
     
-    return (parent[ 0 ] === "get"
+    return (parent[ 0 ] === "n:get"
         && parent[ 2 ] + 1 <= maxRepetitions
         && nameCompare( parent[ 1 ], stringOrName ) === 0) ?
-        [ "get", stringOrName, parent[ 2 ] + 1, parent[ 3 ] ] :
-        [ "get", stringOrName, 1, parent ];
+        [ "n:get", stringOrName, parent[ 2 ] + 1, parent[ 3 ] ] :
+        [ "n:get", stringOrName, 1, parent ];
 }
 function stcNsGet( stringOrName, ns ) {
     return ns.shadows.has( stringOrName ) ?
@@ -311,7 +303,7 @@ function stcNsShadow( stringOrName, subNs, ns ) {
     };
 }
 function stcNameTupleTagAlreadySorted( tupleName, projNames ) {
-    return [ "tuple-tag", tupleName, projNames ];
+    return [ "n:tuple-tag", tupleName, projNames ];
 }
 function stcNameIsAncestor( ancestor, descendant ) {
     var currentAncestor = ancestor;
@@ -319,7 +311,7 @@ function stcNameIsAncestor( ancestor, descendant ) {
         if ( nameCompare( currentAncestor, descendant ) === 0 )
             return true;
         if ( !(isArray( currentAncestor )
-            && currentAncestor[ 0 ] === "get") )
+            && currentAncestor[ 0 ] === "n:get") )
             return false;
         currentAncestor = currentAncestor[ 3 ];
     }
@@ -464,7 +456,7 @@ Stc.prototype.fuse = function ( rt, a, b ) {
 };
 Stc.prototype.toName = function () {
     // TODO: See if we can avoid this JSON.parse().
-    return [ "struct", JSON.parse( this.tupleTag ) ].concat(
+    return [ "n:struct", JSON.parse( this.tupleTag ) ].concat(
         arrMap( this.projVals, function ( projVal ) {
             return projVal.toName();
         } ) );
@@ -523,13 +515,13 @@ StcForeign.prototype.toName = function () {
     } else if ( this.purpose === "name" ) {
         return this.foreignVal;
     } else if ( this.purpose === "table" ) {
-        var result = [ "table" ];
+        var result = [ "n:table" ];
         this.foreignVal.each( function ( k, v ) {
             result.push( [ k, v ] );
         } );
         return result;
     } else if ( this.purpose === "int" ) {
-        return [ "int", this.foreignVal ];
+        return [ "n:int", this.foreignVal ];
     } else {
         throw new Error(
             "Cene internal language error: Tried to call toName on " +
@@ -570,7 +562,7 @@ StcDexDefault.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcDexDefault.prototype.toName = function () {
-    return [ "dex-default",
+    return [ "n:dex-default",
         this.first.toName(), this.second.toName() ];
 };
 StcDexDefault.prototype.pretty = function () {
@@ -594,7 +586,7 @@ StcDexGiveUp.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcDexGiveUp.prototype.toName = function () {
-    return [ "dex-give-up" ];
+    return [ "n:dex-give-up" ];
 };
 StcDexGiveUp.prototype.pretty = function () {
     return "(dex-give-up)";
@@ -641,7 +633,7 @@ StcDexStruct.prototype.fuse = function ( rt, a, b ) {
 };
 StcDexStruct.prototype.toName = function () {
     // TODO: See if we can avoid this JSON.parse().
-    return [ "dex-struct", JSON.parse( this.expectedTupleTag )
+    return [ "n:dex-struct", JSON.parse( this.expectedTupleTag )
         ].concat( arrMap( this.projDexes, function ( projDex ) {
             return [ projDex.i, projDex.val.toName() ];
         } ) );
@@ -667,7 +659,7 @@ StcDexDex.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcDexDex.prototype.toName = function () {
-    return [ "dex-dex" ];
+    return [ "n:dex-dex" ];
 };
 StcDexDex.prototype.pretty = function () {
     return "(dex-dex)";
@@ -687,7 +679,7 @@ StcDexMerge.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcDexMerge.prototype.toName = function () {
-    return [ "dex-merge" ];
+    return [ "n:dex-merge" ];
 };
 StcDexMerge.prototype.pretty = function () {
     return "(dex-merge)";
@@ -706,7 +698,7 @@ StcDexFuse.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcDexFuse.prototype.toName = function () {
-    return [ "dex-fuse" ];
+    return [ "n:dex-fuse" ];
 };
 StcDexFuse.prototype.pretty = function () {
     return "(dex-fuse)";
@@ -727,7 +719,7 @@ StcDexName.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcDexName.prototype.toName = function () {
-    return [ "dex-name" ];
+    return [ "n:dex-name" ];
 };
 StcDexName.prototype.pretty = function () {
     return "(dex-name)";
@@ -748,7 +740,7 @@ StcDexString.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcDexString.prototype.toName = function () {
-    return [ "dex-string" ];
+    return [ "n:dex-string" ];
 };
 StcDexString.prototype.pretty = function () {
     return "(dex-string)";
@@ -783,7 +775,7 @@ StcDexByOwnMethod.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcDexByOwnMethod.prototype.toName = function () {
-    return [ "dex-by-own-method", this.dexableGetMethod.toName() ];
+    return [ "n:dex-by-own-method", this.dexableGetMethod.toName() ];
 };
 StcDexByOwnMethod.prototype.pretty = function () {
     return "(dex-by-own-method " +
@@ -811,7 +803,7 @@ StcDexFix.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcDexFix.prototype.toName = function () {
-    return [ "dex-fix", this.dexableUnwrap.toName() ];
+    return [ "n:dex-fix", this.dexableUnwrap.toName() ];
 };
 StcDexFix.prototype.pretty = function () {
     return "(dex-fix " + this.dexableUnwrap.pretty() + ")";
@@ -852,7 +844,7 @@ StcDexTable.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcDexTable.prototype.toName = function () {
-    return [ "dex-table", this.dexVal.toName() ];
+    return [ "n:dex-table", this.dexVal.toName() ];
 };
 StcDexTable.prototype.pretty = function () {
     return "(dex-table " + this.dexVal.pretty() + ")";
@@ -873,7 +865,7 @@ StcDexInt.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 StcDexInt.prototype.toName = function () {
-    return [ "dex-int" ];
+    return [ "n:dex-int" ];
 };
 StcDexInt.prototype.pretty = function () {
     return "(dex-int)";
@@ -911,7 +903,7 @@ StcMergeByDex.prototype.fuse = function ( rt, a, b ) {
     } );
 };
 StcMergeByDex.prototype.toName = function () {
-    return [ "merge-by-dex", this.dexToUse.toName() ];
+    return [ "n:merge-by-dex", this.dexToUse.toName() ];
 };
 StcMergeByDex.prototype.pretty = function () {
     return "(merge-by-dex " + this.dexToUse.pretty() + ")";
@@ -932,7 +924,7 @@ StcFuseByMerge.prototype.fuse = function ( rt, a, b ) {
     return this.mergeToUse.fuse( rt, a, b );
 };
 StcFuseByMerge.prototype.toName = function () {
-    return [ "fuse-by-merge", this.mergeToUse.toName() ];
+    return [ "n:fuse-by-merge", this.mergeToUse.toName() ];
 };
 StcFuseByMerge.prototype.pretty = function () {
     return "(fuse-by-merge " + this.mergeToUse.pretty() + ")";
@@ -956,7 +948,7 @@ StcFuseIntByPlus.prototype.fuse = function ( rt, a, b ) {
         stcForeignInt( a.foreignVal + b.foreignVal ) );
 };
 StcFuseIntByPlus.prototype.toName = function () {
-    return [ "fuse-int-by-plus" ];
+    return [ "n:fuse-int-by-plus" ];
 };
 StcFuseIntByPlus.prototype.pretty = function () {
     return "(fuse-int-by-plus)";
@@ -980,7 +972,7 @@ StcFuseIntByTimes.prototype.fuse = function ( rt, a, b ) {
         stcForeignInt( a.foreignVal * b.foreignVal ) );
 };
 StcFuseIntByTimes.prototype.toName = function () {
-    return [ "fuse-int-by-times" ];
+    return [ "n:fuse-int-by-times" ];
 };
 StcFuseIntByTimes.prototype.pretty = function () {
     return "(fuse-int-by-times)";
@@ -1266,10 +1258,8 @@ function elementDefiner( name, ns ) {
 }
 
 function getMacroFunctionDefiner( definitionNs, name ) {
-    return elementDefiner( "val",
-        stcNsGet( "function",
-            stcNsGet( stcMacroName( definitionNs, name ),
-                stcNsGet( "macros", definitionNs ) ) ) );
+    return elementDefiner( name,
+        stcNsGet( [ "n:$$macro-string-reference" ], definitionNs ) );
 }
 function getProjectionListDefiner( definitionNs, tupleName ) {
     return elementDefiner( "val",
@@ -1990,22 +1980,29 @@ function usingDefinitionNs( macroDefNs ) {
         return string.foreignVal;
     }
     
-    function stxToMaybeName( stx ) {
+    function stxToStringOrStc( stx ) {
         if ( !stcStx.tags( stx ) )
             return null;
         var sExpr = stcStx.getProj( stx, "s-expr" );
         if ( stcForeign.tags( sExpr ) ) {
-            var name = stcForeign.getProj( sExpr, "val" );
-            if ( !(name instanceof StcForeign
-                && name.purpose === "name") )
-                throw new Error();
-            return name.foreignVal;
+            return stcForeign.getProj( sExpr, "val" );
         } else if ( stcIstringNil.tags( sExpr ) ) {
             return parseString(
                 stcIstringNil.getProj( sExpr, "string" ) ).jsStr;
         } else {
             return null;
         }
+    }
+    
+    function stxToMaybeName( stx ) {
+        var stringOrStc = stxToStringOrStc( stx );
+        if ( stringOrStc === null
+            || typeof stringOrStc === "string" )
+            return stringOrStc;
+        if ( !(stringOrStc instanceof StcForeign
+            && stringOrStc.purpose === "name") )
+            throw new Error();
+        return stringOrStc.foreignVal;
     }
     
     function stcConsListToArray( stc ) {
@@ -2822,41 +2819,6 @@ function usingDefinitionNs( macroDefNs ) {
                 
                 } );
                 } );
-            } );
-        } );
-        
-        mac( "proj1", function ( nss, myStxDetails, body, then ) {
-            if ( !stcCons.tags( body ) )
-                throw new Error();
-            var body1 = stcCons.getProj( body, "cdr" );
-            if ( !stcCons.tags( body1 ) )
-                throw new Error();
-            var body2 = stcCons.getProj( body1, "cdr" );
-            if ( stcCons.tags( body2 ) )
-                throw new Error();
-            
-            var va = stcStx.ofNow( myStxDetails,
-                stcForeign.ofNow(
-                    new StcForeign( "name",
-                        nssGet( nss, "var" ).uniqueNs.name ) ) );
-            return new StcForeign( "effects", function ( rawMode ) {
-                return stcCast( nssGet( nss, "cast" ), rawMode,
-                    stcCons.getProj( body1, "car" ),
-                    stcArrayToConsList( [
-                        stcCons.getProj( body, "car" ),
-                        va,
-                        stcStx.ofNow( myStxDetails,
-                            stcArrayToConsList( [
-                                stcStx.ofNow( myStxDetails,
-                                    stcForeign.ofNow(
-                                        new StcForeign( "name",
-                                            stcMacroName( macroDefNs, "err" ) ) ) ),
-                                stcStx.ofNow( myStxDetails,
-                                    stcIstringNil.ofNow( stcForeignStrFromJs( "Internal error" ) ) )
-                            ] ) ),
-                        va
-                    ] ),
-                    then );
             } );
         } );
         
@@ -4357,6 +4319,25 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
+        fun( "procure-implementation-for-macro-string-getdef",
+            function ( rt, ns ) {
+            
+            return stcFnPure( function ( rt, macroNameString ) {
+                if ( !(ns instanceof StcForeign
+                    && ns.purpose === "ns") )
+                    throw new Error();
+                
+                return getdef(
+                    getMacroFunctionDefiner( ns.foreignVal,
+                        parseString( macroNameString ).jsStr ),
+                    function () {
+                        throw new Error(
+                            "No such macro: " + ns.pretty() + " " +
+                            "macro " + JSON.stringify( s ) );
+                    } );
+            } );
+        } );
+        
         fun( "no-effects", function ( rt, ignored ) {
             return new StcForeign( "effects", function ( rawMode ) {
                 return macLookupRet( stcNil.ofNow() );
@@ -4518,19 +4499,21 @@ function usingDefinitionNs( macroDefNs ) {
             if ( !stcCons.tags( sExpr ) )
                 throw new Error();
             var macroNameStx = stcCons.getProj( sExpr, "car" );
-            var macroName = stxToMaybeName( macroNameStx );
-            if ( macroName === null )
+            var macroAppearance = stxToStringOrStc( macroNameStx );
+            if ( macroAppearance === null )
                 throw new Error();
             
             return macLookupThen(
-                macLookupGet(
-                    getMacroFunctionDefiner( nss.definitionNs,
-                        macroName ),
-                    function () {
-                        throw new Error(
-                            "No such macro: " +
-                            JSON.stringify( macroName ) );
-                    } ),
+                typeof macroAppearance === "string" ?
+                    macLookupGet(
+                        getMacroFunctionDefiner( nss.definitionNs,
+                            macroAppearance ),
+                        function () {
+                            throw new Error(
+                                "No such macro: " +
+                                JSON.stringify( macroAppearance ) );
+                        } ) :
+                    macLookupRet( macroAppearance ),
                 function ( macroFunction ) {
             
             return callStcMulti( rt, macroFunction,

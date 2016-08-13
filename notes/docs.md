@@ -89,13 +89,7 @@ The proper identity to use for the projection in everything except manually keyb
 
 -
 ```
-./macro-names/<string: macro name>/name/.name
-```
-The proper identity to use for the macro in everything except manually keyboarded code.
-
--
-```
-./macros/<macro identity>/function/val.el
+./<obscure name $$macro-string-reference>/<string: macro name>.el
 ```
 A value that can be invoked with the arguments of a macro call, as described in the documentation for `def-macro`.
 
