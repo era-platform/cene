@@ -48,24 +48,14 @@ Call with ``(ignored)``
 Returns a dex that applies to any name. Names are encapsulated values that are good for nothing but comparing using this dex. They are usually obtained by calling :ref:`procure-name` on a namespace.
 
 
-.. _procure-contributed-element-definer:
+.. _procure-contributed-element-getdef:
 
-procure-contributed-element-definer
------------------------------------
+procure-contributed-element-getdef
+----------------------------------
 
 Call with ``ns dexable-key``
 
-Returns a definer that contributes its defined value to the element contribution map on the namespace. When the definer is used, if more than one element contribution is given for the same key at the same timestamp, an error occurs; all listener contributors, element contributors, and ticks begun by these contributions are in error, and their ticks' side effects are invalidated. When the definer is used, the then-current modality's ancestors must not have used restrictions like ``contributing-only-...`` restrictions in a way that now disallows making element contributions to the given namespace.
-
-
-.. _procure-contributed-element:
-
-procure-contributed-element
----------------------------
-
-Call with ``mode ns dexable-key``
-
-Blocks until the given namespace has a contributed element under the given key, and returns that element value. The given modality must be the current one.
+Obtains a getdef that is used to contribute its defined value to the element contribution map on the namespace. When the getdef's definer is used, if more than one element contribution is given for the same key at the same timestamp, an error occurs; all listener contributors, element contributors, and ticks begun by these contributions are in error, and their ticks' side effects are invalidated. When the getdef's definer is used, the then-current modality's ancestors must not have used restrictions like ``contributing-only-...`` restrictions in a way that now disallows making element contributions to the given namespace.
 
 
 .. _procure-contribute-listener:
