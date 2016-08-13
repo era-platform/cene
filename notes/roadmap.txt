@@ -13,7 +13,7 @@ Change `table-get` to take an identifier instead of a dexable key.
 Update the various built-in macros that accept names of the form `(istring-nil <string>)` or `(foreign <name>)` to also accept `(foreign <identifier>)`. Consider discontinuing support for `(foreign <name>)`.
 
 Implement a non-macro version of `case`: Given a constructor tag, a "subject" compiled expression, a one-to-one table from projection names to valid identifiers, a "then" compiled expression, and an "else" compiled expression, obtain another compiled expression with all the free identifiers of "subject" and "else" and all but the given identifiers out of the free identifiers of "then."
-Implement a non-macro version of `def-struct` construction: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free identifiers.
+Implement non-macro versions of each of `def-struct` construction, `dex-struct`, `merge-struct`, and `fuse-struct`: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free identifiers.
 Implement a non-macro version of `c`: Given a "func" compiled expression and an "arg" compiled expression, obtain another compiled expression with the union of their free identifiers.
 Implement a non-macro version of `compile-expression` on a variable access: Given an identifier, obtain a compiled expression with just that identifier in its free identifiers.
 Implement a non-second-class version of `function-implementation-opaque`: Given any value, obtain a compiled expression with no free identifiers.
@@ -45,7 +45,7 @@ Hmm. We probably want a way to construct JavaScript regexes at JavaScript load t
 
 Substantial refactoring:
 
-It would be nice if we could get rid of the idea of namespace shadowing. Unlike when the definition namespace layout was first designed, we can now set listeners that react if and when a definition is contributed. By using these listeners to install the same definition somewhere else, we can accomplish most of the functionality of shadowing.
+We're going to get rid of the idea of namespace shadowing. Unlike when the definition namespace layout was first designed, we can now set listeners that react if and when a definition is contributed. By using these listeners to install the same definition somewhere else, we can accomplish most of the functionality of shadowing. But really, we don't even need that much; we can define things on namespaces that refer to other namespaces.
 
 These are the places in the definition namespace we use right now (not including what era-cene-api uses, because that's soon to be refactored away):
 
@@ -54,7 +54,9 @@ These are the places in the definition namespace we use right now (not including
 ./constructors/<constructor identity>/projection-list/val.el
 ./constructors/<constructor identity>/projection-names/<string: projection name>/name/.name
 ./macro-names/<string: macro name>/name/.name
+  \= ANTI-TODO: This one has already been updated.
 ./macros/<macro identity>/function/val.el
+  \= ANTI-TODO: This one has already been updated.
 ./functions/<`make-tuple-tag` result>/call/val.el
 
 Let's do this: A constructor tag is a `(struct-tag ...)` struct containing an identifier and a table of `(nil)`. The singletons making up the second table are the identifiers we use to refer to the projections. The identifier is a way to distinguish different constructors from each other.
@@ -82,6 +84,7 @@ From a standard but obscure location in the given namespace, obtains a getdef th
 
 (procure-implementation-for-macro-string-getdef ns macro-name-string)
 From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level string with a macro implementation.
+  \= ANTI-TODO: This one has already been implemented.
 
 (committing-to-define-function-coercers ns effects)
 Monadically, runs the given effects under a commitment to define a function coercer namespace on the given namespace (using `copy-function-coercers`).
@@ -100,6 +103,7 @@ So, to implement this, we just need a few obscure names that Cene code doesn't k
 <unique-ns>/$$fn-constructor-name/<projection name string>.el
 <definition-ns>/$$constructor-string-reference/<constructor name string>.el
 <definition-ns>/$$macro-string-reference/<macro name string>.el
+  \= ANTI-TODO: This one has already been updated.
 <definition-ns>/$$function-coercers/val.el
 <function-coercers-ns>/<constructor tag>.el
 
@@ -112,7 +116,6 @@ So, to implement this, we just need a few obscure names that Cene code doesn't k
 <unique-ns>/$$claimed/for-fn/body/...
 <unique-ns>/$$claimed/for-defn/body/...
 <unique-ns>/$$claimed/for-def-macro/body/...
-<unique-ns>/$$claimed/for-proj1/<struct tag>/projection-var/<projection identifier>/.name
 <unique-ns>/$$claimed/for-isa/<struct tag>/projection-var/<projection identifier>/.name
 ...(potentially more)...
 
@@ -123,6 +126,12 @@ So, to implement this, we just need a few obscure names that Cene code doesn't k
 --------
 
 High-level Cene tasks, in roughly highest-priority-first order:
+
+- Right now, macro definitions often look up other macros from the definition namespace of the macro call. Make them look it up from the caller definition's definition namespace instead.
+
+  If we don't want to embed first-class functions into the macro definitions, we'll have to have a macro lookup that results in a main tag of a nullary constructor of a function rather than resulting in a function. That way we can implement and use a new macro `(mac <macro-string-name>)` that uses this looked-up main tag to expand to a constructor call.
+
+  Unfortunately, if the *only* macro lookup we have results in a constructor main tag, then `compile-expression` will have to somehow convert a main tag into a struct value. That's something it could have done circuitously by defining a macro named with a gensym and then passing code that calls it by name to `compile-expression` in another tick, but now we've taken out gensym-named macros, and using gensyms and intermediate state in `compile-expression` itself seems like overkill.
 
 - Try to implement an example of an extensible framework (such as multimethods) in terms of the various "contribute" primitives.
 

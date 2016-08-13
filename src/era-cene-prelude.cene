@@ -56,12 +56,16 @@
   /fuse-by-merge/merge-by-dex/dex-give-up/nil))
 
 (defn ns-get key ns
-  (proj1 yep /table-get-singleton/procure-sub-ns-table
-    (table-shadow
-      (dexable (dex-default (dex-string/nil) (dex-name/nil)) key)
-      (yep/nil)
-    /table-empty/nil)
-    ns))
+  (cast
+    (table-get-singleton/procure-sub-ns-table
+      (table-shadow
+        (dexable (dex-default (dex-string/nil) (dex-name/nil)) key)
+        (yep/nil)
+      /table-empty/nil)
+      ns)
+    yep result
+    err.\;qq[Internal error]
+    result))
 
 (defn ns-path ns path
   (foldl ns path /fn ns component
@@ -75,11 +79,6 @@
     nope result (c-new double-any-foldl result list-a list-b combiner)
     err.\;qq[Expected a combiner-result of type yep or nope]))
 
-(defn double-foldl state list-a list-b combiner
-  (proj1 nope
-  /double-any-foldl state list-a list-b /fn state elem-a elem-b
-    (nope/c combiner state elem-a elem-b)))
-
 (defn rev-append rev-past rest
   (foldl rest rev-past /fn state elem /cons elem state))
 
@@ -88,16 +87,6 @@
 
 (defn foldr list state combiner
   (foldl state rev.list /fn state elem /c combiner elem state))
-
-(defn macro-name mode definition-ns name
-  (let - assert-current-mode.mode
-  /case (in-dex (dex-name/nil) name) yep - name
-  /case (in-dex (dex-string/nil) name) yep -
-    (procure-name mode
-    /ns-path definition-ns
-    /cons str.macro-names /cons name /cons str.name /nil)
-    
-    err.\;qq[Expected a name value of type name or string]))
 
 (def-struct basic-macro-result effects expression)
 
@@ -109,7 +98,12 @@
   /let s (fn it /stx my-stx-details it)
   /let mac
     (fn str rest
-      (cons (c s /foreign/macro-name mode definition-ns str) rest))
+      (cast
+        (procure-implementation-for-macro-string-getdef
+          definition-ns str)
+        getdef macro-get macro-definer
+        err.\;qq[Internal error]
+      /cons (c s /foreign/c macro-get mode) rest))
   /join-effects (later/get-mode/fn mode /c then /c get-outbox mode)
   /cast (c body (ns-get str.body unique-ns) s mac)
     basic-macro-result effects expression
@@ -138,6 +132,24 @@
   /fn unique-ns s mac
   /foldr args (c s /c mac str.nil /nil) /fn first rest
     (c s /c mac str.cons /cons first /cons rest /nil)))
+
+(def-macro proj1 unique-ns definition-ns my-stx-details args then
+  (cast args cons constructor args
+    err.\;qq[Called proj1 with too few args]
+  /cast args cons expr args
+    err.\;qq[Called proj1 with too few args]
+  /cast args nil
+    err.\;qq[Called proj1 with too many args]
+  /get-mode/fn mode
+  /let var (procure-name mode /ns-get str.var unique-ns)
+  /basic-pure-macro (ns-get str.body unique-ns) definition-ns
+    my-stx-details then
+  /fn unique-ns s mac
+  /let var (c s foreign.var)
+  /c s /c mac str.cast /list expr constructor var
+    (c s /c mac str.err /list
+    /c s /istring-nil str.\;qq[Internal error])
+    var))
 
 \= Macro calls appearing inside an `(after-cwa ...)` form will be able
 \= to depend on anything that uses `procure-contributed-elements`
@@ -168,6 +180,11 @@
   /basic-pure-macro unique-ns definition-ns my-stx-details then
   /fn unique-ns s mac
     body))
+
+(defn double-foldl state list-a list-b combiner
+  (proj1 nope
+  /double-any-foldl state list-a list-b /fn state elem-a elem-b
+    (nope/c combiner state elem-a elem-b)))
 
 (defn append past rest
   (rev-append rev.past rest))
