@@ -2448,6 +2448,8 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
+                processDefStruct(
+                    nss.definitionNs, rawMode, name, [] );
                 return processFn( nss, rawMode, body1,
                     function ( rawMode, processedFn ) {
                     
@@ -2460,8 +2462,6 @@ function usingDefinitionNs( macroDefNs ) {
                             "macLookupRet( " +
                                 stcIdentifier( firstArg ) + " )"
                             ) );
-                    processDefStruct(
-                        nss.definitionNs, rawMode, name, [] );
                     
                     return macLookupThenRunEffects( rawMode,
                         then( stcNil.of() ) );
@@ -2846,27 +2846,6 @@ function usingDefinitionNs( macroDefNs ) {
                         stcCallArr( expandedFunc, expandedArgs ) ) );
                 
                 } );
-                } );
-            } );
-        } );
-        
-        mac( "c-new", function ( nss, myStxDetails, body, then ) {
-            if ( !stcCons.tags( body ) )
-                throw new Error();
-            var tupleName =
-                stxToMaybeName( stcCons.getProj( body, "car" ) );
-            if ( tupleName === null )
-                throw new Error();
-            var type = stcType( nss.definitionNs, tupleName );
-            
-            return new StcForeign( "effects", function ( rawMode ) {
-                return macroexpandConsListToArr( nss, rawMode,
-                    stcCons.getProj( body, "cdr" ),
-                    function ( rawMode, expandedArgs ) {
-                    
-                    return macLookupThenRunEffects( rawMode,
-                        then(
-                            stcCallArr( type.of(), expandedArgs ) ) );
                 } );
             } );
         } );

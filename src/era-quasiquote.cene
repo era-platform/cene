@@ -14,7 +14,7 @@
     yep result (c then combiner-result)
     
     folding state interpolation
-    (c-new istring-map-any-foldl-later state rest combiner-later
+    (istring-map-any-foldl-later state rest combiner-later
     /fn recur-result
     /c then /case recur-result
       
@@ -66,7 +66,7 @@
       err.\;qq[Expected a rest of type istring-nil or istring-cons])
     
     istring-cons prefix interpolation past-rest
-    (c-new istring-append-later past-rest rest /fn appended
+    (istring-append-later past-rest rest /fn appended
     /c then /istring-cons prefix interpolation appended)
     
     err.\;qq[Expected a past of type istring-nil or istring-cons]))
@@ -82,8 +82,8 @@
   (cast qq-stack cons frame rest (nil)
   /case frame
     qq-env-frame-qq yep.rest
-    qq-env-frame-wq - (c-new qq-stack-uq rest)
-    qq-env-frame-lq - - (c-new qq-stack-uq rest)
+    qq-env-frame-wq - qq-stack-uq.rest
+    qq-env-frame-lq - - qq-stack-uq.rest
     err.\;qq[Encountered an unrecognized qq-env frame]))
 
 (defn qq-stack-rq level qq-stack-tentative-result qq-stack-remaining
@@ -92,17 +92,17 @@
       Tried to restore a quasiquotation level that didn't exist]
   /case frame
     
-    qq-env-frame-qq (c-new qq-stack-rq level rest rest)
+    qq-env-frame-qq (qq-stack-rq level rest rest)
     
     qq-env-frame-wq var
     (case (string-metacompare var level) nil
       qq-stack-tentative-result
-    /c-new qq-stack-rq level qq-stack-tentative-result rest)
+    /qq-stack-rq level qq-stack-tentative-result rest)
     
     qq-env-frame-lq var val
     (case (string-metacompare var level) nil
-      (c-new qq-stack-rq val qq-stack-tentative-result rest)
-    /c-new qq-stack-rq level qq-stack-tentative-result rest)
+      (qq-stack-rq val qq-stack-tentative-result rest)
+    /qq-stack-rq level qq-stack-tentative-result rest)
     
     err.\;qq[Encountered an unrecognized qq-env frame]))
 
@@ -140,7 +140,7 @@
       err.\;qq[Too many arguments to quasiquotation escape -]
     /cast qq-stack-uq.qq-stack yep qq-stack-next
       (later/c then /nope/c rewrap-expr /foreign yep.expr)
-    /c-new parse-quasiquotation-subexpr-later qq-env unwrap expr
+    /parse-quasiquotation-subexpr-later qq-env unwrap expr
     /fn parsed
     /case qq-stack-uq.qq-stack-orig nil
       (cast qq-stack-uq.qq-stack-next nil
@@ -170,14 +170,14 @@
     /cast qq-stack-uq.qq-stack yep qq-stack-next
       err.\;qq[Called quasiquotation escape s- at a depth of zero]
     /case qq-stack-uq.qq-stack-next nil
-      (c-new parse-quasiquotation-subexpr-later qq-env unwrap expr
+      (parse-quasiquotation-subexpr-later qq-env unwrap expr
       /fn parsed
       /cast parsed
         nope non-splicing-to-splice
         err.\;qq[
           Tried to splice into a call to quasiquotation escape s-]
       /c then yep.non-splicing-to-splice)
-    /c-new parse-quasiquotation-subexpr-later qq-env unwrap expr
+    /parse-quasiquotation-subexpr-later qq-env unwrap expr
     /fn parsed
     /c then /nope/c rewrap-suppressed /c rewrap-expr /cons original-op
     /case parsed
@@ -198,7 +198,7 @@
       err.\;qq[Not enough arguments to quasiquotation escape qq]
     /cast rest nil
       err.\;qq[Too many arguments to quasiquotation escape qq]
-    /c-new parse-quasiquotation-escape-remainder-later
+    /parse-quasiquotation-escape-remainder-later
       (qq-env-stack/cons (qq-env-frame-qq) qq-stack)
       qq-stack-orig
       unwrap
@@ -214,7 +214,7 @@
       err.\;qq[Too many arguments to quasiquotation escape uq]
     /cast qq-stack-uq.qq-stack yep qq-stack-next
       err.\;qq[Tried to unquote more levels than were available]
-    /c-new parse-quasiquotation-escape-remainder-later
+    /parse-quasiquotation-escape-remainder-later
       qq-env-stack.qq-stack-next
       qq-stack-orig
       unwrap
@@ -230,7 +230,7 @@
       err.\;qq[Not enough arguments to quasiquotation escape wq]
     /cast rest nil
       err.\;qq[Too many arguments to quasiquotation escape wq]
-    /c-new parse-quasiquotation-escape-remainder-later
+    /parse-quasiquotation-escape-remainder-later
       (qq-env-stack/cons (qq-env-frame-wq/parse-symbol unwrap var)
         qq-stack)
       qq-stack-orig
@@ -249,7 +249,7 @@
       err.\;qq[Not enough arguments to quasiquotation escape lq]
     /cast rest nil
       err.\;qq[Too many arguments to quasiquotation escape lq]
-    /c-new parse-quasiquotation-escape-remainder-later
+    /parse-quasiquotation-escape-remainder-later
       (qq-env-stack/cons
         (qq-env-frame-lq (parse-symbol unwrap var)
         /parse-symbol unwrap level)
@@ -269,7 +269,7 @@
       err.\;qq[Not enough arguments to quasiquotation escape rq]
     /cast rest nil
       err.\;qq[Too many arguments to quasiquotation escape rq]
-    /c-new parse-quasiquotation-escape-remainder-later
+    /parse-quasiquotation-escape-remainder-later
       (qq-env-stack/qq-stack-rq (parse-symbol unwrap level)
         qq-stack qq-stack)
       qq-stack-orig
@@ -355,8 +355,7 @@
           err.\;qq[Internal error]))
     /map-later unwrapped-expr
       (fn expr then
-        (c-new parse-quasiquotation-subexpr-later
-          qq-env unwrap expr then))
+        (parse-quasiquotation-subexpr-later qq-env unwrap expr then))
     /fn parsed-expr
     /c then /c concat-unwrapped parsed-expr)
   
@@ -392,8 +391,7 @@
           err.\;qq[Internal error]))
     /istring-map-later unwrapped-expr
       (fn expr then
-        (c-new parse-quasiquotation-subexpr-later
-          qq-env unwrap expr then))
+        (parse-quasiquotation-subexpr-later qq-env unwrap expr then))
     /fn parsed-expr
     /c concat-unwrapped-later parsed-expr then)
   
@@ -424,14 +422,14 @@
     (nil)
   /case expr cons first rest
     (append
-      (c-new s-expr-leaves unwrap first)
-      (c-new s-expr-leaves unwrap /c rewrap rest))
+      (s-expr-leaves unwrap first)
+      (s-expr-leaves unwrap /c rewrap rest))
   /case expr istring-nil string
     (nil)
   /case expr istring-cons prefix interpolation rest
     (append
-      (c-new s-expr-leaves unwrap interpolation)
-      (c-new s-expr-leaves unwrap /c rewrap rest))
+      (s-expr-leaves unwrap interpolation)
+      (s-expr-leaves unwrap /c rewrap rest))
   /case expr foreign val
     list.val
     err.\;qq[Expected an expr that was an s-expression]))
@@ -444,13 +442,13 @@
   /case unwrapped-expr nil
     (later/c then nope.expr leaves)
   /case unwrapped-expr cons first rest
-    (c-new s-expr-splice-leaves-later unwrap first leaves
+    (s-expr-splice-leaves-later unwrap first leaves
     /fn first leaves
     /let first
       (case first yep spliceable spliceable
       /case first nope non-spliceable list.non-spliceable
         err.\;qq[Internal error])
-    /c-new s-expr-splice-leaves-later unwrap (c rewrap rest) leaves
+    /s-expr-splice-leaves-later unwrap (c rewrap rest) leaves
     /fn rest leaves
     /cast rest nope rest
       err.\;qq[Expected an expr that had proper lists]
@@ -462,9 +460,9 @@
   /case unwrapped-expr istring-nil string
     (later/c then nope.expr leaves)
   /case unwrapped-expr istring-cons prefix interpolation rest
-    (c-new s-expr-splice-leaves-later unwrap interpolation leaves
+    (s-expr-splice-leaves-later unwrap interpolation leaves
     /fn interpolation leaves
-    /c-new s-expr-splice-leaves-later unwrap rest leaves
+    /s-expr-splice-leaves-later unwrap rest leaves
     /fn rest leaves
     /cast rest nope rest
       err.\;qq[
@@ -494,7 +492,7 @@
 (defn unique-ns-spread unique-ns list combiner
   (cast list cons first rest (nil)
   /cons (c combiner (ns-get str.first unique-ns) first)
-  /c-new unique-ns-spread (ns-get str.rest unique-ns) rest combiner))
+  /unique-ns-spread (ns-get str.rest unique-ns) rest combiner))
 
 (def-macro qlet unique-ns definition-ns my-stx-details args then
   (cast args cons body args
