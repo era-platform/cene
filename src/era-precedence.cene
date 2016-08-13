@@ -70,7 +70,7 @@
   (let next (c func init)
   /case (is-dex dex init next) yep -
     init
-  /c-new fix-with-dex dex next func))
+  /fix-with-dex dex next func))
 
 
 \= Self-precedence graphs ============================================

@@ -53,7 +53,7 @@ Since Cene makes continuation-passing style so much more palatable, Cene's **sid
       \= We invoke a copy recursively, and in the meantime we proceed
       \= with other effects in the loop.
       (join-effects
-        (c-new copy-paths mode
+        (copy-paths mode
           (input-path-get in item)
           (output-path-get out item))
         then))

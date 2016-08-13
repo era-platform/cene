@@ -77,7 +77,7 @@ Macro. Example::
 
   (defn rev-append rev-past rest
     (case rev-past cons elem rev-past
-      (c-new rev-append rev-past /cons elem rest)
+      (rev-append rev-past /cons elem rest)
       rest))
 
 .. todo:: Document this.
@@ -91,7 +91,7 @@ case
 Macro. Example::
 
   (case rev-past cons elem rev-past
-    (c-new rev-append rev-past /cons elem rest)
+    (rev-append rev-past /cons elem rest)
     rest)
 
 .. todo:: Document this.
@@ -120,7 +120,7 @@ Macro. Example::
 
   (cast rev-past cons elem rev-past
     rest
-  /c-new rev-append rev-past /cons elem rest)
+  /rev-append rev-past /cons elem rest)
 
 .. todo:: Document this.
 
@@ -141,16 +141,6 @@ c
 -
 
 Macro. Example: ``(c combiner a b)``
-
-.. todo:: Document this.
-
-
-.. _c-new:
-
-c-new
------
-
-Macro. Example: ``(c-new rev-append rev-past /cons elem rest)``
 
 .. todo:: Document this.
 
