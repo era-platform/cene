@@ -30,7 +30,7 @@
 
 
 (defn table-set-cons dex-val val table
-  (table-shadow (dexable dex-val val) yep.val table))
+  (table-shadow (name-of/dexable dex-val val) yep.val table))
 
 (defn table-map table func
   (table-zip table table /fn - maybe-val -
@@ -40,7 +40,7 @@
 
 (defn table-fuse table init fuse
   (tables-fuse table
-    (table-shadow (dexable dex-struct.nil /nil) yep.init
+    (table-shadow (name-of/dexable dex-struct.nil /nil) yep.init
     /table-empty/nil)
     fuse))
 
@@ -49,7 +49,7 @@
 
 (defn table-any table func
   \= NOTE: The key can be anything.
-  (let key (dexable (dex-dex) /dex-dex)
+  (let key (name-of/dexable (dex-dex) /dex-dex)
   \isa yep /table-get key
     (table-map-fuse table (table-empty/nil)
       (fuse-merge/merge-table/merge-dex dex-struct.nil)
@@ -126,7 +126,7 @@
     /fn stop
       (let edge (edge start stop)
       /table-shadow
-        (dexable (dex-struct edge dex-node dex-node) edge)
+        (name-of/dexable (dex-struct edge dex-node dex-node) edge)
         (yep/c func start stop)
       /table-empty/nil))))
 
@@ -168,13 +168,13 @@
       /let b-edge (edge mid-node b-node)
       /cast
         (table-get
-          (dexable (dex-struct edge dex-node dex-node) a-edge)
+          (name-of/dexable (dex-struct edge dex-node dex-node) a-edge)
           a-edges-to-basises)
         yep a-basises
         err.\;qq[Expected every edge in a to have a set of basises]
       /cast
         (table-get
-          (dexable (dex-struct edge dex-node dex-node) b-edge)
+          (name-of/dexable (dex-struct edge dex-node dex-node) b-edge)
           b-edges-to-basises)
         yep b-basises
         err.\;qq[Expected every edge in b to have a set of basises]
@@ -213,7 +213,8 @@
   /spg-computed dex-node nodes /fn start stop
     (case
       (table-get
-        (dexable (dex-struct edge dex-node dex-node) /edge start stop)
+        (name-of/dexable (dex-struct edge dex-node dex-node)
+        /edge start stop)
         edges-recommended)
       yep -
       (table-set-cons dex-table.dex-node
@@ -244,7 +245,8 @@
           (fuse-table fuse-dex.dex-known-result-entry)
         /fn stop
           (let edge (edge start stop)
-          /table-shadow (dexable dex-edge edge) (yep/pair edge /nil)
+          /table-shadow (name-of/dexable dex-edge edge)
+            (yep/pair edge /nil)
           /table-empty/nil)))
     /fn fixed-known-results
       (table-map fixed-known-results /fn known-result-entry
@@ -254,11 +256,12 @@
           err.\;qq[Internal error]
         /cast known-result nil
           known-result-entry
-        /cast (table-get (dexable dex-edge edge) edges-to-basises)
+        /cast
+          (table-get (name-of/dexable dex-edge edge) edges-to-basises)
           yep forward
           err.\;qq[Expected a basis for each edge]
         /cast
-          (table-get (dexable dex-edge /edge stop start)
+          (table-get (name-of/dexable dex-edge /edge stop start)
             edges-to-basises)
           yep backward
           err.\;qq[Expected a basis for each edge]
@@ -276,7 +279,8 @@
             /table-any backward-basis /fn backward-node
               (cast
                 (proj1 yep /table-get
-                  (dexable dex-edge /edge forward-node backward-node)
+                  (name-of/dexable dex-edge
+                  /edge forward-node backward-node)
                   fixed-known-results)
                 pair edge known-result
                 err.\;qq[Internal error]

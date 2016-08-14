@@ -58,7 +58,8 @@
   (cast
     (table-get-singleton/procure-sub-ns-table
       (table-shadow
-        (dexable (dex-default (dex-string/nil) (dex-name/nil)) key)
+        (name-of/dexable (dex-default (dex-string/nil) (dex-name/nil))
+          key)
         (yep/nil)
       /table-empty/nil)
       ns)

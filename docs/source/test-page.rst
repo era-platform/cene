@@ -15,7 +15,8 @@ No highlighting:
       (let dex-component (dex-default (dex-string/nil) (dex-name/nil))
       /foldl ns path /fn ns component
         (table-get-singleton/procure-sub-ns-table
-          (table-shadow (dexable dex-component component) (yep/nil)
+          (table-shadow (name-of/dexable dex-component component)
+            (yep/nil)
           /table-empty/nil)
           ns)))
 
@@ -29,7 +30,8 @@ Default code highlighting (Cene)::
       (let dex-component (dex-default (dex-string/nil) (dex-name/nil))
       /foldl ns path /fn ns component
         (table-get-singleton/procure-sub-ns-table
-          (table-shadow (dexable dex-component component) (yep/nil)
+          (table-shadow (name-of/dexable dex-component component)
+            (yep/nil)
           /table-empty/nil)
           ns)))
 
@@ -41,7 +43,8 @@ Scheme highlighting, which apparently doesn't look very good applied to Cene cod
       (let dex-component (dex-default (dex-string/nil) (dex-name/nil))
       /foldl ns path /fn ns component
         (table-get-singleton/procure-sub-ns-table
-          (table-shadow (dexable dex-component component) (yep/nil)
+          (table-shadow (name-of/dexable dex-component component)
+            (yep/nil)
           /table-empty/nil)
           ns)))
 
@@ -57,6 +60,7 @@ Explicit Cene highlighting:
       (let dex-component (dex-default (dex-string/nil) (dex-name/nil))
       /foldl ns path /fn ns component
         (table-get-singleton/procure-sub-ns-table
-          (table-shadow (dexable dex-component component) (yep/nil)
+          (table-shadow (name-of/dexable dex-component component)
+            (yep/nil)
           /table-empty/nil)
           ns)))

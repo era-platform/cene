@@ -3185,7 +3185,8 @@ function usingDefinitionNs( macroDefNs ) {
         
         effectfulFun( "name-of", function ( rt, dexable ) {
             return assertValidDexable( rt, dexable, function ( x ) {
-                return macLookupRet( x.getName() );
+                return macLookupRet(
+                    new StcForeign( "name", x.getName() ) );
             } );
         } );
         
@@ -3320,49 +3321,45 @@ function usingDefinitionNs( macroDefNs ) {
             return new StcForeign( "table", jsnMap() );
         } );
         
-        fun( "table-shadow", function ( rt, dexableKey ) {
+        fun( "table-shadow", function ( rt, key ) {
             return stcFnPure( function ( rt, maybeVal ) {
-                return new StcFn( function ( rt, table ) {
+                return stcFnPure( function ( rt, table ) {
+                    if ( !(key instanceof StcForeign
+                        && key.purpose === "name") )
+                        throw new Error();
                     if ( !(table instanceof StcForeign
                         && table.purpose === "table") )
                         throw new Error();
                     
-                    return assertValidDexable( rt, dexableKey,
-                        function ( key ) {
-                        
-                        if ( stcNil.tags( maybeVal ) )
-                            return macLookupRet(
-                                new StcForeign( "table",
-                                    table.foreignVal.minusEntry( key.getName() ) ) );
-                        if ( stcYep.tags( maybeVal ) )
-                            return macLookupRet(
-                                new StcForeign( "table",
-                                    table.foreignVal.plusEntry( key.getName(),
-                                        stcYep.getProj( maybeVal, "val" ) ) ) );
-                        throw new Error();
-                    } );
+                    if ( stcNil.tags( maybeVal ) )
+                        return new StcForeign( "table",
+                            table.foreignVal.minusEntry(
+                                key.foreignVal ) );
+                    if ( stcYep.tags( maybeVal ) )
+                        return new StcForeign( "table",
+                            table.foreignVal.plusEntry(
+                                key.foreignVal,
+                                stcYep.getProj( maybeVal, "val" ) ) );
+                    throw new Error();
                 } );
             } );
         } );
         
-        fun( "table-get", function ( rt, dexableKey ) {
-            return new StcFn( function ( rt, table ) {
+        fun( "table-get", function ( rt, key ) {
+            return stcFnPure( function ( rt, table ) {
+                if ( !(key instanceof StcForeign
+                    && key.purpose === "name") )
+                    throw new Error();
+                var k = key.foreignVal;
+                
                 if ( !(table instanceof StcForeign
                     && table.purpose === "table") )
                     throw new Error();
                 
-                return assertValidDexable( rt, dexableKey,
-                    function ( key ) {
-                    
-                    var k = key.getName();
-                    
-                    if ( table.foreignVal.has( k ) )
-                        return macLookupRet(
-                            stcYep.ofNow(
-                                table.foreignVal.get( k ) ) );
-                    else
-                        return macLookupRet( stcNil.ofNow() );
-                } );
+                if ( table.foreignVal.has( k ) )
+                    return stcYep.ofNow( table.foreignVal.get( k ) );
+                else
+                    return stcNil.ofNow();
             } );
         } );
         
@@ -4236,50 +4233,46 @@ function usingDefinitionNs( macroDefNs ) {
         fun( "procure-contributed-element-getdef",
             function ( rt, ns ) {
             
-            return new StcFn( function ( rt, dexableKey ) {
+            return new StcFn( function ( rt, key ) {
                 if ( !(ns instanceof StcForeign
                     && ns.purpose === "ns") )
                     throw new Error();
+                if ( !(key instanceof StcForeign
+                    && key.purpose === "name") )
+                    throw new Error();
                 
-                return assertValidDexable( rt, dexableKey,
-                    function ( key ) {
-                    
-                    return macLookupRet(
-                        getdef( {
-                            type: "contributedElement",
-                            namespace: ns.foreignVal,
-                            name: key.getName()
-                        }, function () {
-                            throw new Error(
-                                "No such defined value: " +
-                                ns.pretty() + " element " +
-                                key.pretty() );
-                        } ) );
-                } );
+                return macLookupRet(
+                    getdef( {
+                        type: "contributedElement",
+                        namespace: ns.foreignVal,
+                        name: key.foreignVal
+                    }, function () {
+                        throw new Error(
+                            "No such defined value: " +
+                            ns.pretty() + " element " +
+                            key.pretty() );
+                    } ) );
             } );
         } );
         
         fun( "procure-contribute-listener", function ( rt, ns ) {
-            return stcFnPure( function ( rt, dexableKey ) {
+            return stcFnPure( function ( rt, key ) {
                 return new StcFn( function ( rt, listener ) {
                     if ( !(ns instanceof StcForeign
                         && ns.purpose === "ns") )
                         throw new Error();
+                    if ( !(key instanceof StcForeign
+                        && key.purpose === "name") )
+                        throw new Error();
                     
-                    return assertValidDexable( rt, dexableKey,
-                        function ( key ) {
+                    return macLookupRet(
+                        new StcForeign( "effects",
+                            function ( rawMode ) {
                         
-                        return macLookupRet(
-                            new StcForeign( "effects",
-                                function ( rawMode ) {
-                            
-                            collectPutListener( rawMode,
-                                ns.foreignVal,
-                                key.getName(),
-                                listener );
-                            return macLookupRet( stcNil.ofNow() );
-                        } ) );
-                    } );
+                        collectPutListener( rawMode,
+                            ns.foreignVal, key.foreignVal, listener );
+                        return macLookupRet( stcNil.ofNow() );
+                    } ) );
                 } );
             } );
         } );

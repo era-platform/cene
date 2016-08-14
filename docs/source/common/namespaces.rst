@@ -43,9 +43,9 @@ Uses the given namespace to obtain a first-class name value. The given modality 
 procure-contributed-element-getdef
 ----------------------------------
 
-Call with ``ns dexable-key``
+Call with ``ns key``
 
-Obtains a getdef that is used to contribute its defined value to the element contribution map on the namespace. When the getdef's definer is used, if more than one element contribution is given for the same key at the same timestamp, an error occurs; all listener contributors, element contributors, and ticks begun by these contributions are in error, and their ticks' side effects are invalidated. When the getdef's definer is used, the then-current modality's ancestors must not have used restrictions like ``contributing-only-...`` restrictions in a way that now disallows making element contributions to the given namespace.
+Given a namespace and a name to use as a key, obtains a getdef that is used to contribute its defined value to the element contribution map on the namespace. When the getdef's definer is used, if more than one element contribution is given for the same key at the same timestamp, an error occurs; all listener contributors, element contributors, and ticks begun by these contributions are in error, and their ticks' side effects are invalidated. When the getdef's definer is used, the then-current modality's ancestors must not have used restrictions like ``contributing-only-...`` restrictions in a way that now disallows making element contributions to the given namespace.
 
 
 .. _procure-contribute-listener:
@@ -53,9 +53,9 @@ Obtains a getdef that is used to contribute its defined value to the element con
 procure-contribute-listener
 ---------------------------
 
-Call with ``ns dexable-key (fn singleton-table)``
+Call with ``ns key (fn singleton-table)``
 
-Monadically, contributes to the listener contribution map on the namespace. The listener function will be called monadically in a different future tick each time an entry is contributed to the namespace's element contribution map. The listener is given a singleton table containing the entry contributed. If more than one listener contribution is given for the same key, an error occurs; all listener contributors, element contributors, and ticks begun by these contributions are in error, and their ticks' side effects are invalidated.
+Monadically, given a namespace, a name to use as a key, and a listener function, contributes to the listener contribution map on the namespace. The listener function will be called monadically in a different future tick each time an entry is contributed to the namespace's element contribution map. The listener is given a singleton table containing the entry contributed. If more than one listener contribution is given for the same key, an error occurs; all listener contributors, element contributors, and ticks begun by these contributions are in error, and their ticks' side effects are invalidated.
 
 This is a way to make frameworks that are extensible in the sense of the open-world assumption (OWA).
 

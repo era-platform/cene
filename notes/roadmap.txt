@@ -6,19 +6,15 @@ Rename `make-tuple-tag` to `make-struct-tag`, have it take a table instead of a 
 Change `contributing-only-to` to accept a collection (e.g. a table) of namespaces-with-holes-in-them, rather than a single namespace.
 Consider renaming "type" to "constructor," "struct," and "tag" throughout.
 
-In the following, "identifier" means a singleton table containing `(nil)`. Each operation validates the identifiers it receives to be sure it's a singleton and contains `(nil)`.
+Update the various built-in macros that accept names of the form `(istring-nil <string>)` or `(foreign <name>)` to instead accept `(istring-nil <string>)`, `(foreign/obtain-by-name <name>)`, or `(foreign/obtain-direct <value>)`. Add the constructors `obtain-by-name` and `obtain-direct` to support this. Discontinue support for `(foreign <name>)`.
 
-Change `table-get` to take an identifier instead of a dexable key.
-
-Update the various built-in macros that accept names of the form `(istring-nil <string>)` or `(foreign <name>)` to also accept `(foreign <identifier>)`. Consider discontinuing support for `(foreign <name>)`.
-
-Implement a non-macro version of `case`: Given a constructor tag, a "subject" compiled expression, a one-to-one table from projection names to valid identifiers, a "then" compiled expression, and an "else" compiled expression, obtain another compiled expression with all the free identifiers of "subject" and "else" and all but the given identifiers out of the free identifiers of "then."
-Implement non-macro versions of each of `def-struct` construction, `dex-struct`, `merge-struct`, and `fuse-struct`: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free identifiers.
-Implement a non-macro version of `c`: Given a "func" compiled expression and an "arg" compiled expression, obtain another compiled expression with the union of their free identifiers.
-Implement a non-macro version of `compile-expression` on a variable access: Given an identifier, obtain a compiled expression with just that identifier in its free identifiers.
-Implement a non-second-class version of `function-implementation-opaque`: Given any value, obtain a compiled expression with no free identifiers.
-Implement a non-macro version of `defn`: Given an identifier and a compiled expression with no free identifiers other than that one, obtain a "native definition" value. This value should not be directly callable (to prevent reflection at run time), but it can be installed in the namespace.
-Implement a non-macro version of `let`: Given a "bindings" ordered association list from mutually unique projection names to compiled expressions, and given a "body" compiled expression, obtain another compiled expression with the union of the "bindings" free identifiers and all but the given identifiers out of the free identifiers of "body."
+Implement a non-macro version of `case`: Given a constructor tag, a "subject" compiled expression, a one-to-one table from projection names to local variable names, a "then" compiled expression, and an "else" compiled expression, obtain another compiled expression with all the free variables of "subject" and "else" and all but the given local variable names out of the free variables of "then."
+Implement non-macro versions of each of `def-struct` construction, `dex-struct`, `merge-struct`, and `fuse-struct`: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free variables.
+Implement a non-macro version of `c`: Given a "func" compiled expression and an "arg" compiled expression, obtain another compiled expression with the union of their free variables.
+Implement a non-macro version of `compile-expression` on a variable access: Given a local variable name, obtain a compiled expression with just that variable in its free variables.
+Implement a non-second-class version of `function-implementation-opaque`: Given any value, obtain a compiled expression with no free variables.
+Implement a non-macro version of `defn`: Given an local variable name and a compiled expression with no free variables other than that one, obtain a "native definition" value. This value should not be directly callable (to prevent reflection at run time), but it can be installed in the namespace.
+Implement a non-macro version of `let`: Given a "bindings" ordered association list from mutually unique local variable names to compiled expressions, and given a "body" compiled expression, obtain another compiled expression with the union of the "bindings" free variables and all but the given variables out of the free variables of "body."
 Specify how `fn` determines a unique constructor name, and programmatically enforce the illusion that it does work that way. Ideally, `fn` looks up a sub-namespace by a standard key from the unique namespace it's expanded in, and that namespace's name is the constructor name it uses. The standard key is consistent in every `fn` invocation, but it is not directly available to Cene progams. A complete plan for this is below; it's the "substantial refactoring" section.
 
 Make `join-effects` into a merge, or at least a fuse. We might want it to be a fuse just because the performance of joining an effect to itself is inequal to the performance of the original effect.
@@ -30,7 +26,7 @@ Consider renaming `contributing-only-to` to `contributing-only-to-later`, since 
 Reconsider the parameters to `macro-stx-details`. The mode really should be the current mode if the call is going to do anything with `unique-ns` and `definition-ns`, but why does it need those? It would probably be more relevant for this value to reify the identity of the macro definition itself, or at least contain a struct with a tag unique to that macro definition.
 Implement `compile-expression` instead of having it built in. If it must be built in, consider whether it should be named `compile-expression-later` and whether it should conform to that calling convention.
 Implement `read-all-force` instead of having it built in.
-Consider making `int-compare` a dex, which would make it the first visibly ordered dex.
+Consider making `int-compare` a dex, which would make it the first visibly ordered dex. If we ever want a merge for dexes, a dex like this could be a problem.
 Refactor the entire "File I/O for simple builds" system so that it looks like it could use namespaces, but doesn't actually use any sub-namespaces the Cene code has access to. See the "substantial refactoring" session for this illusion applied to the macroexpansion state model (function, macro, and constructor definitions).
 Revisit `output-path-directory`, `output-path-utf-8`, and especially `cli-output-environment-variable-shadow` to be sure they behave as though they contribute to a namespace the user-level Cene code has no access to. Right now, I think `cli-output-environment-variable-shadow` outputs to a visible place in the definition namespace.
 Implement the `--command` command line option.
@@ -59,19 +55,19 @@ These are the places in the definition namespace we use right now (not including
   \= ANTI-TODO: This one has already been updated.
 ./functions/<`make-tuple-tag` result>/call/val.el
 
-Let's do this: A constructor tag is a `(struct-tag ...)` struct containing an identifier and a table of `(nil)`. The singletons making up the second table are the identifiers we use to refer to the projections. The identifier is a way to distinguish different constructors from each other.
+Let's do this: A constructor tag is a `(struct-tag ...)` struct containing a main tag name and a table of `(nil)`. The keys of the second table are the projection names. The main tag name is a way to distinguish different constructors from each other.
 
 For most of the built-in types, the keys are unique name values, not equivalent to any names the Cene code could generate on its own.
 
-For types defined by `(def-struct ...)`, the projection names are taken deterministically from standard but obscure locations in the macro call's unique namespace, but the details of this deterministic algorithm are impossible to detect because two calls to `(def-struct ...)` with the same unique namespace will try to write to the same location and cause an error. Namely, they use `(claim-unique-ns ...)`, described below.
+For types defined by `(def-struct ...)`, the projection names are taken deterministically from standard but obscure locations in the macro call's unique namespace, but the details of this deterministic algorithm are impossible to detect without causing an error because two calls to `(def-struct ...)` with the same unique namespace will try to write to the same location. Namely, they use `(claim-unique-ns ...)`, described below.
 
 --
 
 (constructor-tag main-tag projections)
 Constructs a value that can be used to refer to the tag of a struct value. This is used by `define-function`.
 
-(constructor-string-reference main-tag strings-to-projection-entries)
-Constructs a value that's useful when looking up a constructor name string with `procure-constructor-string-reference-getdef`. It indicates what the struct's main tag is and provides an association list for looking up projection name strings. The association list should be a list containing `assoc` values mapping mutually unique strings to mutually unique projection identifiers.
+(constructor-glossary main-tag source-projection-names-to-names)
+Constructs a value that's useful when looking up a constructor name with `procure-constructor-glossary-getdef`. It indicates what the struct's main tag name is and provides an association list for looking up projection names. The association list should be a list containing `assoc` values mapping mutually unique source-level projection names to the mutually unique projection names that are actually used in the struct's representation.
 
 (assoc key val)
 Constructs a value that represents a key-value pair.
@@ -79,12 +75,13 @@ Constructs a value that represents a key-value pair.
 (claim-unique-ns ns)
 Monadically, writes to a standard but obscure location in the given namespace. The point of this is to ensure that two macro calls that use the same unique namespace will cause an error.
 
-(procure-constructor-string-reference-getdef ns constructor-name-string)
-From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level string with data about a constructor. The built-in macros that deal with constructors (e.g. `case`) will expect the value to be a `(constructor-string-reference ...)` struct containing an identifier (the main tag) and a table from strings to `assoc` values of the same string and a mutually unique identifier. The key strings are source-level representations of the projections, and the identifiers are the actual projections of the constructor.
+(procure-constructor-glossary-getdef ns source-main-tag-name)
+From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level main tag name with data about a constructor. The built-in macros that deal with constructors (e.g. `case`) will expect the value to be a `(constructor-glossary ...)` struct containing a main tag name and a list containing `assoc` values mapping mutually unique source-level projection names to the mutually unique projection names that are actually used in the struct's representation.
 
-(procure-implementation-for-macro-string-getdef ns macro-name-string)
-From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level string with a macro implementation.
+(procure-implementation-for-macro-string-getdef ns source-macro-name)
+From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level macro name with a macro implementation.
   \= ANTI-TODO: This one has already been implemented.
+  \= TODO: However, the implementation is called `procure-implementation-for-macro-string-getdef`, and it takes a string instead of a name. Update it.
 
 (committing-to-define-function-coercers ns effects)
 Monadically, runs the given effects under a commitment to define a function coercer namespace on the given namespace (using `copy-function-coercers`).
@@ -100,22 +97,22 @@ Blocks until the given namespace has a function coercer namespace defined (at a 
 So, to implement this, we just need a few obscure names that Cene code doesn't know (marked by $$ below), and we just have a few spots where we install definitions:
 
 <unique-ns>/$$claimed/val.el
-<definition-ns>/$$constructor-string-reference/<constructor name string>.el
-<definition-ns>/$$macro-string-reference/<macro name string>.el
+<definition-ns>/$$constructor-glossary/<constructor name>.el
+<definition-ns>/$$macro-glossary/<macro name>.el
   \= ANTI-TODO: This one has already been updated.
 <definition-ns>/$$function-coercers/val.el
 <function-coercers-ns>/<constructor tag>.el
 
 ...plus various other specific locations under <unique-ns> for different macros:
 
-<unique-ns>/$$claimed/for-def-struct/<main tag and list of projection name strings>/main-tag/.name
-<unique-ns>/$$claimed/for-def-struct/<main tag and list of projection name strings>/projection-tag/<projection name string>/.name
+<unique-ns>/$$claimed/for-def-struct/<main tag name and list of projection names>/main-tag/.name
+<unique-ns>/$$claimed/for-def-struct/<main tag name and list of projection names>/projection-tag/<projection name string>/.name
 <unique-ns>/$$claimed/for-fn/main-tag/.name
-<unique-ns>/$$claimed/for-fn/projection-tag/<free identifier>/.name
+<unique-ns>/$$claimed/for-fn/projection-tag/<free variable name>/.name
 <unique-ns>/$$claimed/for-fn/body/...
 <unique-ns>/$$claimed/for-defn/body/...
 <unique-ns>/$$claimed/for-def-macro/body/...
-<unique-ns>/$$claimed/for-isa/<struct tag>/projection-var/<projection identifier>/.name
+<unique-ns>/$$claimed/for-isa/<main tag name>/projection-var/<projection name>/.name
 ...(potentially more)...
 
 (We don't just use <unique-ns>/$$claimed.el or <definition-ns>/$$function-coercers.el. If we did, a listener on the namespace could notice. Similarly, we don't just use <unique-ns>/for-def-struct/main-tag/.name because the caller could construct a name by the same path and notice they were the same name. However, the <unique-ns>/$$claimed/... names in this list do use a lot of superfluous elements.)
@@ -128,7 +125,7 @@ High-level Cene tasks, in roughly highest-priority-first order:
 
 - Right now, macro definitions often look up other macros from the definition namespace of the macro call. Make them look it up from the caller definition's definition namespace instead.
 
-  If we don't want to embed first-class functions into the macro definitions, we'll have to have a macro lookup that results in a main tag of a nullary constructor of a function rather than resulting in a function. That way we can implement and use a new macro `(mac <macro-string-name>)` that uses this looked-up main tag to expand to a constructor call.
+  If we don't want to embed first-class functions into the macro definitions, we'll have to have a macro lookup that results in a main tag of a nullary constructor of a function rather than resulting in a function. That way we can implement and use a new macro `(mac <source-macro-name>)` that uses this looked-up main tag to expand to a constructor call.
 
   Unfortunately, if the *only* macro lookup we have results in a constructor main tag, then `compile-expression` will have to somehow convert a main tag into a struct value. That's something it could have done circuitously by defining a macro named with a gensym and then passing code that calls it by name to `compile-expression` in another tick, but now we've taken out gensym-named macros, and using gensyms and intermediate state in `compile-expression` itself seems like overkill.
 
