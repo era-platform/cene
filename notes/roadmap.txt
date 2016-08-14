@@ -78,10 +78,9 @@ Monadically, writes to a standard but obscure location in the given namespace. T
 (procure-constructor-glossary-getdef ns source-main-tag-name)
 From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level main tag name with data about a constructor. The built-in macros that deal with constructors (e.g. `case`) will expect the value to be a `(constructor-glossary ...)` struct containing a main tag name and a list containing `assoc` values mapping mutually unique source-level projection names to the mutually unique projection names that are actually used in the struct's representation.
 
-(procure-implementation-for-macro-string-getdef ns source-macro-name)
-From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level macro name with a macro implementation.
+(procure-macro-implementation-getdef ns macro-name)
+From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given macro name with a macro implementation.
   \= ANTI-TODO: This one has already been implemented.
-  \= TODO: However, the implementation is called `procure-implementation-for-macro-string-getdef`, and it takes a string instead of a name. Update it.
 
 (committing-to-define-function-coercers ns effects)
 Monadically, runs the given effects under a commitment to define a function coercer namespace on the given namespace (using `copy-function-coercers`).
@@ -98,7 +97,7 @@ So, to implement this, we just need a few obscure names that Cene code doesn't k
 
 <unique-ns>/$$claimed/val.el
 <definition-ns>/$$constructor-glossary/<constructor name>.el
-<definition-ns>/$$macro-glossary/<macro name>.el
+<definition-ns>/$$macro-implementation/<macro name>.el
   \= ANTI-TODO: This one has already been updated.
 <definition-ns>/$$function-coercers/val.el
 <function-coercers-ns>/<constructor tag>.el

@@ -99,8 +99,8 @@
   /let mac
     (fn str rest
       (cast
-        (procure-implementation-for-macro-string-getdef
-          definition-ns str)
+        (procure-macro-implementation-getdef definition-ns
+        /name-of/dexable (dex-string/nil) str)
         getdef macro-get macro-definer
         err.\;qq[Internal error]
       /cons (c s /foreign/c macro-get mode) rest))

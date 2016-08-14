@@ -4298,21 +4298,24 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "procure-implementation-for-macro-string-getdef",
+        fun( "procure-macro-implementation-getdef",
             function ( rt, ns ) {
             
-            return stcFnPure( function ( rt, macroNameString ) {
+            return stcFnPure( function ( rt, macroName ) {
                 if ( !(ns instanceof StcForeign
                     && ns.purpose === "ns") )
+                    throw new Error();
+                if ( !(macroName instanceof StcForeign
+                    && macroName.purpose === "name") )
                     throw new Error();
                 
                 return getdef(
                     getMacroFunctionDefiner( ns.foreignVal,
-                        parseString( macroNameString ).jsStr ),
+                        macroName.foreignVal ),
                     function () {
                         throw new Error(
                             "No such macro: " + ns.pretty() + " " +
-                            "macro " + JSON.stringify( s ) );
+                            "macro " + macroName.pretty() );
                     } );
             } );
         } );

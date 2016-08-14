@@ -54,14 +54,14 @@ Call with ``mode unique-ns definition-ns stx``
 Constructs a syntax details object that refers to a macro's input, so that the macro's output can be associated with it. The ``stx`` must be a located cons list whose first element is a string or foreign name referring to a macro. The ``mode`` doesn't need to be the current modality; it's just part of the macro call information.
 
 
-.. _procure-implementation-for-macro-string-getdef:
+.. _procure-macro-implementation-getdef:
 
-procure-implementation-for-macro-string-getdef
-----------------------------------------------
+procure-macro-implementation-getdef
+-----------------------------------
 
-Call with ``ns macro-name-string``
+Call with ``ns macro-name``
 
-From a standard but obscure location known as ``$$macro-string-reference`` in the given namespace, obtains a getdef that is used to associate the given source-level string with a macro implementation.
+From a standard but obscure location known as ``$$macro-implementation`` in the given namespace, obtains a getdef that is used to associate the given macro name with a macro implementation.
 
 
 .. _compile-expression:
