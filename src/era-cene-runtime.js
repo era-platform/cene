@@ -1928,6 +1928,10 @@ function usingDefinitionNs( macroDefNs ) {
     var stcStx =
         stcType( macroDefNs, "stx", "stx-details", "s-expr" );
     var stcForeign = stcType( macroDefNs, "foreign", "val" );
+    var stcObtainByName =
+        stcType( macroDefNs, "obtain-by-name", "name" );
+    var stcObtainDirectly =
+        stcType( macroDefNs, "obtain-directly", "val" );
     var stcDexable = stcType( macroDefNs, "dexable", "dex", "val" );
     var stcCarried =
         stcType( macroDefNs, "carried", "main", "carry" );
@@ -1980,29 +1984,43 @@ function usingDefinitionNs( macroDefNs ) {
         return string.foreignVal;
     }
     
-    function stxToStringOrStc( stx ) {
+    function stxToObtainMethod( stx ) {
         if ( !stcStx.tags( stx ) )
-            return null;
+            return { type: "obtainInvalid" };
         var sExpr = stcStx.getProj( stx, "s-expr" );
         if ( stcForeign.tags( sExpr ) ) {
-            return stcForeign.getProj( sExpr, "val" );
+            var obtainMethod = stcForeign.getProj( sExpr, "val" );
+            if ( stcObtainByName.tags( obtainMethod ) ) {
+                var name =
+                    stcObtainByName.getProj( obtainMethod, "name" );
+                if ( !(name instanceof StcForeign
+                    && name.purpose === "name") )
+                    throw new Error();
+                return { type: "obtainByName",
+                    name: name.foreignVal };
+            } else if ( stcObtainDirectly.tags( obtainMethod ) ) {
+                return { type: "obtainDirectly", val:
+                    stcObtainDirectly.getProj(
+                        obtainMethod, "val" ) };
+            } else {
+                throw new Error();
+            }
         } else if ( stcIstringNil.tags( sExpr ) ) {
-            return parseString(
-                stcIstringNil.getProj( sExpr, "string" ) ).jsStr;
+            var string = stcIstringNil.getProj( sExpr, "string" );
+            if ( !(string instanceof StcForeign
+                && string.purpose === "string") )
+                throw new Error();
+            return { type: "obtainByName", name: string.getName() };
         } else {
-            return null;
+            return { type: "obtainInvalid" };
         }
     }
     
     function stxToMaybeName( stx ) {
-        var stringOrStc = stxToStringOrStc( stx );
-        if ( stringOrStc === null
-            || typeof stringOrStc === "string" )
-            return stringOrStc;
-        if ( !(stringOrStc instanceof StcForeign
-            && stringOrStc.purpose === "name") )
-            throw new Error();
-        return stringOrStc.foreignVal;
+        var obtainMethod = stxToObtainMethod( stx );
+        if ( obtainMethod.type === "obtainByName" )
+            return obtainMethod.name;
+        return null;
     }
     
     function stcConsListToArray( stc ) {
@@ -4298,21 +4316,24 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "procure-implementation-for-macro-string-getdef",
+        fun( "procure-macro-implementation-getdef",
             function ( rt, ns ) {
             
-            return stcFnPure( function ( rt, macroNameString ) {
+            return stcFnPure( function ( rt, macroName ) {
                 if ( !(ns instanceof StcForeign
                     && ns.purpose === "ns") )
+                    throw new Error();
+                if ( !(macroName instanceof StcForeign
+                    && macroName.purpose === "name") )
                     throw new Error();
                 
                 return getdef(
                     getMacroFunctionDefiner( ns.foreignVal,
-                        parseString( macroNameString ).jsStr ),
+                        macroName.foreignVal ),
                     function () {
                         throw new Error(
                             "No such macro: " + ns.pretty() + " " +
-                            "macro " + JSON.stringify( s ) );
+                            "macro " + macroName.pretty() );
                     } );
             } );
         } );
@@ -4478,21 +4499,26 @@ function usingDefinitionNs( macroDefNs ) {
             if ( !stcCons.tags( sExpr ) )
                 throw new Error();
             var macroNameStx = stcCons.getProj( sExpr, "car" );
-            var macroAppearance = stxToStringOrStc( macroNameStx );
-            if ( macroAppearance === null )
+            var macroAppearance = stxToObtainMethod( macroNameStx );
+            if ( macroAppearance.type === "obtainInvalid" )
                 throw new Error();
             
             return macLookupThen(
-                typeof macroAppearance === "string" ?
+                macroAppearance.type === "obtainByName" ?
                     macLookupGet(
                         getMacroFunctionDefiner( nss.definitionNs,
-                            macroAppearance ),
+                            macroAppearance.name ),
                         function () {
                             throw new Error(
                                 "No such macro: " +
-                                JSON.stringify( macroAppearance ) );
+                                JSON.stringify(
+                                    macroAppearance.name ) );
                         } ) :
-                    macLookupRet( macroAppearance ),
+                macroAppearance.type === "obtainDirectly" ?
+                    macLookupRet( macroAppearance.val ) :
+                    (function () {
+                        throw new Error();
+                    })(),
                 function ( macroFunction ) {
             
             return callStcMulti( rt, macroFunction,
@@ -4657,6 +4683,12 @@ function usingDefinitionNs( macroDefNs ) {
         type( "istring-cons",
             [ "string-past", "interpolated", "istring-rest" ] );
         type( "foreign", [ "val" ] );
+        
+        // These occur in `(foreign ...)` s-expressions to signify
+        // that a value should be looked up by an arbitrary name or by
+        // immediate value instead of by the name of a literal string.
+        type( "obtain-by-name", [ "name" ] );
+        type( "obtain-directly", [ "val" ] );
         
         // This constructor is needed so that macros can parse their
         // located syntax arguments.

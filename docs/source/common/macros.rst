@@ -31,7 +31,27 @@ foreign
 
 Construct with ``val``
 
-An s-expression that consists of an embedded value of any type, but usually a name. The program may not know of a way to encode the name as serializable data, but it can still be passed to (:ref:`compile-expression` ...).
+An s-expression that consists of an embedded value of any type, but usually an (:ref:`obtain-by-name` ...), (:ref:`obtain-directly` ...), or a name. The program may not know of a way to encode the name as serializable data, but it can still be passed to (:ref:`compile-expression` ...).
+
+
+.. _obtain-by-name:
+
+obtain-by-name
+--------------
+
+Construct with ``name``
+
+A foreign occurrence in a Cene code s-expression that indicates something should be looked up by the indicated arbitrary name, instead of by the name of a literal string.
+
+
+.. _obtain-directly:
+
+obtain-directly
+---------------
+
+Construct with ``val``
+
+A foreign occurrence in a Cene code s-expression that indicates something should be looked up by just using the indicated value, instead of by the name of a literal string.
 
 
 .. _stx:
@@ -54,14 +74,14 @@ Call with ``mode unique-ns definition-ns stx``
 Constructs a syntax details object that refers to a macro's input, so that the macro's output can be associated with it. The ``stx`` must be a located cons list whose first element is a string or foreign name referring to a macro. The ``mode`` doesn't need to be the current modality; it's just part of the macro call information.
 
 
-.. _procure-implementation-for-macro-string-getdef:
+.. _procure-macro-implementation-getdef:
 
-procure-implementation-for-macro-string-getdef
-----------------------------------------------
+procure-macro-implementation-getdef
+-----------------------------------
 
-Call with ``ns macro-name-string``
+Call with ``ns macro-name``
 
-From a standard but obscure location known as ``$$macro-string-reference`` in the given namespace, obtains a getdef that is used to associate the given source-level string with a macro implementation.
+From a standard but obscure location known as ``$$macro-implementation`` in the given namespace, obtains a getdef that is used to associate the given macro name with a macro implementation.
 
 
 .. _compile-expression:

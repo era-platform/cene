@@ -6,7 +6,7 @@ Rename `make-tuple-tag` to `make-struct-tag`, have it take a table instead of a 
 Change `contributing-only-to` to accept a collection (e.g. a table) of namespaces-with-holes-in-them, rather than a single namespace.
 Consider renaming "type" to "constructor," "struct," and "tag" throughout.
 
-Update the various built-in macros that accept names of the form `(istring-nil <string>)` or `(foreign <name>)` to instead accept `(istring-nil <string>)`, `(foreign/obtain-by-name <name>)`, or `(foreign/obtain-direct <value>)`. Add the constructors `obtain-by-name` and `obtain-direct` to support this. Discontinue support for `(foreign <name>)`.
+Update the various built-in macros that accept names of the form `(istring-nil <string>)` or `(foreign <name>)` to instead accept `(istring-nil <string>)`, `(foreign/obtain-by-name <name>)`, or `(foreign/obtain-directly <value>)`. Discontinue support for `(foreign <name>)`.
 
 Implement a non-macro version of `case`: Given a constructor tag, a "subject" compiled expression, a one-to-one table from projection names to local variable names, a "then" compiled expression, and an "else" compiled expression, obtain another compiled expression with all the free variables of "subject" and "else" and all but the given local variable names out of the free variables of "then."
 Implement non-macro versions of each of `def-struct` construction, `dex-struct`, `merge-struct`, and `fuse-struct`: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free variables.
@@ -78,10 +78,9 @@ Monadically, writes to a standard but obscure location in the given namespace. T
 (procure-constructor-glossary-getdef ns source-main-tag-name)
 From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level main tag name with data about a constructor. The built-in macros that deal with constructors (e.g. `case`) will expect the value to be a `(constructor-glossary ...)` struct containing a main tag name and a list containing `assoc` values mapping mutually unique source-level projection names to the mutually unique projection names that are actually used in the struct's representation.
 
-(procure-implementation-for-macro-string-getdef ns source-macro-name)
-From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level macro name with a macro implementation.
+(procure-macro-implementation-getdef ns macro-name)
+From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given macro name with a macro implementation.
   \= ANTI-TODO: This one has already been implemented.
-  \= TODO: However, the implementation is called `procure-implementation-for-macro-string-getdef`, and it takes a string instead of a name. Update it.
 
 (committing-to-define-function-coercers ns effects)
 Monadically, runs the given effects under a commitment to define a function coercer namespace on the given namespace (using `copy-function-coercers`).
@@ -98,7 +97,7 @@ So, to implement this, we just need a few obscure names that Cene code doesn't k
 
 <unique-ns>/$$claimed/val.el
 <definition-ns>/$$constructor-glossary/<constructor name>.el
-<definition-ns>/$$macro-glossary/<macro name>.el
+<definition-ns>/$$macro-implementation/<macro name>.el
   \= ANTI-TODO: This one has already been updated.
 <definition-ns>/$$function-coercers/val.el
 <function-coercers-ns>/<constructor tag>.el
@@ -127,7 +126,7 @@ High-level Cene tasks, in roughly highest-priority-first order:
 
   If we don't want to embed first-class functions into the macro definitions, we'll have to have a macro lookup that results in a main tag of a nullary constructor of a function rather than resulting in a function. That way we can implement and use a new macro `(mac <source-macro-name>)` that uses this looked-up main tag to expand to a constructor call.
 
-  Unfortunately, if the *only* macro lookup we have results in a constructor main tag, then `compile-expression` will have to somehow convert a main tag into a struct value. That's something it could have done circuitously by defining a macro named with a gensym and then passing code that calls it by name to `compile-expression` in another tick, but now we've taken out gensym-named macros, and using gensyms and intermediate state in `compile-expression` itself seems like overkill.
+  Unfortunately, if the *only* macro lookup we have results in a constructor main tag, then `compile-expression` will have to somehow convert a main tag into a struct value. Or can it effectively do this already?
 
 - Try to implement an example of an extensible framework (such as multimethods) in terms of the various "contribute" primitives.
 

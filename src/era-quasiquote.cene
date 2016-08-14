@@ -506,7 +506,8 @@
     (unique-ns-spread (ns-get str.bindings unique-ns)
       (s-expr-leaves (unwrap-for-macro) body)
     /fn unique-ns leaf
-      (pair (c s /foreign/procure-name mode unique-ns) leaf))
+      (pair (c s /foreign/obtain-by-name/procure-name mode unique-ns)
+        leaf))
   /s-expr-splice-leaves-later (unwrap-for-macro) body
     (map spread-leaves /fn spread-leaf
       (cast spread-leaf pair var leaf
