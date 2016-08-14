@@ -47,7 +47,7 @@ Call with ``(ignored)``
 table-shadow
 ------------
 
-Call with ``dexable-key maybe-val table``
+Call with ``key maybe-val table``
 
 .. todo:: Document this.
 
@@ -90,7 +90,7 @@ Given two tables and a fuse, fuses all the values of both tables together into a
 table-get
 ---------
 
-Call with ``dexable-key table``
+Call with ``key table``
 
 .. todo:: Document this.
 

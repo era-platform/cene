@@ -454,11 +454,11 @@ Stc.prototype.dexHas = function ( rt, x ) {
 Stc.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-Stc.prototype.toName = function () {
+Stc.prototype.getName = function () {
     // TODO: See if we can avoid this JSON.parse().
     return [ "n:struct", JSON.parse( this.tupleTag ) ].concat(
         arrMap( this.projVals, function ( projVal ) {
-            return projVal.toName();
+            return projVal.getName();
         } ) );
 };
 Stc.prototype.pretty = function () {
@@ -481,7 +481,7 @@ StcFn.prototype.dexHas = function ( rt, x ) {
 StcFn.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcFn.prototype.toName = function () {
+StcFn.prototype.getName = function () {
     throw new Error();
 };
 StcFn.prototype.pretty = function () {
@@ -509,11 +509,11 @@ StcForeign.prototype.dexHas = function ( rt, x ) {
 StcForeign.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcForeign.prototype.toName = function () {
+StcForeign.prototype.getName = function () {
     if ( this.purpose === "string" ) {
         return this.foreignVal.jsStr;
     } else if ( this.purpose === "name" ) {
-        return this.foreignVal;
+        return [ "n:name", this.foreignVal ];
     } else if ( this.purpose === "table" ) {
         var result = [ "n:table" ];
         this.foreignVal.each( function ( k, v ) {
@@ -524,8 +524,8 @@ StcForeign.prototype.toName = function () {
         return [ "n:int", this.foreignVal ];
     } else {
         throw new Error(
-            "Cene internal language error: Tried to call toName on " +
-            "a StcForeign that didn't support it" );
+            "Cene internal language error: Tried to call getName " +
+            "on a StcForeign that didn't support it" );
     }
 };
 StcForeign.prototype.pretty = function () {
@@ -561,9 +561,9 @@ StcDexDefault.prototype.dexHas = function ( rt, x ) {
 StcDexDefault.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexDefault.prototype.toName = function () {
+StcDexDefault.prototype.getName = function () {
     return [ "n:dex-default",
-        this.first.toName(), this.second.toName() ];
+        this.first.getName(), this.second.getName() ];
 };
 StcDexDefault.prototype.pretty = function () {
     return "(dex-default " +
@@ -585,7 +585,7 @@ StcDexGiveUp.prototype.dexHas = function ( rt, x ) {
 StcDexGiveUp.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexGiveUp.prototype.toName = function () {
+StcDexGiveUp.prototype.getName = function () {
     return [ "n:dex-give-up" ];
 };
 StcDexGiveUp.prototype.pretty = function () {
@@ -631,11 +631,11 @@ StcDexStruct.prototype.dexHas = function ( rt, x ) {
 StcDexStruct.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexStruct.prototype.toName = function () {
+StcDexStruct.prototype.getName = function () {
     // TODO: See if we can avoid this JSON.parse().
     return [ "n:dex-struct", JSON.parse( this.expectedTupleTag )
         ].concat( arrMap( this.projDexes, function ( projDex ) {
-            return [ projDex.i, projDex.val.toName() ];
+            return [ projDex.i, projDex.val.getName() ];
         } ) );
 };
 StcDexStruct.prototype.pretty = function () {
@@ -658,7 +658,7 @@ StcDexDex.prototype.dexHas = function ( rt, x ) {
 StcDexDex.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexDex.prototype.toName = function () {
+StcDexDex.prototype.getName = function () {
     return [ "n:dex-dex" ];
 };
 StcDexDex.prototype.pretty = function () {
@@ -678,7 +678,7 @@ StcDexMerge.prototype.dexHas = function ( rt, x ) {
 StcDexMerge.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexMerge.prototype.toName = function () {
+StcDexMerge.prototype.getName = function () {
     return [ "n:dex-merge" ];
 };
 StcDexMerge.prototype.pretty = function () {
@@ -697,7 +697,7 @@ StcDexFuse.prototype.dexHas = function ( rt, x ) {
 StcDexFuse.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexFuse.prototype.toName = function () {
+StcDexFuse.prototype.getName = function () {
     return [ "n:dex-fuse" ];
 };
 StcDexFuse.prototype.pretty = function () {
@@ -718,7 +718,7 @@ StcDexName.prototype.dexHas = function ( rt, x ) {
 StcDexName.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexName.prototype.toName = function () {
+StcDexName.prototype.getName = function () {
     return [ "n:dex-name" ];
 };
 StcDexName.prototype.pretty = function () {
@@ -739,7 +739,7 @@ StcDexString.prototype.dexHas = function ( rt, x ) {
 StcDexString.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexString.prototype.toName = function () {
+StcDexString.prototype.getName = function () {
     return [ "n:dex-string" ];
 };
 StcDexString.prototype.pretty = function () {
@@ -774,8 +774,8 @@ StcDexByOwnMethod.prototype.dexHas = function ( rt, x ) {
 StcDexByOwnMethod.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexByOwnMethod.prototype.toName = function () {
-    return [ "n:dex-by-own-method", this.dexableGetMethod.toName() ];
+StcDexByOwnMethod.prototype.getName = function () {
+    return [ "n:dex-by-own-method", this.dexableGetMethod.getName() ];
 };
 StcDexByOwnMethod.prototype.pretty = function () {
     return "(dex-by-own-method " +
@@ -802,8 +802,8 @@ StcDexFix.prototype.dexHas = function ( rt, x ) {
 StcDexFix.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexFix.prototype.toName = function () {
-    return [ "n:dex-fix", this.dexableUnwrap.toName() ];
+StcDexFix.prototype.getName = function () {
+    return [ "n:dex-fix", this.dexableUnwrap.getName() ];
 };
 StcDexFix.prototype.pretty = function () {
     return "(dex-fix " + this.dexableUnwrap.pretty() + ")";
@@ -843,8 +843,8 @@ StcDexTable.prototype.dexHas = function ( rt, x ) {
 StcDexTable.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexTable.prototype.toName = function () {
-    return [ "n:dex-table", this.dexVal.toName() ];
+StcDexTable.prototype.getName = function () {
+    return [ "n:dex-table", this.dexVal.getName() ];
 };
 StcDexTable.prototype.pretty = function () {
     return "(dex-table " + this.dexVal.pretty() + ")";
@@ -864,7 +864,7 @@ StcDexInt.prototype.dexHas = function ( rt, x ) {
 StcDexInt.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexInt.prototype.toName = function () {
+StcDexInt.prototype.getName = function () {
     return [ "n:dex-int" ];
 };
 StcDexInt.prototype.pretty = function () {
@@ -902,8 +902,8 @@ StcMergeByDex.prototype.fuse = function ( rt, a, b ) {
     
     } );
 };
-StcMergeByDex.prototype.toName = function () {
-    return [ "n:merge-by-dex", this.dexToUse.toName() ];
+StcMergeByDex.prototype.getName = function () {
+    return [ "n:merge-by-dex", this.dexToUse.getName() ];
 };
 StcMergeByDex.prototype.pretty = function () {
     return "(merge-by-dex " + this.dexToUse.pretty() + ")";
@@ -923,8 +923,8 @@ StcFuseByMerge.prototype.dexHas = function ( rt, x ) {
 StcFuseByMerge.prototype.fuse = function ( rt, a, b ) {
     return this.mergeToUse.fuse( rt, a, b );
 };
-StcFuseByMerge.prototype.toName = function () {
-    return [ "n:fuse-by-merge", this.mergeToUse.toName() ];
+StcFuseByMerge.prototype.getName = function () {
+    return [ "n:fuse-by-merge", this.mergeToUse.getName() ];
 };
 StcFuseByMerge.prototype.pretty = function () {
     return "(fuse-by-merge " + this.mergeToUse.pretty() + ")";
@@ -947,7 +947,7 @@ StcFuseIntByPlus.prototype.fuse = function ( rt, a, b ) {
     return macLookupRet(
         stcForeignInt( a.foreignVal + b.foreignVal ) );
 };
-StcFuseIntByPlus.prototype.toName = function () {
+StcFuseIntByPlus.prototype.getName = function () {
     return [ "n:fuse-int-by-plus" ];
 };
 StcFuseIntByPlus.prototype.pretty = function () {
@@ -971,7 +971,7 @@ StcFuseIntByTimes.prototype.fuse = function ( rt, a, b ) {
     return macLookupRet(
         stcForeignInt( a.foreignVal * b.foreignVal ) );
 };
-StcFuseIntByTimes.prototype.toName = function () {
+StcFuseIntByTimes.prototype.getName = function () {
     return [ "n:fuse-int-by-times" ];
 };
 StcFuseIntByTimes.prototype.pretty = function () {
@@ -1040,11 +1040,11 @@ StcFuseStruct.prototype.fuse = function ( rt, a, b ) {
         } );
     }
 };
-StcFuseStruct.prototype.toName = function () {
+StcFuseStruct.prototype.getName = function () {
     // TODO: See if we can avoid this JSON.parse().
     return [ this.nameTag, JSON.parse( this.expectedTupleTag )
         ].concat( arrMap( this.projFuses, function ( projDex ) {
-            return [ projDex.i, projDex.val.toName() ];
+            return [ projDex.i, projDex.val.getName() ];
         } ) );
 };
 StcFuseStruct.prototype.pretty = function () {
@@ -1088,10 +1088,10 @@ StcFuseDefault.prototype.fuse = function ( rt, a, b ) {
     
     } );
 };
-StcFuseDefault.prototype.toName = function () {
+StcFuseDefault.prototype.getName = function () {
     return [ this.nameTag,
-        this.first.toName(),
-        this.second.toName() ];
+        this.first.getName(),
+        this.second.getName() ];
 };
 StcFuseDefault.prototype.pretty = function () {
     return "(" + this.nameTag + " " +
@@ -1139,7 +1139,7 @@ StcFuseByOwnMethod.prototype.fuse = function ( rt, a, b ) {
     return getFrom( a, function ( methodA ) {
     return getFrom( b, function ( methodB ) {
     
-    if ( nameCompare( methodA.toName(), methodB.toName() ) !== 0 )
+    if ( nameCompare( methodA.getName(), methodB.getName() ) !== 0 )
         return macLookupRet( stcNil.of() );
     
     return methodA.fuse( rt, a, b );
@@ -1147,8 +1147,8 @@ StcFuseByOwnMethod.prototype.fuse = function ( rt, a, b ) {
     } );
     } );
 };
-StcFuseByOwnMethod.prototype.toName = function () {
-    return [ this.nameTag, this.dexableGetMethod.toName() ];
+StcFuseByOwnMethod.prototype.getName = function () {
+    return [ this.nameTag, this.dexableGetMethod.getName() ];
 };
 StcFuseByOwnMethod.prototype.pretty = function () {
     return "(" + this.nameTag + " " +
@@ -1181,8 +1181,8 @@ StcFuseFix.prototype.fuse = function ( rt, a, b ) {
         return merge.fuse( rt, a, b );
     } );
 };
-StcFuseFix.prototype.toName = function () {
-    return [ this.nameTag, this.dexableUnwrap.toName() ];
+StcFuseFix.prototype.getName = function () {
+    return [ this.nameTag, this.dexableUnwrap.getName() ];
 };
 StcFuseFix.prototype.pretty = function () {
     return "(" + this.nameTag + " " +
@@ -1242,8 +1242,8 @@ StcFuseTable.prototype.fuse = function ( rt, a, b ) {
         }
     }
 };
-StcFuseTable.prototype.toName = function () {
-    return [ this.nameTag, this.mergeVal.toName() ];
+StcFuseTable.prototype.getName = function () {
+    return [ this.nameTag, this.mergeVal.getName() ];
 };
 StcFuseTable.prototype.pretty = function () {
     return "(" + this.nameTag + " " + this.mergeVal.pretty() + ")";
@@ -2553,7 +2553,7 @@ function usingDefinitionNs( macroDefNs ) {
                 return rt.dexHas( dex, b, function ( hasB ) {
                 
                 var succeeded = hasA && hasB &&
-                    nameCompare( a.toName(), b.toName() ) === 0;
+                    nameCompare( a.getName(), b.getName() ) === 0;
                 if ( succeeded )
                     console.log( "Test succeeded" );
                 else if ( !hasA && !hasB )
@@ -2701,7 +2701,7 @@ function usingDefinitionNs( macroDefNs ) {
                 return rt.dexHas( dex, b, function ( hasB ) {
                 
                 var succeeded = hasA && hasB &&
-                    nameCompare( a.toName(), b.toName() ) === 0;
+                    nameCompare( a.getName(), b.getName() ) === 0;
                 if ( succeeded )
                     console.log( "Test succeeded" );
                 else if ( !hasA && !hasB )
@@ -3157,7 +3157,7 @@ function usingDefinitionNs( macroDefNs ) {
                             return macLookupRet( stcNil.ofNow() );
                     
                     var result =
-                        nameCompare( a.toName(), b.toName() );
+                        nameCompare( a.getName(), b.getName() );
                     if ( result < 0 )
                         return macLookupRet(
                             stcYep.ofNow(
@@ -3180,6 +3180,13 @@ function usingDefinitionNs( macroDefNs ) {
         fun( "in-dex", function ( rt, dex ) {
             return new StcFn( function ( rt, x ) {
                 return dex.dexHas( rt, x );
+            } );
+        } );
+        
+        effectfulFun( "name-of", function ( rt, dexable ) {
+            return assertValidDexable( rt, dexable, function ( x ) {
+                return macLookupRet(
+                    new StcForeign( "name", x.getName() ) );
             } );
         } );
         
@@ -3314,49 +3321,45 @@ function usingDefinitionNs( macroDefNs ) {
             return new StcForeign( "table", jsnMap() );
         } );
         
-        fun( "table-shadow", function ( rt, dexableKey ) {
+        fun( "table-shadow", function ( rt, key ) {
             return stcFnPure( function ( rt, maybeVal ) {
-                return new StcFn( function ( rt, table ) {
+                return stcFnPure( function ( rt, table ) {
+                    if ( !(key instanceof StcForeign
+                        && key.purpose === "name") )
+                        throw new Error();
                     if ( !(table instanceof StcForeign
                         && table.purpose === "table") )
                         throw new Error();
                     
-                    return assertValidDexable( rt, dexableKey,
-                        function ( key ) {
-                        
-                        if ( stcNil.tags( maybeVal ) )
-                            return macLookupRet(
-                                new StcForeign( "table",
-                                    table.foreignVal.minusEntry( key.toName() ) ) );
-                        if ( stcYep.tags( maybeVal ) )
-                            return macLookupRet(
-                                new StcForeign( "table",
-                                    table.foreignVal.plusEntry( key.toName(),
-                                        stcYep.getProj( maybeVal, "val" ) ) ) );
-                        throw new Error();
-                    } );
+                    if ( stcNil.tags( maybeVal ) )
+                        return new StcForeign( "table",
+                            table.foreignVal.minusEntry(
+                                key.foreignVal ) );
+                    if ( stcYep.tags( maybeVal ) )
+                        return new StcForeign( "table",
+                            table.foreignVal.plusEntry(
+                                key.foreignVal,
+                                stcYep.getProj( maybeVal, "val" ) ) );
+                    throw new Error();
                 } );
             } );
         } );
         
-        fun( "table-get", function ( rt, dexableKey ) {
-            return new StcFn( function ( rt, table ) {
+        fun( "table-get", function ( rt, key ) {
+            return stcFnPure( function ( rt, table ) {
+                if ( !(key instanceof StcForeign
+                    && key.purpose === "name") )
+                    throw new Error();
+                var k = key.foreignVal;
+                
                 if ( !(table instanceof StcForeign
                     && table.purpose === "table") )
                     throw new Error();
                 
-                return assertValidDexable( rt, dexableKey,
-                    function ( key ) {
-                    
-                    var k = key.toName();
-                    
-                    if ( table.foreignVal.has( k ) )
-                        return macLookupRet(
-                            stcYep.ofNow(
-                                table.foreignVal.get( k ) ) );
-                    else
-                        return macLookupRet( stcNil.ofNow() );
-                } );
+                if ( table.foreignVal.has( k ) )
+                    return stcYep.ofNow( table.foreignVal.get( k ) );
+                else
+                    return stcNil.ofNow();
             } );
         } );
         
@@ -4230,49 +4233,46 @@ function usingDefinitionNs( macroDefNs ) {
         fun( "procure-contributed-element-getdef",
             function ( rt, ns ) {
             
-            return new StcFn( function ( rt, dexableKey ) {
+            return new StcFn( function ( rt, key ) {
                 if ( !(ns instanceof StcForeign
                     && ns.purpose === "ns") )
                     throw new Error();
+                if ( !(key instanceof StcForeign
+                    && key.purpose === "name") )
+                    throw new Error();
                 
-                return assertValidDexable( rt, dexableKey,
-                    function ( key ) {
-                    
-                    return macLookupRet(
-                        getdef( {
-                            type: "contributedElement",
-                            namespace: ns.foreignVal,
-                            name: key.toName()
-                        }, function () {
-                            throw new Error(
-                                "No such defined value: " +
-                                ns.pretty() + " element " +
-                                key.pretty() );
-                        } ) );
-                } );
+                return macLookupRet(
+                    getdef( {
+                        type: "contributedElement",
+                        namespace: ns.foreignVal,
+                        name: key.foreignVal
+                    }, function () {
+                        throw new Error(
+                            "No such defined value: " +
+                            ns.pretty() + " element " +
+                            key.pretty() );
+                    } ) );
             } );
         } );
         
         fun( "procure-contribute-listener", function ( rt, ns ) {
-            return stcFnPure( function ( rt, dexableKey ) {
+            return stcFnPure( function ( rt, key ) {
                 return new StcFn( function ( rt, listener ) {
                     if ( !(ns instanceof StcForeign
                         && ns.purpose === "ns") )
                         throw new Error();
+                    if ( !(key instanceof StcForeign
+                        && key.purpose === "name") )
+                        throw new Error();
                     
-                    return assertValidDexable( rt, dexableKey,
-                        function ( key ) {
+                    return macLookupRet(
+                        new StcForeign( "effects",
+                            function ( rawMode ) {
                         
-                        return macLookupRet(
-                            new StcForeign( "effects",
-                                function ( rawMode ) {
-                            
-                            collectPutListener( rawMode,
-                                ns.foreignVal,
-                                key.toName(), listener );
-                            return macLookupRet( stcNil.ofNow() );
-                        } ) );
-                    } );
+                        collectPutListener( rawMode,
+                            ns.foreignVal, key.foreignVal, listener );
+                        return macLookupRet( stcNil.ofNow() );
+                    } ) );
                 } );
             } );
         } );

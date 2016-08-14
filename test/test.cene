@@ -71,8 +71,9 @@
   (nope/nil))
 
 (test (dex-test/nil)
-  (table-get (dexable (dex-string/nil) str.woo)
-    (table-shadow (dexable (dex-string/nil) str.woo) (yep/nope/nil)
+  (table-get (name-of/dexable (dex-string/nil) str.woo)
+    (table-shadow (name-of/dexable (dex-string/nil) str.woo)
+      (yep/nope/nil)
     /table-empty/nil))
   (yep/nope/nil))
 
