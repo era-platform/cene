@@ -123,6 +123,26 @@ Call with ``dex x``
 .. todo:: Document this.
 
 
+.. _name-of:
+
+name-of
+-------
+
+Call with ``dexable``
+
+.. todo:: Document this.
+
+
+.. _dex-name:
+
+dex-name
+--------
+
+Call with ``(ignored)``
+
+Returns a dex that applies to any name. Names are encapsulated values that are good for nothing but comparing using this dex. They are usually obtained by calling :ref:`procure-name` on a namespace.
+
+
 .. _dex-merge:
 
 dex-merge
