@@ -100,7 +100,6 @@ Blocks until the given namespace has a function coercer namespace defined (at a 
 So, to implement this, we just need a few obscure names that Cene code doesn't know (marked by $$ below), and we just have a few spots where we install definitions:
 
 <unique-ns>/$$claimed/val.el
-<unique-ns>/$$fn-constructor-name/<projection name string>.el
 <definition-ns>/$$constructor-string-reference/<constructor name string>.el
 <definition-ns>/$$macro-string-reference/<macro name string>.el
   \= ANTI-TODO: This one has already been updated.
