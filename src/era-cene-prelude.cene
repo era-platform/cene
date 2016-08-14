@@ -103,7 +103,7 @@
         /name-of/dexable (dex-string/nil) str)
         getdef macro-get macro-definer
         err.\;qq[Internal error]
-      /cons (c s /foreign/c macro-get mode) rest))
+      /cons (c s /foreign/obtain-directly/c macro-get mode) rest))
   /join-effects (later/get-mode/fn mode /c then /c get-outbox mode)
   /cast (c body (ns-get str.body unique-ns) s mac)
     basic-macro-result effects expression
@@ -145,7 +145,7 @@
   /basic-pure-macro (ns-get str.body unique-ns) definition-ns
     my-stx-details then
   /fn unique-ns s mac
-  /let var (c s foreign.var)
+  /let var (c s /foreign/obtain-by-name var)
   /c s /c mac str.cast /list expr constructor var
     (c s /c mac str.err /list
     /c s /istring-nil str.\;qq[Internal error])

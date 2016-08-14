@@ -31,7 +31,27 @@ foreign
 
 Construct with ``val``
 
-An s-expression that consists of an embedded value of any type, but usually a name. The program may not know of a way to encode the name as serializable data, but it can still be passed to (:ref:`compile-expression` ...).
+An s-expression that consists of an embedded value of any type, but usually an (:ref:`obtain-by-name` ...), (:ref:`obtain-directly` ...), or a name. The program may not know of a way to encode the name as serializable data, but it can still be passed to (:ref:`compile-expression` ...).
+
+
+.. _obtain-by-name:
+
+obtain-by-name
+--------------
+
+Construct with ``name``
+
+A foreign occurrence in a Cene code s-expression that indicates something should be looked up by the indicated arbitrary name, instead of by the name of a literal string.
+
+
+.. _obtain-directly:
+
+obtain-directly
+---------------
+
+Construct with ``val``
+
+A foreign occurrence in a Cene code s-expression that indicates something should be looked up by just using the indicated value, instead of by the name of a literal string.
 
 
 .. _stx:
