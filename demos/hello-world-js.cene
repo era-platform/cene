@@ -22,11 +22,15 @@
     (output-path-get (cli-output-directory mode)
       str.\;qq[hello-world.js])
   /sloppy-javascript-quine mode
-    (procure-name mode /ns-path definition-ns /list
-      str.constructors
-      (procure-name mode /ns-path definition-ns /list
-        str.constructor-names str.js-main str.name)
-      str.tag)
+    (cast
+      (procure-constructor-glossary-getdef definition-ns
+      /name-of/dexable (dex-string/nil) str.js-main)
+      getdef get def
+      err.\;qq[Internal error]
+    /cast (c get mode)
+      constructor-glossary main-tag proj-source-to-rep
+      err.\;qq[Internal error]
+      main-tag)
   /nil))
 
 (go)

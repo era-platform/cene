@@ -2,21 +2,22 @@
 // Copyright 2015, 2016 Ross Angle. Released under the MIT License.
 
 
+var builtInApiTypesToAdd = [];
+
+builtInTypeAccumulator.val = builtInApiTypesToAdd;
+
+var stcEncapsulatedString =
+    builtInType( "encapsulated-string", "val" );
+var stcFileTypeDirectory = builtInType( "file-type-directory" );
+var stcFileTypeBlob = builtInType( "file-type-blob" );
+var stcFileTypeMissing = builtInType( "file-type-missing" );
+
+builtInTypeAccumulator.val = null;
+
 function ceneApiUsingDefinitionNs(
     namespaceDefs, macroDefNs, apiOps ) {
     
     var usingDefNs = usingDefinitionNs( macroDefNs );
-    
-    var stcCons = stcType( macroDefNs, "cons", "car", "cdr" );
-    var stcNil = stcType( macroDefNs, "nil" );
-    var stcForeign = stcType( macroDefNs, "foreign", "val" );
-    var stcEncapsulatedString =
-        stcType( macroDefNs, "encapsulated-string", "val" );
-    var stcFileTypeDirectory =
-        stcType( macroDefNs, "file-type-directory" );
-    var stcFileTypeBlob = stcType( macroDefNs, "file-type-blob" );
-    var stcFileTypeMissing =
-        stcType( macroDefNs, "file-type-missing" );
     
     
     // Returns a function with a very boring .toString() result. We
@@ -234,23 +235,6 @@ function ceneApiUsingDefinitionNs(
     function addCeneApi( targetDefNs ) {
         var dummyMode = usingDefNs.makeDummyMode();
         
-        function type( tupleName, projNames ) {
-            var sourceMainTagName =
-                stcForeignStrFromJs( tupleName ).getName();
-            var repMainTagName = [ "n:main-core", sourceMainTagName ];
-            usingDefNs.processDefStruct( targetDefNs, dummyMode,
-                sourceMainTagName, repMainTagName,
-                arrMap( projNames, function ( name ) {
-                    var source =
-                        stcForeignStrFromJs( tupleName ).getName();
-                    return {
-                        source: source,
-                        rep:
-                            [ "n:proj-core", source,
-                                sourceMainTagName ]
-                    };
-                } ) );
-        }
         function fun( name, body ) {
             var sourceMainTagName =
                 stcForeignStrFromJs( name ).getName();
@@ -304,17 +288,18 @@ function ceneApiUsingDefinitionNs(
             } );
         }
         
-        type( "encapsulated-string", [ "val" ] );
-        type( "file-type-directory", [] );
-        type( "file-type-blob", [] );
-        type( "file-type-missing", [] );
-        
         function rawModeSupportsObserveCli( rawMode ) {
             return isMacroOrUnitTestRawMode( rawMode );
         }
         function rawModeSupportsContributeCli( rawMode ) {
             return isMacroRawMode( rawMode );
         }
+        
+        arrEach( builtInApiTypesToAdd, function ( entry ) {
+            usingDefNs.processDefStruct( targetDefNs, dummyMode,
+                entry.sourceMainTagName, entry.repMainTagName,
+                entry.projSourceToRep );
+        } );
         
         fun( "cli-arguments", function ( rt, mode ) {
             assertMode( rawModeSupportsObserveCli, mode );
