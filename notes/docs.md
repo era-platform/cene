@@ -63,29 +63,9 @@ In the following namespace paths, the initial `.` represents the definition name
 
 -
 ```
-./constructor-names/<string: constructor name>/name/.name
+./<obscure name $$constructor-glossary>/<source main tag name>.el
 ```
-
-The proper identity to use for the constructor in macro-generated Cene code.
-
--
-```
-./constructors/<constructor identity>/tag/.name
-```
-The identity to use for the constructor in fully compiled code.
-
--
-```
-./constructors/<constructor identity>/projection-list/val.el
-```
-An ordered list of projection name strings. Projections should only be treated as an ordered list in manually keyboarded code and in macros that take manually keyboarded code as input.
-
--
-```
-./constructors/<constructor identity>/projection-names/
-  <string: projection name>/name/.name
-```
-The proper identity to use for the projection in everything except manually keyboarded code.
+A `constructor-glossary` value indicating the main tag name of the constructor representation and an ordered one-to-one mapping from source-level projection names to representation-level projection names. Projections should only be treated as an ordered list or referred to by the source-level names in manually keyboarded code and in macros that take manually keyboarded code as input.
 
 -
 ```
@@ -104,11 +84,11 @@ A value that can be invoked with a value of the specified tuple tag (constructor
 The usual definition forms generate various definitions (plus potential intermediate definitions using names the Cene program doesn't know how to obtain):
 
 #### `(def-struct ...)`
-  * The constructor name information desired.
+  * The constructor glossary information desired.
   * A macro so that it's easy to construct and call values with this constructor. The macro implementation is a value user-level code doesn't know how to deconstruct, but it may be called as a macro.
 
 #### `(defn ...)`
-  * Constructor name information for a first-class representation of the function.
+  * Constructor glossary information for a first-class representation of the function.
   * A macro so that it's easy to construct and call values with this constructor. The macro implementation is a value user-level code doesn't know how to deconstruct, but it may be called as a macro.
   * The function implementation desired. The function implementation is a value user-level code doesn't know how to deconstruct, and when called with an appropriate structure, it returns a callable value user-level code doesn't know how to deconstruct.
 

@@ -235,22 +235,36 @@ function ceneApiUsingDefinitionNs(
         var dummyMode = usingDefNs.makeDummyMode();
         
         function type( tupleName, projNames ) {
-            usingDefNs.processDefStruct(
-                targetDefNs, dummyMode, tupleName, projNames );
+            var sourceMainTagName =
+                stcForeignStrFromJs( tupleName ).getName();
+            var repMainTagName = [ "n:main-core", sourceMainTagName ];
+            usingDefNs.processDefStruct( targetDefNs, dummyMode,
+                sourceMainTagName, repMainTagName,
+                arrMap( projNames, function ( name ) {
+                    var source =
+                        stcForeignStrFromJs( tupleName ).getName();
+                    return {
+                        source: source,
+                        rep:
+                            [ "n:proj-core", source,
+                                sourceMainTagName ]
+                    };
+                } ) );
         }
         function fun( name, body ) {
-            var constructorTag = stcConstructorTag( targetDefNs,
-                stcConstructorName( targetDefNs, name ) );
+            var sourceMainTagName =
+                stcForeignStrFromJs( name ).getName();
+            var repMainTagName = [ "n:main-core", name ];
             var tupleTagName =
-                stcNameTupleTagAlreadySorted( constructorTag, [] );
+                stcNameTupleTagAlreadySorted( repMainTagName, [] );
             addFunctionNativeDefinition(
                 targetDefNs, dummyMode, tupleTagName,
                 function ( rt, funcVal, argVal ) {
                 
                 return macLookupRet( body( rt, argVal ) );
             } );
-            usingDefNs.processDefStruct(
-                targetDefNs, dummyMode, name, [] );
+            usingDefNs.processDefStruct( targetDefNs, dummyMode,
+                sourceMainTagName, repMainTagName, [] );
         }
         
         function parseString( string ) {

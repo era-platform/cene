@@ -46,9 +46,13 @@ We're going to get rid of the idea of namespace shadowing. Unlike when the defin
 These are the places in the definition namespace we use right now (not including what era-cene-api uses, because that's soon to be refactored away):
 
 ./constructor-names/<string: constructor name>/name/.name
+  \= ANTI-TODO: This one has already been updated.
 ./constructors/<constructor identity>/tag/.name
+  \= ANTI-TODO: This one has already been updated.
 ./constructors/<constructor identity>/projection-list/val.el
+  \= ANTI-TODO: This one has already been updated.
 ./constructors/<constructor identity>/projection-names/<string: projection name>/name/.name
+  \= ANTI-TODO: This one has already been updated.
 ./macro-names/<string: macro name>/name/.name
   \= ANTI-TODO: This one has already been updated.
 ./macros/<macro identity>/function/val.el
@@ -68,15 +72,18 @@ Constructs a value that can be used to refer to the tag of a struct value. This 
 
 (constructor-glossary main-tag source-projection-names-to-names)
 Constructs a value that's useful when looking up a constructor name with `procure-constructor-glossary-getdef`. It indicates what the struct's main tag name is and provides an association list for looking up projection names. The association list should be a list containing `assoc` values mapping mutually unique source-level projection names to the mutually unique projection names that are actually used in the struct's representation.
+  \= ANTI-TODO: This one has already been implemented.
 
 (assoc key val)
 Constructs a value that represents a key-value pair.
+  \= ANTI-TODO: This one has already been implemented.
 
 (claim-unique-ns ns)
 Monadically, writes to a standard but obscure location in the given namespace. The point of this is to ensure that two macro calls that use the same unique namespace will cause an error.
 
 (procure-constructor-glossary-getdef ns source-main-tag-name)
 From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level main tag name with data about a constructor. The built-in macros that deal with constructors (e.g. `case`) will expect the value to be a `(constructor-glossary ...)` struct containing a main tag name and a list containing `assoc` values mapping mutually unique source-level projection names to the mutually unique projection names that are actually used in the struct's representation.
+  \= ANTI-TODO: This one has already been implemented.
 
 (procure-macro-implementation-getdef ns macro-name)
 From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given macro name with a macro implementation.
@@ -97,6 +104,7 @@ So, to implement this, we just need a few obscure names that Cene code doesn't k
 
 <unique-ns>/$$claimed/val.el
 <definition-ns>/$$constructor-glossary/<constructor name>.el
+  \= ANTI-TODO: This one has already been updated.
 <definition-ns>/$$macro-implementation/<macro name>.el
   \= ANTI-TODO: This one has already been updated.
 <definition-ns>/$$function-coercers/val.el
