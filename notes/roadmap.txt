@@ -68,7 +68,7 @@ For types defined by `(def-struct ...)`, the projection names are taken determin
 --
 
 (constructor-tag main-tag projections)
-Constructs a value that can be used to refer to the tag of a struct value. This is used by `define-function`.
+Constructs a value that can be used to refer to the tag of a struct value. This is used by `procure-function-definer`.
 
 (constructor-glossary main-tag source-projection-names-to-names)
 Constructs a value that's useful when looking up a constructor name with `procure-constructor-glossary-getdef`. It indicates what the struct's main tag name is and provides an association list for looking up projection names. The association list should be a list containing `assoc` values mapping mutually unique source-level projection names to the mutually unique projection names that are actually used in the struct's representation.
@@ -93,7 +93,7 @@ From a standard but obscure location in the given namespace, obtains a getdef th
 Monadically, runs the given effects under a commitment to define a function coercer namespace on the given namespace (using `copy-function-coercers`).
 
 (copy-function-coercers from-ns to-ns)
-Monadically, blocks until the first given namespace has a function coercer namespace defined (at a standard but obscure location shared with `define-function`) and defines it in the second given namespace.
+Monadically, blocks until the first given namespace has a function coercer namespace defined (at a standard but obscure location shared with `procure-function-definer`) and defines it in the second given namespace.
 
 (procure-function-definer ns constructor-tag)
 Blocks until the given namespace has a function coercer namespace defined (at a standard but obscure location shared with `copy-function-coercers`) and obtains a definer that establishes an association from a given constructor tag (map of `(nil)`) to a defined compiled function implementation.
