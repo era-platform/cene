@@ -87,6 +87,7 @@ function stcFn( var_args ) {
     return result;
 }
 
+// TODO NOW: Delete this once we've removed the uses of it.
 function stcConstructorName( definitionNs, stringyName ) {
     if ( typeof stringyName !== "string" )
         return stringyName;
@@ -95,12 +96,14 @@ function stcConstructorName( definitionNs, stringyName ) {
             stcNsGet( "constructor-names", definitionNs ) ) ).name;
 }
 
+// TODO NOW: Delete this once we've removed the uses of it.
 function stcConstructorTag( definitionNs, constructorName ) {
     return stcNsGet( "tag",
         stcNsGet( constructorName,
             stcNsGet( "constructors", definitionNs ) ) ).name;
 }
 
+// TODO NOW: Delete this once we've removed the uses of it.
 function stcProjectionName(
     definitionNs, constructorName, stringyName ) {
     
@@ -176,11 +179,14 @@ function nameCompare( a, b ) {
 function stcTypeArr(
     definitionNs, tupleStringyName, projStringyNames ) {
     
+    // TODO NOW: Remove this use of stcConstructorName.
     var constructorName =
         stcConstructorName( definitionNs, tupleStringyName );
+    // TODO NOW: Remove this use of stcConstructorTag.
     var tupleName =
         stcConstructorTag( definitionNs, constructorName );
     var projNames = arrMap( projStringyNames, function ( stringy ) {
+        // TODO NOW: Remove this use of stcProjectionName.
         return stcProjectionName(
             definitionNs, constructorName, stringy );
     } );
@@ -1257,10 +1263,15 @@ function elementDefiner( name, ns ) {
     return { type: "contributedElement", namespace: ns, name: name };
 }
 
+function getConstructorGlossaryDefiner( definitionNs, name ) {
+    return elementDefiner( name,
+        stcNsGet( [ "n:$$constructor-glossary" ], definitionNs ) );
+}
 function getMacroFunctionDefiner( definitionNs, name ) {
     return elementDefiner( name,
         stcNsGet( [ "n:$$macro-string-reference" ], definitionNs ) );
 }
+// TODO NOW: Delete this once we've removed the uses of it.
 function getProjectionListDefiner( definitionNs, tupleName ) {
     return elementDefiner( "val",
         stcNsGet( "projection-list",
@@ -1933,6 +1944,10 @@ function usingDefinitionNs( macroDefNs ) {
     var stcObtainDirectly =
         stcType( macroDefNs, "obtain-directly", "val" );
     var stcDexable = stcType( macroDefNs, "dexable", "dex", "val" );
+    var stcAssoc = stcType( macroDefNs, "assoc", "key", "val" );
+    var stcConstructorGlossary =
+        stcType( macroDefNs,
+            "constructor-glossary", "main-tag", "source-to-rep" );
     var stcCarried =
         stcType( macroDefNs, "carried", "main", "carry" );
     var stcRegexResultMatched =
@@ -2044,6 +2059,8 @@ function usingDefinitionNs( macroDefNs ) {
     function getType( definitionNs, tupleName ) {
         return macLookupThen(
             macLookupGet(
+                // TODO NOW: Remove this use of
+                // getProjectionListDefiner.
                 getProjectionListDefiner( definitionNs, tupleName ),
                 function () {
                     throw new Error(
@@ -2400,7 +2417,9 @@ function usingDefinitionNs( macroDefNs ) {
             stcAddMacro( targetDefNs, dummyMode, name, body );
         }
         function effectfulFun( name, body ) {
+            // TODO NOW: Remove this use of stcConstructorTag.
             var constructorTag = stcConstructorTag( targetDefNs,
+                // TODO NOW: Remove this use of stcConstructorName.
                 stcConstructorName( targetDefNs, name ) );
             var tupleTagName =
                 stcNameTupleTagAlreadySorted( constructorTag, [] );
@@ -2472,7 +2491,11 @@ function usingDefinitionNs( macroDefNs ) {
                     function ( rawMode, processedFn ) {
                     
                     stcAddDefun( rt, nss.definitionNs, rawMode,
+                        // TODO NOW: Remove this use of
+                        // stcConstructorTag.
                         stcConstructorTag( nss.definitionNs,
+                            // TODO NOW: Remove this use of
+                            // stcConstructorName.
                             stcConstructorName(
                                 nss.definitionNs, name ) ),
                         firstArg,
@@ -4130,6 +4153,8 @@ function usingDefinitionNs( macroDefNs ) {
                     } );
                 return new StcForeign( "name",
                     stcNameTupleTagAlreadySorted(
+                        // TODO NOW: Remove this use of
+                        // stcConstructorTag.
                         stcConstructorTag( macroDefNs,
                             tupleStringyName ),
                         projStringyNames.sort( function ( a, b ) {
@@ -4312,6 +4337,29 @@ function usingDefinitionNs( macroDefNs ) {
                         throw new Error(
                             "No such defined value: " +
                             JSON.stringify( ns.foreignVal.name ) );
+                    } );
+            } );
+        } );
+        
+        fun( "procure-constructor-glossary-getdef",
+            function ( rt, ns ) {
+            
+            return stcFnPure( function ( rt, sourceMainTagName ) {
+                if ( !(ns instanceof StcForeign
+                    && ns.purpose === "ns") )
+                    throw new Error();
+                if ( !(sourceMainTagName instanceof StcForeign
+                    && sourceMainTagName.purpose === "name") )
+                    throw new Error();
+                
+                return getdef(
+                    getConstructorGlossaryDefiner( ns.foreignVal,
+                        sourceMainTagName.foreignVal ),
+                    function () {
+                        throw new Error(
+                            "No such constructor: " +
+                            ns.pretty() + " constructor " +
+                            macroName.pretty() );
                     } );
             } );
         } );
@@ -4583,6 +4631,7 @@ function usingDefinitionNs( macroDefNs ) {
         var n = projNames.length;
         var type = stcTypeArr( definitionNs, tupleName, projNames );
         collectPutDefined( rawMode,
+            // TODO NOW: Remove this use of getProjectionListDefiner.
             getProjectionListDefiner( definitionNs, tupleName ),
             stcArrayToConsList( arrMap( type.unsortedProjNames,
                 function ( entry ) {
@@ -4662,6 +4711,13 @@ function usingDefinitionNs( macroDefNs ) {
         // This constructor is needed for constructing the input to
         // certain operations.
         type( "dexable", [ "dex", "val" ] );
+        
+        // These constructors are needed for constructing a
+        // constructor glossary, which associates source-level names
+        // with a constructor's representation's names.
+        type( "assoc", [ "key", "val" ] );
+        type( "constructor-glossary",
+            [ "main-tag", "source-to-rep" ] );
         
         // This constructor is needed to deconstruct the result of
         // `int-div-rounded-down`.

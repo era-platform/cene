@@ -48,7 +48,7 @@ Takes a name for the constructor and a list of names for the projections, and re
   TODO: For now, this is the only thing that actually uses :ref:`cons` outside of a macro context. Even this should be changed to use tables, though. If anything else uses :ref:`cons`, we should take :ref:`cons` out of the macro docs and put it in miscellaneous.
 
 
-.. function-implementation-opaque:
+.. _function-implementation-opaque:
 
 function-implementation-opaque
 ------------------------------
@@ -56,6 +56,26 @@ function-implementation-opaque
 Call with ``impl``
 
 .. todo:: Document this.
+
+
+.. _constructor-glossary:
+
+constructor-glossary
+--------------------
+
+Construct with ``main-tag source-to-rep``
+
+Indicates a constructor's main tag name and an association list (list of :ref:`assoc`) mapping mutually unique source-level names to the constructor's mutually unique projection names. This is a data structure :ref:`def-struct` puts in the definition namespace usin :ref:`procure-constructor-glossary-getdef` so macros like :ref:`case` can determine details of a constructor based on a source-level name. The names used in the representation of the constructor may be different from the names used in the source code.
+
+
+.. _procure-constructor-glossary-getdef:
+
+procure-constructor-glossary-getdef
+-----------------------------------
+
+Call with ``ns source-main-tag-name``
+
+From a standard but obscure location known as ``$$constructor-glossary`` in the given namespace, obtains a getdef that is used to associate the given source-level main tag name with data about a constructor. The built-in macros that deal with constructors (e.g. :ref:`case`) will expect the value to be a (:ref:`constructor-glossary` ...) struct containing a main tag name and an association list (list of :ref:`assoc`) mapping mutually unique source-level projection names to the mutually unique projection names that are actually used in the struct's representation.
 
 
 .. _def-struct:

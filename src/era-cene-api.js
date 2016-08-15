@@ -239,7 +239,9 @@ function ceneApiUsingDefinitionNs(
                 targetDefNs, dummyMode, tupleName, projNames );
         }
         function fun( name, body ) {
+            // TODO NOW: Remove this use of stcConstructorTag.
             var constructorTag = stcConstructorTag( targetDefNs,
+                // TODO NOW: Remove this use of stcConstructorName.
                 stcConstructorName( targetDefNs, name ) );
             var tupleTagName =
                 stcNameTupleTagAlreadySorted( constructorTag, [] );
