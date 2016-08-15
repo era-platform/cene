@@ -87,36 +87,6 @@ function stcFn( var_args ) {
     return result;
 }
 
-// TODO NOW: Delete this once we've removed the uses of it.
-function stcConstructorName( definitionNs, stringyName ) {
-    if ( typeof stringyName !== "string" )
-        return stringyName;
-    return stcNsGet( "name",
-        stcNsGet( stringyName,
-            stcNsGet( "constructor-names", definitionNs ) ) ).name;
-}
-
-// TODO NOW: Delete this once we've removed the uses of it.
-function stcConstructorTag( definitionNs, constructorName ) {
-    return stcNsGet( "tag",
-        stcNsGet( constructorName,
-            stcNsGet( "constructors", definitionNs ) ) ).name;
-}
-
-// TODO NOW: Delete this once we've removed the uses of it.
-function stcProjectionName(
-    definitionNs, constructorName, stringyName ) {
-    
-    if ( typeof stringyName !== "string" )
-        return stringyName;
-    return stcNsGet( "name",
-        stcNsGet( stringyName,
-            stcNsGet( "projection-names",
-                stcNsGet( constructorName,
-                    stcNsGet( "constructors",
-                        definitionNs ) ) ) ) ).name;
-}
-
 function jsnCompare( a, b ) {
     function rank( x ) {
         var result = 0;
@@ -176,49 +146,39 @@ function nameCompare( a, b ) {
     return jsnCompare( a, b );
 }
 
-function stcTypeArr(
-    definitionNs, tupleStringyName, projStringyNames ) {
-    
-    // TODO NOW: Remove this use of stcConstructorName.
-    var constructorName =
-        stcConstructorName( definitionNs, tupleStringyName );
-    // TODO NOW: Remove this use of stcConstructorTag.
-    var tupleName =
-        stcConstructorTag( definitionNs, constructorName );
-    var projNames = arrMap( projStringyNames, function ( stringy ) {
-        // TODO NOW: Remove this use of stcProjectionName.
-        return stcProjectionName(
-            definitionNs, constructorName, stringy );
-    } );
-    var sortedProjNames = arrMap( projNames, function ( name, i ) {
-        return { i: i, name: name };
-    } ).sort( function ( a, b ) {
-        return nameCompare( a.name, b.name );
-    } );
-    var projNamesToSortedIndices = {};
-    arrEach( sortedProjNames, function ( entry, i ) {
-        var stringy = projStringyNames[ entry.i ];
-        if ( typeof stringy !== "string" )
-            return;
-        projNamesToSortedIndices[ "|" + stringy ] = i;
-    } );
-    var unsortedProjNames = arrMap( projStringyNames,
-        function ( name, i ) {
+function stcTypeArr( definitionNs, repMainTagName, projSourceToRep ) {
+    var sortedProjNames = arrMap( projSourceToRep,
+        function ( entry, i ) {
         
-        return { i: projNamesToSortedIndices[ "|" + name ],
-            name: name };
+        return { i: i, source: entry.source, rep: entry.rep };
+    } ).sort( function ( a, b ) {
+        return nameCompare( a.rep, b.rep );
+    } );
+    var sourceProjNamesToSortedIndices = jsnMap();
+    arrEach( sortedProjNames, function ( entry, i ) {
+        sourceProjNamesToSortedIndices.set(
+            projSourceToRep[ entry.i ].source, i );
+    } );
+    var unsortedProjNames = arrMap( projSourceToRep,
+        function ( entry, i ) {
+        
+        return {
+            i: sourceProjNamesToSortedIndices.get( entry.source ),
+            source: entry.source,
+            rep: entry.rep
+        };
     } );
     var tupleTag = JSON.stringify( stcNameTupleTagAlreadySorted(
-        tupleName,
+        repMainTagName,
         arrMap( sortedProjNames, function ( entry ) {
-            return entry.name;
+            return entry.rep;
         } )
     ) );
-    var n = projNames.length;
+    var n = projSourceToRep.length;
     
     var result = {};
     result.type = "stcType";
-    result.tupleName = tupleName;
+    result.tupleName = repMainTagName;
     result.unsortedProjNames = unsortedProjNames;
     result.sortedProjNames = sortedProjNames;
     result.getTupleTag = function () {
@@ -231,7 +191,7 @@ function stcTypeArr(
         if ( !(stc instanceof Stc
             && stc.tupleTag === tupleTag) )
             throw new Error();
-        var i = projNamesToSortedIndices[ "|" + projStringyName ];
+        var i = sourceProjNamesToSortedIndices.get( projStringyName );
         if ( i === void 0 )
             throw new Error();
         return stc.projVals[ i ];
@@ -333,8 +293,18 @@ function nssGet( nss, stringOrName ) {
 }
 
 function stcType( definitionNs, tupleStringyName, var_args ) {
-    return stcTypeArr( definitionNs, tupleStringyName,
-        [].slice.call( arguments, 2 ) );
+    var sourceMainTagName =
+        stcForeignStrFromJs( tupleStringyName ).getName();
+    var repMainTagName = [ "n:main-core", sourceMainTagName ];
+    return stcTypeArr( definitionNs, repMainTagName,
+        arrMap( [].slice.call( arguments, 2 ), function ( projName ) {
+            var source =
+                stcForeignStrFromJs( projName ).getName();
+            return {
+                source: source,
+                rep: [ "n:proj-core", source, sourceMainTagName ]
+            };
+        } ) );
 }
 
 function stcNameSetEmpty() {
@@ -1271,13 +1241,6 @@ function getMacroFunctionDefiner( definitionNs, name ) {
     return elementDefiner( name,
         stcNsGet( [ "n:$$macro-string-reference" ], definitionNs ) );
 }
-// TODO NOW: Delete this once we've removed the uses of it.
-function getProjectionListDefiner( definitionNs, tupleName ) {
-    return elementDefiner( "val",
-        stcNsGet( "projection-list",
-            stcNsGet( stcConstructorName( definitionNs, tupleName ),
-                stcNsGet( "constructors", definitionNs ) ) ) );
-}
 function getFunctionCoercerDefiner( definitionNs, tupleTagName ) {
     return elementDefiner( "val",
         stcNsGet( "call",
@@ -2040,12 +2003,15 @@ function usingDefinitionNs( macroDefNs ) {
     
     function stcConsListToArray( stc ) {
         var result = [];
-        for ( var currentStc = stc;
+        var currentStc = stc;
+        for ( ;
             stcCons.tags( currentStc );
             currentStc = stcCons.getProj( currentStc, "cdr" )
         ) {
             result.push( stcCons.getProj( currentStc, "car" ) );
         }
+        if ( !stcNil.tags( currentStc ) )
+            throw new Error();
         return result;
     }
     
@@ -2056,28 +2022,63 @@ function usingDefinitionNs( macroDefNs ) {
         return result;
     }
     
-    function getType( definitionNs, tupleName ) {
+    function getType( definitionNs, sourceMainTagNameRep ) {
         return macLookupThen(
             macLookupGet(
-                // TODO NOW: Remove this use of
-                // getProjectionListDefiner.
-                getProjectionListDefiner( definitionNs, tupleName ),
+                getConstructorGlossaryDefiner(
+                    definitionNs, sourceMainTagNameRep ),
                 function () {
                     throw new Error(
-                        "No such type: " +
-                        JSON.stringify( tupleName ) );
+                        "No such constructor: " +
+                        JSON.stringify( sourceMainTagNameRep ) );
                 } ),
-            function ( projList ) {
+            function ( constructorGlossary ) {
+            
+            if ( !stcConstructorGlossary.tags( constructorGlossary ) )
+                throw new Error();
+            var repMainTagName =
+                stcConstructorGlossary.getProj( constructorGlossary,
+                    "main-tag" );
+            var sourceToRep =
+                stcConstructorGlossary.getProj( constructorGlossary,
+                    "source-to-rep" );
+            
+            if ( !(repMainTagName instanceof StcForeign
+                && repMainTagName.purpose === "name") )
+                throw new Error();
+            
+            var sourceNames = jsnMap();
+            var repNames = jsnMap();
+            function addUnique( map, key ) {
+                if ( map.has( key ) )
+                    throw new Error();
+                map.add( key );
+            }
             
             return macLookupRet(
-                stcTypeArr( definitionNs, tupleName,
-                    arrMap( stcConsListToArray( projList ),
-                        function ( projName ) {
+                stcTypeArr( definitionNs, repMainTagName.foreignVal,
+                    arrMap( stcConsListToArray( sourceToRep ),
+                        function ( entry ) {
                         
-                        if ( !(projName instanceof StcForeign
-                            && projName.purpose === "name") )
+                        if ( !stcAssoc.tags( entry ) )
                             throw new Error();
-                        return projName.foreignVal;
+                        var sourceName =
+                            stcAssoc.getProj( entry, "key" );
+                        var repName =
+                            stcAssoc.getProj( entry, "val" );
+                        if ( !(sourceName instanceof StcForeign
+                            && sourceName.purpose === "name") )
+                            throw new Error();
+                        if ( !(repName instanceof StcForeign
+                            && repName.purpose === "name") )
+                            throw new Error();
+                        addUnique(
+                            sourceNames, sourceName.foreignVal );
+                        addUnique( repNames, repName.foreignVal );
+                        return {
+                            source: sourceName.foreignVal,
+                            rep: repName.foreignVal
+                        };
                     } ) ) );
         } );
     }
@@ -2417,19 +2418,19 @@ function usingDefinitionNs( macroDefNs ) {
             stcAddMacro( targetDefNs, dummyMode, name, body );
         }
         function effectfulFun( name, body ) {
-            // TODO NOW: Remove this use of stcConstructorTag.
-            var constructorTag = stcConstructorTag( targetDefNs,
-                // TODO NOW: Remove this use of stcConstructorName.
-                stcConstructorName( targetDefNs, name ) );
+            var sourceMainTagName =
+                stcForeignStrFromJs( name ).getName();
+            var repMainTagName = [ "n:main-core", sourceMainTagName ];
             var tupleTagName =
-                stcNameTupleTagAlreadySorted( constructorTag, [] );
+                stcNameTupleTagAlreadySorted( repMainTagName, [] );
             addFunctionNativeDefinition(
                 targetDefNs, dummyMode, tupleTagName,
                 function ( rt, funcVal, argVal ) {
                 
                 return body( rt, argVal );
             } );
-            processDefStruct( targetDefNs, dummyMode, name, [] );
+            processDefStruct( targetDefNs, dummyMode,
+                sourceMainTagName, repMainTagName, [] );
         }
         function fun( name, body ) {
             effectfulFun( name, function ( rt, argVal ) {
@@ -2444,23 +2445,28 @@ function usingDefinitionNs( macroDefNs ) {
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
             
-            var tupleName =
+            var sourceMainTagName =
                 stxToMaybeName( stcCons.getProj( body, "car" ) );
-            if ( tupleName === null )
+            if ( sourceMainTagName === null )
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
-                var projNames = mapConsListToArr( body1,
-                    function ( projName ) {
-                        var projStringyName =
-                            stxToMaybeName( projName );
-                        if ( projStringyName === null )
+                var repMainTagName =
+                    [ "n:main", sourceMainTagName,
+                        nss.uniqueNs.name ];
+                processDefStruct( nss.definitionNs, rawMode,
+                    sourceMainTagName, repMainTagName,
+                    mapConsListToArr( body1, function ( projName ) {
+                        var source = stxToMaybeName( projName );
+                        if ( source === null )
                             throw new Error();
-                        return projStringyName;
-                    } );
-                
-                processDefStruct(
-                    nss.definitionNs, rawMode, tupleName, projNames );
+                        return {
+                            source: source,
+                            rep:
+                                [ "n:proj", source, sourceMainTagName,
+                                    nss.uniqueNs.name ]
+                        };
+                    } ) );
                 return macLookupThenRunEffects( rawMode,
                     then( stcNil.of() ) );
             } );
@@ -2474,30 +2480,28 @@ function usingDefinitionNs( macroDefNs ) {
             if ( !stcCons.tags( body1 ) )
                 throw new Error();
             
-            var name =
+            var sourceMainTagName =
                 stxToMaybeName( stcCons.getProj( body, "car" ) );
-            if ( name === null )
+            if ( sourceMainTagName === null )
                 throw new Error();
             
             var firstArg =
                 stxToMaybeName( stcCons.getProj( body1, "car" ) );
-            if ( name === null )
+            if ( firstArg === null )
                 throw new Error();
             
             return new StcForeign( "effects", function ( rawMode ) {
-                processDefStruct(
-                    nss.definitionNs, rawMode, name, [] );
-                return processFn( nss, rawMode, body1,
+                var repMainTagName =
+                    [ "n:main", sourceMainTagName,
+                        nssGet( nss, "constructor" ).uniqueNs.name ];
+                processDefStruct( nss.definitionNs, rawMode,
+                    sourceMainTagName, repMainTagName, [] );
+                return processFn( nssGet( nss, "body" ), rawMode,
+                    body1,
                     function ( rawMode, processedFn ) {
                     
                     stcAddDefun( rt, nss.definitionNs, rawMode,
-                        // TODO NOW: Remove this use of
-                        // stcConstructorTag.
-                        stcConstructorTag( nss.definitionNs,
-                            // TODO NOW: Remove this use of
-                            // stcConstructorName.
-                            stcConstructorName(
-                                nss.definitionNs, name ) ),
+                        repMainTagName,
                         firstArg,
                         stcCall( processedFn,
                             "macLookupRet( " +
@@ -4134,29 +4138,21 @@ function usingDefinitionNs( macroDefNs ) {
             } );
         } );
         
-        fun( "make-tuple-tag", function ( rt, tupleName ) {
+        fun( "make-tuple-tag", function ( rt, mainTagName ) {
             return stcFnPure( function ( rt, projNames ) {
-                var tupleStringyName = stxToMaybeName( tupleName );
-                if ( tupleStringyName === null )
-                    throw new Error();
-                if ( typeof tupleStringyName === "string" )
+                if ( !(mainTagName instanceof StcForeign
+                    && mainTagName.purpose === "name") )
                     throw new Error();
                 var projStringyNames = mapConsListToArr( projNames,
                     function ( projName ) {
-                        var projStringyName =
-                            stxToMaybeName( projStringyName );
-                        if ( projStringyName === null )
+                        if ( !(projName instanceof StcForeign
+                            && projName.purpose === "name") )
                             throw new Error();
-                        if ( typeof projStringyName === "string" )
-                            throw new Error();
-                        return projStringyName;
+                        return projName.foreignVal;
                     } );
                 return new StcForeign( "name",
                     stcNameTupleTagAlreadySorted(
-                        // TODO NOW: Remove this use of
-                        // stcConstructorTag.
-                        stcConstructorTag( macroDefNs,
-                            tupleStringyName ),
+                        mainTagName.foreignVal,
                         projStringyNames.sort( function ( a, b ) {
                             return nameCompare( a, b );
                         } ) ) );
@@ -4625,22 +4621,27 @@ function usingDefinitionNs( macroDefNs ) {
             definer );
     }
     
-    function processDefStruct(
-        definitionNs, rawMode, tupleName, projNames ) {
+    function processDefStruct( definitionNs, rawMode,
+        sourceMainTagName, repMainTagName, projSourceToRep ) {
         
-        var n = projNames.length;
-        var type = stcTypeArr( definitionNs, tupleName, projNames );
+        var n = projSourceToRep.length;
+        var type = stcTypeArr(
+            definitionNs, repMainTagName, projSourceToRep );
         collectPutDefined( rawMode,
-            // TODO NOW: Remove this use of getProjectionListDefiner.
-            getProjectionListDefiner( definitionNs, tupleName ),
-            stcArrayToConsList( arrMap( type.unsortedProjNames,
-                function ( entry ) {
-                
-                return new StcForeign( "name", entry.name );
-            } ) ) );
+            getConstructorGlossaryDefiner( definitionNs,
+                sourceMainTagName ),
+            stcConstructorGlossary.ofNow(
+                new StcForeign( "name", repMainTagName ),
+                stcArrayToConsList( arrMap( type.unsortedProjNames,
+                    function ( entry ) {
+                    
+                    return stcAssoc.ofNow(
+                        new StcForeign( "name", entry.source ),
+                        new StcForeign( "name", entry.rep ) );
+                } ) ) ) );
         // TODO: Make this expand multiple subexpressions
         // concurrently.
-        stcAddPureMacro( definitionNs, rawMode, tupleName,
+        stcAddPureMacro( definitionNs, rawMode, sourceMainTagName,
             function ( nss, myStxDetails, body, then ) {
             
             return new StcForeign( "effects", function ( rawMode ) {
@@ -4658,7 +4659,7 @@ function usingDefinitionNs( macroDefNs ) {
                 if ( !stcCons.tags( remainingBody ) )
                     throw new Error(
                         "Expected more arguments to " +
-                        JSON.stringify( tupleName ) );
+                        JSON.stringify( sourceMainTagName ) );
                 
                 var firstNss = nssGet( projectionsNss, "first" );
                 
@@ -4698,8 +4699,21 @@ function usingDefinitionNs( macroDefNs ) {
         var dummyMode = makeDummyMode();
         
         function type( tupleName, projNames ) {
-            processDefStruct(
-                definitionNs, dummyMode, tupleName, projNames );
+            var sourceMainTagName =
+                stcForeignStrFromJs( tupleName ).getName();
+            var repMainTagName = [ "n:main-core", sourceMainTagName ];
+            processDefStruct( definitionNs, dummyMode,
+                sourceMainTagName, repMainTagName,
+                arrMap( projNames, function ( projName ) {
+                    var source =
+                        stcForeignStrFromJs( projName ).getName();
+                    return {
+                        source: source,
+                        rep:
+                            [ "n:proj-core", source,
+                                sourceMainTagName ]
+                    };
+                } ) );
         }
         
         // These constructors are needed for interpreting the results
