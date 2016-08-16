@@ -7,6 +7,7 @@ Consider renaming "type" to "constructor," "struct," and "tag" throughout.
 
 Update the various built-in macros that accept names of the form `(istring-nil <string>)` or `(foreign <name>)` to instead accept `(istring-nil <string>)`, `(foreign/obtain-by-name <name>)`, or `(foreign/obtain-directly <value>)`. Discontinue support for `(foreign <name>)`.
 
+Treat function implementations as opaque values, not callable in and of themselves. Once they're not callable, stop calling them "coercers."
 Implement a non-macro version of `case`: Given a constructor tag, a "subject" compiled expression, a one-to-one table from projection names to local variable names, a "then" compiled expression, and an "else" compiled expression, obtain another compiled expression with all the free variables of "subject" and "else" and all but the given local variable names out of the free variables of "then."
 Implement non-macro versions of each of `def-struct` construction, `dex-struct`, `merge-struct`, and `fuse-struct`: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free variables.
 Implement a non-macro version of `c`: Given a "func" compiled expression and an "arg" compiled expression, obtain another compiled expression with the union of their free variables.
@@ -44,18 +45,13 @@ We're going to get rid of the idea of namespace shadowing. Unlike when the defin
 
 These are the places in the definition namespace we use right now (not including what era-cene-api uses, because that's soon to be refactored away):
 
+\= ANTI-TODO: All of these have already been updated.
 ./constructor-names/<string: constructor name>/name/.name
-  \= ANTI-TODO: This one has already been updated.
 ./constructors/<constructor identity>/tag/.name
-  \= ANTI-TODO: This one has already been updated.
 ./constructors/<constructor identity>/projection-list/val.el
-  \= ANTI-TODO: This one has already been updated.
 ./constructors/<constructor identity>/projection-names/<string: projection name>/name/.name
-  \= ANTI-TODO: This one has already been updated.
 ./macro-names/<string: macro name>/name/.name
-  \= ANTI-TODO: This one has already been updated.
 ./macros/<macro identity>/function/val.el
-  \= ANTI-TODO: This one has already been updated.
 ./functions/<`constructor-tag` value>/call/val.el
 
 Let's do this: A constructor tag is a `(constructor-tag ...)` struct containing a main tag name and a table of `(nil)`. The keys of the second table are the projection names. The main tag name is a way to distinguish different constructors from each other.
@@ -108,7 +104,9 @@ So, to implement this, we just need a few obscure names that Cene code doesn't k
 <definition-ns>/$$macro-implementation/<macro name>.el
   \= ANTI-TODO: This one has already been updated.
 <definition-ns>/$$function-coercers/val.el
+  \= ANTI-TODO: This one has already been updated.
 <function-coercers-ns>/<constructor tag>.el
+  \= ANTI-TODO: This one has already been updated.
 
 ...plus various other specific locations under <unique-ns> for different macros:
 

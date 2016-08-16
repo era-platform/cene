@@ -75,9 +75,11 @@ A value that can be invoked with the arguments of a macro call, as described in 
 
 -
 ```
-./functions/<`constructor-tag` value>/call/val.el
+./<obscure name $$function-coercers>/val.el
+
+functions/<`constructor-tag` value>/call/val.el
 ```
-A value that can be invoked with a value of the specified tuple tag (constructor tag and projection tags) to coerce it into a callable value. Usually, it only takes one or two of these coercions to get to a value the runtime innately knows how to call, e.g. because the value contains fully compiled code in a format the host platform can execute directly.
+Another namespace, on which `./<`constructor-tag` value>.el` is the place to associate a particular constructor with a particular function behavior. The defined function behavior is a value that can be invoked with a value of the specified tuple tag (constructor main tag name and projection names) to coerce it into a callable value. Usually, it only takes one or two of these coercions to get to a value the runtime innately knows how to call, e.g. because the value contains fully compiled code in a format the host platform can execute directly.
 
 -
 

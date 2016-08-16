@@ -378,8 +378,11 @@ function macLookupYoke( rt ) {
 
 
 function prettifyTupleTag( tupleTag ) {
-    return JSON.stringify(
-        JSON.parse( tupleTag )[ 1 ][ 3 ][ 1 ][ 3 ][ 1 ] );
+    var parsed = JSON.parse( tupleTag );
+    var mainTagName = parsed[ 0 ];
+    if ( mainTagName[ 0 ] === "n:main-core" )
+        return mainTagName[ 1 ];
+    return tupleTag;
 }
 
 function Stc( tupleTag, opt_projVals ) {
@@ -401,7 +404,7 @@ Stc.prototype.callStc = function ( rt, arg ) {
     var tupleTag = JSON.parse( self.tupleTag );
     return macLookupThen(
         macLookupGet(
-            getFunctionCoercerDefiner( rt.defNs,
+            getFunctionCoercerEntryDefiner( rt.funcDefNs,
                 stcNameConstructorTagAlreadySorted(
                     tupleTag[ 0 ], tupleTag[ 1 ] ) ),
             function () {
@@ -1294,11 +1297,12 @@ function getMacroFunctionDefiner( definitionNs, name ) {
     return elementDefiner( name,
         stcNsGet( [ "n:$$macro-string-reference" ], definitionNs ) );
 }
-function getFunctionCoercerDefiner( definitionNs, tupleTagName ) {
+function getFunctionCoercersDefiner( definitionNs ) {
     return elementDefiner( "val",
-        stcNsGet( "call",
-            stcNsGet( tupleTagName,
-                stcNsGet( "functions", definitionNs ) ) ) );
+        stcNsGet( [ "n:$$function-coercers" ], definitionNs ) );
+}
+function getFunctionCoercerEntryDefiner( funcDefNs, tupleTagName ) {
+    return elementDefiner( tupleTagName, funcDefNs );
 }
 
 function parseMode( mode ) {
@@ -1912,13 +1916,13 @@ function stcExecute( rt, expr ) {
 }
 
 function addFunctionNativeDefinition(
-    defNs, rawMode, tupleTagName, impl ) {
+    funcDefNs, rawMode, tupleTagName, impl ) {
     
     collectPutDefined( rawMode,
-        getFunctionCoercerDefiner( defNs, tupleTagName ),
+        getFunctionCoercerEntryDefiner( funcDefNs, tupleTagName ),
         new StcForeign( "native-definition", impl ) );
 }
-function stcAddDefun( rt, defNs, rawMode, name, argName, body ) {
+function stcAddDefun( rt, funcDefNs, rawMode, name, argName, body ) {
     // #GEN
     var constructorTagName =
         stcNameConstructorTagAlreadySorted( name, [] );
@@ -1926,7 +1930,8 @@ function stcAddDefun( rt, defNs, rawMode, name, argName, body ) {
         "function ( rt, " + stcIdentifier( argName ) + " ) { " +
             "return " + body + "; " +
         "}" );
-    addFunctionNativeDefinition( defNs, rawMode, constructorTagName,
+    addFunctionNativeDefinition(
+        funcDefNs, rawMode, constructorTagName,
         function ( rt, funcVal, argVal ) {
         
         return innerFunc( rt, argVal );
@@ -1944,12 +1949,12 @@ function evalStcForTest( rt, expr ) {
     return stcExecute( rt, expr );
 }
 
-function usingDefinitionNs( macroDefNs ) {
+function usingFuncDefNs( funcDefNs ) {
     // NOTE: The "rt" stands for "runtime." This carries things that
     // are relevant at run time.
     // TODO: See if we should add `namespaceDefs` to this.
     var rt = {};
-    rt.defNs = macroDefNs;
+    rt.funcDefNs = funcDefNs;
     rt.functionDefs = {};
     rt.anyTestFailed = false;
     rt.fromBoolean = function ( b ) {
@@ -2431,7 +2436,8 @@ function usingDefinitionNs( macroDefNs ) {
             throw new Error();
     }
     
-    function stcAddCoreMacros( namespaceDefs, targetDefNs ) {
+    function stcAddCoreMacros(
+        namespaceDefs, targetDefNs, funcDefNs ) {
         
         var dummyMode = makeDummyMode();
         
@@ -2449,7 +2455,7 @@ function usingDefinitionNs( macroDefNs ) {
                 stcNameConstructorTagAlreadySorted(
                     repMainTagName, [] );
             addFunctionNativeDefinition(
-                targetDefNs, dummyMode, constructorTagName,
+                funcDefNs, dummyMode, constructorTagName,
                 function ( rt, funcVal, argVal ) {
                 
                 return body( rt, argVal );
@@ -2462,6 +2468,10 @@ function usingDefinitionNs( macroDefNs ) {
                 return macLookupRet( body( rt, argVal ) );
             } );
         }
+        
+        collectPutDefined( dummyMode,
+            getFunctionCoercersDefiner( targetDefNs ),
+            new StcForeign( "ns", funcDefNs ) );
         
         mac( "def-struct",
             function ( nss, myStxDetails, body, then ) {
@@ -2525,13 +2535,32 @@ function usingDefinitionNs( macroDefNs ) {
                     body1,
                     function ( rawMode, processedFn ) {
                     
-                    stcAddDefun( rt, nss.definitionNs, rawMode,
-                        repMainTagName,
-                        firstArg,
-                        stcCall( processedFn,
-                            "macLookupRet( " +
-                                stcIdentifier( firstArg ) + " )"
-                            ) );
+                    collectDefer( rawMode, {}, function ( rawMode ) {
+                        return macLookupThen(
+                            macLookupGet(
+                                getFunctionCoercersDefiner(
+                                    nss.definitionNs ) ),
+                            function ( funcDefNs ) {
+                            
+                            if ( !(funcDefNs instanceof StcForeign
+                                && funcDefNs.purpose === "ns") )
+                                throw new Error();
+                            
+                            stcAddDefun( rt, funcDefNs.foreignVal,
+                                rawMode,
+                                repMainTagName,
+                                firstArg,
+                                stcCall( processedFn,
+                                    "macLookupRet( " + stcIdentifier( firstArg ) + " )" ) );
+                            
+                            return macLookupRet(
+                                new StcForeign( "effects",
+                                    function ( rawMode ) {
+                                
+                                return macLookupRet( stcNil.ofNow() );
+                            } ) );
+                        } );
+                    } );
                     
                     return macLookupThenRunEffects( rawMode,
                         then( stcNil.of() ) );

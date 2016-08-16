@@ -23,8 +23,9 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
         definitionNs: stcNsGet( "definition-ns", stcNsRoot() ),
         uniqueNs: stcNsGet( "unique-ns", stcNsRoot() )
     };
+    var funcDefNs = stcNsGet( "function-coercers-ns", stcNsRoot() );
     
-    var usingDefNs = usingDefinitionNs( nss.definitionNs );
+    var usingDefNs = usingFuncDefNs( funcDefNs );
     
     function defer( body ) {
         // TODO: Improve this.
@@ -36,7 +37,7 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
     var namespaceDefs = jsnMap();
     
     var ceneApiUsingDefNs =
-        ceneApiUsingDefinitionNs( namespaceDefs, nss.definitionNs, {
+        ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, {
             defer: function ( body ) {
                 defer( body );
             },
@@ -100,9 +101,10 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
             }
         } );
     
-    usingDefNs.stcAddCoreMacros( namespaceDefs, nss.definitionNs );
+    usingDefNs.stcAddCoreMacros(
+        namespaceDefs, nss.definitionNs, funcDefNs );
     usingDefNs.processCoreTypes( namespaceDefs, nss.definitionNs );
-    ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
+    ceneApiUsingDefNs.addCeneApi( nss.definitionNs, funcDefNs );
     
     runTopLevelMacLookupsSync( namespaceDefs, usingDefNs.rt,
         [].concat(
