@@ -71,15 +71,15 @@ window.onload = function () {
             definitionNs: stcNsGet( "definition-ns", stcNsRoot() ),
             uniqueNs: stcNsGet( "unique-ns", stcNsRoot() )
         };
+        var funcDefNs =
+            stcNsGet( "function-coercers-ns", stcNsRoot() );
         
-        var usingDefNs = usingDefinitionNs( nss.definitionNs );
+        var usingDefNs = usingFuncDefNs( funcDefNs );
         
         var namespaceDefs = jsnMap();
         
         var ceneApiUsingDefNs =
-            ceneApiUsingDefinitionNs( namespaceDefs, nss.definitionNs,
-                {
-                
+            ceneApiUsingFuncDefNs( namespaceDefs, nss.funcDefNs, {
                 defer: function ( body ) {
                     _.defer( body );
                 },
@@ -132,10 +132,10 @@ window.onload = function () {
             } );
         
         usingDefNs.stcAddCoreMacros(
-            namespaceDefs, nss.definitionNs );
+            namespaceDefs, nss.definitionNs, funcDefNs );
         usingDefNs.processCoreTypes(
             namespaceDefs, nss.definitionNs );
-        ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
+        ceneApiUsingDefNs.addCeneApi( nss.definitionNs, funcDefNs );
         
         usingDefNs.runTopLevelTryExprsSync( namespaceDefs, nss,
             [].concat( codeOfFiles, testCode ) );

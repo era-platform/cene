@@ -101,8 +101,8 @@ function runCeneSync(
         "    jsnMap: jsnMap,\n" +
         "    stcNsGet: stcNsGet,\n" +
         "    stcNsRoot: stcNsRoot,\n" +
-        "    usingDefinitionNs: usingDefinitionNs,\n" +
-        "    ceneApiUsingDefinitionNs: ceneApiUsingDefinitionNs\n" +
+        "    usingFuncDefNs: usingFuncDefNs,\n" +
+        "    ceneApiUsingFuncDefNs: ceneApiUsingFuncDefNs\n" +
         "};\n"
     )();
     
@@ -128,6 +128,8 @@ function runCeneSync(
             $stc.stcNsGet( "definition-ns", $stc.stcNsRoot() ),
         uniqueNs: $stc.stcNsGet( "unique-ns", $stc.stcNsRoot() )
     };
+    var funcDefNs =
+        $stc.stcNsGet( "function-coercers-ns", $stc.stcNsRoot() );
     
     function ensureDirSync( path ) {
         if ( fs.existsSync( path ) ) {
@@ -160,7 +162,7 @@ function runCeneSync(
         };
     }
     
-    var usingDefNs = $stc.usingDefinitionNs( nss.definitionNs );
+    var usingDefNs = $stc.usingFuncDefNs( funcDefNs );
     
     var memoInputPathType = $stc.jsnMap();
     var memoInputPathDirectoryList = $stc.jsnMap();
@@ -184,9 +186,7 @@ function runCeneSync(
     var namespaceDefs = $stc.jsnMap();
     
     var ceneApiUsingDefNs =
-        $stc.ceneApiUsingDefinitionNs( namespaceDefs,
-            nss.definitionNs, {
-            
+        $stc.ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, {
             defer: function ( body ) {
                 _.defer( body );
             },
@@ -374,9 +374,10 @@ function runCeneSync(
             }
         } );
     
-    usingDefNs.stcAddCoreMacros( namespaceDefs, nss.definitionNs );
+    usingDefNs.stcAddCoreMacros(
+        namespaceDefs, nss.definitionNs, funcDefNs );
     usingDefNs.processCoreTypes( namespaceDefs, nss.definitionNs );
-    ceneApiUsingDefNs.addCeneApi( nss.definitionNs );
+    ceneApiUsingDefNs.addCeneApi( nss.definitionNs, funcDefNs );
     
     usingDefNs.runTopLevelTryExprsSync( namespaceDefs, nss,
         [].concat( codeOfFiles, codeOfTestFiles ) );

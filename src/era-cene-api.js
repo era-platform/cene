@@ -14,10 +14,9 @@ var stcFileTypeMissing = builtInStruct( "file-type-missing" );
 
 builtInStructAccumulator.val = null;
 
-function ceneApiUsingDefinitionNs(
-    namespaceDefs, macroDefNs, apiOps ) {
+function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
     
-    var usingDefNs = usingDefinitionNs( macroDefNs );
+    var usingDefNs = usingFuncDefNs( funcDefNs );
     
     
     // Returns a function with a very boring .toString() result. We
@@ -232,7 +231,7 @@ function ceneApiUsingDefinitionNs(
         } );
     } );
     
-    function addCeneApi( targetDefNs ) {
+    function addCeneApi( targetDefNs, funcDefNs ) {
         var dummyMode = usingDefNs.makeDummyMode();
         
         function fun( name, body ) {
@@ -243,7 +242,7 @@ function ceneApiUsingDefinitionNs(
                 stcNameConstructorTagAlreadySorted(
                     repMainTagName, [] );
             addFunctionNativeDefinition(
-                targetDefNs, dummyMode, constructorTagName,
+                funcDefNs, dummyMode, constructorTagName,
                 function ( rt, funcVal, argVal ) {
                 
                 return macLookupRet( body( rt, argVal ) );
