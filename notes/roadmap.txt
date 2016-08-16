@@ -2,7 +2,6 @@ Low-level Cene tasks, in roughly the order of the Sphinx documentation table of 
 
 
 Add a `follow-heart` operation, and implement `err` in terms of it. More details about this are already described in a TODO.
-Rename `make-tuple-tag` to `make-struct-tag`, have it take a table instead of a list, and perhaps just make it a constructor instead of a function. A complete plan for this is below; it's the "substantial refactoring" section.
 Change `contributing-only-to` to accept a collection (e.g. a table) of namespaces-with-holes-in-them, rather than a single namespace.
 Consider renaming "type" to "constructor," "struct," and "tag" throughout.
 
@@ -57,9 +56,9 @@ These are the places in the definition namespace we use right now (not including
   \= ANTI-TODO: This one has already been updated.
 ./macros/<macro identity>/function/val.el
   \= ANTI-TODO: This one has already been updated.
-./functions/<`make-tuple-tag` result>/call/val.el
+./functions/<`constructor-tag` value>/call/val.el
 
-Let's do this: A constructor tag is a `(struct-tag ...)` struct containing a main tag name and a table of `(nil)`. The keys of the second table are the projection names. The main tag name is a way to distinguish different constructors from each other.
+Let's do this: A constructor tag is a `(constructor-tag ...)` struct containing a main tag name and a table of `(nil)`. The keys of the second table are the projection names. The main tag name is a way to distinguish different constructors from each other.
 
 For most of the built-in types, the keys are unique name values, not equivalent to any names the Cene code could generate on its own.
 

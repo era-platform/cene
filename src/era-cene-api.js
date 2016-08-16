@@ -4,15 +4,15 @@
 
 var builtInApiTypesToAdd = [];
 
-builtInTypeAccumulator.val = builtInApiTypesToAdd;
+builtInStructAccumulator.val = builtInApiTypesToAdd;
 
 var stcEncapsulatedString =
-    builtInType( "encapsulated-string", "val" );
-var stcFileTypeDirectory = builtInType( "file-type-directory" );
-var stcFileTypeBlob = builtInType( "file-type-blob" );
-var stcFileTypeMissing = builtInType( "file-type-missing" );
+    builtInStruct( "encapsulated-string", "val" );
+var stcFileTypeDirectory = builtInStruct( "file-type-directory" );
+var stcFileTypeBlob = builtInStruct( "file-type-blob" );
+var stcFileTypeMissing = builtInStruct( "file-type-missing" );
 
-builtInTypeAccumulator.val = null;
+builtInStructAccumulator.val = null;
 
 function ceneApiUsingDefinitionNs(
     namespaceDefs, macroDefNs, apiOps ) {
@@ -239,10 +239,11 @@ function ceneApiUsingDefinitionNs(
             var sourceMainTagName =
                 stcForeignStrFromJs( name ).getName();
             var repMainTagName = [ "n:main-core", name ];
-            var tupleTagName =
-                stcNameTupleTagAlreadySorted( repMainTagName, [] );
+            var constructorTagName =
+                stcNameConstructorTagAlreadySorted(
+                    repMainTagName, [] );
             addFunctionNativeDefinition(
-                targetDefNs, dummyMode, tupleTagName,
+                targetDefNs, dummyMode, constructorTagName,
                 function ( rt, funcVal, argVal ) {
                 
                 return macLookupRet( body( rt, argVal ) );
