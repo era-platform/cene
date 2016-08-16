@@ -68,6 +68,7 @@ For types defined by `(def-struct ...)`, the projection names are taken determin
 
 (constructor-tag main-tag projections)
 Constructs a value that can be used to refer to the tag of a struct value. This is used by `procure-function-definer`.
+  \= ANTI-TODO: This one has already been implemented.
 
 (constructor-glossary main-tag source-projection-names-to-names)
 Constructs a value that's useful when looking up a constructor name with `procure-constructor-glossary-getdef`. It indicates what the struct's main tag name is and provides an association list for looking up projection names. The association list should be a list containing `assoc` values mapping mutually unique source-level projection names to the mutually unique projection names that are actually used in the struct's representation.
