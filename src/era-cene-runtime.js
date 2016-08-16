@@ -168,12 +168,12 @@ function stcTypeArr( repMainTagName, projSourceToRep ) {
             rep: entry.rep
         };
     } );
-    var tupleTag = JSON.stringify( stcNameTupleTagAlreadySorted(
+    var tupleTag = JSON.stringify( [
         repMainTagName,
         arrMap( sortedProjNames, function ( entry ) {
             return entry.rep;
         } )
-    ) );
+    ] );
     var n = projSourceToRep.length;
     
     var result = {};
@@ -268,8 +268,16 @@ function stcNsShadow( stringOrName, subNs, ns ) {
         shadows: ns.shadows.plusEntry( stringOrName, subNs )
     };
 }
-function stcNameTupleTagAlreadySorted( tupleName, projNames ) {
-    return [ "n:tuple-tag", tupleName, projNames ];
+function stcNameConstructorTagAlreadySorted(
+    mainTagName, projNames ) {
+    
+    var projTable = jsnMap();
+    arrEach( projNames, function ( name ) {
+        projTable.set( name, stcNil.ofNow() );
+    } );
+    return stcConstructorTag.ofNow(
+        new StcForeign( "name", mainTagName ),
+        new StcForeign( "table", projTable ) ).getName();
 }
 function stcNameIsAncestor( ancestor, descendant ) {
     var currentAncestor = ancestor;
@@ -390,10 +398,12 @@ Stc.prototype.callStc = function ( rt, arg ) {
     if ( func !== void 0 )
         return func( rt, self, arg );
     
+    var tupleTag = JSON.parse( self.tupleTag );
     return macLookupThen(
         macLookupGet(
             getFunctionCoercerDefiner( rt.defNs,
-                JSON.parse( self.tupleTag ) ),
+                stcNameConstructorTagAlreadySorted(
+                    tupleTag[ 0 ], tupleTag[ 1 ] ) ),
             function () {
                 throw new Error(
                     "No such function definition: " + self.tupleTag );
@@ -416,8 +426,7 @@ Stc.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 Stc.prototype.getName = function () {
-    // TODO: See if we can avoid this JSON.parse().
-    return [ "n:struct", JSON.parse( this.tupleTag ) ].concat(
+    return [ "n:struct", this.tupleTag ].concat(
         arrMap( this.projVals, function ( projVal ) {
             return projVal.getName();
         } ) );
@@ -1183,8 +1192,8 @@ StcFuseTable.prototype.pretty = function () {
 };
 
 
-var builtInTypeAccumulator = { val: null };
-function builtInType( tupleStringyName, var_args ) {
+var builtInStructAccumulator = { val: null };
+function builtInStruct( tupleStringyName, var_args ) {
     var sourceMainTagName =
         stcForeignStrFromJs( tupleStringyName ).getName();
     var repMainTagName = [ "n:main-core", sourceMainTagName ];
@@ -1197,7 +1206,7 @@ function builtInType( tupleStringyName, var_args ) {
                 rep: [ "n:proj-core", source, sourceMainTagName ]
             };
         } );
-    builtInTypeAccumulator.val.push( {
+    builtInStructAccumulator.val.push( {
         sourceMainTagName: sourceMainTagName,
         repMainTagName: repMainTagName,
         projSourceToRep: projSourceToRep
@@ -1207,61 +1216,66 @@ function builtInType( tupleStringyName, var_args ) {
 
 var builtInCoreTypesToAdd = [];
 
-builtInTypeAccumulator.val = builtInCoreTypesToAdd;
+builtInStructAccumulator.val = builtInCoreTypesToAdd;
 
 // These constructors are needed for interpreting the results of
 // certain built-in operators, namely `isa` and the dex operations.
-var stcYep = builtInType( "yep", "val" );
-var stcNope = builtInType( "nope", "val" );
+var stcYep = builtInStruct( "yep", "val" );
+var stcNope = builtInStruct( "nope", "val" );
 
 // This constructor is needed for constructing the input to certain
 // operations.
-var stcDexable = builtInType( "dexable", "dex", "val" );
+var stcDexable = builtInStruct( "dexable", "dex", "val" );
 
 // These constructors are needed for constructing a constructor
 // glossary, which associates source-level names with a constructor's
 // representation's names.
-var stcAssoc = builtInType( "assoc", "key", "val" );
-var stcConstructorGlossary = builtInType( "constructor-glossary",
+var stcAssoc = builtInStruct( "assoc", "key", "val" );
+var stcConstructorGlossary = builtInStruct( "constructor-glossary",
     "main-tag", "source-to-rep" );
+
+// This constructor is needed for constructing the input to certain
+// operations.
+var stcConstructorTag =
+    builtInStruct( "constructor-tag", "main-tag", "projections" );
 
 // This constructor is needed to deconstruct the result of
 // `int-div-rounded-down`.
-var stcCarried = builtInType( "carried", "main", "carry" );
+var stcCarried = builtInStruct( "carried", "main", "carry" );
 
 // These constructors are needed to deconstruct the results of
 // `optimized-regex-match-later`.
 var stcRegexResultMatched =
-    builtInType( "regex-result-matched", "stop" );
-var stcRegexResultFailed = builtInType( "regex-result-failed" );
+    builtInStruct( "regex-result-matched", "stop" );
+var stcRegexResultFailed = builtInStruct( "regex-result-failed" );
 var stcRegexResultPassedEnd =
-    builtInType( "regex-result-passed-end" );
+    builtInStruct( "regex-result-passed-end" );
 
 // These s-expression constructors are needed so that macros can parse
 // their s-expression arguments. The `cons` and `nil` constructors are
 // also needed for parsing and generating projection lists.
-var stcNil = builtInType( "nil" );
-var stcCons = builtInType( "cons", "car", "cdr" );
-var stcIstringNil = builtInType( "istring-nil", "string" );
-var stcIstringCons = builtInType( "istring-cons",
+var stcNil = builtInStruct( "nil" );
+var stcCons = builtInStruct( "cons", "car", "cdr" );
+var stcIstringNil = builtInStruct( "istring-nil", "string" );
+var stcIstringCons = builtInStruct( "istring-cons",
     "string-past", "interpolated", "istring-rest" );
-var stcForeign = builtInType( "foreign", "val" );
+var stcForeign = builtInStruct( "foreign", "val" );
 
 // These occur in `(foreign ...)` s-expressions to signify that a
 // value should be looked up by an arbitrary name or by immediate
 // value instead of by the name of a literal string.
-var stcObtainByName = builtInType( "obtain-by-name", "name" );
-var stcObtainDirectly = builtInType( "obtain-directly", "val" );
+var stcObtainByName = builtInStruct( "obtain-by-name", "name" );
+var stcObtainDirectly = builtInStruct( "obtain-directly", "val" );
 
 // This constructor is needed so that macros can parse their located
 // syntax arguments.
-var stcStx = builtInType( "stx", "stx-details", "s-expr" );
+var stcStx = builtInStruct( "stx", "stx-details", "s-expr" );
 
 // This constructor is needed to deconstruct the result of certain
 // operations.
-var stcGetdef = builtInType( "getdef", "get", "def" );
+var stcGetdef = builtInStruct( "getdef", "get", "def" );
 
-builtInTypeAccumulator.val = null;
+builtInStructAccumulator.val = null;
 
 
 function stcTrivialStxDetails() {
@@ -1906,12 +1920,13 @@ function addFunctionNativeDefinition(
 }
 function stcAddDefun( rt, defNs, rawMode, name, argName, body ) {
     // #GEN
-    var tupleTagName = stcNameTupleTagAlreadySorted( name, [] );
+    var constructorTagName =
+        stcNameConstructorTagAlreadySorted( name, [] );
     var innerFunc = stcExecute( rt,
         "function ( rt, " + stcIdentifier( argName ) + " ) { " +
             "return " + body + "; " +
         "}" );
-    addFunctionNativeDefinition( defNs, rawMode, tupleTagName,
+    addFunctionNativeDefinition( defNs, rawMode, constructorTagName,
         function ( rt, funcVal, argVal ) {
         
         return innerFunc( rt, argVal );
@@ -2430,10 +2445,11 @@ function usingDefinitionNs( macroDefNs ) {
             var sourceMainTagName =
                 stcForeignStrFromJs( name ).getName();
             var repMainTagName = [ "n:main-core", sourceMainTagName ];
-            var tupleTagName =
-                stcNameTupleTagAlreadySorted( repMainTagName, [] );
+            var constructorTagName =
+                stcNameConstructorTagAlreadySorted(
+                    repMainTagName, [] );
             addFunctionNativeDefinition(
-                targetDefNs, dummyMode, tupleTagName,
+                targetDefNs, dummyMode, constructorTagName,
                 function ( rt, funcVal, argVal ) {
                 
                 return body( rt, argVal );
@@ -4144,27 +4160,6 @@ function usingDefinitionNs( macroDefNs ) {
                         } );
                     } );
                 } );
-            } );
-        } );
-        
-        fun( "make-tuple-tag", function ( rt, mainTagName ) {
-            return stcFnPure( function ( rt, projNames ) {
-                if ( !(mainTagName instanceof StcForeign
-                    && mainTagName.purpose === "name") )
-                    throw new Error();
-                var projStringyNames = mapConsListToArr( projNames,
-                    function ( projName ) {
-                        if ( !(projName instanceof StcForeign
-                            && projName.purpose === "name") )
-                            throw new Error();
-                        return projName.foreignVal;
-                    } );
-                return new StcForeign( "name",
-                    stcNameTupleTagAlreadySorted(
-                        mainTagName.foreignVal,
-                        projStringyNames.sort( function ( a, b ) {
-                            return nameCompare( a, b );
-                        } ) ) );
             } );
         } );
         

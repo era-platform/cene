@@ -35,17 +35,18 @@ Macro. Example:
 .. todo:: Document this.
 
 
-.. _make-tuple-tag:
+.. _constructor-tag:
 
-make-tuple-tag
---------------
+constructor-tag
+---------------
 
-Call with ``tuple-name proj-names``
+Construct with ``main-tag projections``
 
-Takes a name for the constructor and a list of names for the projections, and returns the name used to dynamically tag a tuple of that combination of names. The projection name list must be made out of (:ref:`cons` ``car cdr``) and (:ref:`nil`) values, with elements that are strings, and the list must not have duplicates. The order of the list will be ignored.
+A value that refers to the tag of a struct value with the indicated main tag name and the projection names appearing as keys in the indicated table of (:ref:`nil`).
 
-..
-  TODO: For now, this is the only thing that actually uses :ref:`cons` outside of a macro context. Even this should be changed to use tables, though. If anything else uses :ref:`cons`, we should take :ref:`cons` out of the macro docs and put it in miscellaneous.
+Function behaviors are associated with this aspect of a struct, so this struct is the kind of value :ref:`procure-function-definer` expects. A :ref:`defn` call builds and uses this value internally.
+
+.. todo:: Implement :ref:`procure-function-definer`. (It is at least true that :ref:`defn` uses this to determine what definer to install into.)
 
 
 .. _function-implementation-opaque:

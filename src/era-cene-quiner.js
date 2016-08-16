@@ -111,9 +111,7 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
             codeOfFiles ),
         [ { type: "jsEffectsThread", macLookupEffectsOfJsEffects:
             new Stc(
-                JSON.stringify(
-                    stcNameTupleTagAlreadySorted(
-                        constructorTag, [] ) ),
+                JSON.stringify( [ constructorTag, [] ] ),
                 []
             ).callStc( usingDefNs.rt,
                 new StcForeign( "foreign",
