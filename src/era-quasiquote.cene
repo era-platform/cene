@@ -499,6 +499,7 @@
     err.\;qq[Called qlet without any arguments]
   /cast args nil
     err.\;qq[Called qlet with more than one argument]
+  /join-effects procure-claim.unique-ns
   /parse-quasiquotation-for-macro-later body /fn body
   /get-mode/fn mode
   /let s (fn it /stx my-stx-details it)

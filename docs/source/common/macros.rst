@@ -74,6 +74,18 @@ Call with ``mode unique-ns definition-ns stx``
 Constructs a syntax details object that refers to a macro's input, so that the macro's output can be associated with it. The ``stx`` must be a located cons list whose first element is a string or foreign name referring to a macro. The ``mode`` doesn't need to be the current modality; it's just part of the macro call information.
 
 
+.. _procure-claim:
+
+procure-claim
+-------------
+
+Call with ``ns``
+
+Monadically, writes to a standard but obscure location known as ``$$claimed`` in the given namespace.
+
+The point of this is to ensure that two macro calls that use the same unique namespace will cause an error. All the built-in macros write to this location on their given unique namespaces.
+
+
 .. _procure-macro-implementation-getdef:
 
 procure-macro-implementation-getdef

@@ -74,8 +74,9 @@ Constructs a value that's useful when looking up a constructor name with `procur
 Constructs a value that represents a key-value pair.
   \= ANTI-TODO: This one has already been implemented.
 
-(claim-unique-ns ns)
+(procure-claim ns)
 Monadically, writes to a standard but obscure location in the given namespace. The point of this is to ensure that two macro calls that use the same unique namespace will cause an error.
+  \= ANTI-TODO: This one has already been implemented.
 
 (procure-constructor-glossary-getdef ns source-main-tag-name)
 From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level main tag name with data about a constructor. The built-in macros that deal with constructors (e.g. `case`) will expect the value to be a `(constructor-glossary ...)` struct containing a main tag name and a list containing `assoc` values mapping mutually unique source-level projection names to the mutually unique projection names that are actually used in the struct's representation.
@@ -98,18 +99,16 @@ Blocks until the given namespace has a function coercer namespace defined (at a 
 
 So, to implement this, we just need a few obscure names that Cene code doesn't know (marked by $$ below), and we just have a few spots where we install definitions:
 
+\= ANTI-TODO: All of these have already been updated.
 <unique-ns>/$$claimed/val.el
 <definition-ns>/$$constructor-glossary/<constructor name>.el
-  \= ANTI-TODO: This one has already been updated.
 <definition-ns>/$$macro-implementation/<macro name>.el
-  \= ANTI-TODO: This one has already been updated.
 <definition-ns>/$$function-coercers/val.el
-  \= ANTI-TODO: This one has already been updated.
 <function-coercers-ns>/<constructor tag>.el
-  \= ANTI-TODO: This one has already been updated.
 
 ...plus various other specific locations under <unique-ns> for different macros:
 
+\= ANTI-TODO: All of these have effectively been taken care of, but not with exactly these paths, and not with paths quite so well protected against collisions when someone does try to use a unique namespace twice.
 <unique-ns>/$$claimed/for-def-struct/<main tag name and list of projection names>/main-tag/.name
 <unique-ns>/$$claimed/for-def-struct/<main tag name and list of projection names>/projection-tag/<projection name string>/.name
 <unique-ns>/$$claimed/for-fn/main-tag/.name
