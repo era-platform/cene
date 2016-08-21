@@ -91,7 +91,8 @@
 (def-struct basic-macro-result effects expression)
 
 (defn basic-macro unique-ns definition-ns my-stx-details then body
-  (make-promise-later/fn outbox-getdef
+  (join-effects procure-claim.unique-ns
+  /make-promise-later/fn outbox-getdef
   /cast outbox-getdef getdef get-outbox outbox-definer
     err.\;qq[Internal error]
   /get-mode/fn mode
@@ -140,6 +141,7 @@
     err.\;qq[Called proj1 with too few args]
   /cast args nil
     err.\;qq[Called proj1 with too many args]
+  /join-effects procure-claim.unique-ns
   /get-mode/fn mode
   /let var (procure-name mode /ns-get str.var unique-ns)
   /basic-pure-macro (ns-get str.body unique-ns) definition-ns
@@ -167,16 +169,7 @@
     err.\;qq[Called after-cwa with too few arguments]
   /cast args nil
     err.\;qq[Called after-cwa with too many arguments]
-  
-  /contributing-only-to (ns-get str.no-contributions unique-ns)
-  /let unique-ns (ns-get str.body unique-ns)
-  
-  \= TODO: Actually, maybe we just want to do this:
-\=  /contributing-only-to unique-ns
-  \= That way, we're still promising not to contribute to anything the
-  \= rest of the code is doing, but we can still use extensible
-  \= techniques internally to this expression.
-  
+  /contributing-only-to unique-ns
   /basic-pure-macro unique-ns definition-ns my-stx-details then
   /fn unique-ns s mac
     body))

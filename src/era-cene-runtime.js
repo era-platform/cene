@@ -1289,6 +1289,10 @@ function elementDefiner( name, ns ) {
     return { type: "contributedElement", namespace: ns, name: name };
 }
 
+function getClaimedDefiner( uniqueNs ) {
+    return elementDefiner( "val",
+        stcNsGet( [ "n:$$claimed" ], uniqueNs ) );
+}
 function getConstructorGlossaryDefiner( definitionNs, name ) {
     return elementDefiner( name,
         stcNsGet( [ "n:$$constructor-glossary" ], definitionNs ) );
@@ -2376,8 +2380,14 @@ function usingFuncDefNs( funcDefNs ) {
         } );
     }
     
+    function nssClaim( rawMode, nss, forWhatMacro ) {
+        collectPutDefined( rawMode, getClaimedDefiner( nss.uniqueNs ),
+            stcNil.ofNow() );
+        return nssGet( nss, [ "n:$$claimed-for", forWhatMacro ] );
+    }
+    
     function stcAddMacro(
-        definitionNs, rawMode, name, macroFunctionImpl ) {
+        definitionNs, rawMode, name, claim, macroFunctionImpl ) {
         
         collectPutDefined( rawMode,
             getMacroFunctionDefiner( definitionNs, name ),
@@ -2394,12 +2404,21 @@ function usingFuncDefNs( funcDefNs ) {
                                     && definitionNs.purpose === "ns") )
                                     throw new Error();
                                 
-                                return macroFunctionImpl( {
-                                    definitionNs: definitionNs.foreignVal,
-                                    uniqueNs: uniqueNs.foreignVal
-                                }, myStxDetails, body, function ( code ) {
-                                    return then.callStc( rt,
-                                        new StcForeign( "compiled-code", code ) );
+                                return macLookupThen(
+                                    macroFunctionImpl( myStxDetails, body, function ( code ) {
+                                        return then.callStc( rt,
+                                            new StcForeign( "compiled-code", code ) );
+                                    } ),
+                                    function ( effectsImpl ) {
+                                    
+                                    return macLookupRet(
+                                        new StcForeign( "effects", function ( rawMode ) {
+                                            var nss = nssClaim( rawMode, {
+                                                definitionNs: definitionNs.foreignVal,
+                                                uniqueNs: uniqueNs.foreignVal
+                                            }, claim );
+                                            return effectsImpl( rawMode, nss );
+                                        } ) );
                                 } );
                             } );
                         } );
@@ -2408,13 +2427,13 @@ function usingFuncDefNs( funcDefNs ) {
             } ) );
     }
     function stcAddPureMacro(
-        definitionNs, rawMode, name, macroFunctionImpl ) {
+        definitionNs, rawMode, name, claim, macroFunctionImpl ) {
         
-        stcAddMacro( definitionNs, rawMode, name,
-            function ( nss, myStxDetails, body, then ) {
+        stcAddMacro( definitionNs, rawMode, name, claim,
+            function ( myStxDetails, body, then ) {
             
             return macLookupRet(
-                macroFunctionImpl( nss, myStxDetails, body, then ) );
+                macroFunctionImpl( myStxDetails, body, then ) );
         } );
     }
     
@@ -2442,10 +2461,8 @@ function usingFuncDefNs( funcDefNs ) {
         var dummyMode = makeDummyMode();
         
         function mac( name, body ) {
-            stcAddPureMacro( targetDefNs, dummyMode, name, body );
-        }
-        function effectfulMac( name, body ) {
-            stcAddMacro( targetDefNs, dummyMode, name, body );
+            stcAddPureMacro( targetDefNs, dummyMode, name,
+                [ "claim: primitive", name ], body );
         }
         function effectfulFun( name, body ) {
             var sourceMainTagName =
@@ -2473,9 +2490,7 @@ function usingFuncDefNs( funcDefNs ) {
             getFunctionCoercersDefiner( targetDefNs ),
             new StcForeign( "ns", funcDefNs ) );
         
-        mac( "def-struct",
-            function ( nss, myStxDetails, body, then ) {
-            
+        mac( "def-struct", function ( myStxDetails, body, then ) {
             if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2485,7 +2500,7 @@ function usingFuncDefNs( funcDefNs ) {
             if ( sourceMainTagName === null )
                 throw new Error();
             
-            return new StcForeign( "effects", function ( rawMode ) {
+            return function ( rawMode, nss ) {
                 var repMainTagName =
                     [ "n:main", sourceMainTagName,
                         nss.uniqueNs.name ];
@@ -2504,10 +2519,10 @@ function usingFuncDefNs( funcDefNs ) {
                     } ) );
                 return macLookupThenRunEffects( rawMode,
                     then( stcNil.of() ) );
-            } );
+            };
         } );
         
-        mac( "defn", function ( nss, myStxDetails, body, then ) {
+        mac( "defn", function ( myStxDetails, body, then ) {
             // #GEN
             if ( !stcCons.tags( body ) )
                 throw new Error();
@@ -2525,7 +2540,7 @@ function usingFuncDefNs( funcDefNs ) {
             if ( firstArg === null )
                 throw new Error();
             
-            return new StcForeign( "effects", function ( rawMode ) {
+            return function ( rawMode, nss ) {
                 var repMainTagName =
                     [ "n:main", sourceMainTagName,
                         nssGet( nss, "constructor" ).uniqueNs.name ];
@@ -2565,10 +2580,10 @@ function usingFuncDefNs( funcDefNs ) {
                     return macLookupThenRunEffects( rawMode,
                         then( stcNil.of() ) );
                 } );
-            } );
+            };
         } );
         
-        mac( "def-macro", function ( nss, myStxDetails, body, then ) {
+        mac( "def-macro", function ( myStxDetails, body, then ) {
             if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2580,7 +2595,7 @@ function usingFuncDefNs( funcDefNs ) {
             if ( name === null )
                 throw new Error();
             
-            return new StcForeign( "effects", function ( rawMode ) {
+            return function ( rawMode, nss ) {
                 return processFn( nss, rawMode, body1,
                     function ( rawMode, processedFn ) {
                 return macLookupThen( stcExecute( rt, processedFn ),
@@ -2595,7 +2610,7 @@ function usingFuncDefNs( funcDefNs ) {
                 
                 } );
                 } );
-            } );
+            };
         } );
         
         // TODO: See if we should design a different approach to unit
@@ -2605,7 +2620,7 @@ function usingFuncDefNs( funcDefNs ) {
         //
         // TODO: Make this expand multiple expressions concurrently.
         //
-        mac( "test", function ( nss, myStxDetails, body, then ) {
+        mac( "test", function ( myStxDetails, body, then ) {
             if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2618,7 +2633,7 @@ function usingFuncDefNs( funcDefNs ) {
             if ( stcCons.tags( body3 ) )
                 throw new Error();
             
-            return new StcForeign( "effects", function ( rawMode ) {
+            return function ( rawMode, nss ) {
                 
                 function evalExpr( nss, rawMode, expr, then ) {
                     return macroexpand(
@@ -2678,7 +2693,7 @@ function usingFuncDefNs( funcDefNs ) {
                 
                 return macLookupThenRunEffects( rawMode,
                     then( stcNil.of() ) );
-            } );
+            };
         } );
         
         // TODO: See if we should design a different approach to unit
@@ -2688,9 +2703,7 @@ function usingFuncDefNs( funcDefNs ) {
         //
         // TODO: Make this expand multiple expressions concurrently.
         //
-        mac( "test-async",
-            function ( nss, myStxDetails, body, then ) {
-            
+        mac( "test-async", function ( myStxDetails, body, then ) {
             if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2703,7 +2716,7 @@ function usingFuncDefNs( funcDefNs ) {
             if ( stcCons.tags( body3 ) )
                 throw new Error();
             
-            return new StcForeign( "effects", function ( rawMode ) {
+            return function ( rawMode, nss ) {
                 
                 function makeEvalExpr( nss, rawMode, expr, then ) {
                     
@@ -2834,21 +2847,21 @@ function usingFuncDefNs( funcDefNs ) {
                 
                 return macLookupThenRunEffects( rawMode,
                     then( stcNil.of() ) );
-            } );
+            };
         } );
         
-        mac( "case", function ( nss, myStxDetails, body, then ) {
+        mac( "case", function ( myStxDetails, body, then ) {
             if ( !stcCons.tags( body ) )
                 throw new Error();
-            return new StcForeign( "effects", function ( rawMode ) {
+            return function ( rawMode, nss ) {
                 return stcCaseletForRunner( nss, rawMode, null,
                     stcCons.getProj( body, "car" ),
                     stcCons.getProj( body, "cdr" ),
                     then );
-            } );
+            };
         } );
         
-        mac( "caselet", function ( nss, myStxDetails, body, then ) {
+        mac( "caselet", function ( myStxDetails, body, then ) {
             if ( !stcCons.tags( body ) )
                 throw new Error();
             var body1 = stcCons.getProj( body, "cdr" );
@@ -2858,26 +2871,26 @@ function usingFuncDefNs( funcDefNs ) {
             if ( va === null )
                 throw new Error();
             
-            return new StcForeign( "effects", function ( rawMode ) {
+            return function ( rawMode, nss ) {
                 return stcCaseletForRunner( nss, rawMode, { val: va },
                     stcCons.getProj( body1, "car" ),
                     stcCons.getProj( body1, "cdr" ),
                     then );
-            } );
+            };
         } );
         
-        mac( "cast", function ( nss, myStxDetails, body, then ) {
+        mac( "cast", function ( myStxDetails, body, then ) {
             if ( !stcCons.tags( body ) )
                 throw new Error();
-            return new StcForeign( "effects", function ( rawMode ) {
+            return function ( rawMode, nss ) {
                 return stcCast( nss, rawMode,
                     stcCons.getProj( body, "car" ),
                     stcCons.getProj( body, "cdr" ),
                     then );
-            } );
+            };
         } );
         
-        mac( "isa", function ( nss, myStxDetails, body, then ) {
+        mac( "isa", function ( myStxDetails, body, then ) {
             // #GEN
             if ( !stcCons.tags( body ) )
                 throw new Error();
@@ -2895,7 +2908,7 @@ function usingFuncDefNs( funcDefNs ) {
                     "wasn't a syntactic name: " +
                     tupleNameExpr.pretty() );
             
-            return new StcForeign( "effects", function ( rawMode ) {
+            return function ( rawMode, nss ) {
                 return macroexpand( nssGet( nss, "unique" ), rawMode,
                     stcCons.getProj( body1, "car" ),
                     nssGet( nss, "outbox" ).uniqueNs,
@@ -2918,14 +2931,14 @@ function usingFuncDefNs( funcDefNs ) {
                 
                 } );
                 } );
-            } );
+            };
         } );
         
-        mac( "c", function ( nss, myStxDetails, body, then ) {
+        mac( "c", function ( myStxDetails, body, then ) {
             if ( !stcCons.tags( body ) )
                 throw new Error();
             
-            return new StcForeign( "effects", function ( rawMode ) {
+            return function ( rawMode, nss ) {
                 var funcNss = nssGet( nss, "func" );
                 // TODO: Make this expand multiple subexpressions
                 // concurrently.
@@ -2946,7 +2959,7 @@ function usingFuncDefNs( funcDefNs ) {
                 
                 } );
                 } );
-            } );
+            };
         } );
         
         function stxToDefiniteString( stx ) {
@@ -2974,28 +2987,28 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         }
         
-        mac( "err", function ( nss, myStxDetails, body, then ) {
+        mac( "err", function ( myStxDetails, body, then ) {
             if ( !stcCons.tags( body ) )
                 throw new Error();
             if ( stcCons.tags( stcCons.getProj( body, "cdr" ) ) )
                 throw new Error();
-            return new StcForeign( "effects", function ( rawMode ) {
+            return function ( rawMode, nss ) {
                 return macLookupThenRunEffects( rawMode,
                     then(
                         stcErr(
                             stxToDefiniteString(
                                 stcCons.getProj(
                                     body, "car" ) ).jsStr ) ) );
-            } );
+            };
         } );
         
-        mac( "str", function ( nss, myStxDetails, body, then ) {
+        mac( "str", function ( myStxDetails, body, then ) {
             // #GEN
             if ( !stcCons.tags( body ) )
                 throw new Error();
             if ( stcCons.tags( stcCons.getProj( body, "cdr" ) ) )
                 throw new Error();
-            return new StcForeign( "effects", function ( rawMode ) {
+            return function ( rawMode, nss ) {
                 return macLookupThenRunEffects( rawMode,
                     then(
                         "macLookupRet( " +
@@ -3003,35 +3016,34 @@ function usingFuncDefNs( funcDefNs ) {
                                 jsStr(
                                     stxToDefiniteString( stcCons.getProj( body, "car" ) ).jsStr ) +
                             " ) )" ) );
-            } );
+            };
         } );
         
-        mac( "fn", function ( nss, myStxDetails, body, then ) {
-            return new StcForeign( "effects", function ( rawMode ) {
+        mac( "fn", function ( myStxDetails, body, then ) {
+            return function ( rawMode, nss ) {
                 return processFn( nss, rawMode, body,
                     function ( rawMode, processedFn ) {
                     
                     return macLookupThenRunEffects( rawMode,
                         then( processedFn ) );
                 } );
-            } );
+            };
         } );
         
-        mac( "let", function ( nss, myStxDetails, body, then ) {
+        mac( "let", function ( myStxDetails, body, then ) {
             // #GEN
-            return new StcForeign( "effects", function ( rawMode ) {
-                return loop(
-                    rawMode, 0, body, nssGet( nss, "bindings" ), "",
+            return function ( rawMode, nss ) {
+                return loop( rawMode, nss, 0,
+                    body, nssGet( nss, "bindings" ), "",
                     function ( rawMode, code ) {
                     
                     return macLookupThenRunEffects( rawMode,
                         then( code ) );
                 } );
-            } );
+            };
             
-            function loop(
-                rawMode, i, remainingBody, bindingsNss,
-                obscureVarsCode, then ) {
+            function loop( rawMode, nss, i,
+                remainingBody, bindingsNss, obscureVarsCode, then ) {
                 
                 if ( !stcCons.tags( remainingBody ) )
                     throw new Error();
@@ -3067,7 +3079,7 @@ function usingFuncDefNs( funcDefNs ) {
                     var innerVar = stcIdentifier( va );
                     var obscureVar = "stcLocal_" + i;
                     
-                    return loop( rawMode, i + 1,
+                    return loop( rawMode, nss, i + 1,
                         stcCons.getProj( remainingBody1, "cdr" ),
                         nssGet( bindingsNss, "rest" ),
                         obscureVarsCode +
@@ -3088,7 +3100,7 @@ function usingFuncDefNs( funcDefNs ) {
         
         // TODO: Make this expand multiple subexpressions
         // concurrently.
-        function structMapper( nss, body, then, genJsConstructor ) {
+        function structMapper( body, then, genJsConstructor ) {
             
             // #GEN
             
@@ -3099,17 +3111,15 @@ function usingFuncDefNs( funcDefNs ) {
             if ( tupleName === null )
                 throw new Error();
             
-            return macLookupThen(
-                getType( nss.definitionNs, tupleName ),
-                function ( type ) {
-                
-                return macLookupRet( new StcForeign( "effects",
-                    function ( rawMode ) {
+            return function ( rawMode, nss ) {
+                return macLookupThen(
+                    getType( nss.definitionNs, tupleName ),
+                    function ( type ) {
                     
                     return loop( nss, rawMode, type, 0, null,
                         stcCons.getProj( body, "cdr" ) );
-                } ) );
-            } );
+                } );
+            };
             
             function loop( nss, rawMode, type, i, revProjVals,
                 remainingBody ) {
@@ -3175,12 +3185,9 @@ function usingFuncDefNs( funcDefNs ) {
             }
         }
         
-        effectfulMac( "dex-struct",
-            function ( nss, myStxDetails, body, then ) {
-            
+        mac( "dex-struct", function ( myStxDetails, body, then ) {
             // #GEN
-            
-            return structMapper( nss, body, then, function ( args ) {
+            return structMapper( body, then, function ( args ) {
                 return "new StcDexStruct( " + args + " )";
             } );
         } );
@@ -3293,12 +3300,9 @@ function usingFuncDefNs( funcDefNs ) {
             return new StcMergeByDex( dex );
         } );
         
-        effectfulMac( "merge-struct",
-            function ( nss, myStxDetails, body, then ) {
-            
+        mac( "merge-struct", function ( myStxDetails, body, then ) {
             // #GEN
-            
-            return structMapper( nss, body, then, function ( args ) {
+            return structMapper( body, then, function ( args ) {
                 return "new StcFuseStruct( " +
                     "\"merge-struct\", \"merge\", " + args + " )";
             } );
@@ -3353,12 +3357,9 @@ function usingFuncDefNs( funcDefNs ) {
             return new StcFuseByMerge( merge );
         } );
         
-        effectfulMac( "fuse-struct",
-            function ( nss, myStxDetails, body, then ) {
-            
+        mac( "fuse-struct", function ( myStxDetails, body, then ) {
             // #GEN
-            
-            return structMapper( nss, body, then, function ( args ) {
+            return structMapper( body, then, function ( args ) {
                 return "new StcFuseStruct( " +
                     "\"fuse-struct\", \"fuse\", " + args + " )";
             } );
@@ -4370,6 +4371,18 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
+        fun( "procure-claim", function ( rt, ns ) {
+            if ( !(ns instanceof StcForeign && ns.purpose === "ns") )
+                throw new Error();
+            return new StcForeign( "effects", function ( rawMode ) {
+                
+                collectPutDefined( rawMode,
+                    getClaimedDefiner( ns.foreignVal ),
+                    stcNil.ofNow() );
+                return macLookupRet( stcNil.ofNow() );
+            } );
+        } );
+        
         fun( "procure-constructor-glossary-getdef",
             function ( rt, ns ) {
             
@@ -4674,18 +4687,19 @@ function usingFuncDefNs( funcDefNs ) {
         // TODO: Make this expand multiple subexpressions
         // concurrently.
         stcAddPureMacro( definitionNs, rawMode, sourceMainTagName,
-            function ( nss, myStxDetails, body, then ) {
+            [ "claim:struct" ],
+            function ( myStxDetails, body, then ) {
             
-            return new StcForeign( "effects", function ( rawMode ) {
-                return loop( rawMode, 0, null, body,
-                    nssGet( nss, "projections" ) );
-            } );
+            return function ( rawMode, nss ) {
+                return loop( rawMode, nss, 0, null,
+                    body, nssGet( nss, "projections" ) );
+            };
             
-            function loop( rawMode, i, revProjVals, remainingBody,
-                projectionsNss ) {
+            function loop( rawMode, nss, i, revProjVals,
+                remainingBody, projectionsNss ) {
                 
                 if ( n <= i )
-                    return next( rawMode,
+                    return next( rawMode, nss,
                         revProjVals, remainingBody );
                 
                 if ( !stcCons.tags( remainingBody ) )
@@ -4701,14 +4715,16 @@ function usingFuncDefNs( funcDefNs ) {
                     nssGet( firstNss, "outbox" ).uniqueNs,
                     function ( rawMode, projVal ) {
                     
-                    return loop( rawMode, i + 1,
+                    return loop( rawMode, nss, i + 1,
                         { first: projVal, rest: revProjVals },
                         stcCons.getProj( remainingBody, "cdr" ),
                         nssGet( projectionsNss, "rest" ) );
                 } );
             }
             
-            function next( rawMode, revProjVals, remainingBody ) {
+            function next( rawMode, nss,
+                revProjVals, remainingBody ) {
+                
                 return macroexpandConsListToArr(
                     nssGet( nss, "args" ),
                     rawMode,
