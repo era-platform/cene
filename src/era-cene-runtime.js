@@ -358,6 +358,9 @@ function macLookupRet( result ) {
 function macLookupGet( definer, err ) {
     return { type: "get", definer: definer, err: err };
 }
+function macLookupFollowHeart( clamor ) {
+    return { type: "followHeart", clamor: clamor };
+}
 function macLookupProcureContributedElements( namespace, err ) {
     return { type: "procureContributedElements",
         namespace: namespace, err: err };
@@ -1218,6 +1221,11 @@ builtInStructAccumulator.val = builtInCoreTypesToAdd;
 var stcYep = builtInStruct( "yep", "val" );
 var stcNope = builtInStruct( "nope", "val" );
 
+// This constructor is needed for constructing the kind of input to
+// `follow-heart` that `err` passes in, so that alternatives to `err`
+// can be implemented.
+var stcClamorErr = builtInStruct( "clamor-err", "message" );
+
 // This constructor is needed for constructing the input to certain
 // operations.
 var stcDexable = builtInStruct( "dexable", "dex", "val" );
@@ -1685,7 +1693,9 @@ function runTopLevelMacLookupsSync(
         
         if ( thread.monad.type === "ret" ) {
             return true;
-        } else if ( thread.monad.type === "get"
+        } else if (
+            thread.monad.type === "get"
+            || thread.monad.type === "follow-heart"
             || thread.monad.type === "procureContributedElements" ) {
             return replaceThread(
                 macLookupThen( thread.monad, function ( ignored ) {
@@ -1734,6 +1744,24 @@ function runTopLevelMacLookupsSync(
                     thread.failedAdvances++;
                     return false;
                 }
+            } else if ( thread.monad.first.type === "followHeart" ) {
+                var clamor = thread.monad.first.clamor;
+                
+                var unknownClamor = function () {
+                    throw new Error(
+                        "Can't follow my heart to an unknown " +
+                        "clamor: " + clamor.pretty() );
+                };
+                
+                if ( !stcClamorErr.tags( clamor ) )
+                    unknownClamor();
+                var message =
+                    stcClamorErr.getProj( clamor, "message" );
+                if ( !(message instanceof StcForeign
+                    && message.purpose === "string") )
+                    unknownClamor();
+                throw new Error( message.foreignVal.jsStr );
+                
             } else if ( thread.monad.first.type ===
                 "procureContributedElements" ) {
                 
@@ -1900,8 +1928,8 @@ function stcExecute( rt, expr ) {
     // #GEN
     return Function(
         "rt", "Stc", "StcFn", "StcForeign", "StcDexStruct",
-        "StcFuseStruct", "stcForeignStrFromJs", "macLookupRet",
-        "macLookupThen",
+        "StcFuseStruct", "stcClamorErr", "stcForeignStrFromJs",
+        "macLookupRet", "macLookupFollowHeart", "macLookupThen",
         
         // NOTE: When the code we generate for this has local
         // variables, we consistently prefix them with "stcLocal_" or
@@ -1910,8 +1938,8 @@ function stcExecute( rt, expr ) {
         "return " + expr + ";"
         
     )( rt, Stc, StcFn, StcForeign, StcDexStruct,
-        StcFuseStruct, stcForeignStrFromJs, macLookupRet,
-        macLookupThen );
+        StcFuseStruct, stcClamorErr, stcForeignStrFromJs,
+        macLookupRet, macLookupFollowHeart, macLookupThen );
 }
 
 function addFunctionNativeDefinition(
@@ -1940,9 +1968,9 @@ function stcAddDefun( rt, funcDefNs, rawMode, name, argName, body ) {
 
 function stcErr( msg ) {
     // #GEN
-    return "(function () { " +
-        "throw new Error( " + jsStr( msg ) + " ); " +
-    "})()";
+    return "macLookupFollowHeart( " +
+        "stcClamorErr.ofNow( " +
+            "stcForeignStrFromJs( " + jsStr( msg ) + " ) ) )";
 }
 
 function evalStcForTest( rt, expr ) {
@@ -2982,6 +3010,10 @@ function usingFuncDefNs( funcDefNs ) {
                 return then( val );
             } );
         }
+        
+        effectfulFun( "follow-heart", function ( rt, clamor ) {
+            return macLookupFollowHeart( clamor );
+        } );
         
         mac( "err", function ( myStxDetails, body, then ) {
             if ( !stcCons.tags( body ) )

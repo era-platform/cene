@@ -1,11 +1,10 @@
 Low-level Cene tasks, in roughly the order of the Sphinx documentation table of contents:
 
 
-Add a `follow-heart` operation, and implement `err` in terms of it. More details about this are already described in a TODO.
 Change `contributing-only-to` to accept a collection (e.g. a table) of namespaces-with-holes-in-them, rather than a single namespace.
-Consider renaming "type" to "constructor," "struct," and "tag" throughout.
+Consider renaming "type" and "tuple" to "constructor," "struct," and "tag" throughout.
 
-Update the various built-in macros that accept names of the form `(istring-nil <string>)` or `(foreign <name>)` to instead accept `(istring-nil <string>)`, `(foreign/obtain-by-name <name>)`, or `(foreign/obtain-directly <value>)`. Discontinue support for `(foreign <name>)`.
+Update most of the various built-in macros that use `stxToMaybeName` to use `stxToObtainMethod`, so they can support `(foreign/obtain-directly <value>)`.
 
 Implement a non-macro version of `case`: Given a constructor tag, a "subject" compiled expression, a one-to-one table from projection names to local variable names, a "then" compiled expression, and an "else" compiled expression, obtain another compiled expression with all the free variables of "subject" and "else" and all but the given local variable names out of the free variables of "then."
 Implement non-macro versions of each of `def-struct` construction, `dex-struct`, `merge-struct`, and `fuse-struct`: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free variables.
@@ -99,7 +98,9 @@ High-level Cene tasks, in roughly highest-priority-first order:
 
 - Implement the live service API described in live-services.txt.
 
-- Implement proper error handling using a `do-what-you-think-is-best` operation instead of just terminating outright. Let people write something like (err a b c \;qq[message]) to call `do-what-you-think-is-best` using a parameter consisting of (list a b c), `str.\;qq[message]`, and an empty struct tagged with a name unique to this source code location.
+- Let people write something like (err a b c \;qq[message]) to call `follow-heart` using a clamor consisting of (list a b c), `str.\;qq[message]`, and an empty struct tagged with a name unique to this source code location.
+
+- Design a way for users to specify the implementation of `follow-heart` for a subcomputation.
 
 - Design and implement a rich document format (ideally making the HTML ecosystem, plain text program code, and UI toolkits obsolete). A killer feature will be to have good support for keyboard navigation (if only for accessibility), selecting paren-unbalanced snippets, copying, and pasting.
 
