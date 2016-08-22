@@ -2,20 +2,6 @@ Unit tests
 ==========
 
 
-.. _test:
-
-test
-----
-
-Macro. Example::
-
-  (test (dex-int/nil)
-    (string-length str.\;qq[Hello])
-    (string-length str.\;qq[world]))
-
-.. todo:: Document this.
-
-
 .. _test-async:
 
 test-async
