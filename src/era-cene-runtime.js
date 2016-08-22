@@ -2462,7 +2462,7 @@ function usingFuncDefNs( funcDefNs ) {
         
         function mac( name, body ) {
             stcAddPureMacro( targetDefNs, dummyMode, name,
-                [ "claim: primitive", name ], body );
+                [ "claim:primitive", name ], body );
         }
         function effectfulFun( name, body ) {
             var sourceMainTagName =
@@ -3019,6 +3019,24 @@ function usingFuncDefNs( funcDefNs ) {
             };
         } );
         
+        // NOTE:
+        //
+        // Conceptually, `fn` looks up a sub-namespace by a standard
+        // key from the unique namespace it's expanded in, and that
+        // sub-namespace's name is the constructor name it uses. The
+        // standard key is consistent in every `fn` invocation, but it
+        // is not directly available to Cene progams.
+        //
+        // What actually happens in this implementation is that `fn`
+        // creates a `StcFn` value which directly refers to a
+        // JavaScript function call implementation, and no constructor
+        // name is needed at all. This allows us to compile a Cene
+        // program so that each `fn` becomes a JavaScript's anonymous
+        // function, which seems to lead to better performance.
+        //
+        // These two semantic models are indistinguishable from Cene
+        // code.
+        //
         mac( "fn", function ( myStxDetails, body, then ) {
             return function ( rawMode, nss ) {
                 return processFn( nss, rawMode, body,
@@ -4403,6 +4421,74 @@ function usingFuncDefNs( funcDefNs ) {
                             ns.pretty() + " constructor " +
                             macroName.pretty() );
                     } );
+            } );
+        } );
+        
+        fun( "copy-function-coercers", function ( rt, fromNs ) {
+            return stcFnPure( function ( rt, toNs ) {
+                if ( !(fromNs instanceof StcForeign
+                    && fromNs.purpose === "ns") )
+                    throw new Error();
+                if ( !(toNs instanceof StcForeign
+                    && toNs.purpose === "ns") )
+                    throw new Error();
+                
+                return new StcForeign( "effects",
+                    function ( rawMode ) {
+                    
+                    collectDefer( rawMode, {}, function ( rawMode ) {
+                        return macLookupThen(
+                            macLookupGet(
+                                getFunctionCoercersDefiner(
+                                    fromNs ) ),
+                            function ( funcDefNs ) {
+                            
+                            collectPutDefined( rawMode,
+                                getFunctionCoercersDefiner( toNs ),
+                                funcDefNs );
+                            return macLookupRet( stcNil.ofNow() );
+                        } );
+                    } );
+                    return macLookupRet( stcNil.ofNow() );
+                } );
+            } );
+        } );
+        
+        fun( "procure-function-definer", function ( rt, ns ) {
+            return new StcFn( function ( rt, constructorTag ) {
+                if ( !(ns instanceof StcForeign
+                    && ns.purpose === "ns") )
+                    throw new Error();
+                if ( !stcConstructorTag.tags( constructorTag ) )
+                    throw new Error();
+                var mainTagName = stcConstructorTag.getProj(
+                    constructorTag, "main-tag" );
+                var projections = stcConstructorTag.getProj(
+                    constructorTag, "projections" );
+                if ( !(mainTagName instanceof StcForeign
+                    && mainTagName.purpose === "name") )
+                    throw new Error();
+                if ( !(projections instanceof StcForeign
+                    && projections.purpose === "table") )
+                    throw new Error();
+                projections.each( function ( k, v ) {
+                    if ( !stcNil.tags( v ) )
+                        throw new Error();
+                } );
+                
+                return macLookupThen(
+                    macLookupGet( getFunctionCoercersDefiner( ns ) ),
+                    function ( funcDefNs ) {
+                    
+                    if ( !(funcDefNs instanceof StcForeign
+                        && funcDefNs.purpose === "ns") )
+                        throw new Error();
+                    
+                    return macLookupRet(
+                        new StcForeign( "definer",
+                            getFunctionCoercerEntryDefiner( funcDefNs,
+                                constructorTag.getName() ) ) );
+                } );
             } );
         } );
         

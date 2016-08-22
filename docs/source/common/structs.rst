@@ -46,8 +46,6 @@ A value that refers to the tag of a struct value with the indicated main tag nam
 
 Function behaviors are associated with this aspect of a struct, so this struct is the kind of value :ref:`procure-function-definer` expects. A :ref:`defn` call builds and uses this value internally.
 
-.. todo:: Implement :ref:`procure-function-definer`. (It is at least true that :ref:`defn` uses this to determine what definer to install into.)
-
 
 .. _function-implementation-opaque:
 
@@ -77,6 +75,40 @@ procure-constructor-glossary-getdef
 Call with ``ns source-main-tag-name``
 
 From a standard but obscure location known as ``$$constructor-glossary`` in the given namespace, obtains a getdef that is used to associate the given source-level main tag name with data about a constructor. The built-in macros that deal with constructors (e.g. :ref:`case`) will expect the value to be a (:ref:`constructor-glossary` ...) struct containing a main tag name and an association list (list of :ref:`assoc`) mapping mutually unique source-level projection names to the mutually unique projection names that are actually used in the struct's representation.
+
+
+.. _copy-function-coercers:
+
+copy-function-coercers
+----------------------
+
+Call with ``from-ns to-ns``
+
+Monadically, blocks until the first given namespace has a function coercer namespace defined (at a standard but obscure location known as ``$$function-coercers``) and defines it in the second given namespace.
+
+
+.. _committing-to-define-function-coercers:
+
+committing-to-define-function-coercers
+--------------------------------------
+
+Call with ``ns effects``
+
+.. todo:: Implement and use this.
+
+Monadically, executes the given effects in a later tick and commits to defining a function coercer namespace on the given namespace (using :ref:`copy-function-coercers`) in that tick or later.
+
+This is only useful to suppress error messages about the definition not existing if there's an error in this logical thread.
+
+
+.. _procure-function-definer:
+
+procure-function-definer
+------------------------
+
+Call with ``ns constructor-tag``
+
+Blocks until the given namespace has a function coercer namespace defined (at a standard but obscure location known as ``$$function-coercers``) and obtains a definer that establishes an association from a given :ref:`constructor-tag` to a defined compiled function implementation.
 
 
 .. _def-struct:
