@@ -75,11 +75,11 @@ A value that can be invoked with the arguments of a macro call, as described in 
 
 -
 ```
-./<obscure name $$function-coercers>/val.el
+./<obscure name $$function-implementations>/val.el
 
 functions/<`constructor-tag` value>/call/val.el
 ```
-Another namespace, on which `./<`constructor-tag` value>.el` is the place to associate a particular constructor with a particular function behavior. The defined function behavior is a value that can be invoked with a value of the specified tuple tag (constructor main tag name and projection names) to coerce it into a callable value. Usually, it only takes one or two of these coercions to get to a value the runtime innately knows how to call, e.g. because the value contains fully compiled code in a format the host platform can execute directly.
+Another namespace, on which `./<`constructor-tag` value>.el` is the place to associate a particular constructor with a particular function implementation. The function implementation is a value, usually containing compiled code but sometimes a first-class value passed to `function-implementation-opaque`, that the Cene runtime can use to call a value of the specified constructor as a function with another value as its argument.
 
 -
 

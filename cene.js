@@ -129,7 +129,8 @@ function runCeneSync(
         uniqueNs: $stc.stcNsGet( "unique-ns", $stc.stcNsRoot() )
     };
     var funcDefNs =
-        $stc.stcNsGet( "function-coercers-ns", $stc.stcNsRoot() );
+        $stc.stcNsGet( "function-implementations-ns",
+            $stc.stcNsRoot() );
     
     function ensureDirSync( path ) {
         if ( fs.existsSync( path ) ) {
