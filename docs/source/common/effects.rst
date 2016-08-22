@@ -90,13 +90,15 @@ Call with ``definer value``
 Monadically, writes to the given definer. If the definition cannot be installed, the program is in error; other computations that depend on the defined value may or may not be canceled or retroactively voided.
 
 
-.. _definer-commit-later:
+.. _committing-to-define:
 
-definer-commit-later
+committing-to-define
 --------------------
 
 Call with ``definer effects``
 
 .. todo:: Implement and use this.
 
-Monadically, executes the effects in a later tick and commits to writing to the given definer in that tick or later. This is only useful to suppress error messages about the definition not existing if there's an error in this logical thread.
+Monadically, executes the effects in a later tick and commits to writing to the given definer in that tick or later.
+
+This is only useful to suppress error messages about the definition not existing if there's an error in this logical thread.

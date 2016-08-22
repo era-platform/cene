@@ -15,19 +15,19 @@ Implement a non-macro version of `compile-expression` on a variable access: Give
 Implement a non-second-class version of `function-implementation-opaque`: Given any value, obtain a compiled expression with no free variables.
 Implement a non-macro version of `defn`: Given an local variable name and a compiled expression with no free variables other than that one, obtain a "native definition" value. This value should not be directly callable (to prevent reflection at run time), but it can be installed in the namespace.
 Implement a non-macro version of `let`: Given a "bindings" ordered association list from mutually unique local variable names to compiled expressions, and given a "body" compiled expression, obtain another compiled expression with the union of the "bindings" free variables and all but the given variables out of the free variables of "body."
-Specify how `fn` determines a unique constructor name, and programmatically enforce the illusion that it does work that way. Ideally, `fn` looks up a sub-namespace by a standard key from the unique namespace it's expanded in, and that namespace's name is the constructor name it uses. The standard key is consistent in every `fn` invocation, but it is not directly available to Cene progams. A complete plan for this is below; it's the "substantial refactoring" section.
 
 Make `join-effects` into a merge, or at least a fuse. We might want it to be a fuse just because the performance of joining an effect to itself is inequal to the performance of the original effect.
 Consider renaming "mode" to "world" throughout.
 See if there's any real point to calling things "...-later", since errors that happen in the "later" portion are escalated to invalidate the prior portion anyway. Maybe we even want the mode to remain current across these operations. That could make it confusing when some operations change the mode and others don't.
-Implement and use `definer-commit-later`.
+Implement and use `committing-to-define` and `committing-to-define-function-coercers`.
 Rename `test` to `test-sync`, and derive it in terms of `test-async`. Then rename `test-async` to `test`.
-Consider renaming `contributing-only-to` to `contributing-only-to-later`, since it "changes" the current mode.
+Get rid of namespace shadowing, unless we decide we need it again to achieve local macros.
+Consider renaming `contributing-only-to` and the `committing-...` operations to `...-later`, since they "change" the current mode.
 Reconsider the parameters to `macro-stx-details`. The mode really should be the current mode if the call is going to do anything with `unique-ns` and `definition-ns`, but why does it need those? It would probably be more relevant for this value to reify the identity of the macro definition itself, or at least contain a struct with a tag unique to that macro definition.
 Implement `compile-expression` instead of having it built in. If it must be built in, consider whether it should be named `compile-expression-later` and whether it should conform to that calling convention.
 Implement `read-all-force` instead of having it built in.
 Consider making `int-compare` a dex, which would make it the first visibly ordered dex. If we ever want a merge for dexes, a dex like this could be a problem.
-Refactor the entire "File I/O for simple builds" system so that it looks like it could use namespaces, but doesn't actually use any sub-namespaces the Cene code has access to. See the "substantial refactoring" session for this illusion applied to the macroexpansion state model (function, macro, and constructor definitions).
+Refactor the entire "File I/O for simple builds" system so that it looks like it could use namespaces, but doesn't actually use any sub-namespaces the Cene code has access to.
 Revisit `output-path-directory`, `output-path-utf-8`, and especially `cli-output-environment-variable-shadow` to be sure they behave as though they contribute to a namespace the user-level Cene code has no access to. Right now, I think `cli-output-environment-variable-shadow` outputs to a visible place in the definition namespace.
 Implement the `--command` command line option.
 
@@ -35,97 +35,60 @@ Make a not-so-sloppy version of `sloppy-javascript-quine`. Namely, the implement
 Redesign `compile-function-js-effects` to a macro `js.\;qq[return 1 + 2;]` that creates a JavaScript effects value that executes the given code. The code is put into a `Function(...)` expression that's run at the time the program's JavaScript code first runs, rather than putting off the execution of `Function(...)` to the time these JavaScript effects are run. Hmm... One problem with this is that it's not well-defined what happens if more than one of these expressions has a syntax error.
 Hmm. We probably want a way to construct JavaScript regexes at JavaScript load time too. We'll be able to do this in a sloppy way for a while, by generating compiled expressions that refer to macroexpansion-time first-class values, but maybe we should add another primitive so we don't have to mess with run time regexes until run time. Perhaps a macro `(js-early js-effects)` can cause the expression `js-effects` to be executed in an empty environment at compile time. Again, one problem with this is that it's not well-defined what happens if more than one of these expressions encounters an error.
 
+For better error message behavior, be more careful about what paths in a `unique-ns` a macro call uses. By convention, paths used during calls to two different macros shouldn't collide, and paths used during two calls to the same macro should only collide in circumstances that can be comprehensively documented. Here are some examples of paths that would work well for the built-in macros:
 
-
---------
-
-Substantial refactoring:
-
-We're going to get rid of the idea of namespace shadowing. Unlike when the definition namespace layout was first designed, we can now set listeners that react if and when a definition is contributed. By using these listeners to install the same definition somewhere else, we can accomplish most of the functionality of shadowing. But really, we don't even need that much; we can define things on namespaces that refer to other namespaces.
-
-These are the places in the definition namespace we use right now (not including what era-cene-api uses, because that's soon to be refactored away):
-
-\= ANTI-TODO: All of these have already been updated.
-./constructor-names/<string: constructor name>/name/.name
-./constructors/<constructor identity>/tag/.name
-./constructors/<constructor identity>/projection-list/val.el
-./constructors/<constructor identity>/projection-names/<string: projection name>/name/.name
-./macro-names/<string: macro name>/name/.name
-./macros/<macro identity>/function/val.el
-./functions/<`constructor-tag` value>/call/val.el
-
-Let's do this: A constructor tag is a `(constructor-tag ...)` struct containing a main tag name and a table of `(nil)`. The keys of the second table are the projection names. The main tag name is a way to distinguish different constructors from each other.
-
-For most of the built-in types, the keys are unique name values, not equivalent to any names the Cene code could generate on its own.
-
-For types defined by `(def-struct ...)`, the projection names are taken deterministically from standard but obscure locations in the macro call's unique namespace, but the details of this deterministic algorithm are impossible to detect without causing an error because two calls to `(def-struct ...)` with the same unique namespace will try to write to the same location. Namely, they use `(claim-unique-ns ...)`, described below.
-
---
-
-(constructor-tag main-tag projections)
-Constructs a value that can be used to refer to the tag of a struct value. This is used by `procure-function-definer`.
-  \= ANTI-TODO: This one has already been implemented.
-
-(constructor-glossary main-tag source-projection-names-to-names)
-Constructs a value that's useful when looking up a constructor name with `procure-constructor-glossary-getdef`. It indicates what the struct's main tag name is and provides an association list for looking up projection names. The association list should be a list containing `assoc` values mapping mutually unique source-level projection names to the mutually unique projection names that are actually used in the struct's representation.
-  \= ANTI-TODO: This one has already been implemented.
-
-(assoc key val)
-Constructs a value that represents a key-value pair.
-  \= ANTI-TODO: This one has already been implemented.
-
-(procure-claim ns)
-Monadically, writes to a standard but obscure location in the given namespace. The point of this is to ensure that two macro calls that use the same unique namespace will cause an error.
-  \= ANTI-TODO: This one has already been implemented.
-
-(procure-constructor-glossary-getdef ns source-main-tag-name)
-From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given source-level main tag name with data about a constructor. The built-in macros that deal with constructors (e.g. `case`) will expect the value to be a `(constructor-glossary ...)` struct containing a main tag name and a list containing `assoc` values mapping mutually unique source-level projection names to the mutually unique projection names that are actually used in the struct's representation.
-  \= ANTI-TODO: This one has already been implemented.
-
-(procure-macro-implementation-getdef ns macro-name)
-From a standard but obscure location in the given namespace, obtains a getdef that is used to associate the given macro name with a macro implementation.
-  \= ANTI-TODO: This one has already been implemented.
-
-(committing-to-define-function-coercers ns effects)
-Monadically, runs the given effects under a commitment to define a function coercer namespace on the given namespace (using `copy-function-coercers`).
-
-(copy-function-coercers from-ns to-ns)
-Monadically, blocks until the first given namespace has a function coercer namespace defined (at a standard but obscure location shared with `procure-function-definer`) and defines it in the second given namespace.
-
-(procure-function-definer ns constructor-tag)
-Blocks until the given namespace has a function coercer namespace defined (at a standard but obscure location shared with `copy-function-coercers`) and obtains a definer that establishes an association from a given constructor tag (map of `(nil)`) to a defined compiled function implementation.
-
---
-
-So, to implement this, we just need a few obscure names that Cene code doesn't know (marked by $$ below), and we just have a few spots where we install definitions:
-
-\= ANTI-TODO: All of these have already been updated.
-<unique-ns>/$$claimed/val.el
-<definition-ns>/$$constructor-glossary/<constructor name>.el
-<definition-ns>/$$macro-implementation/<macro name>.el
-<definition-ns>/$$function-coercers/val.el
-<function-coercers-ns>/<constructor tag>.el
-
-...plus various other specific locations under <unique-ns> for different macros:
-
-\= ANTI-TODO: All of these have effectively been taken care of, but not with exactly these paths, and not with paths quite so well protected against collisions when someone does try to use a unique namespace twice.
-<unique-ns>/$$claimed/for-def-struct/<main tag name and list of projection names>/main-tag/.name
-<unique-ns>/$$claimed/for-def-struct/<main tag name and list of projection names>/projection-tag/<projection name string>/.name
-<unique-ns>/$$claimed/for-fn/main-tag/.name
-<unique-ns>/$$claimed/for-fn/projection-tag/<free variable name>/.name
-<unique-ns>/$$claimed/for-fn/body/...
-<unique-ns>/$$claimed/for-defn/body/...
-<unique-ns>/$$claimed/for-def-macro/body/...
-<unique-ns>/$$claimed/for-isa/<main tag name>/projection-var/<projection name>/.name
-...(potentially more)...
-
-(We don't just use <unique-ns>/$$claimed.el or <definition-ns>/$$function-coercers.el. If we did, a listener on the namespace could notice. Similarly, we don't just use <unique-ns>/for-def-struct/main-tag/.name because the caller could construct a name by the same path and notice they were the same name. However, the <unique-ns>/$$claimed/... names in this list do use a lot of superfluous elements.)
+  <unique-ns>/($$claimed-for claim:struct)/<constructor tag>/projection/<projection name>/...
+    \= NOTE: This is a macro corresponding to a built-in constructor.
+  
+  \= NOTE: The `err` macro doesn't need to use its `unique-ns` at all.
+  
+  \= NOTE: These are for the upcoming redesign of `err`, not the current version.
+  <unique-ns>/($$claimed-for claim:primitive err)/source-location-tag/.name
+  <unique-ns>/($$claimed-for claim:primitive err)/value-of-interest/(rest/)*first/...
+  
+  <unique-ns>/($$claimed-for claim:primitive dex-struct)/<constructor tag>/projection/<projection name>/...
+  <unique-ns>/($$claimed-for claim:primitive merge-struct)/<constructor tag>/projection/<projection name>/...
+  <unique-ns>/($$claimed-for claim:primitive fuse-struct)/<constructor tag>/projection/<projection name>/...
+  <unique-ns>/($$claimed-for claim:primitive def-struct)/<main tag name and list of projection names>/main-tag/.name
+  <unique-ns>/($$claimed-for claim:primitive def-struct)/<main tag name and list of projection names>/projection-tag/<projection name string>/.name
+  <unique-ns>/($$claimed-for claim:primitive defn)/body/...
+    \= NOTE: This sub-namespace is used for a `fn` call.
+  <unique-ns>/($$claimed-for claim:primitive case)/<constructor tag>/subject/...
+  <unique-ns>/($$claimed-for claim:primitive case)/<constructor tag>/then/...
+  <unique-ns>/($$claimed-for claim:primitive case)/<constructor tag>/else/...
+  <unique-ns>/($$claimed-for claim:primitive caselet)/<constructor tag>/body/...
+    \= NOTE: This sub-namespace is used for a `case` call.
+  <unique-ns>/($$claimed-for claim:primitive cast)/<constructor tag>/body/...
+    \= NOTE: This sub-namespace is used for a `case` call.
+  <unique-ns>/($$claimed-for claim:primitive isa)/<constructor tag>/subject/...
+  <unique-ns>/($$claimed-for claim:primitive isa)/<constructor tag>/projection-var/<projection name>/.name
+  <unique-ns>/($$claimed-for claim:primitive c)/func/...
+  <unique-ns>/($$claimed-for claim:primitive c)/arg/...
+  <unique-ns>/($$claimed-for claim:primitive fn)/main-tag/.name
+  <unique-ns>/($$claimed-for claim:primitive fn)/projection-tag/<free variable name>/.name
+  <unique-ns>/($$claimed-for claim:primitive fn)/body/...
+  <unique-ns>/($$claimed-for claim:primitive test)/dex/...
+  <unique-ns>/($$claimed-for claim:primitive test)/actual/...
+  <unique-ns>/($$claimed-for claim:primitive test)/expected/...
+  <unique-ns>/($$claimed-for claim:primitive test-async)/dex/...
+  <unique-ns>/($$claimed-for claim:primitive test-async)/actual/...
+  <unique-ns>/($$claimed-for claim:primitive test-async)/expected/...
+  <unique-ns>/($$claimed-for claim:primitive def-macro)/body/...
+    \= NOTE: This sub-namespace is used for a `fn` call.
+  <unique-ns>/($$claimed-for claim:primitive let)/<set of variable names>/binding/<variable name>/...
+  <unique-ns>/($$claimed-for claim:primitive let)/<set of variable names>/body/...
+  \= NOTE: The `str` macro doesn't need to use its `unique-ns` at all.
 
 
 
 --------
 
 High-level Cene tasks, in roughly highest-priority-first order:
+
+
+- Decide on a strategy for supporting lexically scoped extensions of the definition namespace. Local macros are the most immedate feature here, but we might want local constructor names too, and in general we might want local extensions of any user-defined macroexpansion-time framework. Although this achieves lexical scope, it is dynamic scope during the execution of macro implementations.
+
+  Our approach was going to be namespace shadowing, but we've removed all other reasons to use namespace shadowing, and our current namespace layout isn't conducive to using shadowing for this local macro purpose.
 
 - Right now, macro definitions often look up other macros from the definition namespace of the macro call. Make them look it up from the caller definition's definition namespace instead.
 
