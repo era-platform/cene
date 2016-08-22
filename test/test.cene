@@ -95,7 +95,10 @@
     /table-empty/nil))
   (yep/nope/nil))
 
-(defn int-plus a b /call-fuse (fuse-int-by-plus/nil) a b)
+(defn int-plus a b
+  (cast (call-fuse (fuse-int-by-plus/nil) a b) yep result
+    err.\;qq[Expected both addends to be integers]
+    result))
 
 (defn int0 - /int-zero/nil)
 (defn int1 - /int-one/nil)

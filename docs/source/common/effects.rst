@@ -12,14 +12,16 @@ Call with ``(ignored)``
 Monadically, does nothing.
 
 
-.. _join-effects:
+.. _fuse-effects:
 
-join-effects
+fuse-effects
 ------------
 
-Call with ``a b``
+Call with ``(ignored)``
 
-Monadically, performs the effects of both of the given monadic computations.
+Returns a fuse that fuses monadic computations by creating a monadic computation that executes them both.
+
+.. note:: This is a fuse, not a merge, because it's not necessarily idempotent when performance is taken into account. If a monadic computation is fused with itself this way, the resulting monadic computation may be twice as slow.
 
 
 .. _get-mode:

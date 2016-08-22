@@ -881,6 +881,39 @@ StcFuseByMerge.prototype.getName = function () {
 StcFuseByMerge.prototype.pretty = function () {
     return "(fuse-by-merge " + this.mergeToUse.pretty() + ")";
 };
+function StcFuseEffects() {
+    // We do nothing.
+}
+StcFuseEffects.prototype.affiliation = "fuse";
+StcFuseEffects.prototype.callStc = function ( rt, arg ) {
+    throw new Error();
+};
+StcFuseEffects.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+StcFuseEffects.prototype.fuse = function ( rt, a, b ) {
+    if ( !(a instanceof StcForeign && a.purpose === "effects") )
+        return macLookupRet( stcNil.ofNow() );
+    var aFunc = a.foreignVal;
+    if ( !(b instanceof StcForeign && b.purpose === "effects") )
+        return macLookupRet( stcNil.ofNow() );
+    var bFunc = b.foreignVal;
+    return macLookupRet(
+        stcYep.ofNow(
+            new StcForeign( "effects", function ( rawMode ) {
+                return macLookupThen( aFunc( rawMode ),
+                    function ( ignored ) {
+                    
+                    return bFunc( rawMode );
+                } );
+            } ) ) );
+};
+StcFuseEffects.prototype.getName = function () {
+    return [ "n:fuse-effects" ];
+};
+StcFuseEffects.prototype.pretty = function () {
+    return "(fuse-effects)";
+};
 function StcFuseIntByPlus() {
     // We do nothing.
 }
@@ -893,11 +926,12 @@ StcFuseIntByPlus.prototype.dexHas = function ( rt, x ) {
 };
 StcFuseIntByPlus.prototype.fuse = function ( rt, a, b ) {
     if ( !(a instanceof StcForeign && a.purpose === "int") )
-        throw new Error();
+        return macLookupRet( stcNil.ofNow() );
     if ( !(b instanceof StcForeign && b.purpose === "int") )
-        throw new Error();
+        return macLookupRet( stcNil.ofNow() );
     return macLookupRet(
-        stcForeignInt( a.foreignVal + b.foreignVal ) );
+        stcYep.ofNow(
+            stcForeignInt( a.foreignVal + b.foreignVal ) ) );
 };
 StcFuseIntByPlus.prototype.getName = function () {
     return [ "n:fuse-int-by-plus" ];
@@ -917,11 +951,12 @@ StcFuseIntByTimes.prototype.dexHas = function ( rt, x ) {
 };
 StcFuseIntByTimes.prototype.fuse = function ( rt, a, b ) {
     if ( !(a instanceof StcForeign && a.purpose === "int") )
-        throw new Error();
+        return macLookupRet( stcNil.ofNow() );
     if ( !(b instanceof StcForeign && b.purpose === "int") )
-        throw new Error();
+        return macLookupRet( stcNil.ofNow() );
     return macLookupRet(
-        stcForeignInt( a.foreignVal * b.foreignVal ) );
+        stcYep.ofNow(
+            stcForeignInt( a.foreignVal * b.foreignVal ) ) );
 };
 StcFuseIntByTimes.prototype.getName = function () {
     return [ "n:fuse-int-by-times" ];
@@ -1146,9 +1181,9 @@ StcFuseTable.prototype.fuse = function ( rt, a, b ) {
     var self = this;
     
     if ( !(a instanceof StcForeign && a.purpose === "table") )
-        throw new Error();
+        return macLookupRet( stcNil.ofNow() );
     if ( !(b instanceof StcForeign && b.purpose === "table") )
-        throw new Error();
+        return macLookupRet( stcNil.ofNow() );
     
     var entries = [];
     a.foreignVal.plus( b.foreignVal ).each(
@@ -1168,7 +1203,7 @@ StcFuseTable.prototype.fuse = function ( rt, a, b ) {
     function loop( i, table ) {
         if ( n <= i )
             return macLookupRet(
-                new StcForeign( "table", table ) );
+                stcYep.ofNow( new StcForeign( "table", table ) ) );
         var entry = entries[ i ];
         if ( entry.a === void 0 )
             return next( entry.b );
@@ -4470,27 +4505,8 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
-        fun( "join-effects", function ( rt, a ) {
-            return stcFnPure( function ( rt, b ) {
-                if ( !(a instanceof StcForeign
-                    && a.purpose === "effects") )
-                    throw new Error();
-                var aFunc = a.foreignVal;
-                if ( !(b instanceof StcForeign
-                    && b.purpose === "effects") )
-                    throw new Error();
-                var bFunc = b.foreignVal;
-                
-                return new StcForeign( "effects",
-                    function ( rawMode ) {
-                    
-                    return macLookupThen( aFunc( rawMode ),
-                        function ( ignored ) {
-                        
-                        return bFunc( rawMode );
-                    } );
-                } );
-            } );
+        fun( "fuse-effects", function ( rt, ignored ) {
+            return new StcFuseEffects();
         } );
         
         fun( "later", function ( rt, effects ) {

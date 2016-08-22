@@ -114,7 +114,7 @@ Blocks until the given namespace has a function implementation namespace defined
 .. _def-struct:
 
 def-struct
---------
+----------
 
 Macro. Example: ``(def-struct cons car cdr)``
 
