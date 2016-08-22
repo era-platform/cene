@@ -88,6 +88,11 @@
 (defn foldr list state combiner
   (foldl state rev.list /fn state elem /c combiner elem state))
 
+(defn join-effects a b
+  (cast (call-fuse (fuse-effects/nil) a b) yep result
+    err.\;qq[Expected both parts to be monadic computations]
+    result))
+
 (def-struct basic-macro-result effects expression)
 
 (defn basic-macro unique-ns definition-ns my-stx-details then body

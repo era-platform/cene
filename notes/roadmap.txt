@@ -14,7 +14,6 @@ Implement a non-second-class version of `function-implementation-opaque`: Given 
 Implement a non-macro version of `defn`: Given an local variable name and a compiled expression with no free variables other than that one, obtain a "native definition" value. This value should not be directly callable (to prevent reflection at run time), but it can be installed in the namespace.
 Implement a non-macro version of `let`: Given a "bindings" ordered association list from mutually unique local variable names to compiled expressions, and given a "body" compiled expression, obtain another compiled expression with the union of the "bindings" free variables and all but the given variables out of the free variables of "body."
 
-Make `join-effects` into a merge, or at least a fuse. We might want it to be a fuse just because the performance of joining an effect to itself is inequal to the performance of the original effect.
 Consider renaming "mode" to "world" throughout.
 See if there's any real point to calling things "...-later", since errors that happen in the "later" portion are escalated to invalidate the prior portion anyway. Maybe we even want the mode to remain current across these operations. That could make it confusing when some operations change the mode and others don't.
 Implement and use `committing-to-define` and `committing-to-define-function-implementations`.

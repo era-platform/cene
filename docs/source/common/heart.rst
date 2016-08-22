@@ -1,5 +1,5 @@
-Following one's heart when specification fails (dynamic errors)
-===============================================================
+Errors and conscience
+=====================
 
 
 .. _follow-heart:
