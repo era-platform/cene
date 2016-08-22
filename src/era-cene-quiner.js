@@ -23,7 +23,8 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
         definitionNs: stcNsGet( "definition-ns", stcNsRoot() ),
         uniqueNs: stcNsGet( "unique-ns", stcNsRoot() )
     };
-    var funcDefNs = stcNsGet( "function-coercers-ns", stcNsRoot() );
+    var funcDefNs =
+        stcNsGet( "function-implementations-ns", stcNsRoot() );
     
     var usingDefNs = usingFuncDefNs( funcDefNs );
     

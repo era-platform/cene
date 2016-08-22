@@ -7,7 +7,6 @@ Consider renaming "type" to "constructor," "struct," and "tag" throughout.
 
 Update the various built-in macros that accept names of the form `(istring-nil <string>)` or `(foreign <name>)` to instead accept `(istring-nil <string>)`, `(foreign/obtain-by-name <name>)`, or `(foreign/obtain-directly <value>)`. Discontinue support for `(foreign <name>)`.
 
-Treat function implementations as opaque values, not callable in and of themselves. Once they're not callable, stop calling them "coercers."
 Implement a non-macro version of `case`: Given a constructor tag, a "subject" compiled expression, a one-to-one table from projection names to local variable names, a "then" compiled expression, and an "else" compiled expression, obtain another compiled expression with all the free variables of "subject" and "else" and all but the given local variable names out of the free variables of "then."
 Implement non-macro versions of each of `def-struct` construction, `dex-struct`, `merge-struct`, and `fuse-struct`: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free variables.
 Implement a non-macro version of `c`: Given a "func" compiled expression and an "arg" compiled expression, obtain another compiled expression with the union of their free variables.
@@ -19,7 +18,7 @@ Implement a non-macro version of `let`: Given a "bindings" ordered association l
 Make `join-effects` into a merge, or at least a fuse. We might want it to be a fuse just because the performance of joining an effect to itself is inequal to the performance of the original effect.
 Consider renaming "mode" to "world" throughout.
 See if there's any real point to calling things "...-later", since errors that happen in the "later" portion are escalated to invalidate the prior portion anyway. Maybe we even want the mode to remain current across these operations. That could make it confusing when some operations change the mode and others don't.
-Implement and use `committing-to-define` and `committing-to-define-function-coercers`.
+Implement and use `committing-to-define` and `committing-to-define-function-implementations`.
 Rename `test` to `test-sync`, and derive it in terms of `test-async`. Then rename `test-async` to `test`.
 Get rid of namespace shadowing, unless we decide we need it again to achieve local macros.
 Consider renaming `contributing-only-to` and the `committing-...` operations to `...-later`, since they "change" the current mode.

@@ -404,7 +404,7 @@ Stc.prototype.callStc = function ( rt, arg ) {
     var tupleTag = JSON.parse( self.tupleTag );
     return macLookupThen(
         macLookupGet(
-            getFunctionCoercerEntryDefiner( rt.funcDefNs,
+            getFunctionImplementationEntryDefiner( rt.funcDefNs,
                 stcNameConstructorTagAlreadySorted(
                     tupleTag[ 0 ], tupleTag[ 1 ] ) ),
             function () {
@@ -466,14 +466,6 @@ function StcForeign( purpose, foreignVal ) {
 }
 StcForeign.prototype.affiliation = "none";
 StcForeign.prototype.callStc = function ( rt, arg ) {
-    var self = this;
-    
-    if ( self.purpose === "native-definition" )
-        return macLookupRet( new StcFn( function ( rt, argVal ) {
-            var func = self.foreignVal;
-            return func( rt, arg, argVal );
-        } ) );
-    
     throw new Error();
 };
 StcForeign.prototype.dexHas = function ( rt, x ) {
@@ -1301,11 +1293,14 @@ function getMacroFunctionDefiner( definitionNs, name ) {
     return elementDefiner( name,
         stcNsGet( [ "n:$$macro-string-reference" ], definitionNs ) );
 }
-function getFunctionCoercersDefiner( definitionNs ) {
+function getFunctionImplementationsDefiner( definitionNs ) {
     return elementDefiner( "val",
-        stcNsGet( [ "n:$$function-coercers" ], definitionNs ) );
+        stcNsGet( [ "n:$$function-implementations" ],
+            definitionNs ) );
 }
-function getFunctionCoercerEntryDefiner( funcDefNs, tupleTagName ) {
+function getFunctionImplementationEntryDefiner(
+    funcDefNs, tupleTagName ) {
+    
     return elementDefiner( tupleTagName, funcDefNs );
 }
 
@@ -1923,7 +1918,8 @@ function addFunctionNativeDefinition(
     funcDefNs, rawMode, tupleTagName, impl ) {
     
     collectPutDefined( rawMode,
-        getFunctionCoercerEntryDefiner( funcDefNs, tupleTagName ),
+        getFunctionImplementationEntryDefiner(
+            funcDefNs, tupleTagName ),
         new StcForeign( "native-definition", impl ) );
 }
 function stcAddDefun( rt, funcDefNs, rawMode, name, argName, body ) {
@@ -2487,7 +2483,7 @@ function usingFuncDefNs( funcDefNs ) {
         }
         
         collectPutDefined( dummyMode,
-            getFunctionCoercersDefiner( targetDefNs ),
+            getFunctionImplementationsDefiner( targetDefNs ),
             new StcForeign( "ns", funcDefNs ) );
         
         mac( "def-struct", function ( myStxDetails, body, then ) {
@@ -2553,7 +2549,7 @@ function usingFuncDefNs( funcDefNs ) {
                     collectDefer( rawMode, {}, function ( rawMode ) {
                         return macLookupThen(
                             macLookupGet(
-                                getFunctionCoercersDefiner(
+                                getFunctionImplementationsDefiner(
                                     nss.definitionNs ) ),
                             function ( funcDefNs ) {
                             
@@ -4424,7 +4420,9 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
-        fun( "copy-function-coercers", function ( rt, fromNs ) {
+        fun( "copy-function-implementations",
+            function ( rt, fromNs ) {
+            
             return stcFnPure( function ( rt, toNs ) {
                 if ( !(fromNs instanceof StcForeign
                     && fromNs.purpose === "ns") )
@@ -4439,12 +4437,13 @@ function usingFuncDefNs( funcDefNs ) {
                     collectDefer( rawMode, {}, function ( rawMode ) {
                         return macLookupThen(
                             macLookupGet(
-                                getFunctionCoercersDefiner(
+                                getFunctionImplementationsDefiner(
                                     fromNs ) ),
                             function ( funcDefNs ) {
                             
                             collectPutDefined( rawMode,
-                                getFunctionCoercersDefiner( toNs ),
+                                getFunctionImplementationsDefiner(
+                                    toNs ),
                                 funcDefNs );
                             return macLookupRet( stcNil.ofNow() );
                         } );
@@ -4477,7 +4476,8 @@ function usingFuncDefNs( funcDefNs ) {
                 } );
                 
                 return macLookupThen(
-                    macLookupGet( getFunctionCoercersDefiner( ns ) ),
+                    macLookupGet(
+                        getFunctionImplementationsDefiner( ns ) ),
                     function ( funcDefNs ) {
                     
                     if ( !(funcDefNs instanceof StcForeign
@@ -4486,7 +4486,8 @@ function usingFuncDefNs( funcDefNs ) {
                     
                     return macLookupRet(
                         new StcForeign( "definer",
-                            getFunctionCoercerEntryDefiner( funcDefNs,
+                            getFunctionImplementationEntryDefiner(
+                                funcDefNs,
                                 constructorTag.getName() ) ) );
                 } );
             } );
