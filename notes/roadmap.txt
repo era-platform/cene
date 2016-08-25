@@ -1,31 +1,192 @@
-Low-level Cene tasks, in roughly the order of the Sphinx documentation table of contents:
+Refactoring macros:
 
+Right now, a macro often look up other macros from the definition namespace of its caller. We need to make it look macros up from its own definition's definition namespace instead.
+
+We have two main uses for a macro:
+
+  - Use it directly in an expression. We want `compile-expression` to be implementable in user code (as `compile-expression-later`), which means user code needs to be able to look up a macro by its identifer first-class value, which is usually a string.
+  - Use it from another macro. We want to treat it like a function call, not like an act of dynamically looking up the implementation. This means user code needs to be able to look up a macro by a simple projectionless struct with a main tag name that's somehow related.
+    - In order to implement someting like `(get-mac <macro name>)` to generate this construction, and in order for `get-mac` itself to be user-implementable, user code needs to be able to look up a compiled expression generating this struct by the macro's identifier first-class value.
+
+That gives us three needs:
+
+  - Identifier -> macro implementation function
+  - Identifier -> compiled expression generating a macro struct
+  - Macro struct -> macro implementation function
+
+
+Approach A.
+
+We could have `defn`, `def-macro`, and `def-struct` define a second macro, with a name deterministically derived from the names of the macros they already define. Then add a macro `(get-mac <macro name>)` that constructs a nullary invocation of that macro to obtain the original macro's function implementation.
+
+A downside is that we have to do this for every single macro definition form we write.
+
+A quirk is that this only goes up one level. Will we want a third macro that gives us the implementation of the second macro that gives us the implementation of the first macro?
+
+I haven't figured out whether this is actually implementable. There might be tricky parts that prevent `get-mac` itself from being implemented in user code, or it might turn out that mean we just need a function definition, not a second macro.
+
+Verdict: This introduces more complexity than it solves. Let's not do this.
+
+
+Approach B.
+
+This was already ruled out in the above description of the situation, but here it is anyway.
+
+A macro's implementation can dynamically look up macro names from yet another namespace -- the definition namespace where the macro itself was defined. The definition namespace be bundled together with the macro implementation function when the macro is defined, or it could simply be captured by the function.
+
+This would make it impossible for most macro implementations to be carried to runtime, since they refer to namespace values that can't be serialized. Then again, in this approach there is no need for a `(get-mac <macro name>)` macro, so there's no way to try to dynamically invoke a macro implementation from a run time function anyway.
+
+Verdict: This would be very simple. Let's do this as a general solution, but let's keep an eye out for cases where we need to do something else for efficiency. For instance, it might be slightly more efficient to embed the looked-up macro implementation function definers (or the functions themselves) rather than looking them up each time, and it might be more efficient to make calls to well-factored helper functions rather than preparing complete macro calls.
+
+
+Approach C.
+
+An interesting way to accomplish this would be:
+
+  - Identifier -> pair of a macro struct and the compiled expression that generates it, certifying that the expression produces the value
+  - Macro struct -> macro implementation function
+
+However, to build a certified-reified projectionless struct, we would need to be come up with a certified main tag name, and I don't think we should be able to certify reification of just any name. We could choose an arbitrary set of built-in constructors to do this for, maybe the ones oriented around syntax:
+
+  (reification-certifier-string)
+  (reification-certifier-nil)
+  (reification-certifier-cons <first-reification-certifier> <rest-reification-certifier>)
+  (reification-certifier-istring-nil <string-reification-certifier>)
+  (reification-certifier-istring-cons <prefix-reification-certifier> <interpolation-reification-certifier> <rest-reification-certifier>)
+  reification-certifier-by-own-method
+  reification-certifier-fix
+
+However, if users can't certify reification of their own structs, this shatters the illusion that the built-in structs could be defined by user code. But perhaps we can restore the illusion by making it so every operation that processes compiled code gets to use a user-defined behavior to check these reification certifications.
+
+Verdict: This approach is way too complicated. This approach may prove useful once we have some more considerations to account for, but there's no reason to get invested in this infrastructure before then.
+
+
+Approach D.
+
+We could cut to the chase and allow a compiled expression to be evaluated, in which case macros only need one definition again:
+
+  - Identifier -> compiled expression generating a macro implementation function
+
+Here's how evaluation could work:
+
+  .. _compiled-expression-eval:
+  
+  compiled-expression-eval
+  ------------------------
+  
+  Call with ``mode compiled-expression``
+  
+  Given a compiled expression with no free variables, executes it to produce a result. The given mode must be current, and it must allow for macroexpansion-time side effects.
+
+The reason we need to restrict this to macroexpansion time is that it lets us construct and deconstruct structs given only the first-class representations of their constructor tag names. If we allowed this at run time, it would defeat Cene's dead code elimination.
+
+We might want to restrict this even further so that it fits in more snugly with the techniques Cene code would otherwise have to use if it wanted to do evaluation:
+
+To use `def-macro` for evaluation, a macro could generate a `def-macro` and generate a call to the same macro it's defining.
+
+To use `defn` for evaluation, a macro could generate a `defn` and meanwhile make a call to a struct matching the constructor tag it just defined the function call implementation for.
+
+Right now, the implementations of `defn`, `def-macro`, and `test-async` are the only things that use `stcExecute()`, so it's not possible to evaluate code using anything else. We would also be doing this in `fn` if only we weren't optimizing to JavaScript lambdas instead.
+
+I think this is the closest Cene can get:
+
+  .. _compiled-expression-eval-later:
+  
+  compiled-expression-eval-later
+  ------------------------------
+  
+  Call with ``definition-ns constructor-tag struct compiled-expression (fn result)``
+  
+  Monadically, blocks until the given definition namespace has a function implementation namespace defined, defines a function implementation by the given constructor tag that ignores its argument and returns the result of the given compiled expression, and calls the given callback in a later tick with the result of passing (:ref:`nil`) to the given struct.
+  
+  It's usually most useful to pass a struct along with its own constructor tag.
+
+In order to build those (constructor tag, struct) pairs, I think Cene code basically has to have macro calls at the top level for each one.
+
+Hmm, but it might be possible to set up a framework that looks for evaluation requests and automatically defines one of those pairs so it can be used.... In that case:
+
+  .. _compiled-expression-eval-later:
+  
+  compiled-expression-eval-later
+  ------------------------------
+  
+  Call with ``definition-ns unique-ns compiled-expression (fn result)``
+  
+  Monadically, claims the given namespace ``unique-ns``, blocks until the given namespace ``definition-ns`` has an eval framework defined and a function implementation namespace defined, defines some obscure entries in the eval framework and the function implementation namespace, and calls the given callback in a later tick with the result of evaluating the given compiled expression.
+  
+  
+  .. _copy-eval-framework:
+  
+  copy-eval-framework
+  -------------------
+  
+  Call with ``from-ns to-ns``
+  
+  Monadically, waits for the given namespace ``from-ns`` to have an eval framework defined, and defines it in ``to-ns``.
+
+Verdict: Let's not require eval just to use macros. However, if we can decide on a design for eval, it will be a good addition to the language.
+
+
+Approach E.
+
+If we don't expect macro implementations to be able to make it to run time, perhaps we can embed first-class values in them. We can have a macro `(get-mac <macro name>)` that embeds the macro implementation value.
+
+A downside is that it's impossible to define mutually recursive macros this way.
+
+A lesser downside is that a `(get-mac <macro name>)` call appearing in a run time function might look like it should work, only for the compiler to complain about it when generating JavaScript code.
+
+Verdict: Since this breaks mutually recursive macros, let's not do this in general. Still, this is good to keep in mind if we need it for efficiency.
+
+
+Conclusion:
+
+Let's go through with approach B.
+
+Let's introduce a new parameter to each `def-macro`: `macro-def-ns`. Let's rename the old `definition-ns` to `caller-def-ns`. The `macro-def-ns` parameter is the first parameter, and unlike the others, it's passed at the time the macro is defined, not at the time the macro is called. Hence, there will be no corresponding parameter in `compile-expression`.
+
+In the implementation of `basic-macro`, let's make sure the `mac` function it creates looks up the name from the `macro-def-ns` instead of the `caller-def-ns`.
+
+
+-----
+
+Immediate actionable tasks:
 
 Change `contributing-only-to` to accept a collection (e.g. a table) of namespaces-with-holes-in-them, rather than a single namespace.
+
+Implement more ways to obtain and use compiled code values. Once there are enough of these, derive `compile-expression-later` from them instead of having `compile-expression` built in.
+
+  Implement a non-macro version of `case`: Given a constructor tag, a "subject" compiled expression, a one-to-one table from projection names to local variable names, a "then" compiled expression, and an "else" compiled expression, obtain another compiled expression with all the free variables of "subject" and "else" and all but the given local variable names out of the free variables of "then."
+  Implement non-macro versions of each of `def-struct` construction, `dex-struct`, `merge-struct`, and `fuse-struct`: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free variables.
+  Implement a non-macro version of `c`: Given a "func" compiled expression and an "arg" compiled expression, obtain another compiled expression with the union of their free variables.
+  Implement a non-macro version of `compile-expression` on a variable access: Given a local variable name, obtain a compiled expression with just that variable in its free variables.
+  Implement a non-second-class version of `function-implementation-opaque`: Given any value, obtain a compiled expression with no free variables.
+  Implement a non-macro version of `defn`: Given an local variable name and a compiled expression with no free variables other than that one, obtain a "native definition" value. This value should not be directly callable (to prevent reflection at run time), but it can be installed in the namespace.
+  Implement a non-macro version of `let`: Given a "bindings" ordered association list from mutually unique local variable names to compiled expressions, and given a "body" compiled expression, obtain another compiled expression with the union of the "bindings" free variables and all but the given variables out of the free variables of "body."
+
+Implement and use `committing-to-define` and `committing-to-define-function-implementations`.
+
+Refactor the entire "File I/O for simple builds" system so that it looks like it could use namespaces, but doesn't actually use any sub-namespaces the Cene code has access to.
+
+Revisit `output-path-directory`, `output-path-utf-8`, and especially `cli-output-environment-variable-shadow` to be sure they behave as though they contribute to a namespace the user-level Cene code has no access to. Right now, I think `cli-output-environment-variable-shadow` outputs to a visible place in the definition namespace.
+
+
+-----
+
+Other low-level Cene tasks, in roughly the order of the Sphinx documentation table of contents:
+
+
 Consider renaming "type" and "tuple" to "constructor," "struct," and "tag" throughout.
 
 Update most of the various built-in macros that use `stxToMaybeName` to use `stxToObtainMethod`, so they can support `(foreign/obtain-directly <value>)`.
 
-Implement a non-macro version of `case`: Given a constructor tag, a "subject" compiled expression, a one-to-one table from projection names to local variable names, a "then" compiled expression, and an "else" compiled expression, obtain another compiled expression with all the free variables of "subject" and "else" and all but the given local variable names out of the free variables of "then."
-Implement non-macro versions of each of `def-struct` construction, `dex-struct`, `merge-struct`, and `fuse-struct`: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free variables.
-Implement a non-macro version of `c`: Given a "func" compiled expression and an "arg" compiled expression, obtain another compiled expression with the union of their free variables.
-Implement a non-macro version of `compile-expression` on a variable access: Given a local variable name, obtain a compiled expression with just that variable in its free variables.
-Implement a non-second-class version of `function-implementation-opaque`: Given any value, obtain a compiled expression with no free variables.
-Implement a non-macro version of `defn`: Given an local variable name and a compiled expression with no free variables other than that one, obtain a "native definition" value. This value should not be directly callable (to prevent reflection at run time), but it can be installed in the namespace.
-Implement a non-macro version of `let`: Given a "bindings" ordered association list from mutually unique local variable names to compiled expressions, and given a "body" compiled expression, obtain another compiled expression with the union of the "bindings" free variables and all but the given variables out of the free variables of "body."
-
 Consider renaming "mode" to "world" throughout.
 See if there's any real point to calling things "...-later", since errors that happen in the "later" portion are escalated to invalidate the prior portion anyway. Maybe we even want the mode to remain current across these operations. That could make it confusing when some operations change the mode and others don't.
-Implement and use `committing-to-define` and `committing-to-define-function-implementations`.
 Consider renaming `test-async` to `test`.
 Get rid of namespace shadowing, unless we decide we need it again to achieve local macros.
 Consider renaming `contributing-only-to` and the `committing-...` operations to `...-later`, since they "change" the current mode.
 Reconsider the parameters to `macro-stx-details`. The mode really should be the current mode if the call is going to do anything with `unique-ns` and `definition-ns`, but why does it need those? It would probably be more relevant for this value to reify the identity of the macro definition itself, or at least contain a struct with a tag unique to that macro definition.
-Implement `compile-expression` instead of having it built in. If it must be built in, consider whether it should be named `compile-expression-later` and whether it should conform to that calling convention.
 Implement `read-all-force` instead of having it built in.
 Consider making `int-compare` a dex, which would make it the first visibly ordered dex. If we ever want a merge for dexes, a dex like this could be a problem.
-Refactor the entire "File I/O for simple builds" system so that it looks like it could use namespaces, but doesn't actually use any sub-namespaces the Cene code has access to.
-Revisit `output-path-directory`, `output-path-utf-8`, and especially `cli-output-environment-variable-shadow` to be sure they behave as though they contribute to a namespace the user-level Cene code has no access to. Right now, I think `cli-output-environment-variable-shadow` outputs to a visible place in the definition namespace.
 Implement the `--command` command line option.
 
 Make a not-so-sloppy version of `sloppy-javascript-quine`. Namely, the implementation should walk the compiled expressions of the given struct tag's function implementation, find any constructor occurrences that occur in conditional locations that depend only on otherwise-seen constructor occurrences, and include all of their function definitions in the result. If any of their function definitions contain an embedded first-class value in a conditional location that depends only on seen constructor occurrences, those first-class values must be of only a few known types. (Add a way to extend the known types with any struct that the caller of this not-so-sloppy quine operation can deconstruct. That way we have an excuse as to why some values are supported and others aren't.)
@@ -64,6 +225,7 @@ For better error message behavior, be more careful about what paths in a `unique
   <unique-ns>/($$claimed-for claim:primitive fn)/main-tag/.name
   <unique-ns>/($$claimed-for claim:primitive fn)/projection-tag/<free variable name>/.name
   <unique-ns>/($$claimed-for claim:primitive fn)/body/...
+    \= NOTE: A `fn` also makes a definition in the function implementation namespace, keyed by the the constructor tag built out of the `main-tag` and `projection-tag` names indicated here.
   <unique-ns>/($$claimed-for claim:primitive test-async)/dex/...
   <unique-ns>/($$claimed-for claim:primitive test-async)/actual/...
   <unique-ns>/($$claimed-for claim:primitive test-async)/expected/...
@@ -81,14 +243,20 @@ High-level Cene tasks, in roughly highest-priority-first order:
 
 
 - Decide on a strategy for supporting lexically scoped extensions of the definition namespace. Local macros are the most immedate feature here, but we might want local constructor names too, and in general we might want local extensions of any user-defined macroexpansion-time framework. Although this achieves lexical scope, it is dynamic scope during the execution of macro implementations.
-
-  Our approach was going to be namespace shadowing, but we've removed all other reasons to use namespace shadowing, and our current namespace layout isn't conducive to using shadowing for this local macro purpose.
-
-- Right now, macro definitions often look up other macros from the definition namespace of the macro call. Make them look it up from the caller definition's definition namespace instead.
-
-  If we don't want to embed first-class functions into the macro definitions, we'll have to have a macro lookup that results in a main tag of a nullary constructor of a function rather than resulting in a function. That way we can implement and use a new macro `(mac <source-macro-name>)` that uses this looked-up main tag to expand to a constructor call.
-
-  Unfortunately, if the *only* macro lookup we have results in a constructor main tag, then `compile-expression` will have to somehow convert a main tag into a struct value. Or can it effectively do this already?
+  
+  Our approach was going to be namespace shadowing (something like symbolic links, where a new namespace could be constructed that behaves just like a given namespace, but with some sub-namespace keys leading to some given namespaces). However, we've removed all other reasons to use namespace shadowing. Namespace shadowing was going to make it tough to implement the built-in macros so they would be properly shadowed, and it introduce the undesired possibility that two sections of code macroexpanded with otherwise disjoint definition namespaces might communicate by defining things in sub-namespaces of the core primitives.
+  
+  We could reject lexical scope inheritance altogether for things like macros, but that would be inconsistent with our treatment of local variables. Let's not give up lexically scoped local variables; they're too useful when using continuation-passing style.
+  
+  Cene's primitives are designed as though they could be implemented just out of view in the same codebase, which is a useful illusion not because they actually *could* be implemented without native code, but because they could someday be implemented in terms of a completely different set of primitives. This lack of structure also makes it acceptable for macro and function definitions to occur in the middle of macroexpansion; sometimes we have to block on a macro definition we don't know is coming, but we never have to worry about whether a *more local* macro is coming.
+  
+  There is some elegance to an unstructured arena. If we take a module-centric point of view on things, watching the structure of textual syntax give way to the structurelessness of sets of modules, lexical scope falls apart. But the structure can reappear again if we letting modules express policies for suppressing and disambiguating between each other, and that might be how we want to approach lexical scope. Cene doesn't currently have user-definable policies for disambiguating or suppressing its macro definitions (and by the way, if it did, we'd want to store macro definitions under keys that are different from their macro names, so that we heed each of two conflicting definitions in different lexical contexts), but the fact that it doesn't *currently* have any such policies doesn't mean we should keep it that way. We can try to design some that are just good enough to achieve lexical scope.
+  
+  Wild ideas unrelated to disambiguation policies:
+  
+  We could add a way to forward *all* definitions from one namespace tree to another. That could be strange when a framework extension added to the inheritor namespace doesn't faze a framework that's listening to the inherited namespace, but maybe it would make enough sense. Is there a reason a framework author would not want their framework's extensions to be forwarded from one namespace to another?)
+  
+  We could pass a conversion function through every macro call, telling it how to take the names it sees in source code and translate them into fully qualified names. This could work, but it would invest us further into a very dynamic macro system. Instead of a conversion function per se, it could be an encapsulated value that is mostly useful for passing to `procure-macro-implementation-getdef`, so that it's more obvious how and when to use it. Hmm, this value would need to be a new macro parameter just like `macro-def-ns`; we'd need to add `macro-qualify` and `caller-qualify`.
 
 - Try to implement an example of an extensible framework (such as multimethods) in terms of the various "contribute" primitives.
 
