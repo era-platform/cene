@@ -257,6 +257,8 @@ High-level Cene tasks, in roughly highest-priority-first order:
   We could add a way to forward *all* definitions from one namespace tree to another. That could be strange when a framework extension added to the inheritor namespace doesn't faze a framework that's listening to the inherited namespace, but maybe it would make enough sense. Is there a reason a framework author would not want their framework's extensions to be forwarded from one namespace to another?)
   
   We could pass a conversion function through every macro call, telling it how to take the names it sees in source code and translate them into fully qualified names. This could work, but it would invest us further into a very dynamic macro system. Instead of a conversion function per se, it could be an encapsulated value that is mostly useful for passing to `procure-macro-implementation-getdef`, so that it's more obvious how and when to use it. Hmm, this value would need to be a new macro parameter just like `macro-def-ns`; we'd need to add `macro-qualify` and `caller-qualify`.
+  
+  Actually, at that point we might as well be passing around shadowable environments again; the function is essentially an environment, and it has to leave almost all inputs alone so that we don't have to copy the same definitions around to be defined at several local names. Hmm, I guess the difference is that we'd be shadowing the sub-namespaces of things that have *local* bindings, as opposed to what we've moved away from, shadowing things that we want to refer to *external* things like builtins.
 
 - Try to implement an example of an extensible framework (such as multimethods) in terms of the various "contribute" primitives.
 
