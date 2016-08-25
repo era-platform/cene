@@ -15,6 +15,10 @@
 // would have appeared in the generated code if they hadn't been made
 // static.
 
+// TODO: This file is unused for now, but let's refactor Cene to use
+// it so we can factor out non-macro ways for Cene code to obtain and
+// manipulate compiled expressions.
+
 // TODO: Move this to era-misc.js.
 function isStringArray( x ) {
     return isArray( x ) && arrAll( x, function ( x ) {
