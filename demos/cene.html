@@ -73,11 +73,11 @@ window.onload = function () {
         var readMillis = new Date().getTime();
         
         var nss = {
-            definitionNs: stcNsGet( "definition-ns", stcNsRoot() ),
-            uniqueNs: stcNsGet( "unique-ns", stcNsRoot() )
+            definitionNs: sinkNsGet( "definition-ns", sinkNsRoot() ),
+            uniqueNs: sinkNsGet( "unique-ns", sinkNsRoot() )
         };
         var funcDefNs =
-            stcNsGet( "function-implementations-ns", stcNsRoot() );
+            sinkNsGet( "function-implementations-ns", sinkNsRoot() );
         
         var usingDefNs = usingFuncDefNs( funcDefNs );
         
@@ -136,7 +136,7 @@ window.onload = function () {
                 }
             } );
         
-        usingDefNs.stcAddCoreMacros(
+        usingDefNs.addCoreMacros(
             namespaceDefs, nss.definitionNs, funcDefNs );
         usingDefNs.processCoreStructs(
             namespaceDefs, nss.definitionNs );

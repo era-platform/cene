@@ -20,11 +20,11 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
     } );
     
     var nss = {
-        definitionNs: stcNsGet( "definition-ns", stcNsRoot() ),
-        uniqueNs: stcNsGet( "unique-ns", stcNsRoot() )
+        definitionNs: sinkNsGet( "definition-ns", sinkNsRoot() ),
+        uniqueNs: sinkNsGet( "unique-ns", sinkNsRoot() )
     };
     var funcDefNs =
-        stcNsGet( "function-implementations-ns", stcNsRoot() );
+        sinkNsGet( "function-implementations-ns", sinkNsRoot() );
     
     var usingDefNs = usingFuncDefNs( funcDefNs );
     
@@ -102,7 +102,7 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
             }
         } );
     
-    usingDefNs.stcAddCoreMacros(
+    usingDefNs.addCoreMacros(
         namespaceDefs, nss.definitionNs, funcDefNs );
     usingDefNs.processCoreStructs( namespaceDefs, nss.definitionNs );
     ceneApiUsingDefNs.addCeneApi( nss.definitionNs, funcDefNs );
@@ -113,11 +113,11 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
         usingDefNs.topLevelTryExprsToMacLookupThreads( nss,
             codeOfFiles ),
         [ { type: "jsEffectsThread", macLookupEffectsOfJsEffects:
-            new Stc(
+            new SinkStruct(
                 JSON.stringify( [ constructorTag, [] ] ),
                 []
-            ).callStc( usingDefNs.rt,
-                new StcForeign( "foreign",
+            ).callSink( usingDefNs.rt,
+                new SinkForeign( "foreign",
                     ceneApiUsingDefNs.ceneClient ) ) } ]
     ) );
 }
