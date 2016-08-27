@@ -379,7 +379,7 @@ function runCeneSync(
     
     usingDefNs.stcAddCoreMacros(
         namespaceDefs, nss.definitionNs, funcDefNs );
-    usingDefNs.processCoreTypes( namespaceDefs, nss.definitionNs );
+    usingDefNs.processCoreStructs( namespaceDefs, nss.definitionNs );
     ceneApiUsingDefNs.addCeneApi( nss.definitionNs, funcDefNs );
     
     usingDefNs.runTopLevelTryExprsSync( namespaceDefs, nss,

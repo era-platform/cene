@@ -80,7 +80,7 @@ Given two tables and a fuse, fuses all the values of both tables together into a
   
   If you want a table where clients can't see the values unless they know the keys, try using values that are themselves encapsulated, or try holding the table inside something encapsulated. (This is really open-ended advice, but there are also many possible interpretations of this requirement.)
   
-  If you want a table where multiplicity of values doesn't matter, try defining an encapsulated type that replicates most of the table operations but requires a dex for values (in addition to a dex for keys) and only allows :ref:`tables-fuse` for a merge, not a general fuse.
+  If you want a table where multiplicity of values doesn't matter, try defining an encapsulated value that replicates most of the table operations but requires a dex for values (in addition to a dex for keys) and only allows :ref:`tables-fuse` for a merge, not a general fuse.
   
   If you want an orderless collection whose equality with other collections is based only on what elements are present, and not which keys they're looked up by, try using the same value as both the key and the value.
 

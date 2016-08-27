@@ -31,7 +31,7 @@ foreign
 
 Construct with ``val``
 
-An s-expression that consists of an embedded value of any type, but usually an (:ref:`obtain-by-name` ...), (:ref:`obtain-directly` ...), or a name. The program may not know of a way to encode the name as serializable data, but it can still be passed to (:ref:`compile-expression` ...).
+An s-expression that consists of any first-class value, but usually an (:ref:`obtain-by-name` ...), an (:ref:`obtain-directly` ...), or a name. The program may not know of a way to encode the name as serializable data, but it can still be passed to (:ref:`compile-expression` ...).
 
 
 .. _obtain-by-name:

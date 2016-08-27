@@ -2,9 +2,9 @@
 // Copyright 2015, 2016 Ross Angle. Released under the MIT License.
 
 
-var builtInApiTypesToAdd = [];
+var builtInApiStructsToAdd = [];
 
-builtInStructAccumulator.val = builtInApiTypesToAdd;
+builtInStructAccumulator.val = builtInApiStructsToAdd;
 
 var stcEncapsulatedString =
     builtInStruct( "encapsulated-string", "val" );
@@ -295,7 +295,7 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
             return isMacroRawMode( rawMode );
         }
         
-        arrEach( builtInApiTypesToAdd, function ( entry ) {
+        arrEach( builtInApiStructsToAdd, function ( entry ) {
             usingDefNs.processDefStruct( targetDefNs, dummyMode,
                 entry.sourceMainTagName, entry.repMainTagName,
                 entry.projSourceToRep );
