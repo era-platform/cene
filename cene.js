@@ -87,6 +87,7 @@ function runCeneSync(
             "src/era-misc-strmap-avl.js",
             "src/era-misc.js",
             "src/era-reader.js",
+            "src/era-code-gen-js.js",
             "src/era-cene-runtime.js",
             "src/era-cene-api.js"
         ] ) + "\n" +
@@ -289,6 +290,7 @@ function runCeneSync(
                         "src/era-misc-strmap-avl.js",
                         "src/era-misc.js",
                         "src/era-reader.js",
+                        "src/era-code-gen-js.js",
                         "src/era-cene-runtime.js",
                         "src/era-cene-api.js",
                         "src/era-cene-quiner.js"

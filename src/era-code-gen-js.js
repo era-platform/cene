@@ -19,17 +19,10 @@
 // it so we can factor out non-macro ways for Cene code to obtain and
 // manipulate compiled expressions.
 
-// TODO: Move this to era-misc.js.
-function isStringArray( x ) {
-    return isArray( x ) && arrAll( x, function ( x ) {
-        return isPrimString( x );
-    } );
-}
-
 function jsCode_toFreeVars_( freeVars ) {
-    return isStringArray( freeVars ) ?
-        strMap().plusArrTruth( freeVars ) :
-        freeVars;
+    return isArray( freeVars ) && arrAll( freeVars, function ( va ) {
+        return isPrimString( va );
+    } ) ? strMap().plusArrTruth( freeVars ) : freeVars;
 }
 
 function JsCode() {}
@@ -39,6 +32,7 @@ JsCode.prototype.init_ = function (
     this.freeVars_ = freeVars;
     this.staticExprs_ = staticExprs;
     this.getCode_ = getCode;
+    return this;
 };
 JsCode.prototype.withFreeVars_ = function ( freeVars ) {
     return new JsCode().init_(
@@ -61,8 +55,19 @@ JsCode.prototype.assertNotFreeVars = function ( freeVars ) {
     return self;
 };
 JsCode.prototype.assertNoFreeVars = function () {
-    if ( this.freeVars_.hasAny() )
-        throw new Error();
+    if ( this.freeVars_.hasAny() ) {
+        var freeVars = [];
+        this.freeVars_.each( function ( va, truth ) {
+            freeVars.push( va );
+        } );
+        throw new Error(
+            "Encountered " +
+            (freeVars.length === 1 ?
+                "an unbound variable" :
+                "unbound variables") + " " +
+            "when generating JavaScript code: " +
+            freeVars.join( ", " ) );
+    }
     return this;
 };
 function jsCodeSingleStatic_( staticExpr ) {
@@ -79,7 +84,9 @@ JsCode.prototype.asStatic = function () {
     return jsCodeSingleStatic_( { type: "expr", expr: this } );
 };
 JsCode.prototype.toFunction = function ( paramVarsArr ) {
-    this.minusFreeVarsArr( paramVarsArr ).assertNoFreeVars();
+    if ( !isArray( paramVarsArr ) )
+        throw new Error();
+    this.minusFreeVars( paramVarsArr ).assertNoFreeVars();
     
     var disallowedGensyms = strMap().plusArrTruth( paramVarsArr );
     var gensymNumber = 0;
@@ -95,7 +102,7 @@ JsCode.prototype.toFunction = function ( paramVarsArr ) {
     var reifiedVals = [];
     
     function toExpr( code ) {
-        var code = "(function () {";
+        var result = "(function () {";
         var staticVars = [];
         arrEach( code.staticExprs_, function ( staticExpr ) {
             if ( staticExpr.type === "expr" ) {
@@ -109,14 +116,15 @@ JsCode.prototype.toFunction = function ( paramVarsArr ) {
                 throw new Error();
             }
             var staticVar = nextGensym();
-            code += "    var " + staticVar + " = " + exprCode + ";\n";
+            result +=
+                "    var " + staticVar + " = " + exprCode + ";\n";
             staticVars.push( staticVar );
         } );
         var getCode = code.getCode_;
-        code +=
+        result +=
             "    return " + getCode( staticVars ) + ";\n" +
             "})()";
-        return code;
+        return result;
     }
     
     var compiled =
@@ -139,12 +147,21 @@ JsCode.prototype.instantiate = function ( envObj ) {
     } );
     return this.toFunction( vars ).apply( null, vals );
 };
+JsCode.prototype.toString = function () {
+    throw new Error( "Tried to convert a JsCode object to a string" );
+};
 function jsCode( var_args ) {
     var freeVars = strMap();
     var staticExprs = [];
     var segments = [];
-    arrEach( [].slice.call( arguments ), function ( arg, i ) {
-        if ( isPrimString( arg ) ) {
+    
+    addArg( [].slice.call( arguments ) );
+    function addArg( arg ) {
+        if ( isArray( arg ) ) {
+            arrEach( arg, function ( arg, i ) {
+                addArg( arg );
+            } );
+        } else if ( isPrimString( arg ) ) {
             segments.push( { size: 0, func: function ( staticVars ) {
                 return arg;
             } } );
@@ -159,7 +176,8 @@ function jsCode( var_args ) {
         } else {
             throw new Error();
         }
-    } );
+    }
+    
     return new JsCode().init_( freeVars, staticExprs,
         function ( staticVars ) {
         

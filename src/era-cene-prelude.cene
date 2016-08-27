@@ -1923,7 +1923,11 @@
       err.\;qq[Expected a lazy-ops value of type lazy-ops]
     /c done /ftree-pop-result yep.element ftree-empty.meta)
   /case tree ftree-deep meta digits lazy-next
-    (cast (ftree-digits-swap polarity digits)
+    (cast meta ftree-meta lazy-ops measure plus
+      err.\;qq[Expected a meta value of type ftree-meta]
+    /cast lazy-ops lazy-ops done then make-lazy force
+      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+    /cast (ftree-digits-swap polarity digits)
       ftree-digits w-digits t-digits
       err.\;qq[Expected a digits value of type ftree-digits]
     /cast rev.t-digits cons last rev-past

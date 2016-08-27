@@ -60,7 +60,7 @@
       /c then istring-nil.appended)
       
       istring-cons prefix interpolation rest
-      (string-append-later past-suffix rest-suffix /fn appended
+      (string-append-later past-suffix prefix /fn appended
       /c then /istring-cons appended interpolation rest)
       
       err.\;qq[Expected a rest of type istring-nil or istring-cons])

@@ -17,9 +17,9 @@ Check the console to see if there are errors. If there aren't, great!
 Nothing to see here.</p>
 
 <p>This page loads the Cene source code from files called
-"fin/era-cene-prelude.cene.js" and "fin/test.cene.js" in the repo
-directory. To use this page, you must obtain these files in one of two
-ways:</p>
+"fin/era-cene-prelude.cene.js", "fin/era-quasiquote.cene.js", and
+"fin/test.cene.js" in the repo directory. To use this page, you must
+obtain these files in one of two ways:</p>
 
 <ul>
     <li>Install Node.js. From the repo directory, run the command
@@ -36,11 +36,15 @@ ways:</p>
 <script type="text/javascript" src="../buildlib/lathe.js"></script>
 <script type="text/javascript" src="../fin/era-cene-prelude.cene.js">
     </script>
+<script type="text/javascript" src="../fin/era-quasiquote.cene.js">
+    </script>
 <script type="text/javascript" src="../fin/test.cene.js"></script>
 <script type="text/javascript" src="../src/era-misc-strmap-avl.js">
     </script>
 <script type="text/javascript" src="../src/era-misc.js"></script>
 <script type="text/javascript" src="../src/era-reader.js"></script>
+<script type="text/javascript" src="../src/era-code-gen-js.js">
+    </script>
 <script type="text/javascript" src="../src/era-cene-runtime.js">
     </script>
 <script type="text/javascript" src="../src/era-cene-api.js"></script>
@@ -53,7 +57,8 @@ window.onload = function () {
         var startMillis = new Date().getTime();
         
         var files = [
-            "era-cene-prelude.cene"
+            "era-cene-prelude.cene",
+            "era-quasiquote.cene"
         ];
         var testFile = "test.cene";
         
