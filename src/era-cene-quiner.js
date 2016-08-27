@@ -104,7 +104,7 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
     
     usingDefNs.stcAddCoreMacros(
         namespaceDefs, nss.definitionNs, funcDefNs );
-    usingDefNs.processCoreTypes( namespaceDefs, nss.definitionNs );
+    usingDefNs.processCoreStructs( namespaceDefs, nss.definitionNs );
     ceneApiUsingDefNs.addCeneApi( nss.definitionNs, funcDefNs );
     
     runTopLevelMacLookupsSync( namespaceDefs, usingDefNs.rt,

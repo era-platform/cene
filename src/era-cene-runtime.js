@@ -134,7 +134,7 @@ function nameCompare( a, b ) {
     return jsnCompare( a, b );
 }
 
-function stcTypeArr( repMainTagName, projSourceToRep ) {
+function stcStructArr( repMainTagName, projSourceToRep ) {
     var sortedProjNames = arrMap( projSourceToRep,
         function ( entry, i ) {
         
@@ -165,7 +165,6 @@ function stcTypeArr( repMainTagName, projSourceToRep ) {
     var n = projSourceToRep.length;
     
     var result = {};
-    result.type = "stcType";
     result.repMainTagName = repMainTagName;
     result.unsortedProjNames = unsortedProjNames;
     result.sortedProjNames = sortedProjNames;
@@ -1242,12 +1241,12 @@ function builtInStruct( sourceMainTagNameJs, var_args ) {
         repMainTagName: repMainTagName,
         projSourceToRep: projSourceToRep
     } );
-    return stcTypeArr( repMainTagName, projSourceToRep );
+    return stcStructArr( repMainTagName, projSourceToRep );
 }
 
-var builtInCoreTypesToAdd = [];
+var builtInCoreStructsToAdd = [];
 
-builtInStructAccumulator.val = builtInCoreTypesToAdd;
+builtInStructAccumulator.val = builtInCoreStructsToAdd;
 
 // These constructors are needed for interpreting the results of
 // certain built-in operators, namely `isa` and the dex operations.
@@ -2121,7 +2120,7 @@ function usingFuncDefNs( funcDefNs ) {
         return result;
     }
     
-    function getType( definitionNs, sourceMainTagNameRep ) {
+    function getStruct( definitionNs, sourceMainTagNameRep ) {
         return macLookupThen(
             macLookupGet(
                 getConstructorGlossaryDefiner(
@@ -2155,7 +2154,7 @@ function usingFuncDefNs( funcDefNs ) {
             }
             
             return macLookupRet(
-                stcTypeArr( repMainTagName.foreignVal,
+                stcStructArr( repMainTagName.foreignVal,
                     arrMap( stcConsListToArray( sourceToRep ),
                         function ( entry ) {
                         
@@ -2195,12 +2194,12 @@ function usingFuncDefNs( funcDefNs ) {
                 sourceMainTagNameRepExpr.pretty() );
         
         return macLookupThen(
-            getType( definitionNs, sourceMainTagNameRep ),
-            function ( type ) {
+            getStruct( definitionNs, sourceMainTagNameRep ),
+            function ( struct ) {
             
             var remainingBody = stcCons.getProj( body, "cdr" );
             var localVars = [];
-            var n = type.sortedProjNames.length;
+            var n = struct.sortedProjNames.length;
             for ( var i = 0; i < n; i++ ) {
                 if ( !stcCons.tags( remainingBody ) )
                     throw new Error();
@@ -2214,7 +2213,7 @@ function usingFuncDefNs( funcDefNs ) {
             }
             
             var result = {};
-            result.type = type;
+            result.struct = struct;
             result.localVars = localVars;
             result.remainingBody = remainingBody;
             return macLookupRet( result );
@@ -2265,9 +2264,9 @@ function usingFuncDefNs( funcDefNs ) {
                 jsCodeVar( "stcLocal_matchSubject" ), " " +
                     "instanceof ", jsCodeVar( "Stc" ), " " +
                 "&& stcLocal_matchSubject.flatTag === " +
-                    jsStr( pattern.type.getFlatTag() ) + " " +
+                    jsStr( pattern.struct.getFlatTag() ) + " " +
             ") return (function () { " +
-                arrMap( pattern.type.sortedProjNames,
+                arrMap( pattern.struct.sortedProjNames,
                     function ( entry, i ) {
                     
                     return "var " +
@@ -2363,10 +2362,10 @@ function usingFuncDefNs( funcDefNs ) {
                         "if ( stcLocal_matchSubject instanceof ",
                                 jsCodeVar( "Stc" ), " " +
                             "&& stcLocal_matchSubject.flatTag === " +
-                                jsStr( pattern.type.getFlatTag() ) +
+                                jsStr( pattern.struct.getFlatTag() ) +
                             " " +
                         ") return (function () { " +
-                            arrMap( pattern.type.sortedProjNames,
+                            arrMap( pattern.struct.sortedProjNames,
                                 function ( entry, i ) {
                                 
                                 return "var " +
@@ -2931,8 +2930,9 @@ function usingFuncDefNs( funcDefNs ) {
                     nssGet( nss, "outbox" ).uniqueNs,
                     function ( rawMode, expandedBody ) {
                 return macLookupThen(
-                    getType( nss.definitionNs, sourceMainTagNameRep ),
-                    function ( type ) {
+                    getStruct( nss.definitionNs,
+                        sourceMainTagNameRep ),
+                    function ( struct ) {
                 
                 return macLookupThenRunEffects( rawMode,
                     then(
@@ -2944,7 +2944,7 @@ function usingFuncDefNs( funcDefNs ) {
                             "    return stcLocal_body instanceof ",
                                 jsCodeVar( "Stc" ), " " +
                                     "&& stcLocal_body.flatTag === " +
-                                        jsStr( type.getFlatTag() ) + " ? ",
+                                        jsStr( struct.getFlatTag() ) + " ? ",
                                     stcYep.of( stcNil.of() ), " : ",
                                     stcNope.of( stcNil.of() ), ";\n" +
                             "} )" ) ) );
@@ -3167,20 +3167,21 @@ function usingFuncDefNs( funcDefNs ) {
             
             return function ( rawMode, nss ) {
                 return macLookupThen(
-                    getType( nss.definitionNs, sourceMainTagNameRep ),
-                    function ( type ) {
+                    getStruct( nss.definitionNs,
+                        sourceMainTagNameRep ),
+                    function ( struct ) {
                     
-                    return loop( nss, rawMode, type, 0, null,
+                    return loop( nss, rawMode, struct, 0, null,
                         stcCons.getProj( body, "cdr" ) );
                 } );
             };
             
-            function loop( nss, rawMode, type, i, revProjVals,
+            function loop( nss, rawMode, struct, i, revProjVals,
                 remainingBody ) {
                 
-                var n = type.unsortedProjNames.length;
+                var n = struct.unsortedProjNames.length;
                 if ( n <= i )
-                    return next( rawMode, type,
+                    return next( rawMode, struct,
                         revProjVals, remainingBody );
                 
                 if ( !stcCons.tags( remainingBody ) )
@@ -3196,10 +3197,11 @@ function usingFuncDefNs( funcDefNs ) {
                     nssGet( firstNss, "outbox" ).uniqueNs,
                     function ( rawMode, projVal ) {
                     
-                    return loop( nssGet( nss, "rest" ), rawMode, type,
+                    return loop( nssGet( nss, "rest" ), rawMode,
+                        struct,
                         i + 1,
                         { first:
-                            { i: type.unsortedProjNames[ i ].i,
+                            { i: struct.unsortedProjNames[ i ].i,
                                 val: projVal },
                             rest: revProjVals },
                         stcCons.getProj( remainingBody, "cdr" ) );
@@ -3207,7 +3209,7 @@ function usingFuncDefNs( funcDefNs ) {
             }
             
             function next(
-                rawMode, type, revProjVals, remainingBody ) {
+                rawMode, struct, revProjVals, remainingBody ) {
                 
                 if ( stcCons.tags( remainingBody ) )
                     throw new Error();
@@ -3218,7 +3220,7 @@ function usingFuncDefNs( funcDefNs ) {
                     jsCodeVar( "macLookupRet" ), "( ",
                         genJsConstructor(
                             jsCode(
-                                jsStr( type.getFlatTag() ) + ", " +
+                                jsStr( struct.getFlatTag() ) + ", " +
                                 "[ ",
                                 
                                 arrMappend( projVals,
@@ -4789,13 +4791,13 @@ function usingFuncDefNs( funcDefNs ) {
         sourceMainTagName, repMainTagName, projSourceToRep ) {
         
         var n = projSourceToRep.length;
-        var type = stcTypeArr( repMainTagName, projSourceToRep );
+        var struct = stcStructArr( repMainTagName, projSourceToRep );
         collectPutDefined( rawMode,
             getConstructorGlossaryDefiner( definitionNs,
                 sourceMainTagName ),
             stcConstructorGlossary.ofNow(
                 new StcForeign( "name", repMainTagName ),
-                stcArrayToConsList( arrMap( type.unsortedProjNames,
+                stcArrayToConsList( arrMap( struct.unsortedProjNames,
                     function ( entry ) {
                     
                     return stcAssoc.ofNow(
@@ -4852,7 +4854,7 @@ function usingFuncDefNs( funcDefNs ) {
                     return macLookupThenRunEffects( rawMode,
                         then(
                             stcCallArr(
-                                type.ofArr(
+                                struct.ofArr(
                                     revJsListToArr( revProjVals ) ),
                                 expandedArgs ) ) );
                 } );
@@ -4860,11 +4862,11 @@ function usingFuncDefNs( funcDefNs ) {
         } );
     }
     
-    function processCoreTypes( namespaceDefs, definitionNs ) {
+    function processCoreStructs( namespaceDefs, definitionNs ) {
         
         var dummyMode = makeDummyMode();
         
-        arrEach( builtInCoreTypesToAdd, function ( entry ) {
+        arrEach( builtInCoreStructsToAdd, function ( entry ) {
             processDefStruct( definitionNs, dummyMode,
                 entry.sourceMainTagName, entry.repMainTagName,
                 entry.projSourceToRep );
@@ -4945,13 +4947,12 @@ function usingFuncDefNs( funcDefNs ) {
     return {
         rt: rt,
         stcAddCoreMacros: stcAddCoreMacros,
-        processCoreTypes: processCoreTypes,
+        processCoreStructs: processCoreStructs,
         topLevelTryExprsToMacLookupThreads:
             topLevelTryExprsToMacLookupThreads,
         runTopLevelTryExprsSync: runTopLevelTryExprsSync,
         
         // NOTE: These are only needed for era-cene-api.js.
-        getType: getType,
         processDefStruct: processDefStruct,
         stcArrayToConsList: stcArrayToConsList,
         makeDummyMode: makeDummyMode,
