@@ -5,7 +5,7 @@
 
 
 // NOTE: We've tagged code with "#GEN" if it generates JavaScript code
-// strings directly.
+// strings using `JsCode` from era-code-gen-js.js.
 //
 // TODO: For each of these, make sure user-defined macros can produce
 // these kinds of generated code with sufficient flexibility. If they
@@ -17,7 +17,8 @@
 // not repeatedly evaluating JavaScript code strings at run time. We
 // can do this by having the JavaScript code strings executed at
 // load time instead, but that means some of our generated code needs
-// to have metadata saying what its load-time dependencies are.
+// to have metadata saying what its load-time dependencies are. Let's
+// use `JsCode#asStatic()` for this.
 //
 // TODO: At some point we may want more than one compilation target,
 // even without leaving JavaScript: For instance, the asynchronous
@@ -43,48 +44,35 @@ function stcIdentifier( identifier ) {
                 hexWithExcess.substring( hexWithExcess.length - 4 );
         } );
 }
+function jsCodeRetStcVar( identifier ) {
+    // #GEN
+    return jsCode( jsCodeVar( "macLookupRet" ), "( ",
+        jsCodeVar( stcIdentifier( identifier ) ), " )" );
+}
+
 
 function stcCallArr( func, argsArr ) {
     // #GEN
     var result = func;
     arrEach( argsArr, function ( arg ) {
-        result =
-            "macLookupThen( " + result + ", " +
+        result = jsCode(
+            jsCodeVar( "macLookupThen" ), "( ", result, ", " +
                 "function ( stcLocal_result ) {\n" +
             "    \n" +
-            "    return macLookupThen( " + arg + ", " +
+            "    return macLookupThen( ",
+                arg.assertNotFreeVars( [ "stcLocal_result" ] ), ", " +
                     "function ( stcLocal_arg ) {\n" +
             "        \n" +
             "        return stcLocal_result.callStc( rt, " +
                         "stcLocal_arg );\n" +
             "    } );\n" +
-            "} )";
+            "} )" );
     } );
     return result;
 }
 
 function stcCall( func, var_args ) {
     return stcCallArr( func, [].slice.call( arguments, 1 ) );
-}
-
-function stcFn( var_args ) {
-    // #GEN
-    var n = arguments.length;
-    var vars = [].slice.call( arguments, 0, n - 1 );
-    var body = arguments[ n - 1 ];
-    var result = body;
-    for ( var i = n - 2; 0 <= i; i-- ) {
-        var va = vars[ i ];
-        var vaIdentifier = stcIdentifier( va );
-        result =
-            "macLookupRet( " +
-                "new StcFn( " +
-                    "function ( rt, " + vaIdentifier + " ) { " +
-                
-                "return " + result + "; " +
-            "} ) )";
-    }
-    return result;
 }
 
 function jsnCompare( a, b ) {
@@ -206,18 +194,30 @@ function stcTypeArr( repMainTagName, projSourceToRep ) {
                 return args[ entry.i ];
             } );
         
-        var result = "macLookupRet( " +
-            "new Stc( " + jsStr( tupleTag ) + ", [ " +
-                arrMap( projectionVals, function ( entry, i ) {
-                    return "stcLocal_proj" + i;
-                } ).join( ", " ) +
-            " ] ) )";
-        for ( var i = projectionVals.length - 1; 0 <= i; i-- )
-            result = "macLookupThen( " + projectionVals[ i ] + ", " +
-                "function ( stcLocal_proj" + i + " ) {\n" +
+        var projectionVars = arrMap( projectionVals,
+            function ( entry, i ) {
             
-            "return " + result + ";\n" +
-            "} )";
+            return "stcLocal_proj" + i;
+        } );
+        var result = jsCode( jsCodeVar( "macLookupRet" ), "( " +
+            "new ", jsCodeVar( "Stc" ), "( " +
+                jsStr( tupleTag ) + ", [ ",
+                
+                arrMappend( projectionVars, function ( projVar, i ) {
+                    return [ ", ", jsCodeVar( projVar ) ];
+                } ).slice( 1 ),
+            " ] ) )" );
+        for ( var i = n - 1; 0 <= i; i-- ) {
+            var projVar = projectionVars[ i ];
+            result = jsCode( jsCodeVar( "macLookupThen" ), "( ",
+                projectionVals[ i ].assertNotFreeVars(
+                    projectionVars ),
+                ", " +
+                "function ( " + projVar + " ) {\n" +
+            
+            "return ", result.minusFreeVars( [ projVar ] ), ";\n" +
+            "} )" );
+        }
         return result;
     };
     result.of = function ( var_args ) {
@@ -716,7 +716,7 @@ StcDexByOwnMethod.prototype.callStc = function ( rt, arg ) {
 StcDexByOwnMethod.prototype.dexHas = function ( rt, x ) {
     return macLookupThen(
         stcDexable.getProj( this.dexableGetMethod, "val"
-            ).stcCall( rt, x ),
+            ).callStc( rt, x ),
         function ( maybeOwnMethod ) {
     
     if ( stcNil.tags( maybeOwnMethod ) )
@@ -1098,15 +1098,15 @@ StcFuseByOwnMethod.prototype.fuse = function ( rt, a, b ) {
         stcDexable.getProj( this.dexableGetMethod, "val" );
     
     function getFrom( x, then ) {
-        return macLookupThen( getMethod.stcCall( rt, x ),
+        return macLookupThen( getMethod.callStc( rt, x ),
             function ( maybeOwnMethod ) {
             
             if ( stcNil.tags( maybeOwnMethod ) ) {
-                return macLookupRet( stcNil.of() );
+                return macLookupRet( stcNil.ofNow() );
             } else if ( stcYep.tags( maybeOwnMethod ) ) {
                 var method = stcYep.getProj( maybeOwnMethod, "val" );
                 if ( method.affiliation !== self.affiliation )
-                    return macLookupRet( stcNil.of() );
+                    return macLookupRet( stcNil.ofNow() );
                 return then( method );
             } else {
                 throw new Error();
@@ -1118,7 +1118,7 @@ StcFuseByOwnMethod.prototype.fuse = function ( rt, a, b ) {
     return getFrom( b, function ( methodB ) {
     
     if ( nameCompare( methodA.getName(), methodB.getName() ) !== 0 )
-        return macLookupRet( stcNil.of() );
+        return macLookupRet( stcNil.ofNow() );
     
     return methodA.fuse( rt, a, b );
     
@@ -1961,20 +1961,25 @@ function runTopLevelMacLookupsSync(
 
 function stcExecute( rt, expr ) {
     // #GEN
-    return Function(
-        "rt", "Stc", "StcFn", "StcForeign", "StcDexStruct",
-        "StcFuseStruct", "stcClamorErr", "stcForeignStrFromJs",
-        "macLookupRet", "macLookupFollowHeart", "macLookupThen",
-        
-        // NOTE: When the code we generate for this has local
-        // variables, we consistently prefix them with "stcLocal_" or
-        // "_stc_". The latter is for variables that correspond to
-        // variables in the original code.
-        "return " + expr + ";"
-        
-    )( rt, Stc, StcFn, StcForeign, StcDexStruct,
-        StcFuseStruct, stcClamorErr, stcForeignStrFromJs,
-        macLookupRet, macLookupFollowHeart, macLookupThen );
+    
+    // NOTE: When the code we generate for this has local
+    // variables, we consistently prefix them with "stcLocal_" or
+    // "_stc_". The latter is for variables that correspond to
+    // variables in the original code.
+    
+    return expr.instantiate( {
+        rt: rt,
+        Stc: Stc,
+        StcFn: StcFn,
+        StcForeign: StcForeign,
+        StcDexStruct: StcDexStruct,
+        StcFuseStruct: StcFuseStruct,
+        stcClamorErr: stcClamorErr,
+        stcForeignStrFromJs: stcForeignStrFromJs,
+        macLookupRet: macLookupRet,
+        macLookupFollowHeart: macLookupFollowHeart,
+        macLookupThen: macLookupThen
+    } );
 }
 
 function addFunctionNativeDefinition(
@@ -1989,10 +1994,13 @@ function stcAddDefun( rt, funcDefNs, rawMode, name, argName, body ) {
     // #GEN
     var constructorTagName =
         stcNameConstructorTagAlreadySorted( name, [] );
+    var argVar = stcIdentifier( argName );
     var innerFunc = stcExecute( rt,
-        "function ( rt, " + stcIdentifier( argName ) + " ) { " +
-            "return " + body + "; " +
-        "}" );
+        jsCode(
+            "function ( rt, " + argVar + " ) { " +
+                "return ", body.minusFreeVars(
+                    [ "rt", argVar ] ), "; " +
+            "}" ) );
     addFunctionNativeDefinition(
         funcDefNs, rawMode, constructorTagName,
         function ( rt, funcVal, argVal ) {
@@ -2003,9 +2011,10 @@ function stcAddDefun( rt, funcDefNs, rawMode, name, argName, body ) {
 
 function stcErr( msg ) {
     // #GEN
-    return "macLookupFollowHeart( " +
-        "stcClamorErr.ofNow( " +
-            "stcForeignStrFromJs( " + jsStr( msg ) + " ) ) )";
+    return jsCode( jsCodeVar( "macLookupFollowHeart" ), "( ",
+        jsCodeVar( "stcClamorErr" ), ".ofNow( ",
+            jsCodeVar( "stcForeignStrFromJs" ), "( " +
+                jsStr( msg ) + " ) ) )" );
 }
 
 function evalStcForTest( rt, expr ) {
@@ -2229,7 +2238,8 @@ function usingFuncDefNs( funcDefNs ) {
                     function ( rawMode, expanded ) {
                     
                     return then( rawMode,
-                        "return " + expanded + "; " );
+                        jsCode( "return ", expanded.assertNotFreeVars(
+                            [ "stcLocal_matchSubject" ] ), "; " ) );
                 } );
             
             return macLookupThen(
@@ -2251,8 +2261,9 @@ function usingFuncDefNs( funcDefNs ) {
             return processTail( nssGet( nss, "tail" ), rawMode, els,
                 function ( rawMode, processedTail ) {
             
-            return then( rawMode, "if ( " +
-                "stcLocal_matchSubject instanceof Stc " +
+            return then( rawMode, jsCode( "if ( ",
+                jsCodeVar( "stcLocal_matchSubject" ), " " +
+                    "instanceof ", jsCodeVar( "Stc" ), " " +
                 "&& stcLocal_matchSubject.tupleTag === " +
                     jsStr( pattern.type.getTupleTag() ) + " " +
             ") return (function () { " +
@@ -2266,8 +2277,13 @@ function usingFuncDefNs( funcDefNs ) {
                         "stcLocal_matchSubject.projVals[ " +
                             i + " ]; ";
                 } ).join( "" ) +
-                "return " + thenBranch + "; " +
-            "})(); " + processedTail );
+                "return ", thenBranch.assertNotFreeVars(
+                    [ "stcLocal_matchSubject" ]
+                ).minusFreeVars(
+                    arrMap( pattern.localVars, function ( va, i ) {
+                        return stcIdentifier( va );
+                    } ) ), "; " +
+            "})(); ", processedTail ) );
             
             } );
             
@@ -2286,15 +2302,19 @@ function usingFuncDefNs( funcDefNs ) {
         
         return macLookupThenRunEffects( rawMode,
             then(
-                "macLookupThen( " + expandedSubject + ", " +
+                jsCode( jsCodeVar( "macLookupThen" ), "( ",
+                    expandedSubject, ", " +
                     "function ( stcLocal_matchSubject ) { " +
                     
                     (maybeVa === null ? "" :
                         "var " +
                             stcIdentifier( maybeVa.val ) + " = " +
-                            "stcLocal_matchSubject; ") +
-                    processedTail +
-                "} )" ) );
+                            "stcLocal_matchSubject; "),
+                    processedTail.minusFreeVars( [].concat(
+                        (maybeVa === null ? [] :
+                            [ stcIdentifier( maybeVa.val ) ]),
+                        [ "stcLocal_matchSubject" ] ) ),
+                "} )" ) ) );
         
         } );
         } );
@@ -2335,28 +2355,38 @@ function usingFuncDefNs( funcDefNs ) {
         
         return macLookupThenRunEffects( rawMode,
             then(
-                "macLookupThen( " + expandedSubject + ", " +
-                    "function ( stcLocal_matchSubject ) { " +
-                    
-                    "if ( stcLocal_matchSubject instanceof Stc " +
-                        "&& stcLocal_matchSubject.tupleTag === " +
-                            jsStr( pattern.type.getTupleTag() ) +
-                        " " +
-                    ") return (function () { " +
-                        arrMap( pattern.type.sortedProjNames,
-                            function ( entry, i ) {
-                            
-                            return "var " +
-                                stcIdentifier(
-                                    pattern.localVars[ entry.i ] ) +
-                                " = " +
-                                "stcLocal_matchSubject.projVals[ " +
-                                    i + " ]; ";
-                        } ).join( "" ) +
-                        "return " + body + "; " +
-                    "})(); " +
-                    "return " + onCastErr + "; " +
-                "} )" ) );
+                jsCode(
+                    jsCodeVar( "macLookupThen" ), "( ",
+                        expandedSubject, ", " +
+                        "function ( stcLocal_matchSubject ) { " +
+                        
+                        "if ( stcLocal_matchSubject instanceof ",
+                                jsCodeVar( "Stc" ), " " +
+                            "&& stcLocal_matchSubject.tupleTag === " +
+                                jsStr( pattern.type.getTupleTag() ) +
+                            " " +
+                        ") return (function () { " +
+                            arrMap( pattern.type.sortedProjNames,
+                                function ( entry, i ) {
+                                
+                                return "var " +
+                                    stcIdentifier(
+                                        pattern.localVars[ entry.i ] ) +
+                                    " = " +
+                                    "stcLocal_matchSubject.projVals[ " +
+                                        i + " ]; ";
+                            } ).join( "" ) +
+                            "return ", body.assertNotFreeVars(
+                                [ "stcLocal_matchSubject" ]
+                            ).minusFreeVars(
+                                arrMap( pattern.localVars,
+                                    function ( va, i ) {
+                                        return stcIdentifier( va );
+                                    } ) ), "; " +
+                        "})(); " +
+                        "return ", onCastErr.assertNotFreeVars(
+                            [ "stcLocal_matchSubject" ] ), "; " +
+                    "} )" ) ) );
         
         } );
         } );
@@ -2366,6 +2396,7 @@ function usingFuncDefNs( funcDefNs ) {
     }
     
     function processFn( nss, rawMode, body, then ) {
+        // #GEN
         if ( !stcCons.tags( body ) )
             throw new Error();
         var body1 = stcCons.getProj( body, "cdr" );
@@ -2383,8 +2414,16 @@ function usingFuncDefNs( funcDefNs ) {
         return processFn( nss, rawMode, body1,
             function ( rawMode, processedRest ) {
             
+            var va = stcIdentifier( paramName );
             return then( rawMode,
-                stcFn( paramName, processedRest ) );
+                jsCode(
+                    jsCodeVar( "macLookupRet" ), "( " +
+                        "new ", jsCodeVar( "StcFn" ), "( " +
+                            "function ( rt, " + va + " ) { " +
+                        
+                        "return ", processedRest.minusFreeVars(
+                            [ "rt", va ] ), "; " +
+                    "} ) )" ) );
         } );
     }
     
@@ -2625,7 +2664,7 @@ function usingFuncDefNs( funcDefNs ) {
                                 repMainTagName,
                                 firstArg,
                                 stcCall( processedFn,
-                                    "macLookupRet( " + stcIdentifier( firstArg ) + " )" ) );
+                                    jsCodeRetStcVar( firstArg ) ) );
                             
                             return macLookupRet(
                                 new StcForeign( "effects",
@@ -2895,15 +2934,18 @@ function usingFuncDefNs( funcDefNs ) {
                 
                 return macLookupThenRunEffects( rawMode,
                     then(
-                        "macLookupThen( " + expandedBody + ", " +
-                            "function ( stcLocal_body ) {\n" +
-                        "    \n" +
-                        "    return stcLocal_body instanceof Stc " +
-                                "&& stcLocal_body.tupleTag === " +
-                                    jsStr( type.getTupleTag() ) + " ? " +
-                                stcYep.of( stcNil.of() ) + " : " +
-                                stcNope.of( stcNil.of() ) + ";\n" +
-                        "} )" ) );
+                        jsCode(
+                            jsCodeVar( "macLookupThen" ), "( ",
+                                expandedBody, ", " +
+                                "function ( stcLocal_body ) {\n" +
+                            "    \n" +
+                            "    return stcLocal_body instanceof ",
+                                jsCodeVar( "Stc" ), " " +
+                                    "&& stcLocal_body.tupleTag === " +
+                                        jsStr( type.getTupleTag() ) + " ? ",
+                                    stcYep.of( stcNil.of() ), " : ",
+                                    stcNope.of( stcNil.of() ), ";\n" +
+                            "} )" ) ) );
                 
                 } );
                 } );
@@ -2991,11 +3033,12 @@ function usingFuncDefNs( funcDefNs ) {
             return function ( rawMode, nss ) {
                 return macLookupThenRunEffects( rawMode,
                     then(
-                        "macLookupRet( " +
-                            "stcForeignStrFromJs( " +
-                                jsStr(
-                                    stxToDefiniteString( stcCons.getProj( body, "car" ) ).jsStr ) +
-                            " ) )" ) );
+                        jsCode(
+                            jsCodeVar( "macLookupRet" ), "( ",
+                                jsCodeVar( "stcForeignStrFromJs" ), "( " +
+                                    jsStr(
+                                        stxToDefiniteString( stcCons.getProj( body, "car" ) ).jsStr ) +
+                                    " ) )" ) ) );
             };
         } );
         
@@ -3032,7 +3075,8 @@ function usingFuncDefNs( funcDefNs ) {
             // #GEN
             return function ( rawMode, nss ) {
                 return loop( rawMode, nss, 0,
-                    body, nssGet( nss, "bindings" ), "",
+                    body, nssGet( nss, "bindings" ),
+                    [], [], jsCode( "" ),
                     function ( rawMode, code ) {
                     
                     return macLookupThenRunEffects( rawMode,
@@ -3041,7 +3085,8 @@ function usingFuncDefNs( funcDefNs ) {
             };
             
             function loop( rawMode, nss, i,
-                remainingBody, bindingsNss, obscureVarsCode, then ) {
+                remainingBody, bindingsNss,
+                innerVars, obscureVars, obscureVarsCode, then ) {
                 
                 if ( !stcCons.tags( remainingBody ) )
                     throw new Error();
@@ -3056,10 +3101,13 @@ function usingFuncDefNs( funcDefNs ) {
                         function ( rawMode, body ) {
                         
                         return then( rawMode,
-                            "(function () {\n" +
-                            obscureVarsCode +
-                            "return " + body + ";\n" +
-                            "})()" );
+                            jsCode(
+                                "(function () {\n",
+                                obscureVarsCode,
+                                "return ", body.assertNotFreeVars(
+                                    obscureVars ).minusFreeVars(
+                                    innerVars ), ";\n" +
+                                "})()" ) );
                     } );
                 }
                 var va = stxToMaybeName(
@@ -3080,17 +3128,23 @@ function usingFuncDefNs( funcDefNs ) {
                     return loop( rawMode, nss, i + 1,
                         stcCons.getProj( remainingBody1, "cdr" ),
                         nssGet( bindingsNss, "rest" ),
-                        obscureVarsCode +
-                            "var " + innerVar + " = " +
-                                obscureVar + ";\n",
+                        innerVars.concat( [ innerVar ] ),
+                        obscureVars.concat( [ obscureVar ] ),
+                        jsCode( obscureVarsCode,
+                            "var " + innerVar + " = ",
+                                jsCodeVar( obscureVar ), ";\n" ),
                         function ( rawMode, loopResult ) {
                         
                         return then( rawMode,
-                            "macLookupThen( " + bindingVal + ", " +
+                            jsCode(
+                                jsCodeVar( "macLookupThen" ), "( ",
+                                    bindingVal.assertNotFreeVars(
+                                        obscureVars ), ", " +
                                 "function ( " +
                                     obscureVar + " ) {\n" +
-                            "return " + loopResult + ";\n" +
-                            "} )" );
+                            "return ", loopResult.minusFreeVars(
+                                [ obscureVar ] ), ";\n" +
+                            "} )" ) );
                     } );
                 } );
             }
@@ -3158,26 +3212,33 @@ function usingFuncDefNs( funcDefNs ) {
                 
                 var projVals = revJsListToArr( revProjVals );
                 
-                var result = "macLookupRet( " +
-                    genJsConstructor(
-                        jsStr( type.getTupleTag() ) + ", " +
-                        "[ " +
+                var result = jsCode(
+                    jsCodeVar( "macLookupRet" ), "( ",
+                        genJsConstructor(
+                            jsCode(
+                                jsStr( type.getTupleTag() ) + ", " +
+                                "[ ",
+                                
+                                arrMappend( projVals,
+                                    function ( entry, i ) {
+                                    
+                                    return [ ", ", jsCode( "{ " +
+                                        "i: " + JSON.stringify( entry.i ) + ", " +
+                                        "val: ", jsCodeVar( "stcLocal_proj" + i ), " " +
+                                    "}" ) ];
+                                } ).slice( 1 ), " " +
+                            "]" ) ), " )" );
+                for ( var i = projVals.length - 1; 0 <= i; i-- ) {
+                    var projVar = "stcLocal_proj" + i;
+                    result = jsCode(
+                        jsCodeVar( "macLookupThen" ), "( ",
+                            projVals[ i ].val, ", " +
+                            "function ( " + projVar + " ) {\n" +
                         
-                        arrMap( projVals, function ( entry, i ) {
-                            return "{ " +
-                                "i: " +
-                                    JSON.stringify( entry.i ) + ", " +
-                                "val: stcLocal_proj" + i + " " +
-                            "}";
-                        } ).join( ", " ) + " " +
-                    "]" ) + " )";
-                for ( var i = projVals.length - 1; 0 <= i; i-- )
-                    result = "macLookupThen( " +
-                        projVals[ i ].val + ", " +
-                        "function ( stcLocal_proj" + i + " ) {\n" +
-                    
-                    "return " + result + ";\n" +
-                    "} )";
+                        "return ", result.minusFreeVars(
+                            [ projVar ] ), ";\n" +
+                        "} )" );
+                }
                 return macLookupThenRunEffects( rawMode,
                     then( result ) );
             }
@@ -3186,7 +3247,9 @@ function usingFuncDefNs( funcDefNs ) {
         mac( "dex-struct", function ( myStxDetails, body, then ) {
             // #GEN
             return structMapper( body, then, function ( args ) {
-                return "new StcDexStruct( " + args + " )";
+                return jsCode(
+                    "new ", jsCodeVar( "StcDexStruct" ), "( ",
+                        args, " )" );
             } );
         } );
         
@@ -3301,8 +3364,9 @@ function usingFuncDefNs( funcDefNs ) {
         mac( "merge-struct", function ( myStxDetails, body, then ) {
             // #GEN
             return structMapper( body, then, function ( args ) {
-                return "new StcFuseStruct( " +
-                    "\"merge-struct\", \"merge\", " + args + " )";
+                return jsCode(
+                    "new ", jsCodeVar( "StcFuseStruct" ), "( " +
+                        "\"merge-struct\", \"merge\", ", args, " )" );
             } );
         } );
         
@@ -3358,8 +3422,9 @@ function usingFuncDefNs( funcDefNs ) {
         mac( "fuse-struct", function ( myStxDetails, body, then ) {
             // #GEN
             return structMapper( body, then, function ( args ) {
-                return "new StcFuseStruct( " +
-                    "\"fuse-struct\", \"fuse\", " + args + " )";
+                return jsCode(
+                    "new ", jsCodeVar( "StcFuseStruct" ), "( " +
+                        "\"fuse-struct\", \"fuse\", ", args, " )" );
             } );
         } );
         
@@ -4626,13 +4691,12 @@ function usingFuncDefNs( funcDefNs ) {
                     function ( rawMode ) {
                     
                     // TODO: Report better errors if an unbound local
-                    // variable is used. Currently, we just generate
-                    // the JavaScript code for the variable anyway.
+                    // variable is used. Currently, we report errors
+                    // using `JsCode#assertNoFreeVars()`, but that's
+                    // not aware of Cene variable names.
                     collectPutDefined( rawMode, outDefiner,
                         new StcForeign( "compiled-code",
-                            "macLookupRet( " +
-                                stcIdentifier(
-                                    identifier ) + " )" ) );
+                            jsCodeRetStcVar( identifier ) ) );
                     return macLookupRet( stcNil.ofNow() );
                 } ) );
             if ( !stcStx.tags( locatedExpr ) )
