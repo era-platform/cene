@@ -1974,7 +1974,6 @@ function stcExecute( rt, expr ) {
         StcForeign: StcForeign,
         StcDexStruct: StcDexStruct,
         StcFuseStruct: StcFuseStruct,
-        stcClamorErr: stcClamorErr,
         stcForeignStrFromJs: stcForeignStrFromJs,
         macLookupRet: macLookupRet,
         macLookupFollowHeart: macLookupFollowHeart,
@@ -2012,9 +2011,10 @@ function stcAddDefun( rt, funcDefNs, rawMode, name, argName, body ) {
 function stcErr( msg ) {
     // #GEN
     return jsCode( jsCodeVar( "macLookupFollowHeart" ), "( ",
-        jsCodeVar( "stcClamorErr" ), ".ofNow( ",
-            jsCodeVar( "stcForeignStrFromJs" ), "( " +
-                jsStr( msg ) + " ) ) )" );
+        stcClamorErr.of(
+            jsCode(
+                jsCodeVar( "stcForeignStrFromJs" ), "( " +
+                    jsStr( msg ) + " )" ) ), " )" );
 }
 
 function evalStcForTest( rt, expr ) {
