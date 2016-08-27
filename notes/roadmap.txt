@@ -175,7 +175,7 @@ Revisit `output-path-directory`, `output-path-utf-8`, and especially `cli-output
 Other low-level Cene tasks, in roughly the order of the Sphinx documentation table of contents:
 
 
-Consider renaming "type" and "tuple" to "constructor," "struct," and "tag" throughout.
+Consider renaming "type" to "constructor," "struct," and "tag" throughout.
 
 Update most of the various built-in macros that use `stxToMaybeName` to use `stxToObtainMethod`, so they can support `(foreign/obtain-directly <value>)`.
 

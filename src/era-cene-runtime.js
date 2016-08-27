@@ -156,7 +156,7 @@ function stcTypeArr( repMainTagName, projSourceToRep ) {
             rep: entry.rep
         };
     } );
-    var tupleTag = JSON.stringify( [
+    var flatTag = JSON.stringify( [
         repMainTagName,
         arrMap( sortedProjNames, function ( entry ) {
             return entry.rep;
@@ -169,15 +169,14 @@ function stcTypeArr( repMainTagName, projSourceToRep ) {
     result.repMainTagName = repMainTagName;
     result.unsortedProjNames = unsortedProjNames;
     result.sortedProjNames = sortedProjNames;
-    result.getTupleTag = function () {
-        return tupleTag;
+    result.getFlatTag = function () {
+        return flatTag;
     };
     result.tags = function ( x ) {
-        return x instanceof Stc && x.tupleTag === tupleTag;
+        return x instanceof Stc && x.flatTag === flatTag;
     };
     result.getProj = function ( stc, projStringyName ) {
-        if ( !(stc instanceof Stc
-            && stc.tupleTag === tupleTag) )
+        if ( !(stc instanceof Stc && stc.flatTag === flatTag) )
             throw new Error();
         var i = sourceProjNamesToSortedIndices.get( projStringyName );
         if ( i === void 0 )
@@ -201,7 +200,7 @@ function stcTypeArr( repMainTagName, projSourceToRep ) {
         } );
         var result = jsCode( jsCodeVar( "macLookupRet" ), "( " +
             "new ", jsCodeVar( "Stc" ), "( " +
-                jsStr( tupleTag ) + ", [ ",
+                jsStr( flatTag ) + ", [ ",
                 
                 arrMappend( projectionVars, function ( projVar, i ) {
                     return [ ", ", jsCodeVar( projVar ) ];
@@ -227,7 +226,7 @@ function stcTypeArr( repMainTagName, projSourceToRep ) {
         if ( args.length !== n )
             throw new Error();
         
-        return new Stc( tupleTag,
+        return new Stc( flatTag,
             arrMap( sortedProjNames, function ( entry ) {
                 return args[ entry.i ];
             } ) );
@@ -380,16 +379,16 @@ function macLookupYoke( rt ) {
 }
 
 
-function prettifyTupleTag( tupleTag ) {
-    var parsed = JSON.parse( tupleTag );
+function prettifyFlatTag( flatTag ) {
+    var parsed = JSON.parse( flatTag );
     var mainTagName = parsed[ 0 ];
     if ( mainTagName[ 0 ] === "n:main-core" )
         return mainTagName[ 1 ];
-    return tupleTag;
+    return flatTag;
 }
 
-function Stc( tupleTag, opt_projVals ) {
-    this.tupleTag = tupleTag;
+function Stc( flatTag, opt_projVals ) {
+    this.flatTag = flatTag;
     this.projVals = opt_projVals || [];
 }
 Stc.prototype.affiliation = "none";
@@ -400,19 +399,19 @@ Stc.prototype.callStc = function ( rt, arg ) {
     // every single function call, so we do an early check to see if
     // we already have access to the definition we would have blocked
     // on.
-    var func = rt.functionDefs[ self.tupleTag ];
+    var func = rt.functionDefs[ self.flatTag ];
     if ( func !== void 0 )
         return func( rt, self, arg );
     
-    var tupleTag = JSON.parse( self.tupleTag );
+    var parsedTag = JSON.parse( self.flatTag );
     return macLookupThen(
         macLookupGet(
             getFunctionImplementationEntryDefiner( rt.funcDefNs,
                 stcNameConstructorTagAlreadySorted(
-                    tupleTag[ 0 ], tupleTag[ 1 ] ) ),
+                    parsedTag[ 0 ], parsedTag[ 1 ] ) ),
             function () {
                 throw new Error(
-                    "No such function definition: " + self.tupleTag );
+                    "No such function definition: " + self.flatTag );
             } ),
         function ( def ) {
         
@@ -421,7 +420,7 @@ Stc.prototype.callStc = function ( rt, arg ) {
             throw new Error();
         
         var func = def.foreignVal;
-        rt.functionDefs[ self.tupleTag ] = func;
+        rt.functionDefs[ self.flatTag ] = func;
         return func( rt, self, arg );
     } );
 };
@@ -432,13 +431,13 @@ Stc.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 Stc.prototype.getName = function () {
-    return [ "n:struct", this.tupleTag ].concat(
+    return [ "n:struct", this.flatTag ].concat(
         arrMap( this.projVals, function ( projVal ) {
             return projVal.getName();
         } ) );
 };
 Stc.prototype.pretty = function () {
-    return "(" + prettifyTupleTag( this.tupleTag ) +
+    return "(" + prettifyFlatTag( this.flatTag ) +
         arrMap( this.projVals, function ( projVal ) {
             return " " + projVal.pretty();
         } ).join( "" ) + ")";
@@ -556,11 +555,11 @@ StcDexGiveUp.prototype.getName = function () {
 StcDexGiveUp.prototype.pretty = function () {
     return "(dex-give-up)";
 };
-function StcDexStruct( expectedTupleTag, projDexes ) {
-    // NOTE: We originally didn't name this field `tupleTag` because
-    // we were doing some naive `x.tupleTag === y` checks. We might as
-    // well leave it this way to avoid confusion.
-    this.expectedTupleTag = expectedTupleTag;
+function StcDexStruct( expectedFlatTag, projDexes ) {
+    // NOTE: We originally avoided naming this field the same thing as
+    // `flatTag` because we were doing some naive `x.flatTag === y`
+    // checks. We might as well leave it this way to avoid confusion.
+    this.expectedFlatTag = expectedFlatTag;
     this.projDexes = projDexes;
 }
 StcDexStruct.prototype.affiliation = "dex";
@@ -570,7 +569,7 @@ StcDexStruct.prototype.callStc = function ( rt, arg ) {
 StcDexStruct.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
-    if ( !(x instanceof Stc && x.tupleTag === self.expectedTupleTag) )
+    if ( !(x instanceof Stc && x.flatTag === self.expectedFlatTag) )
         return macLookupRet( stcNope.ofNow( stcNil.ofNow() ) );
     
     var n = self.projDexes.length;
@@ -594,14 +593,13 @@ StcDexStruct.prototype.fuse = function ( rt, a, b ) {
 };
 StcDexStruct.prototype.getName = function () {
     // TODO: See if we can avoid this JSON.parse().
-    return [ "n:dex-struct", JSON.parse( this.expectedTupleTag )
+    return [ "n:dex-struct", JSON.parse( this.expectedFlatTag )
         ].concat( arrMap( this.projDexes, function ( projDex ) {
             return [ projDex.i, projDex.val.getName() ];
         } ) );
 };
 StcDexStruct.prototype.pretty = function () {
-    return "(dex-struct " +
-        prettifyTupleTag( this.expectedTupleTag ) +
+    return "(dex-struct " + prettifyFlatTag( this.expectedFlatTag ) +
         arrMap( this.projDexes, function ( projDex, i ) {
             return " " + projDex.i + ":" + projDex.val.pretty();
         } ).join( "" ) + ")";
@@ -965,14 +963,14 @@ StcFuseIntByTimes.prototype.pretty = function () {
     return "(fuse-int-by-times)";
 };
 function StcFuseStruct(
-    nameTag, affiliation, expectedTupleTag, projFuses ) {
+    nameTag, affiliation, expectedFlatTag, projFuses ) {
     
     this.nameTag = nameTag;
     this.affiliation = affiliation;
-    // NOTE: We originally didn't name this field `tupleTag` because
-    // we were doing some naive `x.tupleTag === y` checks. We might as
-    // well leave it this way to avoid confusion.
-    this.expectedTupleTag = expectedTupleTag;
+    // NOTE: We originally avoided naming this field the same thing as
+    // `flatTag` because we were doing some naive `x.flatTag === y`
+    // checks. We might as well leave it this way to avoid confusion.
+    this.expectedFlatTag = expectedFlatTag;
     this.projFuses = projFuses;
     
     arrEach( projFuses, function ( projFuse ) {
@@ -989,9 +987,9 @@ StcFuseStruct.prototype.dexHas = function ( rt, x ) {
 StcFuseStruct.prototype.fuse = function ( rt, a, b ) {
     var self = this;
     
-    if ( !(a instanceof Stc && a.tupleTag === self.expectedTupleTag) )
+    if ( !(a instanceof Stc && a.flatTag === self.expectedFlatTag) )
         return macLookupRet( stcNil.ofNow() );
-    if ( !(b instanceof Stc && b.tupleTag === self.expectedTupleTag) )
+    if ( !(b instanceof Stc && b.flatTag === self.expectedFlatTag) )
         return macLookupRet( stcNil.ofNow() );
     
     var n = self.projFuses.length;
@@ -1000,7 +998,7 @@ StcFuseStruct.prototype.fuse = function ( rt, a, b ) {
         if ( n <= i )
             return macLookupRet(
                 stcYep.ofNow(
-                    new Stc( self.expectedTupleTag,
+                    new Stc( self.expectedFlatTag,
                         arrMap( fuseResults.slice().sort(
                             function ( a, b ) {
                             
@@ -1026,14 +1024,14 @@ StcFuseStruct.prototype.fuse = function ( rt, a, b ) {
 };
 StcFuseStruct.prototype.getName = function () {
     // TODO: See if we can avoid this JSON.parse().
-    return [ this.nameTag, JSON.parse( this.expectedTupleTag )
+    return [ this.nameTag, JSON.parse( this.expectedFlatTag )
         ].concat( arrMap( this.projFuses, function ( projDex ) {
             return [ projDex.i, projDex.val.getName() ];
         } ) );
 };
 StcFuseStruct.prototype.pretty = function () {
     return "(" + this.nameTag + " " +
-        prettifyTupleTag( this.expectedTupleTag ) +
+        prettifyFlatTag( this.expectedFlatTag ) +
         arrMap( this.projFuses, function ( projDex, i ) {
             return " " + projDex.i + ":" + projDex.val.pretty();
         } ).join( "" ) + ")";
@@ -1226,9 +1224,9 @@ StcFuseTable.prototype.pretty = function () {
 
 
 var builtInStructAccumulator = { val: null };
-function builtInStruct( tupleStringyName, var_args ) {
+function builtInStruct( sourceMainTagNameJs, var_args ) {
     var sourceMainTagName =
-        stcForeignStrFromJs( tupleStringyName ).getName();
+        stcForeignStrFromJs( sourceMainTagNameJs ).getName();
     var repMainTagName = [ "n:main-core", sourceMainTagName ];
     var projSourceToRep =
         arrMap( [].slice.call( arguments, 1 ), function ( projName ) {
@@ -1342,9 +1340,9 @@ function getFunctionImplementationsDefiner( definitionNs ) {
             definitionNs ) );
 }
 function getFunctionImplementationEntryDefiner(
-    funcDefNs, tupleTagName ) {
+    funcDefNs, constructorTagName ) {
     
-    return elementDefiner( tupleTagName, funcDefNs );
+    return elementDefiner( constructorTagName, funcDefNs );
 }
 
 function parseMode( mode ) {
@@ -1982,11 +1980,11 @@ function stcExecute( rt, expr ) {
 }
 
 function addFunctionNativeDefinition(
-    funcDefNs, rawMode, tupleTagName, impl ) {
+    funcDefNs, rawMode, constructorTagName, impl ) {
     
     collectPutDefined( rawMode,
         getFunctionImplementationEntryDefiner(
-            funcDefNs, tupleTagName ),
+            funcDefNs, constructorTagName ),
         new StcForeign( "native-definition", impl ) );
 }
 function stcAddDefun( rt, funcDefNs, rawMode, name, argName, body ) {
@@ -2187,15 +2185,17 @@ function usingFuncDefNs( funcDefNs ) {
     function extractPattern( definitionNs, body ) {
         if ( !stcCons.tags( body ) )
             throw new Error();
-        var tupleNameExpr = stcCons.getProj( body, "car" );
-        var tupleName = stxToMaybeName( tupleNameExpr );
-        if ( tupleName === null )
+        var sourceMainTagNameRepExpr = stcCons.getProj( body, "car" );
+        var sourceMainTagNameRep =
+            stxToMaybeName( sourceMainTagNameRepExpr );
+        if ( sourceMainTagNameRep === null )
             throw new Error(
-                "Encountered a case branch with a tuple name that " +
-                "wasn't a syntactic name: " +
-                tupleNameExpr.pretty() );
+                "Encountered a case branch with a source main tag " +
+                "name that wasn't a syntactic name: " +
+                sourceMainTagNameRepExpr.pretty() );
         
-        return macLookupThen( getType( definitionNs, tupleName ),
+        return macLookupThen(
+            getType( definitionNs, sourceMainTagNameRep ),
             function ( type ) {
             
             var remainingBody = stcCons.getProj( body, "cdr" );
@@ -2264,8 +2264,8 @@ function usingFuncDefNs( funcDefNs ) {
             return then( rawMode, jsCode( "if ( ",
                 jsCodeVar( "stcLocal_matchSubject" ), " " +
                     "instanceof ", jsCodeVar( "Stc" ), " " +
-                "&& stcLocal_matchSubject.tupleTag === " +
-                    jsStr( pattern.type.getTupleTag() ) + " " +
+                "&& stcLocal_matchSubject.flatTag === " +
+                    jsStr( pattern.type.getFlatTag() ) + " " +
             ") return (function () { " +
                 arrMap( pattern.type.sortedProjNames,
                     function ( entry, i ) {
@@ -2362,8 +2362,8 @@ function usingFuncDefNs( funcDefNs ) {
                         
                         "if ( stcLocal_matchSubject instanceof ",
                                 jsCodeVar( "Stc" ), " " +
-                            "&& stcLocal_matchSubject.tupleTag === " +
-                                jsStr( pattern.type.getTupleTag() ) +
+                            "&& stcLocal_matchSubject.flatTag === " +
+                                jsStr( pattern.type.getFlatTag() ) +
                             " " +
                         ") return (function () { " +
                             arrMap( pattern.type.sortedProjNames,
@@ -2915,13 +2915,15 @@ function usingFuncDefNs( funcDefNs ) {
             var body2 = stcCons.getProj( body1, "cdr" );
             if ( stcCons.tags( body2 ) )
                 throw new Error();
-            var tupleNameExpr = stcCons.getProj( body, "car" );
-            var tupleName = stxToMaybeName( tupleNameExpr );
-            if ( tupleName === null )
+            var sourceMainTagNameRepExpr =
+                stcCons.getProj( body, "car" );
+            var sourceMainTagNameRep =
+                stxToMaybeName( sourceMainTagNameRepExpr );
+            if ( sourceMainTagNameRep === null )
                 throw new Error(
-                    "Encountered an isa with a tuple name that " +
-                    "wasn't a syntactic name: " +
-                    tupleNameExpr.pretty() );
+                    "Encountered an isa with a source main tag " +
+                    "name that wasn't a syntactic name: " +
+                    sourceMainTagNameRepExpr.pretty() );
             
             return function ( rawMode, nss ) {
                 return macroexpand( nssGet( nss, "unique" ), rawMode,
@@ -2929,7 +2931,7 @@ function usingFuncDefNs( funcDefNs ) {
                     nssGet( nss, "outbox" ).uniqueNs,
                     function ( rawMode, expandedBody ) {
                 return macLookupThen(
-                    getType( nss.definitionNs, tupleName ),
+                    getType( nss.definitionNs, sourceMainTagNameRep ),
                     function ( type ) {
                 
                 return macLookupThenRunEffects( rawMode,
@@ -2941,8 +2943,8 @@ function usingFuncDefNs( funcDefNs ) {
                             "    \n" +
                             "    return stcLocal_body instanceof ",
                                 jsCodeVar( "Stc" ), " " +
-                                    "&& stcLocal_body.tupleTag === " +
-                                        jsStr( type.getTupleTag() ) + " ? ",
+                                    "&& stcLocal_body.flatTag === " +
+                                        jsStr( type.getFlatTag() ) + " ? ",
                                     stcYep.of( stcNil.of() ), " : ",
                                     stcNope.of( stcNil.of() ), ";\n" +
                             "} )" ) ) );
@@ -3158,14 +3160,14 @@ function usingFuncDefNs( funcDefNs ) {
             
             if ( !stcCons.tags( body ) )
                 throw new Error();
-            var tupleName =
+            var sourceMainTagNameRep =
                 stxToMaybeName( stcCons.getProj( body, "car" ) );
-            if ( tupleName === null )
+            if ( sourceMainTagNameRep === null )
                 throw new Error();
             
             return function ( rawMode, nss ) {
                 return macLookupThen(
-                    getType( nss.definitionNs, tupleName ),
+                    getType( nss.definitionNs, sourceMainTagNameRep ),
                     function ( type ) {
                     
                     return loop( nss, rawMode, type, 0, null,
@@ -3184,7 +3186,7 @@ function usingFuncDefNs( funcDefNs ) {
                 if ( !stcCons.tags( remainingBody ) )
                     throw new Error(
                         "Expected more arguments to " +
-                        JSON.stringify( tupleName ) );
+                        JSON.stringify( sourceMainTagNameRep ) );
                 
                 var firstNss = nssGet( nss, "first" );
                 
@@ -3216,7 +3218,7 @@ function usingFuncDefNs( funcDefNs ) {
                     jsCodeVar( "macLookupRet" ), "( ",
                         genJsConstructor(
                             jsCode(
-                                jsStr( type.getTupleTag() ) + ", " +
+                                jsStr( type.getFlatTag() ) + ", " +
                                 "[ ",
                                 
                                 arrMappend( projVals,
