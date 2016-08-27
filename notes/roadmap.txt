@@ -86,7 +86,7 @@ To use `def-macro` for evaluation, a macro could generate a `def-macro` and gene
 
 To use `defn` for evaluation, a macro could generate a `defn` and meanwhile make a call to a struct matching the constructor tag it just defined the function call implementation for.
 
-Right now, the implementations of `defn`, `def-macro`, and `test-async` are the only things that use `stcExecute()`, so it's not possible to evaluate code using anything else. We would also be doing this in `fn` if only we weren't optimizing to JavaScript lambdas instead.
+Right now, the implementations of `defn`, `def-macro`, and `test-async` are the only things that use `cgenExecute()`, so it's not possible to evaluate code using anything else. We would also be doing this in `fn` if only we weren't optimizing to JavaScript lambdas instead.
 
 I think this is the closest Cene can get:
 

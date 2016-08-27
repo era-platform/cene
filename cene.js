@@ -82,7 +82,7 @@ function runCeneSync(
         outRoot === null ? null : $path.resolve( outRoot );
     
     
-    var $stc = Function(
+    var $cene = Function(
         readInternalFiles( [
             "src/era-misc-strmap-avl.js",
             "src/era-misc.js",
@@ -100,8 +100,8 @@ function runCeneSync(
         "    arrMappend: arrMappend,\n" +
         "    arrEach: arrEach,\n" +
         "    jsnMap: jsnMap,\n" +
-        "    stcNsGet: stcNsGet,\n" +
-        "    stcNsRoot: stcNsRoot,\n" +
+        "    sinkNsGet: sinkNsGet,\n" +
+        "    sinkNsRoot: sinkNsRoot,\n" +
         "    usingFuncDefNs: usingFuncDefNs,\n" +
         "    ceneApiUsingFuncDefNs: ceneApiUsingFuncDefNs\n" +
         "};\n"
@@ -109,29 +109,29 @@ function runCeneSync(
     
     var startMillis = new Date().getTime();
     
-    var textOfFiles = $stc.arrMap( files, function ( file ) {
+    var textOfFiles = $cene.arrMap( files, function ( file ) {
         return readFile( file );
     } );
-    var codeOfFiles = $stc.arrMappend( textOfFiles,
+    var codeOfFiles = $cene.arrMappend( textOfFiles,
         function ( text ) {
         
-        return $stc.readAll( text );
+        return $cene.readAll( text );
     } );
-    var codeOfTestFiles = $stc.arrMappend( testFiles,
+    var codeOfTestFiles = $cene.arrMappend( testFiles,
         function ( file ) {
         
-        return $stc.readAll( readFile( file ) );
+        return $cene.readAll( readFile( file ) );
     } );
     var readMillis = new Date().getTime();
     
     var nss = {
         definitionNs:
-            $stc.stcNsGet( "definition-ns", $stc.stcNsRoot() ),
-        uniqueNs: $stc.stcNsGet( "unique-ns", $stc.stcNsRoot() )
+            $cene.sinkNsGet( "definition-ns", $cene.sinkNsRoot() ),
+        uniqueNs: $cene.sinkNsGet( "unique-ns", $cene.sinkNsRoot() )
     };
     var funcDefNs =
-        $stc.stcNsGet( "function-implementations-ns",
-            $stc.stcNsRoot() );
+        $cene.sinkNsGet( "function-implementations-ns",
+            $cene.sinkNsRoot() );
     
     function ensureDirSync( path ) {
         if ( fs.existsSync( path ) ) {
@@ -164,13 +164,13 @@ function runCeneSync(
         };
     }
     
-    var usingDefNs = $stc.usingFuncDefNs( funcDefNs );
+    var usingDefNs = $cene.usingFuncDefNs( funcDefNs );
     
-    var memoInputPathType = $stc.jsnMap();
-    var memoInputPathDirectoryList = $stc.jsnMap();
-    var memoInputPathBlobUtf8 = $stc.jsnMap();
-    var memoOutputPathDirectory = $stc.jsnMap();
-    var memoOutputPathBlobUtf8 = $stc.jsnMap();
+    var memoInputPathType = $cene.jsnMap();
+    var memoInputPathDirectoryList = $cene.jsnMap();
+    var memoInputPathBlobUtf8 = $cene.jsnMap();
+    var memoOutputPathDirectory = $cene.jsnMap();
+    var memoOutputPathBlobUtf8 = $cene.jsnMap();
     var onceDependenciesCompleteListeners = [];
     function recordMemoForEnsureDir( dir ) {
         if ( memoOutputPathDirectory.has( dir ) )
@@ -185,10 +185,10 @@ function runCeneSync(
         return memoMap.get( key );
     }
     
-    var namespaceDefs = $stc.jsnMap();
+    var namespaceDefs = $cene.jsnMap();
     
     var ceneApiUsingDefNs =
-        $stc.ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, {
+        $cene.ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, {
             defer: function ( body ) {
                 _.defer( body );
             },
@@ -300,8 +300,8 @@ function runCeneSync(
                 function addMap( map, mapName ) {
                     map.each( function ( k, v ) {
                         quine += "" + mapName + ".set( " +
-                            $stc.jsJson( k ) + ", " +
-                            $stc.jsJson( v ) + " );\n"
+                            $cene.jsJson( k ) + ", " +
+                            $cene.jsJson( v ) + " );\n"
                     } );
                 }
                 addMap( memoInputPathType, "quinerInputPathType" );
@@ -310,7 +310,7 @@ function runCeneSync(
                 addMap( memoInputPathBlobUtf8,
                     "quinerInputPathBlobUtf8" );
                 
-                $stc.arrEach( textOfFiles, function ( text ) {
+                $cene.arrEach( textOfFiles, function ( text ) {
                     quine += "quinerTextOfFiles.push( " +
                         _.jsStr( text ) + " );\n";
                 } );
@@ -338,7 +338,7 @@ function runCeneSync(
                         jsJsn( constructorTag ) + " );\n" +
                     "\n" +
                     "})( {\n" +
-                    $stc.arrMap( topLevelVars, function ( va ) {
+                    $cene.arrMap( topLevelVars, function ( va ) {
                         if ( !/^[_$a-zA-Z][_$a-zA-Z01-9]*$/.test(
                             va ) )
                             throw new Error();
@@ -377,14 +377,14 @@ function runCeneSync(
             }
         } );
     
-    usingDefNs.stcAddCoreMacros(
+    usingDefNs.addCoreMacros(
         namespaceDefs, nss.definitionNs, funcDefNs );
     usingDefNs.processCoreStructs( namespaceDefs, nss.definitionNs );
     ceneApiUsingDefNs.addCeneApi( nss.definitionNs, funcDefNs );
     
     usingDefNs.runTopLevelTryExprsSync( namespaceDefs, nss,
         [].concat( codeOfFiles, codeOfTestFiles ) );
-    $stc.arrEach( onceDependenciesCompleteListeners,
+    $cene.arrEach( onceDependenciesCompleteListeners,
         function ( listener ) {
         
         listener();

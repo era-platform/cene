@@ -30,9 +30,9 @@
 // anything we can do to prepare for these.
 
 
-function stcIdentifier( identifier ) {
+function cgenIdentifier( identifier ) {
     // #GEN
-    return "_stc_" +
+    return "_cgen_" +
         JSON.stringify( identifier ).replace( /[^a-z01-9]/g,
             function ( c ) {
             
@@ -44,35 +44,36 @@ function stcIdentifier( identifier ) {
                 hexWithExcess.substring( hexWithExcess.length - 4 );
         } );
 }
-function jsCodeRetStcVar( identifier ) {
+function jsCodeRetCgenVar( identifier ) {
     // #GEN
     return jsCode( jsCodeVar( "macLookupRet" ), "( ",
-        jsCodeVar( stcIdentifier( identifier ) ), " )" );
+        jsCodeVar( cgenIdentifier( identifier ) ), " )" );
 }
 
 
-function stcCallArr( func, argsArr ) {
+function cgenCallArr( func, argsArr ) {
     // #GEN
     var result = func;
     arrEach( argsArr, function ( arg ) {
         result = jsCode(
             jsCodeVar( "macLookupThen" ), "( ", result, ", " +
-                "function ( stcLocal_result ) {\n" +
+                "function ( cgenLocal_result ) {\n" +
             "    \n" +
             "    return macLookupThen( ",
-                arg.assertNotFreeVars( [ "stcLocal_result" ] ), ", " +
-                    "function ( stcLocal_arg ) {\n" +
+                arg.assertNotFreeVars(
+                    [ "cgenLocal_result" ] ), ", " +
+                    "function ( cgenLocal_arg ) {\n" +
             "        \n" +
-            "        return stcLocal_result.callStc( rt, " +
-                        "stcLocal_arg );\n" +
+            "        return cgenLocal_result.callSink( rt, " +
+                        "cgenLocal_arg );\n" +
             "    } );\n" +
             "} )" );
     } );
     return result;
 }
 
-function stcCall( func, var_args ) {
-    return stcCallArr( func, [].slice.call( arguments, 1 ) );
+function cgenCall( func, var_args ) {
+    return cgenCallArr( func, [].slice.call( arguments, 1 ) );
 }
 
 function jsnCompare( a, b ) {
@@ -134,7 +135,7 @@ function nameCompare( a, b ) {
     return jsnCompare( a, b );
 }
 
-function stcStructArr( repMainTagName, projSourceToRep ) {
+function cgenStructArr( repMainTagName, projSourceToRep ) {
     var sortedProjNames = arrMap( projSourceToRep,
         function ( entry, i ) {
         
@@ -172,15 +173,15 @@ function stcStructArr( repMainTagName, projSourceToRep ) {
         return flatTag;
     };
     result.tags = function ( x ) {
-        return x instanceof Stc && x.flatTag === flatTag;
+        return x instanceof SinkStruct && x.flatTag === flatTag;
     };
-    result.getProj = function ( stc, sourceProjName ) {
-        if ( !(stc instanceof Stc && stc.flatTag === flatTag) )
+    result.getProj = function ( x, sourceProjName ) {
+        if ( !(x instanceof SinkStruct && x.flatTag === flatTag) )
             throw new Error();
         var i = sourceProjNamesToSortedIndices.get( sourceProjName );
         if ( i === void 0 )
             throw new Error();
-        return stc.projVals[ i ];
+        return x.projVals[ i ];
     };
     result.ofArr = function ( args ) {
         // #GEN
@@ -195,10 +196,10 @@ function stcStructArr( repMainTagName, projSourceToRep ) {
         var projectionVars = arrMap( projectionVals,
             function ( entry, i ) {
             
-            return "stcLocal_proj" + i;
+            return "cgenLocal_proj" + i;
         } );
         var result = jsCode( jsCodeVar( "macLookupRet" ), "( " +
-            "new ", jsCodeVar( "Stc" ), "( " +
+            "new ", jsCodeVar( "SinkStruct" ), "( " +
                 jsStr( flatTag ) + ", [ ",
                 
                 arrMappend( projectionVars, function ( projVar, i ) {
@@ -225,7 +226,7 @@ function stcStructArr( repMainTagName, projSourceToRep ) {
         if ( args.length !== n )
             throw new Error();
         
-        return new Stc( flatTag,
+        return new SinkStruct( flatTag,
             arrMap( sortedProjNames, function ( entry ) {
                 return args[ entry.i ];
             } ) );
@@ -236,13 +237,13 @@ function stcStructArr( repMainTagName, projSourceToRep ) {
     return result;
 }
 
-function stcNsRoot() {
+function sinkNsRoot() {
     return {
         name: [ "n:root" ],
         shadows: jsnMap()
     };
 }
-function stcNameGet( stringOrName, parent ) {
+function sinkNameGet( stringOrName, parent ) {
     
     // TODO: Determine a good value for this.
     var maxRepetitions = 1000;
@@ -253,31 +254,31 @@ function stcNameGet( stringOrName, parent ) {
         [ "n:get", stringOrName, parent[ 2 ] + 1, parent[ 3 ] ] :
         [ "n:get", stringOrName, 1, parent ];
 }
-function stcNsGet( stringOrName, ns ) {
+function sinkNsGet( stringOrName, ns ) {
     return ns.shadows.has( stringOrName ) ?
         ns.shadows.get( stringOrName ) : {
-            name: stcNameGet( stringOrName, ns.name ),
+            name: sinkNameGet( stringOrName, ns.name ),
             shadows: jsnMap()
         };
 }
-function stcNsShadow( stringOrName, subNs, ns ) {
+function sinkNsShadow( stringOrName, subNs, ns ) {
     return {
         name: ns.name,
         shadows: ns.shadows.plusEntry( stringOrName, subNs )
     };
 }
-function stcNameConstructorTagAlreadySorted(
+function sinkNameConstructorTagAlreadySorted(
     mainTagName, projNames ) {
     
     var projTable = jsnMap();
     arrEach( projNames, function ( name ) {
-        projTable.set( name, stcNil.ofNow() );
+        projTable.set( name, mkNil.ofNow() );
     } );
-    return stcConstructorTag.ofNow(
-        new StcForeign( "name", mainTagName ),
-        new StcForeign( "table", projTable ) ).getName();
+    return mkConstructorTag.ofNow(
+        new SinkForeign( "name", mainTagName ),
+        new SinkForeign( "table", projTable ) ).getName();
 }
-function stcNameIsAncestor( ancestor, descendant ) {
+function sinkNameIsAncestor( ancestor, descendant ) {
     var currentAncestor = ancestor;
     while ( true ) {
         if ( nameCompare( currentAncestor, descendant ) === 0 )
@@ -294,56 +295,56 @@ function stcNameIsAncestor( ancestor, descendant ) {
 function nssGet( nss, stringOrName ) {
     return {
         definitionNs: nss.definitionNs,
-        uniqueNs: stcNsGet( stringOrName, nss.uniqueNs )
+        uniqueNs: sinkNsGet( stringOrName, nss.uniqueNs )
     };
 }
 
-function stcNameSetEmpty() {
+function sinkNameSetEmpty() {
     return function ( name ) {
         return false;
     };
 }
-function stcNameSetAll() {
+function sinkNameSetAll() {
     return function ( name ) {
         return true;
     };
 }
-function stcNameSetIntersection( a, b ) {
+function sinkNameSetIntersection( a, b ) {
     return function ( name ) {
         return a( name ) && b( name );
     };
 }
-function stcNameSetNsDescendants( ns ) {
+function sinkNameSetNsDescendants( ns ) {
     return function ( name ) {
-        return (stcNameIsAncestor( ns.name, name )
+        return (sinkNameIsAncestor( ns.name, name )
             && !ns.shadows.any( function ( v, k ) {
-                return stcNameIsAncestor( stcNameGet( k, ns.name ),
+                return sinkNameIsAncestor( sinkNameGet( k, ns.name ),
                     name );
             } )
         ) || ns.shadows.any( function ( v, k ) {
-            return stcNameSetNsDescendants( v )( name );
+            return sinkNameSetNsDescendants( v )( name );
         } );
     };
 }
-function stcNameSetContains( nameSet, name ) {
+function sinkNameSetContains( nameSet, name ) {
     return nameSet( name );
 }
 
-function stcForeignInt( n ) {
+function sinkForeignInt( n ) {
     if ( n !== n || n + 1 === n || n - 1 === n )
         throw new Error();
     // We convert negative zero to positive zero.
-    return new StcForeign( "int", n === -0 ? 0 : n );
+    return new SinkForeign( "int", n === -0 ? 0 : n );
 }
 
-function stcForeignStrFromJs( jsStr ) {
-    return new StcForeign( "string", {
+function sinkForeignStrFromJs( jsStr ) {
+    return new SinkForeign( "string", {
         jsStr: jsStr,
         paddedStr: jsStr.replace( /[^\uD800-\uDE00]/g, "\x00$&" )
     } );
 }
-function stcForeignStrFromPadded( paddedStr ) {
-    return new StcForeign( "string", {
+function sinkForeignStrFromPadded( paddedStr ) {
+    return new SinkForeign( "string", {
         // NOTE: We use [\d\D] to match any character, even newlines.
         jsStr: paddedStr.replace( /\x00([\d\D])/g, '$1' ),
         paddedStr: paddedStr
@@ -386,12 +387,12 @@ function prettifyFlatTag( flatTag ) {
     return flatTag;
 }
 
-function Stc( flatTag, opt_projVals ) {
+function SinkStruct( flatTag, opt_projVals ) {
     this.flatTag = flatTag;
     this.projVals = opt_projVals || [];
 }
-Stc.prototype.affiliation = "none";
-Stc.prototype.callStc = function ( rt, arg ) {
+SinkStruct.prototype.affiliation = "none";
+SinkStruct.prototype.callSink = function ( rt, arg ) {
     var self = this;
     
     // OPTIMIZATION: It would be ludicrous to run `JSON.parse()` on
@@ -406,7 +407,7 @@ Stc.prototype.callStc = function ( rt, arg ) {
     return macLookupThen(
         macLookupGet(
             getFunctionImplementationEntryDefiner( rt.funcDefNs,
-                stcNameConstructorTagAlreadySorted(
+                sinkNameConstructorTagAlreadySorted(
                     parsedTag[ 0 ], parsedTag[ 1 ] ) ),
             function () {
                 throw new Error(
@@ -414,7 +415,7 @@ Stc.prototype.callStc = function ( rt, arg ) {
             } ),
         function ( def ) {
         
-        if ( !(def instanceof StcForeign
+        if ( !(def instanceof SinkForeign
             && def.purpose === "native-definition") )
             throw new Error();
         
@@ -423,59 +424,59 @@ Stc.prototype.callStc = function ( rt, arg ) {
         return func( rt, self, arg );
     } );
 };
-Stc.prototype.dexHas = function ( rt, x ) {
+SinkStruct.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-Stc.prototype.fuse = function ( rt, a, b ) {
+SinkStruct.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-Stc.prototype.getName = function () {
+SinkStruct.prototype.getName = function () {
     return [ "n:struct", this.flatTag ].concat(
         arrMap( this.projVals, function ( projVal ) {
             return projVal.getName();
         } ) );
 };
-Stc.prototype.pretty = function () {
+SinkStruct.prototype.pretty = function () {
     return "(" + prettifyFlatTag( this.flatTag ) +
         arrMap( this.projVals, function ( projVal ) {
             return " " + projVal.pretty();
         } ).join( "" ) + ")";
 };
-function StcFn( func ) {
+function SinkFn( func ) {
     this.func = func;
 }
-StcFn.prototype.affiliation = "none";
-StcFn.prototype.callStc = function ( rt, arg ) {
+SinkFn.prototype.affiliation = "none";
+SinkFn.prototype.callSink = function ( rt, arg ) {
     var func = this.func;
     return func( rt, arg );
 };
-StcFn.prototype.dexHas = function ( rt, x ) {
+SinkFn.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcFn.prototype.fuse = function ( rt, a, b ) {
+SinkFn.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcFn.prototype.getName = function () {
+SinkFn.prototype.getName = function () {
     throw new Error();
 };
-StcFn.prototype.pretty = function () {
+SinkFn.prototype.pretty = function () {
     return "(fn)";
 };
-function StcForeign( purpose, foreignVal ) {
+function SinkForeign( purpose, foreignVal ) {
     this.purpose = purpose;
     this.foreignVal = foreignVal;
 }
-StcForeign.prototype.affiliation = "none";
-StcForeign.prototype.callStc = function ( rt, arg ) {
+SinkForeign.prototype.affiliation = "none";
+SinkForeign.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcForeign.prototype.dexHas = function ( rt, x ) {
+SinkForeign.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcForeign.prototype.fuse = function ( rt, a, b ) {
+SinkForeign.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcForeign.prototype.getName = function () {
+SinkForeign.prototype.getName = function () {
     if ( this.purpose === "string" ) {
         return this.foreignVal.jsStr;
     } else if ( this.purpose === "name" ) {
@@ -491,27 +492,27 @@ StcForeign.prototype.getName = function () {
     } else {
         throw new Error(
             "Cene internal language error: Tried to call getName " +
-            "on a StcForeign that didn't support it" );
+            "on a SinkForeign that didn't support it" );
     }
 };
-StcForeign.prototype.pretty = function () {
+SinkForeign.prototype.pretty = function () {
     return "(foreign " + this.purpose + " " +
         JSON.stringify( this.purpose === "string" ?
             this.foreignVal.jsStr :
             this.foreignVal ) + ")";
 };
-function StcDexDefault( first, second ) {
+function SinkDexDefault( first, second ) {
     if ( !(first.affiliation === "dex"
         && second.affiliation === "dex") )
         throw new Error();
     this.first = first;
     this.second = second;
 }
-StcDexDefault.prototype.affiliation = "dex";
-StcDexDefault.prototype.callStc = function ( rt, arg ) {
+SinkDexDefault.prototype.affiliation = "dex";
+SinkDexDefault.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcDexDefault.prototype.dexHas = function ( rt, x ) {
+SinkDexDefault.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
     return macLookupThen( self.first.dexHas( rt, x ),
@@ -524,58 +525,59 @@ StcDexDefault.prototype.dexHas = function ( rt, x ) {
     
     } );
 };
-StcDexDefault.prototype.fuse = function ( rt, a, b ) {
+SinkDexDefault.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexDefault.prototype.getName = function () {
+SinkDexDefault.prototype.getName = function () {
     return [ "n:dex-default",
         this.first.getName(), this.second.getName() ];
 };
-StcDexDefault.prototype.pretty = function () {
+SinkDexDefault.prototype.pretty = function () {
     return "(dex-default " +
         this.first.pretty() + " " + this.second.pretty() + ")";
 };
-function StcDexGiveUp() {
+function SinkDexGiveUp() {
     // We do nothing.
 }
-StcDexGiveUp.prototype.affiliation = "dex";
-StcDexGiveUp.prototype.callStc = function ( rt, arg ) {
+SinkDexGiveUp.prototype.affiliation = "dex";
+SinkDexGiveUp.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcDexGiveUp.prototype.dexHas = function ( rt, x ) {
-    return macLookupRet( stcNope.ofNow( stcNil.ofNow() ) );
+SinkDexGiveUp.prototype.dexHas = function ( rt, x ) {
+    return macLookupRet( mkNope.ofNow( mkNil.ofNow() ) );
 };
-StcDexGiveUp.prototype.fuse = function ( rt, a, b ) {
+SinkDexGiveUp.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexGiveUp.prototype.getName = function () {
+SinkDexGiveUp.prototype.getName = function () {
     return [ "n:dex-give-up" ];
 };
-StcDexGiveUp.prototype.pretty = function () {
+SinkDexGiveUp.prototype.pretty = function () {
     return "(dex-give-up)";
 };
-function StcDexStruct( expectedFlatTag, projDexes ) {
+function SinkDexStruct( expectedFlatTag, projDexes ) {
     // NOTE: We originally avoided naming this field the same thing as
     // `flatTag` because we were doing some naive `x.flatTag === y`
     // checks. We might as well leave it this way to avoid confusion.
     this.expectedFlatTag = expectedFlatTag;
     this.projDexes = projDexes;
 }
-StcDexStruct.prototype.affiliation = "dex";
-StcDexStruct.prototype.callStc = function ( rt, arg ) {
+SinkDexStruct.prototype.affiliation = "dex";
+SinkDexStruct.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcDexStruct.prototype.dexHas = function ( rt, x ) {
+SinkDexStruct.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
-    if ( !(x instanceof Stc && x.flatTag === self.expectedFlatTag) )
-        return macLookupRet( stcNope.ofNow( stcNil.ofNow() ) );
+    if ( !(x instanceof SinkStruct
+        && x.flatTag === self.expectedFlatTag) )
+        return macLookupRet( mkNope.ofNow( mkNil.ofNow() ) );
     
     var n = self.projDexes.length;
     return loop( 0 );
     function loop( i ) {
         if ( n <= i )
-            return macLookupRet( stcYep.ofNow( stcNil.ofNow() ) );
+            return macLookupRet( mkYep.ofNow( mkNil.ofNow() ) );
         var projDex = self.projDexes[ i ];
         return macLookupThen(
             projDex.val.dexHas( rt, x.projVals[ projDex.i ] ),
@@ -587,190 +589,190 @@ StcDexStruct.prototype.dexHas = function ( rt, x ) {
         } );
     }
 };
-StcDexStruct.prototype.fuse = function ( rt, a, b ) {
+SinkDexStruct.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexStruct.prototype.getName = function () {
+SinkDexStruct.prototype.getName = function () {
     // TODO: See if we can avoid this JSON.parse().
     return [ "n:dex-struct", JSON.parse( this.expectedFlatTag )
         ].concat( arrMap( this.projDexes, function ( projDex ) {
             return [ projDex.i, projDex.val.getName() ];
         } ) );
 };
-StcDexStruct.prototype.pretty = function () {
+SinkDexStruct.prototype.pretty = function () {
     return "(dex-struct " + prettifyFlatTag( this.expectedFlatTag ) +
         arrMap( this.projDexes, function ( projDex, i ) {
             return " " + projDex.i + ":" + projDex.val.pretty();
         } ).join( "" ) + ")";
 };
-function StcDexDex() {
+function SinkDexDex() {
     // We do nothing.
 }
-StcDexDex.prototype.affiliation = "dex";
-StcDexDex.prototype.callStc = function ( rt, arg ) {
+SinkDexDex.prototype.affiliation = "dex";
+SinkDexDex.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcDexDex.prototype.dexHas = function ( rt, x ) {
+SinkDexDex.prototype.dexHas = function ( rt, x ) {
     return macLookupRet( rt.fromBoolean( x.affiliation === "dex" ) );
 };
-StcDexDex.prototype.fuse = function ( rt, a, b ) {
+SinkDexDex.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexDex.prototype.getName = function () {
+SinkDexDex.prototype.getName = function () {
     return [ "n:dex-dex" ];
 };
-StcDexDex.prototype.pretty = function () {
+SinkDexDex.prototype.pretty = function () {
     return "(dex-dex)";
 };
-function StcDexMerge() {
+function SinkDexMerge() {
     // We do nothing.
 }
-StcDexMerge.prototype.affiliation = "dex";
-StcDexMerge.prototype.callStc = function ( rt, arg ) {
+SinkDexMerge.prototype.affiliation = "dex";
+SinkDexMerge.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcDexMerge.prototype.dexHas = function ( rt, x ) {
+SinkDexMerge.prototype.dexHas = function ( rt, x ) {
     return macLookupRet(
         rt.fromBoolean( x.affiliation === "merge" ) );
 };
-StcDexMerge.prototype.fuse = function ( rt, a, b ) {
+SinkDexMerge.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexMerge.prototype.getName = function () {
+SinkDexMerge.prototype.getName = function () {
     return [ "n:dex-merge" ];
 };
-StcDexMerge.prototype.pretty = function () {
+SinkDexMerge.prototype.pretty = function () {
     return "(dex-merge)";
 };
-function StcDexFuse() {
+function SinkDexFuse() {
     // We do nothing.
 }
-StcDexFuse.prototype.affiliation = "dex";
-StcDexFuse.prototype.callStc = function ( rt, arg ) {
+SinkDexFuse.prototype.affiliation = "dex";
+SinkDexFuse.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcDexFuse.prototype.dexHas = function ( rt, x ) {
+SinkDexFuse.prototype.dexHas = function ( rt, x ) {
     return macLookupRet( rt.fromBoolean( x.affiliation === "fuse" ) );
 };
-StcDexFuse.prototype.fuse = function ( rt, a, b ) {
+SinkDexFuse.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexFuse.prototype.getName = function () {
+SinkDexFuse.prototype.getName = function () {
     return [ "n:dex-fuse" ];
 };
-StcDexFuse.prototype.pretty = function () {
+SinkDexFuse.prototype.pretty = function () {
     return "(dex-fuse)";
 };
-function StcDexName() {
+function SinkDexName() {
     // We do nothing.
 }
-StcDexName.prototype.affiliation = "dex";
-StcDexName.prototype.callStc = function ( rt, arg ) {
+SinkDexName.prototype.affiliation = "dex";
+SinkDexName.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcDexName.prototype.dexHas = function ( rt, x ) {
+SinkDexName.prototype.dexHas = function ( rt, x ) {
     return macLookupRet(
         rt.fromBoolean(
-            x instanceof StcForeign && x.purpose === "name" ) );
+            x instanceof SinkForeign && x.purpose === "name" ) );
 };
-StcDexName.prototype.fuse = function ( rt, a, b ) {
+SinkDexName.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexName.prototype.getName = function () {
+SinkDexName.prototype.getName = function () {
     return [ "n:dex-name" ];
 };
-StcDexName.prototype.pretty = function () {
+SinkDexName.prototype.pretty = function () {
     return "(dex-name)";
 };
-function StcDexString() {
+function SinkDexString() {
     // We do nothing.
 }
-StcDexString.prototype.affiliation = "dex";
-StcDexString.prototype.callStc = function ( rt, arg ) {
+SinkDexString.prototype.affiliation = "dex";
+SinkDexString.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcDexString.prototype.dexHas = function ( rt, x ) {
+SinkDexString.prototype.dexHas = function ( rt, x ) {
     return macLookupRet(
         rt.fromBoolean(
-            x instanceof StcForeign && x.purpose === "string" ) );
+            x instanceof SinkForeign && x.purpose === "string" ) );
 };
-StcDexString.prototype.fuse = function ( rt, a, b ) {
+SinkDexString.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexString.prototype.getName = function () {
+SinkDexString.prototype.getName = function () {
     return [ "n:dex-string" ];
 };
-StcDexString.prototype.pretty = function () {
+SinkDexString.prototype.pretty = function () {
     return "(dex-string)";
 };
-function StcDexByOwnMethod( dexableGetMethod ) {
+function SinkDexByOwnMethod( dexableGetMethod ) {
     this.dexableGetMethod = dexableGetMethod;
 }
-StcDexByOwnMethod.prototype.affiliation = "dex";
-StcDexByOwnMethod.prototype.callStc = function ( rt, arg ) {
+SinkDexByOwnMethod.prototype.affiliation = "dex";
+SinkDexByOwnMethod.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcDexByOwnMethod.prototype.dexHas = function ( rt, x ) {
+SinkDexByOwnMethod.prototype.dexHas = function ( rt, x ) {
     return macLookupThen(
-        stcDexable.getProj( this.dexableGetMethod, "val"
-            ).callStc( rt, x ),
+        mkDexable.getProj( this.dexableGetMethod, "val"
+            ).callSink( rt, x ),
         function ( maybeOwnMethod ) {
     
-    if ( stcNil.tags( maybeOwnMethod ) )
+    if ( mkNil.tags( maybeOwnMethod ) )
         return macLookupRet( rt.fromBoolean( false ) );
-    else if ( stcYep.tags( maybeOwnMethod ) )
-        return stcYep.getProj( ownMethod, "val" ).dexHas( rt, x );
+    else if ( mkYep.tags( maybeOwnMethod ) )
+        return mkYep.getProj( ownMethod, "val" ).dexHas( rt, x );
     else
         throw new Error();
     
     } );
 };
-StcDexByOwnMethod.prototype.fuse = function ( rt, a, b ) {
+SinkDexByOwnMethod.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexByOwnMethod.prototype.getName = function () {
+SinkDexByOwnMethod.prototype.getName = function () {
     return [ "n:dex-by-own-method", this.dexableGetMethod.getName() ];
 };
-StcDexByOwnMethod.prototype.pretty = function () {
+SinkDexByOwnMethod.prototype.pretty = function () {
     return "(dex-by-own-method " +
         this.dexableGetMethod.pretty() + ")";
 };
-function StcDexFix( dexableUnwrap ) {
+function SinkDexFix( dexableUnwrap ) {
     this.dexableUnwrap = dexableUnwrap;
 }
-StcDexFix.prototype.affiliation = "dex";
-StcDexFix.prototype.callStc = function ( rt, arg ) {
+SinkDexFix.prototype.affiliation = "dex";
+SinkDexFix.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcDexFix.prototype.dexHas = function ( rt, x ) {
+SinkDexFix.prototype.dexHas = function ( rt, x ) {
     return macLookupThen(
-        stcDexable.getProj( this.dexableUnwrap, "val"
-            ).callStc( rt, this ),
+        mkDexable.getProj( this.dexableUnwrap, "val"
+            ).callSink( rt, this ),
         function ( dex ) {
         
         return dex.dexHas( rt, x );
     } );
 };
-StcDexFix.prototype.fuse = function ( rt, a, b ) {
+SinkDexFix.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexFix.prototype.getName = function () {
+SinkDexFix.prototype.getName = function () {
     return [ "n:dex-fix", this.dexableUnwrap.getName() ];
 };
-StcDexFix.prototype.pretty = function () {
+SinkDexFix.prototype.pretty = function () {
     return "(dex-fix " + this.dexableUnwrap.pretty() + ")";
 };
-function StcDexTable( dexVal ) {
+function SinkDexTable( dexVal ) {
     this.dexVal = dexVal;
 }
-StcDexTable.prototype.affiliation = "dex";
-StcDexTable.prototype.callStc = function ( rt, arg ) {
+SinkDexTable.prototype.affiliation = "dex";
+SinkDexTable.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcDexTable.prototype.dexHas = function ( rt, x ) {
+SinkDexTable.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
-    if ( !(x instanceof StcForeign && x.purpose === "table") )
+    if ( !(x instanceof SinkForeign && x.purpose === "table") )
         return macLookupRet( rt.fromBoolean( false ) );
     
     var vals = [];
@@ -792,112 +794,112 @@ StcDexTable.prototype.dexHas = function ( rt, x ) {
         } );
     }
 };
-StcDexTable.prototype.fuse = function ( rt, a, b ) {
+SinkDexTable.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexTable.prototype.getName = function () {
+SinkDexTable.prototype.getName = function () {
     return [ "n:dex-table", this.dexVal.getName() ];
 };
-StcDexTable.prototype.pretty = function () {
+SinkDexTable.prototype.pretty = function () {
     return "(dex-table " + this.dexVal.pretty() + ")";
 };
-function StcDexInt() {
+function SinkDexInt() {
     // We do nothing.
 }
-StcDexInt.prototype.affiliation = "dex";
-StcDexInt.prototype.callStc = function ( rt, arg ) {
+SinkDexInt.prototype.affiliation = "dex";
+SinkDexInt.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcDexInt.prototype.dexHas = function ( rt, x ) {
+SinkDexInt.prototype.dexHas = function ( rt, x ) {
     return macLookupRet(
         rt.fromBoolean(
-            x instanceof StcForeign && x.purpose === "int" ) );
+            x instanceof SinkForeign && x.purpose === "int" ) );
 };
-StcDexInt.prototype.fuse = function ( rt, a, b ) {
+SinkDexInt.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-StcDexInt.prototype.getName = function () {
+SinkDexInt.prototype.getName = function () {
     return [ "n:dex-int" ];
 };
-StcDexInt.prototype.pretty = function () {
+SinkDexInt.prototype.pretty = function () {
     return "(dex-int)";
 };
-function StcMergeByDex( dexToUse ) {
+function SinkMergeByDex( dexToUse ) {
     if ( dexToUse.affiliation !== "dex" )
         throw new Error();
     this.dexToUse = dexToUse;
 }
-StcMergeByDex.prototype.affiliation = "merge";
-StcMergeByDex.prototype.callStc = function ( rt, arg ) {
+SinkMergeByDex.prototype.affiliation = "merge";
+SinkMergeByDex.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcMergeByDex.prototype.dexHas = function ( rt, x ) {
+SinkMergeByDex.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcMergeByDex.prototype.fuse = function ( rt, a, b ) {
+SinkMergeByDex.prototype.fuse = function ( rt, a, b ) {
     var self = this;
     
     return rt.dexHas( self.dexToUse, a, function ( hasA ) {
         if ( !hasA )
-            return macLookupRet( stcNil.ofNow() );
+            return macLookupRet( mkNil.ofNow() );
     
     return rt.dexHas( self.dexToUse, b, function ( hasB ) {
         if ( !hasB )
-            return macLookupRet( stcNil.ofNow() );
+            return macLookupRet( mkNil.ofNow() );
     
-    return macLookupRet( stcYep.ofNow( a ) );
+    return macLookupRet( mkYep.ofNow( a ) );
     
     } );
     
     } );
 };
-StcMergeByDex.prototype.getName = function () {
+SinkMergeByDex.prototype.getName = function () {
     return [ "n:merge-by-dex", this.dexToUse.getName() ];
 };
-StcMergeByDex.prototype.pretty = function () {
+SinkMergeByDex.prototype.pretty = function () {
     return "(merge-by-dex " + this.dexToUse.pretty() + ")";
 };
-function StcFuseByMerge( mergeToUse ) {
+function SinkFuseByMerge( mergeToUse ) {
     if ( mergeToUse.affiliation !== "merge" )
         throw new Error();
     this.mergeToUse = mergeToUse;
 }
-StcFuseByMerge.prototype.affiliation = "fuse";
-StcFuseByMerge.prototype.callStc = function ( rt, arg ) {
+SinkFuseByMerge.prototype.affiliation = "fuse";
+SinkFuseByMerge.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcFuseByMerge.prototype.dexHas = function ( rt, x ) {
+SinkFuseByMerge.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcFuseByMerge.prototype.fuse = function ( rt, a, b ) {
+SinkFuseByMerge.prototype.fuse = function ( rt, a, b ) {
     return this.mergeToUse.fuse( rt, a, b );
 };
-StcFuseByMerge.prototype.getName = function () {
+SinkFuseByMerge.prototype.getName = function () {
     return [ "n:fuse-by-merge", this.mergeToUse.getName() ];
 };
-StcFuseByMerge.prototype.pretty = function () {
+SinkFuseByMerge.prototype.pretty = function () {
     return "(fuse-by-merge " + this.mergeToUse.pretty() + ")";
 };
-function StcFuseEffects() {
+function SinkFuseEffects() {
     // We do nothing.
 }
-StcFuseEffects.prototype.affiliation = "fuse";
-StcFuseEffects.prototype.callStc = function ( rt, arg ) {
+SinkFuseEffects.prototype.affiliation = "fuse";
+SinkFuseEffects.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcFuseEffects.prototype.dexHas = function ( rt, x ) {
+SinkFuseEffects.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcFuseEffects.prototype.fuse = function ( rt, a, b ) {
-    if ( !(a instanceof StcForeign && a.purpose === "effects") )
-        return macLookupRet( stcNil.ofNow() );
+SinkFuseEffects.prototype.fuse = function ( rt, a, b ) {
+    if ( !(a instanceof SinkForeign && a.purpose === "effects") )
+        return macLookupRet( mkNil.ofNow() );
     var aFunc = a.foreignVal;
-    if ( !(b instanceof StcForeign && b.purpose === "effects") )
-        return macLookupRet( stcNil.ofNow() );
+    if ( !(b instanceof SinkForeign && b.purpose === "effects") )
+        return macLookupRet( mkNil.ofNow() );
     var bFunc = b.foreignVal;
     return macLookupRet(
-        stcYep.ofNow(
-            new StcForeign( "effects", function ( rawMode ) {
+        mkYep.ofNow(
+            new SinkForeign( "effects", function ( rawMode ) {
                 return macLookupThen( aFunc( rawMode ),
                     function ( ignored ) {
                     
@@ -905,63 +907,63 @@ StcFuseEffects.prototype.fuse = function ( rt, a, b ) {
                 } );
             } ) ) );
 };
-StcFuseEffects.prototype.getName = function () {
+SinkFuseEffects.prototype.getName = function () {
     return [ "n:fuse-effects" ];
 };
-StcFuseEffects.prototype.pretty = function () {
+SinkFuseEffects.prototype.pretty = function () {
     return "(fuse-effects)";
 };
-function StcFuseIntByPlus() {
+function SinkFuseIntByPlus() {
     // We do nothing.
 }
-StcFuseIntByPlus.prototype.affiliation = "fuse";
-StcFuseIntByPlus.prototype.callStc = function ( rt, arg ) {
+SinkFuseIntByPlus.prototype.affiliation = "fuse";
+SinkFuseIntByPlus.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcFuseIntByPlus.prototype.dexHas = function ( rt, x ) {
+SinkFuseIntByPlus.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcFuseIntByPlus.prototype.fuse = function ( rt, a, b ) {
-    if ( !(a instanceof StcForeign && a.purpose === "int") )
-        return macLookupRet( stcNil.ofNow() );
-    if ( !(b instanceof StcForeign && b.purpose === "int") )
-        return macLookupRet( stcNil.ofNow() );
+SinkFuseIntByPlus.prototype.fuse = function ( rt, a, b ) {
+    if ( !(a instanceof SinkForeign && a.purpose === "int") )
+        return macLookupRet( mkNil.ofNow() );
+    if ( !(b instanceof SinkForeign && b.purpose === "int") )
+        return macLookupRet( mkNil.ofNow() );
     return macLookupRet(
-        stcYep.ofNow(
-            stcForeignInt( a.foreignVal + b.foreignVal ) ) );
+        mkYep.ofNow(
+            sinkForeignInt( a.foreignVal + b.foreignVal ) ) );
 };
-StcFuseIntByPlus.prototype.getName = function () {
+SinkFuseIntByPlus.prototype.getName = function () {
     return [ "n:fuse-int-by-plus" ];
 };
-StcFuseIntByPlus.prototype.pretty = function () {
+SinkFuseIntByPlus.prototype.pretty = function () {
     return "(fuse-int-by-plus)";
 };
-function StcFuseIntByTimes() {
+function SinkFuseIntByTimes() {
     // We do nothing.
 }
-StcFuseIntByTimes.prototype.affiliation = "fuse";
-StcFuseIntByTimes.prototype.callStc = function ( rt, arg ) {
+SinkFuseIntByTimes.prototype.affiliation = "fuse";
+SinkFuseIntByTimes.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcFuseIntByTimes.prototype.dexHas = function ( rt, x ) {
+SinkFuseIntByTimes.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcFuseIntByTimes.prototype.fuse = function ( rt, a, b ) {
-    if ( !(a instanceof StcForeign && a.purpose === "int") )
-        return macLookupRet( stcNil.ofNow() );
-    if ( !(b instanceof StcForeign && b.purpose === "int") )
-        return macLookupRet( stcNil.ofNow() );
+SinkFuseIntByTimes.prototype.fuse = function ( rt, a, b ) {
+    if ( !(a instanceof SinkForeign && a.purpose === "int") )
+        return macLookupRet( mkNil.ofNow() );
+    if ( !(b instanceof SinkForeign && b.purpose === "int") )
+        return macLookupRet( mkNil.ofNow() );
     return macLookupRet(
-        stcYep.ofNow(
-            stcForeignInt( a.foreignVal * b.foreignVal ) ) );
+        mkYep.ofNow(
+            sinkForeignInt( a.foreignVal * b.foreignVal ) ) );
 };
-StcFuseIntByTimes.prototype.getName = function () {
+SinkFuseIntByTimes.prototype.getName = function () {
     return [ "n:fuse-int-by-times" ];
 };
-StcFuseIntByTimes.prototype.pretty = function () {
+SinkFuseIntByTimes.prototype.pretty = function () {
     return "(fuse-int-by-times)";
 };
-function StcFuseStruct(
+function SinkFuseStruct(
     nameTag, affiliation, expectedFlatTag, projFuses ) {
     
     this.nameTag = nameTag;
@@ -977,27 +979,29 @@ function StcFuseStruct(
             throw new Error();
     } );
 }
-StcFuseStruct.prototype.callStc = function ( rt, arg ) {
+SinkFuseStruct.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcFuseStruct.prototype.dexHas = function ( rt, x ) {
+SinkFuseStruct.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcFuseStruct.prototype.fuse = function ( rt, a, b ) {
+SinkFuseStruct.prototype.fuse = function ( rt, a, b ) {
     var self = this;
     
-    if ( !(a instanceof Stc && a.flatTag === self.expectedFlatTag) )
-        return macLookupRet( stcNil.ofNow() );
-    if ( !(b instanceof Stc && b.flatTag === self.expectedFlatTag) )
-        return macLookupRet( stcNil.ofNow() );
+    if ( !(a instanceof SinkStruct
+        && a.flatTag === self.expectedFlatTag) )
+        return macLookupRet( mkNil.ofNow() );
+    if ( !(b instanceof SinkStruct
+        && b.flatTag === self.expectedFlatTag) )
+        return macLookupRet( mkNil.ofNow() );
     
     var n = self.projFuses.length;
     return loop( 0, [] );
     function loop( i, fuseResults ) {
         if ( n <= i )
             return macLookupRet(
-                stcYep.ofNow(
-                    new Stc( self.expectedFlatTag,
+                mkYep.ofNow(
+                    new SinkStruct( self.expectedFlatTag,
                         arrMap( fuseResults.slice().sort(
                             function ( a, b ) {
                             
@@ -1012,30 +1016,30 @@ StcFuseStruct.prototype.fuse = function ( rt, a, b ) {
                 b.projVals[ projFuse.i ] ),
             function ( fuseResult ) {
             
-            if ( !stcYep.tags( fuseResult ) )
-                return macLookupRet( stcNil.ofNow() );
+            if ( !mkYep.tags( fuseResult ) )
+                return macLookupRet( mkNil.ofNow() );
             return loop( i + 1, fuseResults.concat( [ {
                 i: projFuse.i,
-                val: stcYep.getProj( fuseResult, "val" )
+                val: mkYep.getProj( fuseResult, "val" )
             } ] ) );
         } );
     }
 };
-StcFuseStruct.prototype.getName = function () {
+SinkFuseStruct.prototype.getName = function () {
     // TODO: See if we can avoid this JSON.parse().
     return [ this.nameTag, JSON.parse( this.expectedFlatTag )
         ].concat( arrMap( this.projFuses, function ( projDex ) {
             return [ projDex.i, projDex.val.getName() ];
         } ) );
 };
-StcFuseStruct.prototype.pretty = function () {
+SinkFuseStruct.prototype.pretty = function () {
     return "(" + this.nameTag + " " +
         prettifyFlatTag( this.expectedFlatTag ) +
         arrMap( this.projFuses, function ( projDex, i ) {
             return " " + projDex.i + ":" + projDex.val.pretty();
         } ).join( "" ) + ")";
 };
-function StcFuseDefault(
+function SinkFuseDefault(
     nameTag, affiliation, first, second ) {
     
     if ( first.affiliation !== affiliation )
@@ -1048,62 +1052,61 @@ function StcFuseDefault(
     this.first = first;
     this.second = second;
 }
-StcFuseDefault.prototype.callStc = function ( rt, arg ) {
+SinkFuseDefault.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcFuseDefault.prototype.dexHas = function ( rt, x ) {
+SinkFuseDefault.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcFuseDefault.prototype.fuse = function ( rt, a, b ) {
+SinkFuseDefault.prototype.fuse = function ( rt, a, b ) {
     var self = this;
     
     return macLookupThen( self.first.fuse( rt, a, b ),
         function ( firstResult ) {
     
-    if ( stcYep.tags( firstResult ) )
+    if ( mkYep.tags( firstResult ) )
         return macLookupRet( firstResult );
     
     return self.second.fuse( rt, a, b );
     
     } );
 };
-StcFuseDefault.prototype.getName = function () {
+SinkFuseDefault.prototype.getName = function () {
     return [ this.nameTag,
         this.first.getName(),
         this.second.getName() ];
 };
-StcFuseDefault.prototype.pretty = function () {
+SinkFuseDefault.prototype.pretty = function () {
     return "(" + this.nameTag + " " +
         this.first.pretty() + " " +
         this.second.pretty() + ")";
 };
-function StcFuseByOwnMethod(
+function SinkFuseByOwnMethod(
     nameTag, affiliation, dexableGetMethod ) {
     
     this.nameTag = nameTag;
     this.affiliation = affiliation;
     this.dexableGetMethod = dexableGetMethod;
 }
-StcFuseByOwnMethod.prototype.callStc = function ( rt, arg ) {
+SinkFuseByOwnMethod.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcFuseByOwnMethod.prototype.dexHas = function ( rt, x ) {
+SinkFuseByOwnMethod.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcFuseByOwnMethod.prototype.fuse = function ( rt, a, b ) {
-    var getMethod =
-        stcDexable.getProj( this.dexableGetMethod, "val" );
+SinkFuseByOwnMethod.prototype.fuse = function ( rt, a, b ) {
+    var getMethod = mkDexable.getProj( this.dexableGetMethod, "val" );
     
     function getFrom( x, then ) {
-        return macLookupThen( getMethod.callStc( rt, x ),
+        return macLookupThen( getMethod.callSink( rt, x ),
             function ( maybeOwnMethod ) {
             
-            if ( stcNil.tags( maybeOwnMethod ) ) {
-                return macLookupRet( stcNil.ofNow() );
-            } else if ( stcYep.tags( maybeOwnMethod ) ) {
-                var method = stcYep.getProj( maybeOwnMethod, "val" );
+            if ( mkNil.tags( maybeOwnMethod ) ) {
+                return macLookupRet( mkNil.ofNow() );
+            } else if ( mkYep.tags( maybeOwnMethod ) ) {
+                var method = mkYep.getProj( maybeOwnMethod, "val" );
                 if ( method.affiliation !== self.affiliation )
-                    return macLookupRet( stcNil.ofNow() );
+                    return macLookupRet( mkNil.ofNow() );
                 return then( method );
             } else {
                 throw new Error();
@@ -1115,36 +1118,36 @@ StcFuseByOwnMethod.prototype.fuse = function ( rt, a, b ) {
     return getFrom( b, function ( methodB ) {
     
     if ( nameCompare( methodA.getName(), methodB.getName() ) !== 0 )
-        return macLookupRet( stcNil.ofNow() );
+        return macLookupRet( mkNil.ofNow() );
     
     return methodA.fuse( rt, a, b );
     
     } );
     } );
 };
-StcFuseByOwnMethod.prototype.getName = function () {
+SinkFuseByOwnMethod.prototype.getName = function () {
     return [ this.nameTag, this.dexableGetMethod.getName() ];
 };
-StcFuseByOwnMethod.prototype.pretty = function () {
+SinkFuseByOwnMethod.prototype.pretty = function () {
     return "(" + this.nameTag + " " +
         this.dexableGetMethod.pretty() + ")";
 };
-function StcFuseFix( nameTag, affiliation, dexableUnwrap ) {
+function SinkFuseFix( nameTag, affiliation, dexableUnwrap ) {
     this.nameTag = nameTag;
     this.affiliation = affiliation;
     this.dexableUnwrap = dexableUnwrap;
 }
-StcFuseFix.prototype.callStc = function ( rt, arg ) {
+SinkFuseFix.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcFuseFix.prototype.dexHas = function ( rt, x ) {
+SinkFuseFix.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcFuseFix.prototype.fuse = function ( rt, a, b ) {
+SinkFuseFix.prototype.fuse = function ( rt, a, b ) {
     var self = this;
     return macLookupThen(
-        stcDexable.getProj( self.dexableUnwrap, "val"
-            ).callStc( rt, self ),
+        mkDexable.getProj( self.dexableUnwrap, "val"
+            ).callSink( rt, self ),
         function ( merge ) {
         
         if ( merge.affiliation !== self.affiliation )
@@ -1153,14 +1156,14 @@ StcFuseFix.prototype.fuse = function ( rt, a, b ) {
         return merge.fuse( rt, a, b );
     } );
 };
-StcFuseFix.prototype.getName = function () {
+SinkFuseFix.prototype.getName = function () {
     return [ this.nameTag, this.dexableUnwrap.getName() ];
 };
-StcFuseFix.prototype.pretty = function () {
+SinkFuseFix.prototype.pretty = function () {
     return "(" + this.nameTag + " " +
         this.dexableUnwrap.pretty() + ")";
 };
-function StcFuseTable( nameTag, affiliation, mergeVal ) {
+function SinkFuseTable( nameTag, affiliation, mergeVal ) {
     if ( mergeVal.affiliation !== affiliation )
         throw new Error();
     
@@ -1168,19 +1171,19 @@ function StcFuseTable( nameTag, affiliation, mergeVal ) {
     this.affiliation = affiliation;
     this.mergeVal = mergeVal;
 }
-StcFuseTable.prototype.callStc = function ( rt, arg ) {
+SinkFuseTable.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-StcFuseTable.prototype.dexHas = function ( rt, x ) {
+SinkFuseTable.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-StcFuseTable.prototype.fuse = function ( rt, a, b ) {
+SinkFuseTable.prototype.fuse = function ( rt, a, b ) {
     var self = this;
     
-    if ( !(a instanceof StcForeign && a.purpose === "table") )
-        return macLookupRet( stcNil.ofNow() );
-    if ( !(b instanceof StcForeign && b.purpose === "table") )
-        return macLookupRet( stcNil.ofNow() );
+    if ( !(a instanceof SinkForeign && a.purpose === "table") )
+        return macLookupRet( mkNil.ofNow() );
+    if ( !(b instanceof SinkForeign && b.purpose === "table") )
+        return macLookupRet( mkNil.ofNow() );
     
     var entries = [];
     a.foreignVal.plus( b.foreignVal ).each(
@@ -1189,8 +1192,8 @@ StcFuseTable.prototype.fuse = function ( rt, a, b ) {
         function get( table ) {
             var v = table.get( k );
             return v === void 0 ?
-                stcNil.ofNow() :
-                stcYep.ofNow( v );
+                mkNil.ofNow() :
+                mkYep.ofNow( v );
         }
         entries.push(
             { k: k, a: get( a ), b: get( b ) } );
@@ -1200,7 +1203,7 @@ StcFuseTable.prototype.fuse = function ( rt, a, b ) {
     function loop( i, table ) {
         if ( n <= i )
             return macLookupRet(
-                stcYep.ofNow( new StcForeign( "table", table ) ) );
+                mkYep.ofNow( new SinkForeign( "table", table ) ) );
         var entry = entries[ i ];
         if ( entry.a === void 0 )
             return next( entry.b );
@@ -1214,10 +1217,10 @@ StcFuseTable.prototype.fuse = function ( rt, a, b ) {
         }
     }
 };
-StcFuseTable.prototype.getName = function () {
+SinkFuseTable.prototype.getName = function () {
     return [ this.nameTag, this.mergeVal.getName() ];
 };
-StcFuseTable.prototype.pretty = function () {
+SinkFuseTable.prototype.pretty = function () {
     return "(" + this.nameTag + " " + this.mergeVal.pretty() + ")";
 };
 
@@ -1225,12 +1228,12 @@ StcFuseTable.prototype.pretty = function () {
 var builtInStructAccumulator = { val: null };
 function builtInStruct( sourceMainTagNameJs, var_args ) {
     var sourceMainTagName =
-        stcForeignStrFromJs( sourceMainTagNameJs ).getName();
+        sinkForeignStrFromJs( sourceMainTagNameJs ).getName();
     var repMainTagName = [ "n:main-core", sourceMainTagName ];
     var projSourceToRep =
         arrMap( [].slice.call( arguments, 1 ), function ( projName ) {
             var source =
-                stcForeignStrFromJs( projName ).getName();
+                sinkForeignStrFromJs( projName ).getName();
             return {
                 source: source,
                 rep: [ "n:proj-core", source, sourceMainTagName ]
@@ -1241,7 +1244,7 @@ function builtInStruct( sourceMainTagNameJs, var_args ) {
         repMainTagName: repMainTagName,
         projSourceToRep: projSourceToRep
     } );
-    return stcStructArr( repMainTagName, projSourceToRep );
+    return cgenStructArr( repMainTagName, projSourceToRep );
 }
 
 var builtInCoreStructsToAdd = [];
@@ -1250,71 +1253,71 @@ builtInStructAccumulator.val = builtInCoreStructsToAdd;
 
 // These constructors are needed for interpreting the results of
 // certain built-in operators, namely `isa` and the dex operations.
-var stcYep = builtInStruct( "yep", "val" );
-var stcNope = builtInStruct( "nope", "val" );
+var mkYep = builtInStruct( "yep", "val" );
+var mkNope = builtInStruct( "nope", "val" );
 
 // This constructor is needed for constructing the kind of input to
 // `follow-heart` that `err` passes in, so that alternatives to `err`
 // can be implemented.
-var stcClamorErr = builtInStruct( "clamor-err", "message" );
+var mkClamorErr = builtInStruct( "clamor-err", "message" );
 
 // This constructor is needed for constructing the input to certain
 // operations.
-var stcDexable = builtInStruct( "dexable", "dex", "val" );
+var mkDexable = builtInStruct( "dexable", "dex", "val" );
 
 // These constructors are needed for constructing a constructor
 // glossary, which associates source-level names with a constructor's
 // representation's names.
-var stcAssoc = builtInStruct( "assoc", "key", "val" );
-var stcConstructorGlossary = builtInStruct( "constructor-glossary",
+var mkAssoc = builtInStruct( "assoc", "key", "val" );
+var mkConstructorGlossary = builtInStruct( "constructor-glossary",
     "main-tag", "source-to-rep" );
 
 // This constructor is needed for constructing the input to certain
 // operations.
-var stcConstructorTag =
+var mkConstructorTag =
     builtInStruct( "constructor-tag", "main-tag", "projections" );
 
 // This constructor is needed to deconstruct the result of
 // `int-div-rounded-down`.
-var stcCarried = builtInStruct( "carried", "main", "carry" );
+var mkCarried = builtInStruct( "carried", "main", "carry" );
 
 // These constructors are needed to deconstruct the results of
 // `optimized-regex-match-later`.
-var stcRegexResultMatched =
+var mkRegexResultMatched =
     builtInStruct( "regex-result-matched", "stop" );
-var stcRegexResultFailed = builtInStruct( "regex-result-failed" );
-var stcRegexResultPassedEnd =
+var mkRegexResultFailed = builtInStruct( "regex-result-failed" );
+var mkRegexResultPassedEnd =
     builtInStruct( "regex-result-passed-end" );
 
 // These s-expression constructors are needed so that macros can parse
 // their s-expression arguments. The `cons` and `nil` constructors are
 // also needed for parsing and generating projection lists.
-var stcNil = builtInStruct( "nil" );
-var stcCons = builtInStruct( "cons", "car", "cdr" );
-var stcIstringNil = builtInStruct( "istring-nil", "string" );
-var stcIstringCons = builtInStruct( "istring-cons",
+var mkNil = builtInStruct( "nil" );
+var mkCons = builtInStruct( "cons", "car", "cdr" );
+var mkIstringNil = builtInStruct( "istring-nil", "string" );
+var mkIstringCons = builtInStruct( "istring-cons",
     "string-past", "interpolated", "istring-rest" );
-var stcForeign = builtInStruct( "foreign", "val" );
+var mkForeign = builtInStruct( "foreign", "val" );
 
 // These occur in `(foreign ...)` s-expressions to signify that a
 // value should be looked up by an arbitrary name or by immediate
 // value instead of by the name of a literal string.
-var stcObtainByName = builtInStruct( "obtain-by-name", "name" );
-var stcObtainDirectly = builtInStruct( "obtain-directly", "val" );
+var mkObtainByName = builtInStruct( "obtain-by-name", "name" );
+var mkObtainDirectly = builtInStruct( "obtain-directly", "val" );
 
 // This constructor is needed so that macros can parse their located
 // syntax arguments.
-var stcStx = builtInStruct( "stx", "stx-details", "s-expr" );
+var mkStx = builtInStruct( "stx", "stx-details", "s-expr" );
 
 // This constructor is needed to deconstruct the result of certain
 // operations.
-var stcGetdef = builtInStruct( "getdef", "get", "def" );
+var mkGetdef = builtInStruct( "getdef", "get", "def" );
 
 builtInStructAccumulator.val = null;
 
 
-function stcTrivialStxDetails() {
-    return new StcForeign( "macro-stx-details", null );
+function sinkTrivialStxDetails() {
+    return new SinkForeign( "macro-stx-details", null );
 }
 
 function elementDefiner( name, ns ) {
@@ -1323,19 +1326,19 @@ function elementDefiner( name, ns ) {
 
 function getClaimedDefiner( uniqueNs ) {
     return elementDefiner( "val",
-        stcNsGet( [ "n:$$claimed" ], uniqueNs ) );
+        sinkNsGet( [ "n:$$claimed" ], uniqueNs ) );
 }
 function getConstructorGlossaryDefiner( definitionNs, name ) {
     return elementDefiner( name,
-        stcNsGet( [ "n:$$constructor-glossary" ], definitionNs ) );
+        sinkNsGet( [ "n:$$constructor-glossary" ], definitionNs ) );
 }
 function getMacroFunctionDefiner( definitionNs, name ) {
     return elementDefiner( name,
-        stcNsGet( [ "n:$$macro-string-reference" ], definitionNs ) );
+        sinkNsGet( [ "n:$$macro-string-reference" ], definitionNs ) );
 }
 function getFunctionImplementationsDefiner( definitionNs ) {
     return elementDefiner( "val",
-        stcNsGet( [ "n:$$function-implementations" ],
+        sinkNsGet( [ "n:$$function-implementations" ],
             definitionNs ) );
 }
 function getFunctionImplementationEntryDefiner(
@@ -1345,7 +1348,7 @@ function getFunctionImplementationEntryDefiner(
 }
 
 function parseMode( mode ) {
-    if ( !(mode instanceof StcForeign
+    if ( !(mode instanceof SinkForeign
         && mode.purpose === "mode") )
         throw new Error();
     return mode.foreignVal;
@@ -1382,7 +1385,7 @@ function rawModeSupportsContributeDefiner( definer ) {
     return function ( rawMode ) {
         
         if ( definer.type === "contributedElement"
-            && !stcNameSetContains(
+            && !sinkNameSetContains(
                 rawMode.contributingOnlyTo, definer.namespace ) )
             return false;
         
@@ -1546,7 +1549,7 @@ function runPuts( namespaceDefs, rawMode ) {
         if ( contribs.elements.has( put.definer.name ) )
             throw new Error();
         contribs.elements.set( put.definer.name, put.value );
-        var singletonTable = new StcForeign( "table",
+        var singletonTable = new SinkForeign( "table",
             jsnMap().plusEntry( put.definer.name, put.value ) );
         contribs.listeners.each( function ( k, v ) {
             listenersFired.push(
@@ -1573,7 +1576,7 @@ function runPuts( namespaceDefs, rawMode ) {
         contribs.listeners.set( put.name, listenerObj );
         contribs.elements.each( function ( k, v ) {
             listenersFired.push( {
-                singletonTable: new StcForeign( "table",
+                singletonTable: new SinkForeign( "table",
                     jsnMap().plusEntry( k, v ) ),
                 listener: listenerObj
             } );
@@ -1584,7 +1587,7 @@ function runPuts( namespaceDefs, rawMode ) {
     return listenersFired;
 }
 function runEffects( rawMode, effects ) {
-    if ( !(effects instanceof StcForeign
+    if ( !(effects instanceof SinkForeign
         && effects.purpose === "effects") )
         throw new Error();
     var effectsFunc = effects.foreignVal;
@@ -1636,7 +1639,7 @@ function runTopLevelMacLookupsSync(
                     function ( rawMode ) {
                     
                     return macLookupThen(
-                        listenerFired.listener.listener.callStc( rt,
+                        listenerFired.listener.listener.callSink( rt,
                             listenerFired.singletonTable ),
                         function ( effects ) {
                         
@@ -1678,14 +1681,14 @@ function runTopLevelMacLookupsSync(
             addMacroThread( {
                 type: "macro",
                 unitTestId: null,
-                contributingOnlyTo: stcNameSetAll()
+                contributingOnlyTo: sinkNameSetAll()
             }, thread.macLookupEffectsOfDefinitionEffects );
         } else if ( thread.type === "jsEffectsThread" ) {
             var monad = macLookupThen(
                 thread.macLookupEffectsOfJsEffects,
                 function ( effects ) {
                 
-                if ( !(effects instanceof StcForeign
+                if ( !(effects instanceof SinkForeign
                     && effects.purpose === "js-effects") )
                     throw new Error();
                 var effectsFunc = effects.foreignVal;
@@ -1698,7 +1701,7 @@ function runTopLevelMacLookupsSync(
                 rawMode: {
                     type: "js",
                     unitTestId: null,
-                    contributingOnlyTo: stcNameSetEmpty(),
+                    contributingOnlyTo: sinkNameSetEmpty(),
                     current: true,
                     putDefined: [],
                     putListener: []
@@ -1785,11 +1788,11 @@ function runTopLevelMacLookupsSync(
                         "clamor: " + clamor.pretty() );
                 };
                 
-                if ( !stcClamorErr.tags( clamor ) )
+                if ( !mkClamorErr.tags( clamor ) )
                     unknownClamor();
                 var message =
-                    stcClamorErr.getProj( clamor, "message" );
-                if ( !(message instanceof StcForeign
+                    mkClamorErr.getProj( clamor, "message" );
+                if ( !(message instanceof SinkForeign
                     && message.purpose === "string") )
                     unknownClamor();
                 throw new Error( message.foreignVal.jsStr );
@@ -1817,7 +1820,7 @@ function runTopLevelMacLookupsSync(
                     return false;
                 }
                 
-                var result = new StcForeign( "table",
+                var result = new SinkForeign( "table",
                     (namespaceDefs.get(
                         thread.monad.first.namespace.name )
                         || { elements: jsnMap() }).elements );
@@ -1956,22 +1959,22 @@ function runTopLevelMacLookupsSync(
     } );
 }
 
-function stcExecute( rt, expr ) {
+function cgenExecute( rt, expr ) {
     // #GEN
     
     // NOTE: When the code we generate for this has local
-    // variables, we consistently prefix them with "stcLocal_" or
-    // "_stc_". The latter is for variables that correspond to
+    // variables, we consistently prefix them with "cgenLocal_" or
+    // "_cgen_". The latter is for variables that correspond to
     // variables in the original code.
     
     return expr.instantiate( {
         rt: rt,
-        Stc: Stc,
-        StcFn: StcFn,
-        StcForeign: StcForeign,
-        StcDexStruct: StcDexStruct,
-        StcFuseStruct: StcFuseStruct,
-        stcForeignStrFromJs: stcForeignStrFromJs,
+        SinkStruct: SinkStruct,
+        SinkFn: SinkFn,
+        SinkForeign: SinkForeign,
+        SinkDexStruct: SinkDexStruct,
+        SinkFuseStruct: SinkFuseStruct,
+        sinkForeignStrFromJs: sinkForeignStrFromJs,
         macLookupRet: macLookupRet,
         macLookupFollowHeart: macLookupFollowHeart,
         macLookupThen: macLookupThen
@@ -1984,14 +1987,14 @@ function addFunctionNativeDefinition(
     collectPutDefined( rawMode,
         getFunctionImplementationEntryDefiner(
             funcDefNs, constructorTagName ),
-        new StcForeign( "native-definition", impl ) );
+        new SinkForeign( "native-definition", impl ) );
 }
-function stcAddDefun( rt, funcDefNs, rawMode, name, argName, body ) {
+function addDefun( rt, funcDefNs, rawMode, name, argName, body ) {
     // #GEN
     var constructorTagName =
-        stcNameConstructorTagAlreadySorted( name, [] );
-    var argVar = stcIdentifier( argName );
-    var innerFunc = stcExecute( rt,
+        sinkNameConstructorTagAlreadySorted( name, [] );
+    var argVar = cgenIdentifier( argName );
+    var innerFunc = cgenExecute( rt,
         jsCode(
             "function ( rt, " + argVar + " ) { " +
                 "return ", body.minusFreeVars(
@@ -2005,17 +2008,17 @@ function stcAddDefun( rt, funcDefNs, rawMode, name, argName, body ) {
     } );
 }
 
-function stcErr( msg ) {
+function cgenErr( msg ) {
     // #GEN
     return jsCode( jsCodeVar( "macLookupFollowHeart" ), "( ",
-        stcClamorErr.of(
+        mkClamorErr.of(
             jsCode(
-                jsCodeVar( "stcForeignStrFromJs" ), "( " +
+                jsCodeVar( "sinkForeignStrFromJs" ), "( " +
                     jsStr( msg ) + " )" ) ), " )" );
 }
 
-function evalStcForTest( rt, expr ) {
-    return stcExecute( rt, expr );
+function evalCgenForTest( rt, expr ) {
+    return cgenExecute( rt, expr );
 }
 
 function usingFuncDefNs( funcDefNs ) {
@@ -2027,11 +2030,11 @@ function usingFuncDefNs( funcDefNs ) {
     rt.functionDefs = {};
     rt.anyTestFailed = false;
     rt.fromBoolean = function ( b ) {
-        var nil = stcNil.ofNow();
-        return b ? stcYep.ofNow( nil ) : stcNope.ofNow( nil );
+        var nil = mkNil.ofNow();
+        return b ? mkYep.ofNow( nil ) : mkNope.ofNow( nil );
     };
     rt.toBoolean = function ( b ) {
-        return stcYep.tags( b );
+        return mkYep.tags( b );
     };
     rt.dexHas = function ( dex, x, then ) {
         return macLookupThen( dex.dexHas( rt, x ), function ( has ) {
@@ -2039,14 +2042,14 @@ function usingFuncDefNs( funcDefNs ) {
         } );
     };
     
-    function callStcMulti( rt, func, var_args ) {
+    function callSinkMulti( rt, func, var_args ) {
         var args = arguments;
         var n = args.length;
         return loop( func, 2 );
         function loop( func, i ) {
             if ( n <= i )
                 return macLookupRet( func );
-            return macLookupThen( func.callStc( rt, args[ i ] ),
+            return macLookupThen( func.callSink( rt, args[ i ] ),
                 function ( func ) {
                     return loop( func, i + 1 );
                 } );
@@ -2054,36 +2057,35 @@ function usingFuncDefNs( funcDefNs ) {
     }
     
     function parseString( string ) {
-        if ( !(string instanceof StcForeign
+        if ( !(string instanceof SinkForeign
             && string.purpose === "string") )
             throw new Error();
         return string.foreignVal;
     }
     
     function stxToObtainMethod( stx ) {
-        if ( !stcStx.tags( stx ) )
+        if ( !mkStx.tags( stx ) )
             return { type: "obtainInvalid" };
-        var sExpr = stcStx.getProj( stx, "s-expr" );
-        if ( stcForeign.tags( sExpr ) ) {
-            var obtainMethod = stcForeign.getProj( sExpr, "val" );
-            if ( stcObtainByName.tags( obtainMethod ) ) {
+        var sExpr = mkStx.getProj( stx, "s-expr" );
+        if ( mkForeign.tags( sExpr ) ) {
+            var obtainMethod = mkForeign.getProj( sExpr, "val" );
+            if ( mkObtainByName.tags( obtainMethod ) ) {
                 var name =
-                    stcObtainByName.getProj( obtainMethod, "name" );
-                if ( !(name instanceof StcForeign
+                    mkObtainByName.getProj( obtainMethod, "name" );
+                if ( !(name instanceof SinkForeign
                     && name.purpose === "name") )
                     throw new Error();
                 return { type: "obtainByName",
                     name: name.foreignVal };
-            } else if ( stcObtainDirectly.tags( obtainMethod ) ) {
+            } else if ( mkObtainDirectly.tags( obtainMethod ) ) {
                 return { type: "obtainDirectly", val:
-                    stcObtainDirectly.getProj(
-                        obtainMethod, "val" ) };
+                    mkObtainDirectly.getProj( obtainMethod, "val" ) };
             } else {
                 throw new Error();
             }
-        } else if ( stcIstringNil.tags( sExpr ) ) {
-            var string = stcIstringNil.getProj( sExpr, "string" );
-            if ( !(string instanceof StcForeign
+        } else if ( mkIstringNil.tags( sExpr ) ) {
+            var string = mkIstringNil.getProj( sExpr, "string" );
+            if ( !(string instanceof SinkForeign
                 && string.purpose === "string") )
                 throw new Error();
             return { type: "obtainByName", name: string.getName() };
@@ -2099,24 +2101,24 @@ function usingFuncDefNs( funcDefNs ) {
         return null;
     }
     
-    function stcConsListToArray( stc ) {
+    function sinkConsListToArray( list ) {
         var result = [];
-        var currentStc = stc;
+        var currentList = list;
         for ( ;
-            stcCons.tags( currentStc );
-            currentStc = stcCons.getProj( currentStc, "cdr" )
+            mkCons.tags( currentList );
+            currentList = mkCons.getProj( currentList, "cdr" )
         ) {
-            result.push( stcCons.getProj( currentStc, "car" ) );
+            result.push( mkCons.getProj( currentList, "car" ) );
         }
-        if ( !stcNil.tags( currentStc ) )
+        if ( !mkNil.tags( currentList ) )
             throw new Error();
         return result;
     }
     
-    function stcArrayToConsList( arr ) {
-        var result = stcNil.ofNow();
+    function sinkConsListFromArray( arr ) {
+        var result = mkNil.ofNow();
         for ( var i = arr.length - 1; 0 <= i; i-- )
-            result = stcCons.ofNow( arr[ i ], result );
+            result = mkCons.ofNow( arr[ i ], result );
         return result;
     }
     
@@ -2132,16 +2134,16 @@ function usingFuncDefNs( funcDefNs ) {
                 } ),
             function ( constructorGlossary ) {
             
-            if ( !stcConstructorGlossary.tags( constructorGlossary ) )
+            if ( !mkConstructorGlossary.tags( constructorGlossary ) )
                 throw new Error();
             var repMainTagName =
-                stcConstructorGlossary.getProj( constructorGlossary,
+                mkConstructorGlossary.getProj( constructorGlossary,
                     "main-tag" );
             var sourceToRep =
-                stcConstructorGlossary.getProj( constructorGlossary,
+                mkConstructorGlossary.getProj( constructorGlossary,
                     "source-to-rep" );
             
-            if ( !(repMainTagName instanceof StcForeign
+            if ( !(repMainTagName instanceof SinkForeign
                 && repMainTagName.purpose === "name") )
                 throw new Error();
             
@@ -2154,20 +2156,19 @@ function usingFuncDefNs( funcDefNs ) {
             }
             
             return macLookupRet(
-                stcStructArr( repMainTagName.foreignVal,
-                    arrMap( stcConsListToArray( sourceToRep ),
+                cgenStructArr( repMainTagName.foreignVal,
+                    arrMap( sinkConsListToArray( sourceToRep ),
                         function ( entry ) {
                         
-                        if ( !stcAssoc.tags( entry ) )
+                        if ( !mkAssoc.tags( entry ) )
                             throw new Error();
                         var sourceName =
-                            stcAssoc.getProj( entry, "key" );
-                        var repName =
-                            stcAssoc.getProj( entry, "val" );
-                        if ( !(sourceName instanceof StcForeign
+                            mkAssoc.getProj( entry, "key" );
+                        var repName = mkAssoc.getProj( entry, "val" );
+                        if ( !(sourceName instanceof SinkForeign
                             && sourceName.purpose === "name") )
                             throw new Error();
-                        if ( !(repName instanceof StcForeign
+                        if ( !(repName instanceof SinkForeign
                             && repName.purpose === "name") )
                             throw new Error();
                         addUnique(
@@ -2182,9 +2183,9 @@ function usingFuncDefNs( funcDefNs ) {
     }
     
     function extractPattern( definitionNs, body ) {
-        if ( !stcCons.tags( body ) )
+        if ( !mkCons.tags( body ) )
             throw new Error();
-        var sourceMainTagNameRepExpr = stcCons.getProj( body, "car" );
+        var sourceMainTagNameRepExpr = mkCons.getProj( body, "car" );
         var sourceMainTagNameRep =
             stxToMaybeName( sourceMainTagNameRepExpr );
         if ( sourceMainTagNameRep === null )
@@ -2197,19 +2198,19 @@ function usingFuncDefNs( funcDefNs ) {
             getStruct( definitionNs, sourceMainTagNameRep ),
             function ( struct ) {
             
-            var remainingBody = stcCons.getProj( body, "cdr" );
+            var remainingBody = mkCons.getProj( body, "cdr" );
             var localVars = [];
             var n = struct.sortedProjNames.length;
             for ( var i = 0; i < n; i++ ) {
-                if ( !stcCons.tags( remainingBody ) )
+                if ( !mkCons.tags( remainingBody ) )
                     throw new Error();
                 var localVar = stxToMaybeName(
-                    stcCons.getProj( remainingBody, "car" ) );
+                    mkCons.getProj( remainingBody, "car" ) );
                 if ( localVar === null )
                     throw new Error();
                 localVars.push( localVar );
                 remainingBody =
-                    stcCons.getProj( remainingBody, "cdr" );
+                    mkCons.getProj( remainingBody, "cdr" );
             }
             
             var result = {};
@@ -2221,66 +2222,66 @@ function usingFuncDefNs( funcDefNs ) {
     }
     
     // TODO: Make this expand multiple expressions concurrently.
-    function stcCaseletForRunner(
+    function cgenCaseletForRunner(
         nss, rawMode, maybeVa, matchSubject, body, then ) {
         
         // #GEN
         
         function processTail( nss, rawMode, body, then ) {
-            if ( !stcCons.tags( body ) )
+            if ( !mkCons.tags( body ) )
                 throw new Error();
-            var body1 = stcCons.getProj( body, "cdr" );
-            if ( !stcCons.tags( body1 ) )
+            var body1 = mkCons.getProj( body, "cdr" );
+            if ( !mkCons.tags( body1 ) )
                 return macroexpand( nssGet( nss, "unique" ), rawMode,
-                    stcCons.getProj( body, "car" ),
+                    mkCons.getProj( body, "car" ),
                     nssGet( nss, "outbox" ).uniqueNs,
                     function ( rawMode, expanded ) {
                     
                     return then( rawMode,
                         jsCode( "return ", expanded.assertNotFreeVars(
-                            [ "stcLocal_matchSubject" ] ), "; " ) );
+                            [ "cgenLocal_matchSubject" ] ), "; " ) );
                 } );
             
             return macLookupThen(
                 extractPattern( nss.definitionNs, body ),
                 function ( pattern ) {
             
-            if ( !stcCons.tags( pattern.remainingBody ) )
+            if ( !mkCons.tags( pattern.remainingBody ) )
                 throw new Error();
             
             var thenNss = nssGet( nss, "then" );
             return macroexpand( nssGet( thenNss, "unique" ),
                 rawMode,
-                stcCons.getProj( pattern.remainingBody, "car" ),
+                mkCons.getProj( pattern.remainingBody, "car" ),
                 nssGet( thenNss, "outbox" ).uniqueNs,
                 function ( rawMode, thenBranch ) {
             
-            var els = stcCons.getProj( pattern.remainingBody, "cdr" );
+            var els = mkCons.getProj( pattern.remainingBody, "cdr" );
             
             return processTail( nssGet( nss, "tail" ), rawMode, els,
                 function ( rawMode, processedTail ) {
             
             return then( rawMode, jsCode( "if ( ",
-                jsCodeVar( "stcLocal_matchSubject" ), " " +
-                    "instanceof ", jsCodeVar( "Stc" ), " " +
-                "&& stcLocal_matchSubject.flatTag === " +
+                jsCodeVar( "cgenLocal_matchSubject" ), " " +
+                    "instanceof ", jsCodeVar( "SinkStruct" ), " " +
+                "&& cgenLocal_matchSubject.flatTag === " +
                     jsStr( pattern.struct.getFlatTag() ) + " " +
             ") return (function () { " +
                 arrMap( pattern.struct.sortedProjNames,
                     function ( entry, i ) {
                     
                     return "var " +
-                        stcIdentifier(
+                        cgenIdentifier(
                             pattern.localVars[ entry.i ] ) +
                         " = " +
-                        "stcLocal_matchSubject.projVals[ " +
+                        "cgenLocal_matchSubject.projVals[ " +
                             i + " ]; ";
                 } ).join( "" ) +
                 "return ", thenBranch.assertNotFreeVars(
-                    [ "stcLocal_matchSubject" ]
+                    [ "cgenLocal_matchSubject" ]
                 ).minusFreeVars(
                     arrMap( pattern.localVars, function ( va, i ) {
-                        return stcIdentifier( va );
+                        return cgenIdentifier( va );
                     } ) ), "; " +
             "})(); ", processedTail ) );
             
@@ -2303,16 +2304,16 @@ function usingFuncDefNs( funcDefNs ) {
             then(
                 jsCode( jsCodeVar( "macLookupThen" ), "( ",
                     expandedSubject, ", " +
-                    "function ( stcLocal_matchSubject ) { " +
+                    "function ( cgenLocal_matchSubject ) { " +
                     
                     (maybeVa === null ? "" :
                         "var " +
-                            stcIdentifier( maybeVa.val ) + " = " +
-                            "stcLocal_matchSubject; "),
+                            cgenIdentifier( maybeVa.val ) + " = " +
+                            "cgenLocal_matchSubject; "),
                     processedTail.minusFreeVars( [].concat(
                         (maybeVa === null ? [] :
-                            [ stcIdentifier( maybeVa.val ) ]),
-                        [ "stcLocal_matchSubject" ] ) ),
+                            [ cgenIdentifier( maybeVa.val ) ]),
+                        [ "cgenLocal_matchSubject" ] ) ),
                 "} )" ) ) );
         
         } );
@@ -2320,30 +2321,30 @@ function usingFuncDefNs( funcDefNs ) {
     }
     
     // TODO: Make this expand multiple expressions concurrently.
-    function stcCast( nss, rawMode, matchSubject, body, then ) {
+    function cgenCast( nss, rawMode, matchSubject, body, then ) {
         // #GEN
         return macLookupThen(
             extractPattern( nss.definitionNs, body ),
             function ( pattern ) {
         
-        if ( !stcCons.tags( pattern.remainingBody ) )
+        if ( !mkCons.tags( pattern.remainingBody ) )
             throw new Error();
         var remainingBody1 =
-            stcCons.getProj( pattern.remainingBody, "cdr" );
-        if ( !stcCons.tags( remainingBody1 ) )
+            mkCons.getProj( pattern.remainingBody, "cdr" );
+        if ( !mkCons.tags( remainingBody1 ) )
             throw new Error();
-        var remainingBody2 = stcCons.getProj( remainingBody1, "cdr" );
-        if ( stcCons.tags( remainingBody2 ) )
+        var remainingBody2 = mkCons.getProj( remainingBody1, "cdr" );
+        if ( mkCons.tags( remainingBody2 ) )
             throw new Error();
         
         var onCastErrNss = nssGet( nss, "on-cast-err" );
         return macroexpand( nssGet( onCastErrNss, "unique" ), rawMode,
-            stcCons.getProj( pattern.remainingBody, "car" ),
+            mkCons.getProj( pattern.remainingBody, "car" ),
             nssGet( onCastErrNss, "outbox" ).uniqueNs,
             function ( rawMode, onCastErr ) {
         var bodyNss = nssGet( nss, "body" );
         return macroexpand( nssGet( bodyNss, "unique" ), rawMode,
-            stcCons.getProj( remainingBody1, "car" ),
+            mkCons.getProj( remainingBody1, "car" ),
             nssGet( bodyNss, "outbox" ).uniqueNs,
             function ( rawMode, body ) {
         var subjectNss = nssGet( nss, "subject" );
@@ -2357,11 +2358,11 @@ function usingFuncDefNs( funcDefNs ) {
                 jsCode(
                     jsCodeVar( "macLookupThen" ), "( ",
                         expandedSubject, ", " +
-                        "function ( stcLocal_matchSubject ) { " +
+                        "function ( cgenLocal_matchSubject ) { " +
                         
-                        "if ( stcLocal_matchSubject instanceof ",
-                                jsCodeVar( "Stc" ), " " +
-                            "&& stcLocal_matchSubject.flatTag === " +
+                        "if ( cgenLocal_matchSubject instanceof ",
+                                jsCodeVar( "SinkStruct" ), " " +
+                            "&& cgenLocal_matchSubject.flatTag === " +
                                 jsStr( pattern.struct.getFlatTag() ) +
                             " " +
                         ") return (function () { " +
@@ -2369,22 +2370,22 @@ function usingFuncDefNs( funcDefNs ) {
                                 function ( entry, i ) {
                                 
                                 return "var " +
-                                    stcIdentifier(
+                                    cgenIdentifier(
                                         pattern.localVars[ entry.i ] ) +
                                     " = " +
-                                    "stcLocal_matchSubject.projVals[ " +
+                                    "cgenLocal_matchSubject.projVals[ " +
                                         i + " ]; ";
                             } ).join( "" ) +
                             "return ", body.assertNotFreeVars(
-                                [ "stcLocal_matchSubject" ]
+                                [ "cgenLocal_matchSubject" ]
                             ).minusFreeVars(
                                 arrMap( pattern.localVars,
                                     function ( va, i ) {
-                                        return stcIdentifier( va );
+                                        return cgenIdentifier( va );
                                     } ) ), "; " +
                         "})(); " +
                         "return ", onCastErr.assertNotFreeVars(
-                            [ "stcLocal_matchSubject" ] ), "; " +
+                            [ "cgenLocal_matchSubject" ] ), "; " +
                     "} )" ) ) );
         
         } );
@@ -2396,15 +2397,15 @@ function usingFuncDefNs( funcDefNs ) {
     
     function processFn( nss, rawMode, body, then ) {
         // #GEN
-        if ( !stcCons.tags( body ) )
+        if ( !mkCons.tags( body ) )
             throw new Error();
-        var body1 = stcCons.getProj( body, "cdr" );
-        if ( !stcCons.tags( body1 ) )
+        var body1 = mkCons.getProj( body, "cdr" );
+        if ( !mkCons.tags( body1 ) )
             return macroexpand( nssGet( nss, "unique" ), rawMode,
-                stcCons.getProj( body, "car" ),
+                mkCons.getProj( body, "car" ),
                 nssGet( nss, "outbox" ).uniqueNs,
                 then );
-        var param = stcCons.getProj( body, "car" );
+        var param = mkCons.getProj( body, "car" );
         var paramName = stxToMaybeName( param );
         if ( paramName === null )
             throw new Error(
@@ -2413,11 +2414,11 @@ function usingFuncDefNs( funcDefNs ) {
         return processFn( nss, rawMode, body1,
             function ( rawMode, processedRest ) {
             
-            var va = stcIdentifier( paramName );
+            var va = cgenIdentifier( paramName );
             return then( rawMode,
                 jsCode(
                     jsCodeVar( "macLookupRet" ), "( " +
-                        "new ", jsCodeVar( "StcFn" ), "( " +
+                        "new ", jsCodeVar( "SinkFn" ), "( " +
                             "function ( rt, " + va + " ) { " +
                         
                         "return ", processedRest.minusFreeVars(
@@ -2429,12 +2430,12 @@ function usingFuncDefNs( funcDefNs ) {
     function mapConsListToArr( list, func ) {
         var result = [];
         for ( var e = list;
-            stcCons.tags( e );
-            e = stcCons.getProj( e, "cdr" )
+            mkCons.tags( e );
+            e = mkCons.getProj( e, "cdr" )
         ) {
-            result.push( func( stcCons.getProj( e, "car" ) ) );
+            result.push( func( mkCons.getProj( e, "car" ) ) );
         }
-        if ( !stcNil.tags( e ) )
+        if ( !mkNil.tags( e ) )
             throw new Error();
         return result;
     }
@@ -2450,8 +2451,8 @@ function usingFuncDefNs( funcDefNs ) {
     function macroexpandConsListToArr( nss, rawMode, list, then ) {
         return go( nss, rawMode, list, null );
         function go( currentNss, rawMode, e, revResult ) {
-            if ( !stcCons.tags( e ) ) {
-                if ( !stcNil.tags( e ) )
+            if ( !mkCons.tags( e ) ) {
+                if ( !mkNil.tags( e ) )
                     throw new Error();
                 
                 return then( rawMode, revJsListToArr( revResult ) );
@@ -2460,56 +2461,56 @@ function usingFuncDefNs( funcDefNs ) {
             var firstNss = nssGet( currentNss, "first" );
             return macroexpand( nssGet( firstNss, "unique" ),
                 rawMode,
-                stcCons.getProj( e, "car" ),
+                mkCons.getProj( e, "car" ),
                 nssGet( firstNss, "outbox" ).uniqueNs,
                 function ( rawMode, elemResult ) {
                 
                 return go( nssGet( currentNss, "rest" ), rawMode,
-                    stcCons.getProj( e, "cdr" ),
+                    mkCons.getProj( e, "cdr" ),
                     { first: elemResult, rest: revResult } );
             } );
         }
     }
     
-    function stcFnPure( func ) {
-        return new StcFn( function ( rt, arg ) {
+    function sinkFnPure( func ) {
+        return new SinkFn( function ( rt, arg ) {
             return macLookupRet( func( rt, arg ) );
         } );
     }
     
     function nssClaim( rawMode, nss, forWhatMacro ) {
         collectPutDefined( rawMode, getClaimedDefiner( nss.uniqueNs ),
-            stcNil.ofNow() );
+            mkNil.ofNow() );
         return nssGet( nss, [ "n:$$claimed-for", forWhatMacro ] );
     }
     
-    function stcAddMacro(
+    function addMacro(
         definitionNs, rawMode, name, claim, macroFunctionImpl ) {
         
         collectPutDefined( rawMode,
             getMacroFunctionDefiner( definitionNs, name ),
-            stcFnPure( function ( rt, uniqueNs ) {
-                return stcFnPure( function ( rt, definitionNs ) {
-                    return stcFnPure( function ( rt, myStxDetails ) {
-                        return stcFnPure( function ( rt, body ) {
-                            return new StcFn( function ( rt, then ) {
-                                if ( !(uniqueNs instanceof StcForeign
+            sinkFnPure( function ( rt, uniqueNs ) {
+                return sinkFnPure( function ( rt, definitionNs ) {
+                    return sinkFnPure( function ( rt, myStxDetails ) {
+                        return sinkFnPure( function ( rt, body ) {
+                            return new SinkFn( function ( rt, then ) {
+                                if ( !(uniqueNs instanceof SinkForeign
                                     && uniqueNs.purpose === "ns") )
                                     throw new Error();
                                 if ( !(definitionNs instanceof
-                                        StcForeign
+                                        SinkForeign
                                     && definitionNs.purpose === "ns") )
                                     throw new Error();
                                 
                                 return macLookupThen(
                                     macroFunctionImpl( myStxDetails, body, function ( code ) {
-                                        return then.callStc( rt,
-                                            new StcForeign( "compiled-code", code ) );
+                                        return then.callSink( rt,
+                                            new SinkForeign( "compiled-code", code ) );
                                     } ),
                                     function ( effectsImpl ) {
                                     
                                     return macLookupRet(
-                                        new StcForeign( "effects", function ( rawMode ) {
+                                        new SinkForeign( "effects", function ( rawMode ) {
                                             var nss = nssClaim( rawMode, {
                                                 definitionNs: definitionNs.foreignVal,
                                                 uniqueNs: uniqueNs.foreignVal
@@ -2523,10 +2524,10 @@ function usingFuncDefNs( funcDefNs ) {
                 } );
             } ) );
     }
-    function stcAddPureMacro(
+    function addPureMacro(
         definitionNs, rawMode, name, claim, macroFunctionImpl ) {
         
-        stcAddMacro( definitionNs, rawMode, name, claim,
+        addMacro( definitionNs, rawMode, name, claim,
             function ( myStxDetails, body, then ) {
             
             return macLookupRet(
@@ -2538,7 +2539,7 @@ function usingFuncDefNs( funcDefNs ) {
         return {
             type: "dummy-mode",
             unitTestId: null,
-            contributingOnlyTo: stcNameSetAll(),
+            contributingOnlyTo: sinkNameSetAll(),
             current: true,
             putDefined: [],
             putListener: []
@@ -2552,21 +2553,19 @@ function usingFuncDefNs( funcDefNs ) {
             throw new Error();
     }
     
-    function stcAddCoreMacros(
-        namespaceDefs, targetDefNs, funcDefNs ) {
-        
+    function addCoreMacros( namespaceDefs, targetDefNs, funcDefNs ) {
         var dummyMode = makeDummyMode();
         
         function mac( name, body ) {
-            stcAddPureMacro( targetDefNs, dummyMode, name,
+            addPureMacro( targetDefNs, dummyMode, name,
                 [ "claim:primitive", name ], body );
         }
         function effectfulFun( name, body ) {
             var sourceMainTagName =
-                stcForeignStrFromJs( name ).getName();
+                sinkForeignStrFromJs( name ).getName();
             var repMainTagName = [ "n:main-core", sourceMainTagName ];
             var constructorTagName =
-                stcNameConstructorTagAlreadySorted(
+                sinkNameConstructorTagAlreadySorted(
                     repMainTagName, [] );
             addFunctionNativeDefinition(
                 funcDefNs, dummyMode, constructorTagName,
@@ -2585,15 +2584,15 @@ function usingFuncDefNs( funcDefNs ) {
         
         collectPutDefined( dummyMode,
             getFunctionImplementationsDefiner( targetDefNs ),
-            new StcForeign( "ns", funcDefNs ) );
+            new SinkForeign( "ns", funcDefNs ) );
         
         mac( "def-struct", function ( myStxDetails, body, then ) {
-            if ( !stcCons.tags( body ) )
+            if ( !mkCons.tags( body ) )
                 throw new Error();
-            var body1 = stcCons.getProj( body, "cdr" );
+            var body1 = mkCons.getProj( body, "cdr" );
             
             var sourceMainTagName =
-                stxToMaybeName( stcCons.getProj( body, "car" ) );
+                stxToMaybeName( mkCons.getProj( body, "car" ) );
             if ( sourceMainTagName === null )
                 throw new Error();
             
@@ -2615,25 +2614,25 @@ function usingFuncDefNs( funcDefNs ) {
                         };
                     } ) );
                 return macLookupThenRunEffects( rawMode,
-                    then( stcNil.of() ) );
+                    then( mkNil.of() ) );
             };
         } );
         
         mac( "defn", function ( myStxDetails, body, then ) {
             // #GEN
-            if ( !stcCons.tags( body ) )
+            if ( !mkCons.tags( body ) )
                 throw new Error();
-            var body1 = stcCons.getProj( body, "cdr" );
-            if ( !stcCons.tags( body1 ) )
+            var body1 = mkCons.getProj( body, "cdr" );
+            if ( !mkCons.tags( body1 ) )
                 throw new Error();
             
             var sourceMainTagName =
-                stxToMaybeName( stcCons.getProj( body, "car" ) );
+                stxToMaybeName( mkCons.getProj( body, "car" ) );
             if ( sourceMainTagName === null )
                 throw new Error();
             
             var firstArg =
-                stxToMaybeName( stcCons.getProj( body1, "car" ) );
+                stxToMaybeName( mkCons.getProj( body1, "car" ) );
             if ( firstArg === null )
                 throw new Error();
             
@@ -2654,48 +2653,48 @@ function usingFuncDefNs( funcDefNs ) {
                                     nss.definitionNs ) ),
                             function ( funcDefNs ) {
                             
-                            if ( !(funcDefNs instanceof StcForeign
+                            if ( !(funcDefNs instanceof SinkForeign
                                 && funcDefNs.purpose === "ns") )
                                 throw new Error();
                             
-                            stcAddDefun( rt, funcDefNs.foreignVal,
+                            addDefun( rt, funcDefNs.foreignVal,
                                 rawMode,
                                 repMainTagName,
                                 firstArg,
-                                stcCall( processedFn,
-                                    jsCodeRetStcVar( firstArg ) ) );
+                                cgenCall( processedFn,
+                                    jsCodeRetCgenVar( firstArg ) ) );
                             
                             return macLookupRet(
-                                new StcForeign( "effects",
+                                new SinkForeign( "effects",
                                     function ( rawMode ) {
                                 
-                                return macLookupRet( stcNil.ofNow() );
+                                return macLookupRet( mkNil.ofNow() );
                             } ) );
                         } );
                     } );
                     
                     return macLookupThenRunEffects( rawMode,
-                        then( stcNil.of() ) );
+                        then( mkNil.of() ) );
                 } );
             };
         } );
         
         mac( "def-macro", function ( myStxDetails, body, then ) {
-            if ( !stcCons.tags( body ) )
+            if ( !mkCons.tags( body ) )
                 throw new Error();
-            var body1 = stcCons.getProj( body, "cdr" );
-            if ( !stcCons.tags( body1 ) )
+            var body1 = mkCons.getProj( body, "cdr" );
+            if ( !mkCons.tags( body1 ) )
                 throw new Error();
             
             var name =
-                stxToMaybeName( stcCons.getProj( body, "car" ) );
+                stxToMaybeName( mkCons.getProj( body, "car" ) );
             if ( name === null )
                 throw new Error();
             
             return function ( rawMode, nss ) {
                 return processFn( nss, rawMode, body1,
                     function ( rawMode, processedFn ) {
-                return macLookupThen( stcExecute( rt, processedFn ),
+                return macLookupThen( cgenExecute( rt, processedFn ),
                     function ( executedFn ) {
                 
                 collectPutDefined( rawMode,
@@ -2703,7 +2702,7 @@ function usingFuncDefNs( funcDefNs ) {
                     executedFn );
                 
                 return macLookupThenRunEffects( rawMode,
-                    then( stcNil.of() ) );
+                    then( mkNil.of() ) );
                 
                 } );
                 } );
@@ -2718,16 +2717,16 @@ function usingFuncDefNs( funcDefNs ) {
         // TODO: Make this expand multiple expressions concurrently.
         //
         mac( "test-async", function ( myStxDetails, body, then ) {
-            if ( !stcCons.tags( body ) )
+            if ( !mkCons.tags( body ) )
                 throw new Error();
-            var body1 = stcCons.getProj( body, "cdr" );
-            if ( !stcCons.tags( body1 ) )
+            var body1 = mkCons.getProj( body, "cdr" );
+            if ( !mkCons.tags( body1 ) )
                 throw new Error();
-            var body2 = stcCons.getProj( body1, "cdr" );
-            if ( !stcCons.tags( body2 ) )
+            var body2 = mkCons.getProj( body1, "cdr" );
+            if ( !mkCons.tags( body2 ) )
                 throw new Error();
-            var body3 = stcCons.getProj( body2, "cdr" );
-            if ( stcCons.tags( body3 ) )
+            var body3 = mkCons.getProj( body2, "cdr" );
+            if ( mkCons.tags( body3 ) )
                 throw new Error();
             
             return function ( rawMode, nss ) {
@@ -2747,7 +2746,7 @@ function usingFuncDefNs( funcDefNs ) {
                             function ( rawMode, then ) {
                             
                             return macLookupThen(
-                                evalStcForTest( rt, expanded ),
+                                evalCgenForTest( rt, expanded ),
                                 function ( evaluated ) {
                                 
                                 return then( rawMode, evaluated );
@@ -2755,7 +2754,7 @@ function usingFuncDefNs( funcDefNs ) {
                         } );
                     } );
                     
-                    return macLookupRet( stcNil.ofNow() );
+                    return macLookupRet( mkNil.ofNow() );
                 }
                 
                 function makeEvalExprAndRun(
@@ -2783,7 +2782,7 @@ function usingFuncDefNs( funcDefNs ) {
                             function ( defined ) {
                             
                             return macLookupRet(
-                                new StcForeign( "effects",
+                                new SinkForeign( "effects",
                                     function ( rawMode ) {
                                 
                                 return then( rawMode, defined );
@@ -2793,8 +2792,8 @@ function usingFuncDefNs( funcDefNs ) {
                     } );
                     
                     return macLookupThenRunEffects( rawMode,
-                        evaluated.callStc( rt,
-                            new StcForeign( "definer", definer ) ) );
+                        evaluated.callSink( rt,
+                            new SinkForeign( "definer", definer ) ) );
                     
                     } );
                     } );
@@ -2802,24 +2801,24 @@ function usingFuncDefNs( funcDefNs ) {
                 }
                 
                 makeEvalExpr( nssGet( nss, "dex" ), rawMode,
-                    stcCons.getProj( body, "car" ),
+                    mkCons.getProj( body, "car" ),
                     function ( rawMode, evalDex ) {
                 return makeEvalExprAndRun( nssGet( nss, "a" ),
                     rawMode,
-                    stcCons.getProj( body1, "car" ),
+                    mkCons.getProj( body1, "car" ),
                     function ( rawMode, evalA ) {
                 return makeEvalExprAndRun( nssGet( nss, "b" ),
                     rawMode,
-                    stcCons.getProj( body2, "car" ),
+                    mkCons.getProj( body2, "car" ),
                     function ( rawMode, evalB ) {
                 
                 collectDefer( rawMode, {
                     type: "unit-test",
                     unitTestId: nssGet( nss, "dex" ).uniqueNs.name,
-                    contributingOnlyTo: stcNameSetEmpty()
+                    contributingOnlyTo: sinkNameSetEmpty()
                 }, function ( rawMode ) {
                 return macLookupRet(
-                    new StcForeign( "effects", function ( rawMode ) {
+                    new SinkForeign( "effects", function ( rawMode ) {
                 return evalDex( rawMode, function ( rawMode, dex ) {
                 return evalA( rawMode, function ( rawMode, a ) {
                 return evalB( rawMode, function ( rawMode, b ) {
@@ -2843,7 +2842,7 @@ function usingFuncDefNs( funcDefNs ) {
                 if ( !succeeded )
                     rt.anyTestFailed = true;
                 
-                return macLookupRet( stcNil.ofNow() );
+                return macLookupRet( mkNil.ofNow() );
                 
                 } );
                 } );
@@ -2853,69 +2852,70 @@ function usingFuncDefNs( funcDefNs ) {
                 } ) );
                 } );
                 
-                return macLookupRet( stcNil.ofNow() );
+                return macLookupRet( mkNil.ofNow() );
                 
                 } );
                 } );
                 } );
                 
                 return macLookupThenRunEffects( rawMode,
-                    then( stcNil.of() ) );
+                    then( mkNil.of() ) );
             };
         } );
         
         mac( "case", function ( myStxDetails, body, then ) {
-            if ( !stcCons.tags( body ) )
+            if ( !mkCons.tags( body ) )
                 throw new Error();
             return function ( rawMode, nss ) {
-                return stcCaseletForRunner( nss, rawMode, null,
-                    stcCons.getProj( body, "car" ),
-                    stcCons.getProj( body, "cdr" ),
+                return cgenCaseletForRunner( nss, rawMode, null,
+                    mkCons.getProj( body, "car" ),
+                    mkCons.getProj( body, "cdr" ),
                     then );
             };
         } );
         
         mac( "caselet", function ( myStxDetails, body, then ) {
-            if ( !stcCons.tags( body ) )
+            if ( !mkCons.tags( body ) )
                 throw new Error();
-            var body1 = stcCons.getProj( body, "cdr" );
-            if ( !stcCons.tags( body1 ) )
+            var body1 = mkCons.getProj( body, "cdr" );
+            if ( !mkCons.tags( body1 ) )
                 throw new Error();
-            var va = stxToMaybeName( stcCons.getProj( body, "car" ) );
+            var va = stxToMaybeName( mkCons.getProj( body, "car" ) );
             if ( va === null )
                 throw new Error();
             
             return function ( rawMode, nss ) {
-                return stcCaseletForRunner( nss, rawMode, { val: va },
-                    stcCons.getProj( body1, "car" ),
-                    stcCons.getProj( body1, "cdr" ),
+                return cgenCaseletForRunner( nss, rawMode,
+                    { val: va },
+                    mkCons.getProj( body1, "car" ),
+                    mkCons.getProj( body1, "cdr" ),
                     then );
             };
         } );
         
         mac( "cast", function ( myStxDetails, body, then ) {
-            if ( !stcCons.tags( body ) )
+            if ( !mkCons.tags( body ) )
                 throw new Error();
             return function ( rawMode, nss ) {
-                return stcCast( nss, rawMode,
-                    stcCons.getProj( body, "car" ),
-                    stcCons.getProj( body, "cdr" ),
+                return cgenCast( nss, rawMode,
+                    mkCons.getProj( body, "car" ),
+                    mkCons.getProj( body, "cdr" ),
                     then );
             };
         } );
         
         mac( "isa", function ( myStxDetails, body, then ) {
             // #GEN
-            if ( !stcCons.tags( body ) )
+            if ( !mkCons.tags( body ) )
                 throw new Error();
-            var body1 = stcCons.getProj( body, "cdr" );
-            if ( !stcCons.tags( body1 ) )
+            var body1 = mkCons.getProj( body, "cdr" );
+            if ( !mkCons.tags( body1 ) )
                 throw new Error();
-            var body2 = stcCons.getProj( body1, "cdr" );
-            if ( stcCons.tags( body2 ) )
+            var body2 = mkCons.getProj( body1, "cdr" );
+            if ( mkCons.tags( body2 ) )
                 throw new Error();
             var sourceMainTagNameRepExpr =
-                stcCons.getProj( body, "car" );
+                mkCons.getProj( body, "car" );
             var sourceMainTagNameRep =
                 stxToMaybeName( sourceMainTagNameRepExpr );
             if ( sourceMainTagNameRep === null )
@@ -2926,7 +2926,7 @@ function usingFuncDefNs( funcDefNs ) {
             
             return function ( rawMode, nss ) {
                 return macroexpand( nssGet( nss, "unique" ), rawMode,
-                    stcCons.getProj( body1, "car" ),
+                    mkCons.getProj( body1, "car" ),
                     nssGet( nss, "outbox" ).uniqueNs,
                     function ( rawMode, expandedBody ) {
                 return macLookupThen(
@@ -2939,14 +2939,14 @@ function usingFuncDefNs( funcDefNs ) {
                         jsCode(
                             jsCodeVar( "macLookupThen" ), "( ",
                                 expandedBody, ", " +
-                                "function ( stcLocal_body ) {\n" +
+                                "function ( cgenLocal_body ) {\n" +
                             "    \n" +
-                            "    return stcLocal_body instanceof ",
-                                jsCodeVar( "Stc" ), " " +
-                                    "&& stcLocal_body.flatTag === " +
+                            "    return cgenLocal_body instanceof ",
+                                jsCodeVar( "SinkStruct" ), " " +
+                                    "&& cgenLocal_body.flatTag === " +
                                         jsStr( struct.getFlatTag() ) + " ? ",
-                                    stcYep.of( stcNil.of() ), " : ",
-                                    stcNope.of( stcNil.of() ), ";\n" +
+                                    mkYep.of( mkNil.of() ), " : ",
+                                    mkNope.of( mkNil.of() ), ";\n" +
                             "} )" ) ) );
                 
                 } );
@@ -2955,7 +2955,7 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         mac( "c", function ( myStxDetails, body, then ) {
-            if ( !stcCons.tags( body ) )
+            if ( !mkCons.tags( body ) )
                 throw new Error();
             
             return function ( rawMode, nss ) {
@@ -2964,18 +2964,18 @@ function usingFuncDefNs( funcDefNs ) {
                 // concurrently.
                 return macroexpand( nssGet( funcNss, "unique" ),
                     rawMode,
-                    stcCons.getProj( body, "car" ),
+                    mkCons.getProj( body, "car" ),
                     nssGet( funcNss, "outbox" ).uniqueNs,
                     function ( rawMode, expandedFunc ) {
                 return macroexpandConsListToArr(
                     nssGet( nss, "args" ),
                     rawMode,
-                    stcCons.getProj( body, "cdr" ),
+                    mkCons.getProj( body, "cdr" ),
                     function ( rawMode, expandedArgs ) {
                 
                 return macLookupThenRunEffects( rawMode,
                     then(
-                        stcCallArr( expandedFunc, expandedArgs ) ) );
+                        cgenCallArr( expandedFunc, expandedArgs ) ) );
                 
                 } );
                 } );
@@ -2983,21 +2983,21 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         function stxToDefiniteString( stx ) {
-            if ( !stcStx.tags( stx ) )
+            if ( !mkStx.tags( stx ) )
                 throw new Error();
-            var istringNil = stcStx.getProj( stx, "s-expr" );
-            if ( !stcIstringNil.tags( istringNil ) )
+            var istringNil = mkStx.getProj( stx, "s-expr" );
+            if ( !mkIstringNil.tags( istringNil ) )
                 throw new Error();
             return parseString(
-                stcIstringNil.getProj( istringNil, "string" ) );
+                mkIstringNil.getProj( istringNil, "string" ) );
         }
         
         function assertValidDexable( rt, x, then ) {
-            if ( !stcDexable.tags( x ) )
+            if ( !mkDexable.tags( x ) )
                 throw new Error();
             
-            var dex = stcDexable.getProj( x, "dex" );
-            var val = stcDexable.getProj( x, "val" );
+            var dex = mkDexable.getProj( x, "dex" );
+            var val = mkDexable.getProj( x, "val" );
             
             return rt.dexHas( dex, val, function ( has ) {
                 if ( !has )
@@ -3012,34 +3012,34 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         mac( "err", function ( myStxDetails, body, then ) {
-            if ( !stcCons.tags( body ) )
+            if ( !mkCons.tags( body ) )
                 throw new Error();
-            if ( stcCons.tags( stcCons.getProj( body, "cdr" ) ) )
+            if ( mkCons.tags( mkCons.getProj( body, "cdr" ) ) )
                 throw new Error();
             return function ( rawMode, nss ) {
                 return macLookupThenRunEffects( rawMode,
                     then(
-                        stcErr(
+                        cgenErr(
                             stxToDefiniteString(
-                                stcCons.getProj(
+                                mkCons.getProj(
                                     body, "car" ) ).jsStr ) ) );
             };
         } );
         
         mac( "str", function ( myStxDetails, body, then ) {
             // #GEN
-            if ( !stcCons.tags( body ) )
+            if ( !mkCons.tags( body ) )
                 throw new Error();
-            if ( stcCons.tags( stcCons.getProj( body, "cdr" ) ) )
+            if ( mkCons.tags( mkCons.getProj( body, "cdr" ) ) )
                 throw new Error();
             return function ( rawMode, nss ) {
                 return macLookupThenRunEffects( rawMode,
                     then(
                         jsCode(
                             jsCodeVar( "macLookupRet" ), "( ",
-                                jsCodeVar( "stcForeignStrFromJs" ), "( " +
+                                jsCodeVar( "sinkForeignStrFromJs" ), "( " +
                                     jsStr(
-                                        stxToDefiniteString( stcCons.getProj( body, "car" ) ).jsStr ) +
+                                        stxToDefiniteString( mkCons.getProj( body, "car" ) ).jsStr ) +
                                     " ) )" ) ) );
             };
         } );
@@ -3053,7 +3053,7 @@ function usingFuncDefNs( funcDefNs ) {
         // is not directly available to Cene progams.
         //
         // What actually happens in this implementation is that `fn`
-        // creates a `StcFn` value which directly refers to a
+        // creates a `SinkFn` value which directly refers to a
         // JavaScript function call implementation, and no constructor
         // name is needed at all. This allows us to compile a Cene
         // program so that each `fn` becomes a JavaScript's anonymous
@@ -3090,15 +3090,15 @@ function usingFuncDefNs( funcDefNs ) {
                 remainingBody, bindingsNss,
                 innerVars, obscureVars, obscureVarsCode, then ) {
                 
-                if ( !stcCons.tags( remainingBody ) )
+                if ( !mkCons.tags( remainingBody ) )
                     throw new Error();
                 var remainingBody1 =
-                    stcCons.getProj( remainingBody, "cdr" );
-                if ( !stcCons.tags( remainingBody1 ) ) {
+                    mkCons.getProj( remainingBody, "cdr" );
+                if ( !mkCons.tags( remainingBody1 ) ) {
                     var bodyNss = nssGet( nss, "body" );
                     return macroexpand( nssGet( bodyNss, "unique" ),
                         rawMode,
-                        stcCons.getProj( remainingBody, "car" ),
+                        mkCons.getProj( remainingBody, "car" ),
                         nssGet( bodyNss, "outbox" ).uniqueNs,
                         function ( rawMode, body ) {
                         
@@ -3113,22 +3113,22 @@ function usingFuncDefNs( funcDefNs ) {
                     } );
                 }
                 var va = stxToMaybeName(
-                    stcCons.getProj( remainingBody, "car" ) );
+                    mkCons.getProj( remainingBody, "car" ) );
                 if ( va === null )
                     throw new Error();
                 
                 var firstNss = nssGet( bindingsNss, "first" );
                 return macroexpand( nssGet( firstNss, "unique" ),
                     rawMode,
-                    stcCons.getProj( remainingBody1, "car" ),
+                    mkCons.getProj( remainingBody1, "car" ),
                     nssGet( firstNss, "outbox" ).uniqueNs,
                     function ( rawMode, bindingVal ) {
                     
-                    var innerVar = stcIdentifier( va );
-                    var obscureVar = "stcLocal_" + i;
+                    var innerVar = cgenIdentifier( va );
+                    var obscureVar = "cgenLocal_" + i;
                     
                     return loop( rawMode, nss, i + 1,
-                        stcCons.getProj( remainingBody1, "cdr" ),
+                        mkCons.getProj( remainingBody1, "cdr" ),
                         nssGet( bindingsNss, "rest" ),
                         innerVars.concat( [ innerVar ] ),
                         obscureVars.concat( [ obscureVar ] ),
@@ -3158,10 +3158,10 @@ function usingFuncDefNs( funcDefNs ) {
             
             // #GEN
             
-            if ( !stcCons.tags( body ) )
+            if ( !mkCons.tags( body ) )
                 throw new Error();
             var sourceMainTagNameRep =
-                stxToMaybeName( stcCons.getProj( body, "car" ) );
+                stxToMaybeName( mkCons.getProj( body, "car" ) );
             if ( sourceMainTagNameRep === null )
                 throw new Error();
             
@@ -3172,7 +3172,7 @@ function usingFuncDefNs( funcDefNs ) {
                     function ( struct ) {
                     
                     return loop( nss, rawMode, struct, 0, null,
-                        stcCons.getProj( body, "cdr" ) );
+                        mkCons.getProj( body, "cdr" ) );
                 } );
             };
             
@@ -3184,7 +3184,7 @@ function usingFuncDefNs( funcDefNs ) {
                     return next( rawMode, struct,
                         revProjVals, remainingBody );
                 
-                if ( !stcCons.tags( remainingBody ) )
+                if ( !mkCons.tags( remainingBody ) )
                     throw new Error(
                         "Expected more arguments to " +
                         JSON.stringify( sourceMainTagNameRep ) );
@@ -3193,7 +3193,7 @@ function usingFuncDefNs( funcDefNs ) {
                 
                 return macroexpand( nssGet( firstNss, "unique" ),
                     rawMode,
-                    stcCons.getProj( remainingBody, "car" ),
+                    mkCons.getProj( remainingBody, "car" ),
                     nssGet( firstNss, "outbox" ).uniqueNs,
                     function ( rawMode, projVal ) {
                     
@@ -3204,14 +3204,14 @@ function usingFuncDefNs( funcDefNs ) {
                             { i: struct.unsortedProjNames[ i ].i,
                                 val: projVal },
                             rest: revProjVals },
-                        stcCons.getProj( remainingBody, "cdr" ) );
+                        mkCons.getProj( remainingBody, "cdr" ) );
                 } );
             }
             
             function next(
                 rawMode, struct, revProjVals, remainingBody ) {
                 
-                if ( stcCons.tags( remainingBody ) )
+                if ( mkCons.tags( remainingBody ) )
                     throw new Error();
                 
                 var projVals = revJsListToArr( revProjVals );
@@ -3228,12 +3228,12 @@ function usingFuncDefNs( funcDefNs ) {
                                     
                                     return [ ", ", jsCode( "{ " +
                                         "i: " + JSON.stringify( entry.i ) + ", " +
-                                        "val: ", jsCodeVar( "stcLocal_proj" + i ), " " +
+                                        "val: ", jsCodeVar( "cgenLocal_proj" + i ), " " +
                                     "}" ) ];
                                 } ).slice( 1 ), " " +
                             "]" ) ), " )" );
                 for ( var i = projVals.length - 1; 0 <= i; i-- ) {
-                    var projVar = "stcLocal_proj" + i;
+                    var projVar = "cgenLocal_proj" + i;
                     result = jsCode(
                         jsCodeVar( "macLookupThen" ), "( ",
                             projVals[ i ].val, ", " +
@@ -3252,39 +3252,39 @@ function usingFuncDefNs( funcDefNs ) {
             // #GEN
             return structMapper( body, then, function ( args ) {
                 return jsCode(
-                    "new ", jsCodeVar( "StcDexStruct" ), "( ",
+                    "new ", jsCodeVar( "SinkDexStruct" ), "( ",
                         args, " )" );
             } );
         } );
         
         fun( "dex-default", function ( rt, first ) {
-            return stcFnPure( function ( rt, second ) {
-                return new StcDexDefault( first, second );
+            return sinkFnPure( function ( rt, second ) {
+                return new SinkDexDefault( first, second );
             } );
         } );
         
         fun( "dex-give-up", function ( rt, ignored ) {
-            return new StcDexGiveUp();
+            return new SinkDexGiveUp();
         } );
         
         fun( "dex-dex", function ( rt, ignored ) {
-            return new StcDexDex();
+            return new SinkDexDex();
         } );
         
         fun( "dex-merge", function ( rt, ignored ) {
-            return new StcDexMerge();
+            return new SinkDexMerge();
         } );
         
         fun( "dex-fuse", function ( rt, ignored ) {
-            return new StcDexFuse();
+            return new SinkDexFuse();
         } );
         
         fun( "dex-name", function ( rt, ignored ) {
-            return new StcDexName();
+            return new SinkDexName();
         } );
         
         fun( "dex-string", function ( rt, ignored ) {
-            return new StcDexString();
+            return new SinkDexString();
         } );
         
         effectfulFun( "dex-by-own-method",
@@ -3294,7 +3294,7 @@ function usingFuncDefNs( funcDefNs ) {
                 function ( getMethod ) {
                 
                 return macLookupRet(
-                    new StcDexByOwnMethod( dexableGetMethod ) );
+                    new SinkDexByOwnMethod( dexableGetMethod ) );
             } );
         } );
         
@@ -3302,44 +3302,45 @@ function usingFuncDefNs( funcDefNs ) {
             return assertValidDexable( rt, dexableUnwrap,
                 function ( unwrap ) {
                 
-                return macLookupRet( new StcDexFix( dexableUnwrap ) );
+                return macLookupRet(
+                    new SinkDexFix( dexableUnwrap ) );
             } );
         } );
         
         fun( "dex-table", function ( rt, dexVal ) {
             if ( dexVal.affiliation !== "dex" )
                 throw new Error();
-            return new StcDexTable( dexVal );
+            return new SinkDexTable( dexVal );
         } );
         
         fun( "dex-int", function ( rt, ignored ) {
-            return new StcDexInt();
+            return new SinkDexInt();
         } );
         
         fun( "call-dex", function ( rt, dex ) {
-            return stcFnPure( function ( rt, a ) {
-                return new StcFn( function ( rt, b ) {
+            return sinkFnPure( function ( rt, a ) {
+                return new SinkFn( function ( rt, b ) {
                     return rt.dexHas( dex, a, function ( hasA ) {
                         if ( !hasA )
-                            return macLookupRet( stcNil.ofNow() );
+                            return macLookupRet( mkNil.ofNow() );
                     
                     return rt.dexHas( dex, b, function ( hasB ) {
                         if ( !hasB )
-                            return macLookupRet( stcNil.ofNow() );
+                            return macLookupRet( mkNil.ofNow() );
                     
                     var result =
                         nameCompare( a.getName(), b.getName() );
                     if ( result < 0 )
                         return macLookupRet(
-                            stcYep.ofNow(
-                                new StcForeign( "lt", null ) ) );
+                            mkYep.ofNow(
+                                new SinkForeign( "lt", null ) ) );
                     if ( 0 < result )
                         return macLookupRet(
-                            stcYep.ofNow(
-                                new StcForeign( "gt", null ) ) );
+                            mkYep.ofNow(
+                                new SinkForeign( "gt", null ) ) );
                     
                     return macLookupRet(
-                        stcYep.ofNow( stcNil.ofNow() ) );
+                        mkYep.ofNow( mkNil.ofNow() ) );
                     
                     } );
                     
@@ -3349,7 +3350,7 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "in-dex", function ( rt, dex ) {
-            return new StcFn( function ( rt, x ) {
+            return new SinkFn( function ( rt, x ) {
                 return dex.dexHas( rt, x );
             } );
         } );
@@ -3357,26 +3358,26 @@ function usingFuncDefNs( funcDefNs ) {
         effectfulFun( "name-of", function ( rt, dexable ) {
             return assertValidDexable( rt, dexable, function ( x ) {
                 return macLookupRet(
-                    new StcForeign( "name", x.getName() ) );
+                    new SinkForeign( "name", x.getName() ) );
             } );
         } );
         
         fun( "merge-by-dex", function ( rt, dex ) {
-            return new StcMergeByDex( dex );
+            return new SinkMergeByDex( dex );
         } );
         
         mac( "merge-struct", function ( myStxDetails, body, then ) {
             // #GEN
             return structMapper( body, then, function ( args ) {
                 return jsCode(
-                    "new ", jsCodeVar( "StcFuseStruct" ), "( " +
+                    "new ", jsCodeVar( "SinkFuseStruct" ), "( " +
                         "\"merge-struct\", \"merge\", ", args, " )" );
             } );
         } );
         
         fun( "merge-default", function ( rt, first ) {
-            return stcFnPure( function ( rt, second ) {
-                return new StcFuseDefault( "merge-default", "merge",
+            return sinkFnPure( function ( rt, second ) {
+                return new SinkFuseDefault( "merge-default", "merge",
                     first, second );
             } );
         } );
@@ -3388,7 +3389,7 @@ function usingFuncDefNs( funcDefNs ) {
                 function ( getMethod ) {
                 
                 return macLookupRet(
-                    new StcFuseByOwnMethod( "merge-by-own-method",
+                    new SinkFuseByOwnMethod( "merge-by-own-method",
                         "merge",
                         dexableGetMethod ) );
             } );
@@ -3399,19 +3400,19 @@ function usingFuncDefNs( funcDefNs ) {
                 function ( unwrap ) {
                 
                 return macLookupRet(
-                    new StcFuseFix( "merge-fix", "merge",
+                    new SinkFuseFix( "merge-fix", "merge",
                         dexableUnwrap ) );
             } );
         } );
         
         fun( "merge-table", function ( rt, mergeVal ) {
-            return new StcFuseTable( "merge-table", "merge",
+            return new SinkFuseTable( "merge-table", "merge",
                 mergeVal );
         } );
         
         fun( "call-merge", function ( rt, merge ) {
-            return stcFnPure( function ( rt, a ) {
-                return new StcFn( function ( rt, b ) {
+            return sinkFnPure( function ( rt, a ) {
+                return new SinkFn( function ( rt, b ) {
                     if ( merge.affiliation !== "merge" )
                         throw new Error();
                     return merge.fuse( rt, a, b );
@@ -3420,21 +3421,21 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "fuse-by-merge", function ( rt, merge ) {
-            return new StcFuseByMerge( merge );
+            return new SinkFuseByMerge( merge );
         } );
         
         mac( "fuse-struct", function ( myStxDetails, body, then ) {
             // #GEN
             return structMapper( body, then, function ( args ) {
                 return jsCode(
-                    "new ", jsCodeVar( "StcFuseStruct" ), "( " +
+                    "new ", jsCodeVar( "SinkFuseStruct" ), "( " +
                         "\"fuse-struct\", \"fuse\", ", args, " )" );
             } );
         } );
         
         fun( "fuse-default", function ( rt, first ) {
-            return stcFnPure( function ( rt, second ) {
-                return new StcFuseDefault( "fuse-default", "fuse",
+            return sinkFnPure( function ( rt, second ) {
+                return new SinkFuseDefault( "fuse-default", "fuse",
                     first, second );
             } );
         } );
@@ -3446,7 +3447,7 @@ function usingFuncDefNs( funcDefNs ) {
                 function ( getMethod ) {
                 
                 return macLookupRet(
-                    new StcFuseByOwnMethod( "fuse-by-own-method",
+                    new SinkFuseByOwnMethod( "fuse-by-own-method",
                         "fuse",
                         dexableGetMethod ) );
             } );
@@ -3457,26 +3458,26 @@ function usingFuncDefNs( funcDefNs ) {
                 function ( unwrap ) {
                 
                 return macLookupRet(
-                    new StcFuseFix( "fuse-fix", "fuse",
+                    new SinkFuseFix( "fuse-fix", "fuse",
                         dexableUnwrap ) );
             } );
         } );
         
         fun( "fuse-table", function ( rt, fuseVal ) {
-            return new StcFuseTable( "fuse-table", "fuse", fuseVal );
+            return new SinkFuseTable( "fuse-table", "fuse", fuseVal );
         } );
         
         fun( "fuse-int-by-plus", function ( rt, ignored ) {
-            return new StcFuseIntByPlus();
+            return new SinkFuseIntByPlus();
         } );
         
         fun( "fuse-int-by-times", function ( rt, ignored ) {
-            return new StcFuseIntByTimes();
+            return new SinkFuseIntByTimes();
         } );
         
         fun( "call-fuse", function ( rt, fuse ) {
-            return stcFnPure( function ( rt, a ) {
-                return new StcFn( function ( rt, b ) {
+            return sinkFnPure( function ( rt, a ) {
+                return new SinkFn( function ( rt, b ) {
                     if ( fuse.affiliation !== "fuse" )
                         throw new Error();
                     return fuse.fuse( rt, a, b );
@@ -3485,58 +3486,58 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "table-empty", function ( rt, ignored ) {
-            return new StcForeign( "table", jsnMap() );
+            return new SinkForeign( "table", jsnMap() );
         } );
         
         fun( "table-shadow", function ( rt, key ) {
-            return stcFnPure( function ( rt, maybeVal ) {
-                return stcFnPure( function ( rt, table ) {
-                    if ( !(key instanceof StcForeign
+            return sinkFnPure( function ( rt, maybeVal ) {
+                return sinkFnPure( function ( rt, table ) {
+                    if ( !(key instanceof SinkForeign
                         && key.purpose === "name") )
                         throw new Error();
-                    if ( !(table instanceof StcForeign
+                    if ( !(table instanceof SinkForeign
                         && table.purpose === "table") )
                         throw new Error();
                     
-                    if ( stcNil.tags( maybeVal ) )
-                        return new StcForeign( "table",
+                    if ( mkNil.tags( maybeVal ) )
+                        return new SinkForeign( "table",
                             table.foreignVal.minusEntry(
                                 key.foreignVal ) );
-                    if ( stcYep.tags( maybeVal ) )
-                        return new StcForeign( "table",
+                    if ( mkYep.tags( maybeVal ) )
+                        return new SinkForeign( "table",
                             table.foreignVal.plusEntry(
                                 key.foreignVal,
-                                stcYep.getProj( maybeVal, "val" ) ) );
+                                mkYep.getProj( maybeVal, "val" ) ) );
                     throw new Error();
                 } );
             } );
         } );
         
         fun( "table-get", function ( rt, key ) {
-            return stcFnPure( function ( rt, table ) {
-                if ( !(key instanceof StcForeign
+            return sinkFnPure( function ( rt, table ) {
+                if ( !(key instanceof SinkForeign
                     && key.purpose === "name") )
                     throw new Error();
                 var k = key.foreignVal;
                 
-                if ( !(table instanceof StcForeign
+                if ( !(table instanceof SinkForeign
                     && table.purpose === "table") )
                     throw new Error();
                 
                 if ( table.foreignVal.has( k ) )
-                    return stcYep.ofNow( table.foreignVal.get( k ) );
+                    return mkYep.ofNow( table.foreignVal.get( k ) );
                 else
-                    return stcNil.ofNow();
+                    return mkNil.ofNow();
             } );
         } );
         
         fun( "table-zip", function ( rt, a ) {
-            return stcFnPure( function ( rt, b ) {
-                return new StcFn( function ( rt, combiner ) {
-                    if ( !(a instanceof StcForeign
+            return sinkFnPure( function ( rt, b ) {
+                return new SinkFn( function ( rt, combiner ) {
+                    if ( !(a instanceof SinkForeign
                         && a.purpose === "table") )
                         throw new Error();
-                    if ( !(b instanceof StcForeign
+                    if ( !(b instanceof SinkForeign
                         && b.purpose === "table") )
                         throw new Error();
                     
@@ -3547,8 +3548,8 @@ function usingFuncDefNs( funcDefNs ) {
                         function get( table ) {
                             var v = table.get( k );
                             return v === void 0 ?
-                                stcNil.ofNow() :
-                                stcYep.ofNow( v );
+                                mkNil.ofNow() :
+                                mkYep.ofNow( v );
                         }
                         entries.push(
                             { k: k, a: get( a ), b: get( b ) } );
@@ -3558,22 +3559,22 @@ function usingFuncDefNs( funcDefNs ) {
                     function loop( i, table ) {
                         if ( n <= i )
                             return macLookupRet(
-                                new StcForeign( "table", table ) );
+                                new SinkForeign( "table", table ) );
                         var entry = entries[ i ];
                         return macLookupThen(
-                            callStcMulti( rt, combiner,
-                                new StcForeign( "table",
+                            callSinkMulti( rt, combiner,
+                                new SinkForeign( "table",
                                     jsnMap().plusEntry(
-                                        entry.k, stcNil.ofNow() ) ),
+                                        entry.k, mkNil.ofNow() ) ),
                                 entry.a,
                                 entry.b ),
                             function ( v ) {
                             
-                            if ( stcNil.tags( v ) )
+                            if ( mkNil.tags( v ) )
                                 return loop( i + 1, table );
-                            else if ( stcYep.tags( v ) )
+                            else if ( mkYep.tags( v ) )
                                 return loop( i + 1,
-                                    table.plusEntry( entry.k, stcYep.getProj( v, "val" ) ) );
+                                    table.plusEntry( entry.k, mkYep.getProj( v, "val" ) ) );
                             else
                                 throw new Error();
                         } );
@@ -3583,12 +3584,12 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "tables-fuse", function ( rt, a ) {
-            return stcFnPure( function ( rt, b ) {
-                return new StcFn( function ( rt, fuse ) {
-                    if ( !(a instanceof StcForeign
+            return sinkFnPure( function ( rt, b ) {
+                return new SinkFn( function ( rt, fuse ) {
+                    if ( !(a instanceof SinkForeign
                         && a.purpose === "table") )
                         throw new Error();
-                    if ( !(b instanceof StcForeign
+                    if ( !(b instanceof SinkForeign
                         && b.purpose === "table") )
                         throw new Error();
                     if ( fuse.affiliation !== "fuse" )
@@ -3603,21 +3604,21 @@ function usingFuncDefNs( funcDefNs ) {
                     } );
                     var n = vals.length;
                     if ( n === 0 )
-                        return macLookupret( stcNil.ofNow() );
+                        return macLookupret( mkNil.ofNow() );
                     return loop( 1, vals[ 0 ] );
                     function loop( i, state ) {
                         if ( n <= i )
                             return macLookupRet(
-                                stcYep.ofNow( state ) );
+                                mkYep.ofNow( state ) );
                         return macLookupThen(
                             fuse.fuse( rt, state, vals[ i ] ),
                             function ( state ) {
                             
-                            if ( !stcYep.tags( state ) )
-                                return macLookupRet( stcNil.ofNow() );
+                            if ( !mkYep.tags( state ) )
+                                return macLookupRet( mkNil.ofNow() );
                             
                             return loop( i + 1,
-                                stcYep.getProj( state, "val" ) );
+                                mkYep.getProj( state, "val" ) );
                         } );
                     }
                 } );
@@ -3625,63 +3626,63 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "int-zero", function ( rt, ignored ) {
-            return stcForeignInt( 0 );
+            return sinkForeignInt( 0 );
         } );
         
         fun( "int-one", function ( rt, ignored ) {
-            return stcForeignInt( 1 );
+            return sinkForeignInt( 1 );
         } );
         
         // TODO: See if we should make this available as a dex
         // (becoming the first dex with a visible order to it) or as a
         // merge (in the form of a max or min operation).
         fun( "int-compare", function ( rt, a ) {
-            return stcFnPure( function ( rt, b ) {
-                if ( !(a instanceof StcForeign
+            return sinkFnPure( function ( rt, b ) {
+                if ( !(a instanceof SinkForeign
                     && a.purpose === "int") )
                     throw new Error();
-                if ( !(b instanceof StcForeign
+                if ( !(b instanceof SinkForeign
                     && b.purpose === "int") )
                     throw new Error();
                 
                 if ( a.foreignVal < b.foreignVal )
-                    return stcYep.ofNow( stcNil.ofNow() );
+                    return mkYep.ofNow( mkNil.ofNow() );
                 else if ( b.foreignVal < a.foreignVal )
-                    return stcNope.ofNow( stcNil.ofNow() );
+                    return mkNope.ofNow( mkNil.ofNow() );
                 else
-                    return stcNil.ofNow();
+                    return mkNil.ofNow();
             } );
         } );
         
         fun( "int-minus", function ( rt, a ) {
-            return stcFnPure( function ( rt, b ) {
-                if ( !(a instanceof StcForeign
+            return sinkFnPure( function ( rt, b ) {
+                if ( !(a instanceof SinkForeign
                     && a.purpose === "int") )
                     throw new Error();
-                if ( !(b instanceof StcForeign
+                if ( !(b instanceof SinkForeign
                     && b.purpose === "int") )
                     throw new Error();
-                return stcForeignInt( a.foreignVal - b.foreignVal );
+                return sinkForeignInt( a.foreignVal - b.foreignVal );
             } );
         } );
         
         fun( "int-div-rounded-down", function ( rt, a ) {
-            return stcFnPure( function ( rt, b ) {
-                if ( !(a instanceof StcForeign
+            return sinkFnPure( function ( rt, b ) {
+                if ( !(a instanceof SinkForeign
                     && a.purpose === "int") )
                     throw new Error();
-                if ( !(b instanceof StcForeign
+                if ( !(b instanceof SinkForeign
                     && b.purpose === "int") )
                     throw new Error();
                 
                 if ( b.foreignVal === 0 )
-                    return stcNil.ofNow();
+                    return mkNil.ofNow();
                 
                 var div = Math.floor( a.foreignVal / b.foreignVal );
                 var mod = a.foreignVal - div * b.foreignVal;
-                return stcCarried.ofNow(
-                    stcForeignInt( div ),
-                    stcForeignInt( mod ) );
+                return mkCarried.ofNow(
+                    sinkForeignInt( div ),
+                    sinkForeignInt( mod ) );
             } );
         } );
         
@@ -3689,15 +3690,15 @@ function usingFuncDefNs( funcDefNs ) {
             var stringInternal = parseString( string ).paddedStr;
             if ( stringInternal.length % 2 !== 0 )
                 throw new Error();
-            return stcForeignInt( stringInternal.length / 2 );
+            return sinkForeignInt( stringInternal.length / 2 );
         } );
         
         fun( "string-empty", function ( rt, ignored ) {
-            return stcForeignStrFromJs( "" );
+            return sinkForeignStrFromJs( "" );
         } );
         
         fun( "string-singleton", function ( rt, unicodeScalar ) {
-            if ( !(unicodeScalar instanceof StcForeign
+            if ( !(unicodeScalar instanceof SinkForeign
                 && unicodeScalar.purpose === "int") )
                 throw new Error();
             
@@ -3705,32 +3706,32 @@ function usingFuncDefNs( funcDefNs ) {
             if ( result === null )
                 throw new Error();
             
-            return stcForeignStrFromJs( result );
+            return sinkForeignStrFromJs( result );
         } );
         
-        function callStcLater( rt, func, var_args ) {
+        function callSinkLater( rt, func, var_args ) {
             var args = [].slice.call( arguments, 2 );
-            return new StcForeign( "effects", function ( rawMode ) {
+            return new SinkForeign( "effects", function ( rawMode ) {
                 collectDefer( rawMode, {}, function ( rawMode ) {
-                    return callStcMulti.apply( null,
+                    return callSinkMulti.apply( null,
                         [ rt, func ].concat( args ) );
                 } );
-                return macLookupRet( stcNil.ofNow() );
+                return macLookupRet( mkNil.ofNow() );
             } );
         }
         
         fun( "string-cut-later", function ( rt, string ) {
-            return stcFnPure( function ( rt, start ) {
-                return stcFnPure( function ( rt, stop ) {
-                    return stcFnPure( function ( rt, then ) {
+            return sinkFnPure( function ( rt, start ) {
+                return sinkFnPure( function ( rt, stop ) {
+                    return sinkFnPure( function ( rt, then ) {
                         
                         var stringInternal =
                             parseString( string ).paddedStr;
                         
-                        if ( !(start instanceof StcForeign
+                        if ( !(start instanceof SinkForeign
                             && start.purpose === "int") )
                             throw new Error();
-                        if ( !(stop instanceof StcForeign
+                        if ( !(stop instanceof SinkForeign
                             && stop.purpose === "int") )
                             throw new Error();
                         
@@ -3739,8 +3740,8 @@ function usingFuncDefNs( funcDefNs ) {
                             && stop * 2 <= stringInternal.length) )
                             throw new Error();
                         
-                        return callStcLater( rt, then,
-                            stcForeignStrFromPadded(
+                        return callSinkLater( rt, then,
+                            sinkForeignStrFromPadded(
                                 stringInternal.substring(
                                     start * 2, stop * 2 ) ) );
                     } );
@@ -3761,10 +3762,10 @@ function usingFuncDefNs( funcDefNs ) {
         }
         
         fun( "string-get-unicode-scalar", function ( rt, string ) {
-            return stcFnPure( function ( rt, start ) {
+            return sinkFnPure( function ( rt, start ) {
                 var stringInternal = parseString( string ).paddedStr;
                 
-                if ( !(start instanceof StcForeign
+                if ( !(start instanceof SinkForeign
                     && start.purpose === "int") )
                     throw new Error();
                 
@@ -3772,22 +3773,22 @@ function usingFuncDefNs( funcDefNs ) {
                     && start * 2 < stringInternal.length) )
                     throw new Error();
                 
-                return stcForeignInt(
+                return sinkForeignInt(
                     parseSingleUnicodeScalar(
-                        stcForeignStrFromPadded(
+                        sinkForeignStrFromPadded(
                             stringInternal.substring(
                                 start * 2, (start + 1) * 2 ) ) ) );
             } );
         } );
         
         fun( "string-append-later", function ( rt, a ) {
-            return stcFnPure( function ( rt, b ) {
-                return stcFnPure( function ( rt, then ) {
+            return sinkFnPure( function ( rt, b ) {
+                return sinkFnPure( function ( rt, then ) {
                     var aInternal = parseString( a ).paddedStr;
                     var bInternal = parseString( b ).paddedStr;
                     
-                    return callStcLater( rt, then,
-                        stcForeignStrFromPadded(
+                    return callSinkLater( rt, then,
+                        sinkForeignStrFromPadded(
                             aInternal + bInternal ) );
                 } );
             } );
@@ -3812,13 +3813,13 @@ function usingFuncDefNs( funcDefNs ) {
         }
         
         fun( "regex-give-up", function ( rt, ignored ) {
-            return new StcForeign( "regex", function () {
+            return new SinkForeign( "regex", function () {
                 return regexTrivial( "\\d^" );
             } );
         } );
         
         fun( "regex-empty", function ( rt, ignored ) {
-            return new StcForeign( "regex", function () {
+            return new SinkForeign( "regex", function () {
                 return regexTrivial( "" );
             } );
         } );
@@ -3833,7 +3834,7 @@ function usingFuncDefNs( funcDefNs ) {
         fun( "regex-from-string", function ( rt, string ) {
             var stringRep = parseString( string ).paddedStr;
             
-            return new StcForeign( "regex", function () {
+            return new SinkForeign( "regex", function () {
                 return {
                     optional: function ( next ) {
                         return stringRep.replace( /[\d\D]{2}/g,
@@ -3852,7 +3853,7 @@ function usingFuncDefNs( funcDefNs ) {
         fun( "regex-one-in-string", function ( rt, string ) {
             var stringRep = parseString( string ).paddedStr;
             
-            return new StcForeign( "regex", function () {
+            return new SinkForeign( "regex", function () {
                 return regexOptionalTrivial( "(?:\\d^" +
                     stringRep.replace( /[\d\D]{2}/g,
                         function ( scalarStr, i, stringRep ) {
@@ -3862,7 +3863,7 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "regex-one-in-range", function ( rt, a ) {
-            return stcFnPure( function ( rt, b ) {
+            return sinkFnPure( function ( rt, b ) {
                 var aScalar = parseSingleUnicodeScalar( a );
                 var bScalar = parseSingleUnicodeScalar( b );
                 
@@ -3876,7 +3877,7 @@ function usingFuncDefNs( funcDefNs ) {
                 var b0 = bParsed.charAt( 0 );
                 var b1 = bParsed.charAt( 1 );
                 
-                return new StcForeign( "regex", function () {
+                return new SinkForeign( "regex", function () {
                     return regexOptionalTrivial( a0 === b0 ?
                         escapeRegex( a0 ) +
                             (a1 === b1 ?
@@ -3895,13 +3896,13 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "regex-one", function ( rt, ignored ) {
-            return new StcForeign( "regex", function () {
+            return new SinkForeign( "regex", function () {
                 return regexOptionalTrivial( "[\\d\\D]{2}" );
             } );
         } );
         
         function compileRegex( regex ) {
-            if ( !(regex instanceof StcForeign
+            if ( !(regex instanceof SinkForeign
                 && regex.purpose === "regex") )
                 throw new Error();
             var regexFunc = regex.foreignVal;
@@ -3960,19 +3961,19 @@ function usingFuncDefNs( funcDefNs ) {
         }
         
         fun( "regex-if", function ( rt, conditionRegex ) {
-            return stcFnPure( function ( rt, thenRegex ) {
-                return stcFnPure( function ( rt, elseRegex ) {
-                    if ( !(conditionRegex instanceof StcForeign
+            return sinkFnPure( function ( rt, thenRegex ) {
+                return sinkFnPure( function ( rt, elseRegex ) {
+                    if ( !(conditionRegex instanceof SinkForeign
                         && conditionRegex.purpose === "regex") )
                         throw new Error();
-                    if ( !(thenRegex instanceof StcForeign
+                    if ( !(thenRegex instanceof SinkForeign
                         && thenRegex.purpose === "regex") )
                         throw new Error();
-                    if ( !(elseRegex instanceof StcForeign
+                    if ( !(elseRegex instanceof SinkForeign
                         && elseRegex.purpose === "regex") )
                         throw new Error();
                     
-                    return new StcForeign( "regex", function () {
+                    return new SinkForeign( "regex", function () {
                         var cCompiled =
                             compileRegex( conditionRegex );
                         var tCompiled = compileRegex( thenRegex );
@@ -4040,15 +4041,15 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "regex-while", function ( rt, conditionRegex ) {
-            return stcFnPure( function ( rt, bodyRegex ) {
-                if ( !(conditionRegex instanceof StcForeign
+            return sinkFnPure( function ( rt, bodyRegex ) {
+                if ( !(conditionRegex instanceof SinkForeign
                     && conditionRegex.purpose === "regex") )
                     throw new Error();
-                if ( !(bodyRegex instanceof StcForeign
+                if ( !(bodyRegex instanceof SinkForeign
                     && bodyRegex.purpose === "regex") )
                     throw new Error();
                 
-                return new StcForeign( "regex", function () {
+                return new SinkForeign( "regex", function () {
                     var cCompiled = compileRegex( conditionRegex );
                     var bCompiled = compileRegex( bodyRegex );
                     var cOpt = cCompiled.optional;
@@ -4116,15 +4117,15 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "regex-until", function ( rt, bodyRegex ) {
-            return stcFnPure( function ( rt, conditionRegex ) {
-                if ( !(bodyRegex instanceof StcForeign
+            return sinkFnPure( function ( rt, conditionRegex ) {
+                if ( !(bodyRegex instanceof SinkForeign
                     && bodyRegex.purpose === "regex") )
                     throw new Error();
-                if ( !(conditionRegex instanceof StcForeign
+                if ( !(conditionRegex instanceof SinkForeign
                     && conditionRegex.purpose === "regex") )
                     throw new Error();
                 
-                return new StcForeign( "regex", function () {
+                return new SinkForeign( "regex", function () {
                     var bCompiled = compileRegex( bodyRegex );
                     var cCompiled = compileRegex( conditionRegex );
                     var bOpt = bCompiled.optional;
@@ -4192,27 +4193,27 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "optimize-regex-later", function ( rt, regex ) {
-            return stcFnPure( function ( rt, then ) {
-                if ( !(regex instanceof StcForeign
+            return sinkFnPure( function ( rt, then ) {
+                if ( !(regex instanceof SinkForeign
                     && regex.purpose === "regex") )
                     throw new Error();
                 var compiled = compileRegex( regex ).makeFunc();
                 
-                return callStcLater( rt, then,
-                    new StcForeign( "optimized-regex", compiled ) );
+                return callSinkLater( rt, then,
+                    new SinkForeign( "optimized-regex", compiled ) );
             } );
         } );
         
         fun( "optimized-regex-match-later",
             function ( rt, optimizedRegex ) {
             
-            return stcFnPure( function ( rt, string ) {
-                return stcFnPure( function ( rt, start ) {
-                    return stcFnPure( function ( rt, stop ) {
-                        return stcFnPure( function ( rt, then ) {
+            return sinkFnPure( function ( rt, string ) {
+                return sinkFnPure( function ( rt, start ) {
+                    return sinkFnPure( function ( rt, stop ) {
+                        return sinkFnPure( function ( rt, then ) {
                             
                             if ( !(optimizedRegex instanceof
-                                    StcForeign
+                                    SinkForeign
                                 && optimizedRegex.purpose ===
                                     "optimized-regex") )
                                 throw new Error();
@@ -4221,12 +4222,12 @@ function usingFuncDefNs( funcDefNs ) {
                             var stringInternal =
                                 parseString( string ).paddedStr;
                             
-                            if ( !(start instanceof StcForeign
+                            if ( !(start instanceof SinkForeign
                                 && start.purpose === "int") )
                                 throw new Error();
                             var startI = start.foreignVal;
                             
-                            if ( !(stop instanceof StcForeign
+                            if ( !(stop instanceof SinkForeign
                                 && stop.purpose === "int") )
                                 throw new Error();
                             var stopI = stop.foreignVal;
@@ -4242,18 +4243,18 @@ function usingFuncDefNs( funcDefNs ) {
                             
                             if ( funcResult.type === "matched" )
                                 var result =
-                                    stcRegexResultMatched.ofNow( stcForeignInt( funcResult.stop ) );
+                                    mkRegexResultMatched.ofNow( sinkForeignInt( funcResult.stop ) );
                             else if ( funcResult.type === "failed" )
                                 var result =
-                                    stcRegexResultFailed.ofNow();
+                                    mkRegexResultFailed.ofNow();
                             else if (
                                 funcResult.type === "passedEnd" )
                                 var result =
-                                    stcRegexResultPassedEnd.ofNow();
+                                    mkRegexResultPassedEnd.ofNow();
                             else
                                 throw new Error();
                             
-                            return callStcLater( rt, then, result );
+                            return callSinkLater( rt, then, result );
                         } );
                     } );
                 } );
@@ -4263,121 +4264,122 @@ function usingFuncDefNs( funcDefNs ) {
         // NOTE: This is the only way to establish a function behavior
         // for a struct that has more than zero projections.
         fun( "function-implementation-opaque", function ( rt, impl ) {
-            return new StcForeign( "native-definition",
+            return new SinkForeign( "native-definition",
                 function ( rt, funcVal, argVal ) {
                 
-                return callStcMulti( rt, impl, funcVal, argVal );
+                return callSinkMulti( rt, impl, funcVal, argVal );
             } );
         } );
         
         fun( "macro-stx-details", function ( rt, mode ) {
-            return stcFnPure( function ( rt, uniqueNs ) {
-                return stcFnPure( function ( rt, definitionNs ) {
-                    return stcFnPure( function ( rt, stx ) {
-                        return stcTrivialStxDetails();
+            return sinkFnPure( function ( rt, uniqueNs ) {
+                return sinkFnPure( function ( rt, definitionNs ) {
+                    return sinkFnPure( function ( rt, stx ) {
+                        return sinkTrivialStxDetails();
                     } );
                 } );
             } );
         } );
         
         fun( "contributing-only-to", function ( rt, ns ) {
-            return stcFnPure( function ( rt, effects ) {
-                if ( !(ns instanceof StcForeign
+            return sinkFnPure( function ( rt, effects ) {
+                if ( !(ns instanceof SinkForeign
                     && ns.purpose === "ns") )
                     throw new Error();
-                if ( !(effects instanceof StcForeign
+                if ( !(effects instanceof SinkForeign
                     && effects.purpose === "effects") )
                     throw new Error();
                 
-                return new StcForeign( "effects",
+                return new SinkForeign( "effects",
                     function ( rawMode ) {
                     
                     collectDefer( rawMode, {
-                        contributingOnlyTo: stcNameSetIntersection(
+                        contributingOnlyTo: sinkNameSetIntersection(
                             rawMode.contributingOnlyTo,
-                            stcNameSetNsDescendants(
+                            sinkNameSetNsDescendants(
                                 ns.foreignVal ) )
                     }, function ( rawMode ) {
                         return macLookupRet( effects );
                     } );
-                    return macLookupRet( stcNil.ofNow() );
+                    return macLookupRet( mkNil.ofNow() );
                 } );
             } );
         } );
         
         fun( "procure-sub-ns-table", function ( rt, table ) {
-            return new StcFn( function ( rt, ns ) {
-                if ( !(table instanceof StcForeign
+            return new SinkFn( function ( rt, ns ) {
+                if ( !(table instanceof SinkForeign
                     && table.purpose === "table") )
                     throw new Error();
-                if ( !(ns instanceof StcForeign
+                if ( !(ns instanceof SinkForeign
                     && ns.purpose === "ns") )
                     throw new Error();
                 
                 return macLookupRet(
-                    new StcForeign( "table",
+                    new SinkForeign( "table",
                         table.foreignVal.map( function ( v, k ) {
-                            return new StcForeign( "ns",
-                                stcNsGet( k, ns.foreignVal ) );
+                            return new SinkForeign( "ns",
+                                sinkNsGet( k, ns.foreignVal ) );
                         } ) ) );
             } );
         } );
         
         fun( "shadow-procure-sub-ns-table", function ( rt, table ) {
-            return new StcFn( function ( rt, ns ) {
-                if ( !(table instanceof StcForeign
+            return new SinkFn( function ( rt, ns ) {
+                if ( !(table instanceof SinkForeign
                     && table.purpose === "table") )
                     throw new Error();
-                if ( !(ns instanceof StcForeign
+                if ( !(ns instanceof SinkForeign
                     && ns.purpose === "ns") )
                     throw new Error();
                 
                 var result = ns.foreignVal;
                 
                 table.each( function ( k, subNs ) {
-                    if ( !(subNs instanceof StcForeign
+                    if ( !(subNs instanceof SinkForeign
                         && subNs.purpose === "ns") )
                         throw new Error();
                     result =
-                        stcNsShadow( k, subNs.foreignVal, result );
+                        sinkNsShadow( k, subNs.foreignVal, result );
                 } );
                 
-                return macLookupRet( new StcForeign( "ns", result ) );
+                return macLookupRet(
+                    new SinkForeign( "ns", result ) );
             } );
         } );
         
         fun( "procure-name", function ( rt, mode ) {
-            return stcFnPure( function ( rt, ns ) {
-                if ( !(ns instanceof StcForeign
+            return sinkFnPure( function ( rt, ns ) {
+                if ( !(ns instanceof SinkForeign
                     && ns.purpose === "ns") )
                     throw new Error();
                 
                 assertMode( rawModeSupportsName( ns.foreignVal ),
                     mode );
                 
-                return new StcForeign( "name", ns.foreignVal.name );
+                return new SinkForeign( "name", ns.foreignVal.name );
             } );
         } );
         
         function getdef( definer, err ) {
-            return stcGetdef.ofNow(
-                new StcFn( function ( rt, mode ) {
+            return mkGetdef.ofNow(
+                new SinkFn( function ( rt, mode ) {
                     assertMode(
                         rawModeSupportsObserveDefiner( definer ),
                         mode );
                     return macLookupGet( definer, err );
                 } ),
-                new StcForeign( "definer", definer ) );
+                new SinkForeign( "definer", definer ) );
         }
         
         fun( "procure-contributed-element-getdef",
             function ( rt, ns ) {
             
-            return new StcFn( function ( rt, key ) {
-                if ( !(ns instanceof StcForeign
+            return new SinkFn( function ( rt, key ) {
+                if ( !(ns instanceof SinkForeign
                     && ns.purpose === "ns") )
                     throw new Error();
-                if ( !(key instanceof StcForeign
+                if ( !(key instanceof SinkForeign
                     && key.purpose === "name") )
                     throw new Error();
                 
@@ -4396,30 +4398,30 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "procure-contribute-listener", function ( rt, ns ) {
-            return stcFnPure( function ( rt, key ) {
-                return new StcFn( function ( rt, listener ) {
-                    if ( !(ns instanceof StcForeign
+            return sinkFnPure( function ( rt, key ) {
+                return new SinkFn( function ( rt, listener ) {
+                    if ( !(ns instanceof SinkForeign
                         && ns.purpose === "ns") )
                         throw new Error();
-                    if ( !(key instanceof StcForeign
+                    if ( !(key instanceof SinkForeign
                         && key.purpose === "name") )
                         throw new Error();
                     
                     return macLookupRet(
-                        new StcForeign( "effects",
+                        new SinkForeign( "effects",
                             function ( rawMode ) {
                         
                         collectPutListener( rawMode,
                             ns.foreignVal, key.foreignVal, listener );
-                        return macLookupRet( stcNil.ofNow() );
+                        return macLookupRet( mkNil.ofNow() );
                     } ) );
                 } );
             } );
         } );
         
         fun( "procure-contributed-elements", function ( rt, mode ) {
-            return new StcFn( function ( rt, ns ) {
-                if ( !(ns instanceof StcForeign
+            return new SinkFn( function ( rt, ns ) {
+                if ( !(ns instanceof SinkForeign
                     && ns.purpose === "ns") )
                     throw new Error();
                 
@@ -4439,25 +4441,25 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "procure-claim", function ( rt, ns ) {
-            if ( !(ns instanceof StcForeign && ns.purpose === "ns") )
+            if ( !(ns instanceof SinkForeign && ns.purpose === "ns") )
                 throw new Error();
-            return new StcForeign( "effects", function ( rawMode ) {
+            return new SinkForeign( "effects", function ( rawMode ) {
                 
                 collectPutDefined( rawMode,
                     getClaimedDefiner( ns.foreignVal ),
-                    stcNil.ofNow() );
-                return macLookupRet( stcNil.ofNow() );
+                    mkNil.ofNow() );
+                return macLookupRet( mkNil.ofNow() );
             } );
         } );
         
         fun( "procure-constructor-glossary-getdef",
             function ( rt, ns ) {
             
-            return stcFnPure( function ( rt, sourceMainTagName ) {
-                if ( !(ns instanceof StcForeign
+            return sinkFnPure( function ( rt, sourceMainTagName ) {
+                if ( !(ns instanceof SinkForeign
                     && ns.purpose === "ns") )
                     throw new Error();
-                if ( !(sourceMainTagName instanceof StcForeign
+                if ( !(sourceMainTagName instanceof SinkForeign
                     && sourceMainTagName.purpose === "name") )
                     throw new Error();
                 
@@ -4476,15 +4478,15 @@ function usingFuncDefNs( funcDefNs ) {
         fun( "copy-function-implementations",
             function ( rt, fromNs ) {
             
-            return stcFnPure( function ( rt, toNs ) {
-                if ( !(fromNs instanceof StcForeign
+            return sinkFnPure( function ( rt, toNs ) {
+                if ( !(fromNs instanceof SinkForeign
                     && fromNs.purpose === "ns") )
                     throw new Error();
-                if ( !(toNs instanceof StcForeign
+                if ( !(toNs instanceof SinkForeign
                     && toNs.purpose === "ns") )
                     throw new Error();
                 
-                return new StcForeign( "effects",
+                return new SinkForeign( "effects",
                     function ( rawMode ) {
                     
                     collectDefer( rawMode, {}, function ( rawMode ) {
@@ -4498,33 +4500,33 @@ function usingFuncDefNs( funcDefNs ) {
                                 getFunctionImplementationsDefiner(
                                     toNs ),
                                 funcDefNs );
-                            return macLookupRet( stcNil.ofNow() );
+                            return macLookupRet( mkNil.ofNow() );
                         } );
                     } );
-                    return macLookupRet( stcNil.ofNow() );
+                    return macLookupRet( mkNil.ofNow() );
                 } );
             } );
         } );
         
         fun( "procure-function-definer", function ( rt, ns ) {
-            return new StcFn( function ( rt, constructorTag ) {
-                if ( !(ns instanceof StcForeign
+            return new SinkFn( function ( rt, constructorTag ) {
+                if ( !(ns instanceof SinkForeign
                     && ns.purpose === "ns") )
                     throw new Error();
-                if ( !stcConstructorTag.tags( constructorTag ) )
+                if ( !mkConstructorTag.tags( constructorTag ) )
                     throw new Error();
-                var mainTagName = stcConstructorTag.getProj(
+                var mainTagName = mkConstructorTag.getProj(
                     constructorTag, "main-tag" );
-                var projections = stcConstructorTag.getProj(
+                var projections = mkConstructorTag.getProj(
                     constructorTag, "projections" );
-                if ( !(mainTagName instanceof StcForeign
+                if ( !(mainTagName instanceof SinkForeign
                     && mainTagName.purpose === "name") )
                     throw new Error();
-                if ( !(projections instanceof StcForeign
+                if ( !(projections instanceof SinkForeign
                     && projections.purpose === "table") )
                     throw new Error();
                 projections.each( function ( k, v ) {
-                    if ( !stcNil.tags( v ) )
+                    if ( !mkNil.tags( v ) )
                         throw new Error();
                 } );
                 
@@ -4533,12 +4535,12 @@ function usingFuncDefNs( funcDefNs ) {
                         getFunctionImplementationsDefiner( ns ) ),
                     function ( funcDefNs ) {
                     
-                    if ( !(funcDefNs instanceof StcForeign
+                    if ( !(funcDefNs instanceof SinkForeign
                         && funcDefNs.purpose === "ns") )
                         throw new Error();
                     
                     return macLookupRet(
-                        new StcForeign( "definer",
+                        new SinkForeign( "definer",
                             getFunctionImplementationEntryDefiner(
                                 funcDefNs,
                                 constructorTag.getName() ) ) );
@@ -4549,11 +4551,11 @@ function usingFuncDefNs( funcDefNs ) {
         fun( "procure-macro-implementation-getdef",
             function ( rt, ns ) {
             
-            return stcFnPure( function ( rt, macroName ) {
-                if ( !(ns instanceof StcForeign
+            return sinkFnPure( function ( rt, macroName ) {
+                if ( !(ns instanceof SinkForeign
                     && ns.purpose === "ns") )
                     throw new Error();
-                if ( !(macroName instanceof StcForeign
+                if ( !(macroName instanceof SinkForeign
                     && macroName.purpose === "name") )
                     throw new Error();
                 
@@ -4569,32 +4571,32 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "no-effects", function ( rt, ignored ) {
-            return new StcForeign( "effects", function ( rawMode ) {
-                return macLookupRet( stcNil.ofNow() );
+            return new SinkForeign( "effects", function ( rawMode ) {
+                return macLookupRet( mkNil.ofNow() );
             } );
         } );
         
         fun( "fuse-effects", function ( rt, ignored ) {
-            return new StcFuseEffects();
+            return new SinkFuseEffects();
         } );
         
         fun( "later", function ( rt, effects ) {
-            if ( !(effects instanceof StcForeign
+            if ( !(effects instanceof SinkForeign
                 && effects.purpose === "effects") )
                 throw new Error();
             
-            return new StcForeign( "effects", function ( rawMode ) {
+            return new SinkForeign( "effects", function ( rawMode ) {
                 collectDefer( rawMode, {}, function ( rawMode ) {
                     return macLookupRet( effects );
                 } );
-                return macLookupRet( stcNil.ofNow() );
+                return macLookupRet( mkNil.ofNow() );
             } );
         } );
         
         fun( "make-promise-later", function ( rt, then ) {
-            return new StcForeign( "effects", function ( rawMode ) {
+            return new SinkForeign( "effects", function ( rawMode ) {
                 return runEffects( rawMode,
-                    callStcLater( rt, then,
+                    callSinkLater( rt, then,
                         getdef( {
                             type: "object",
                             visited: false,
@@ -4608,46 +4610,46 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "definer-define", function ( rt, definer ) {
-            return stcFnPure( function ( rt, value ) {
-                if ( !(definer instanceof StcForeign
+            return sinkFnPure( function ( rt, value ) {
+                if ( !(definer instanceof SinkForeign
                     && definer.purpose === "definer") )
                     throw new Error();
                 
-                return new StcForeign( "effects",
+                return new SinkForeign( "effects",
                     function ( rawMode ) {
                     
                     collectPutDefined( rawMode, definer.foreignVal,
                         value );
-                    return macLookupRet( stcNil.ofNow() );
+                    return macLookupRet( mkNil.ofNow() );
                 } );
             } );
         } );
         
         fun( "assert-current-mode", function ( rt, mode ) {
-            if ( !(mode instanceof StcForeign
+            if ( !(mode instanceof SinkForeign
                 && mode.purpose === "mode"
                 && mode.foreignVal.current) )
                 throw new Error();
-            return stcNil.ofNow();
+            return mkNil.ofNow();
         } );
         
         fun( "compile-expression", function ( rt, uniqueNs ) {
-            return stcFnPure( function ( rt, definitionNs ) {
-                return stcFnPure( function ( rt, stx ) {
-                    return stcFnPure( function ( rt, outDefiner ) {
-                        if ( !(uniqueNs instanceof StcForeign
+            return sinkFnPure( function ( rt, definitionNs ) {
+                return sinkFnPure( function ( rt, stx ) {
+                    return sinkFnPure( function ( rt, outDefiner ) {
+                        if ( !(uniqueNs instanceof SinkForeign
                             && uniqueNs.purpose === "ns") )
                             throw new Error();
                         
-                        if ( !(definitionNs instanceof StcForeign
+                        if ( !(definitionNs instanceof SinkForeign
                             && definitionNs.purpose === "ns") )
                             throw new Error();
                         
-                        if ( !(outDefiner instanceof StcForeign
+                        if ( !(outDefiner instanceof SinkForeign
                             && outDefiner.purpose === "definer") )
                             throw new Error();
                         
-                        return new StcForeign( "effects",
+                        return new SinkForeign( "effects",
                             function ( rawMode ) {
                             
                             return macroexpandToDefiner( {
@@ -4661,23 +4663,23 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "get-mode", function ( rt, body ) {
-            return new StcForeign( "effects", function ( rawMode ) {
+            return new SinkForeign( "effects", function ( rawMode ) {
                 return macLookupThenRunEffects( rawMode,
-                    body.callStc( rt,
-                        new StcForeign( "mode", rawMode ) ) );
+                    body.callSink( rt,
+                        new SinkForeign( "mode", rawMode ) ) );
             } );
         } );
         
         fun( "read-all-force", function ( rt, string ) {
-            return stcArrayToConsList( arrMap(
+            return sinkConsListFromArray( arrMap(
                 readAll( parseString( string ).jsStr ),
                 function ( tryExpr ) {
                 
                 if ( !tryExpr.ok )
                     throw new Error( tryExpr.msg );
                 
-                return readerExprToStc(
-                    stcTrivialStxDetails(), tryExpr.val );
+                return sinkFromReaderExpr(
+                    sinkTrivialStxDetails(), tryExpr.val );
             } ) );
         } );
         
@@ -4691,7 +4693,7 @@ function usingFuncDefNs( funcDefNs ) {
         collectDefer( rawMode, {}, function ( rawMode ) {
             var identifier = stxToMaybeName( locatedExpr );
             if ( identifier !== null )
-                return macLookupRet( new StcForeign( "effects",
+                return macLookupRet( new SinkForeign( "effects",
                     function ( rawMode ) {
                     
                     // TODO: Report better errors if an unbound local
@@ -4699,16 +4701,16 @@ function usingFuncDefNs( funcDefNs ) {
                     // using `JsCode#assertNoFreeVars()`, but that's
                     // not aware of Cene variable names.
                     collectPutDefined( rawMode, outDefiner,
-                        new StcForeign( "compiled-code",
-                            jsCodeRetStcVar( identifier ) ) );
-                    return macLookupRet( stcNil.ofNow() );
+                        new SinkForeign( "compiled-code",
+                            jsCodeRetCgenVar( identifier ) ) );
+                    return macLookupRet( mkNil.ofNow() );
                 } ) );
-            if ( !stcStx.tags( locatedExpr ) )
+            if ( !mkStx.tags( locatedExpr ) )
                 throw new Error();
-            var sExpr = stcStx.getProj( locatedExpr, "s-expr" );
-            if ( !stcCons.tags( sExpr ) )
+            var sExpr = mkStx.getProj( locatedExpr, "s-expr" );
+            if ( !mkCons.tags( sExpr ) )
                 throw new Error();
-            var macroNameStx = stcCons.getProj( sExpr, "car" );
+            var macroNameStx = mkCons.getProj( sExpr, "car" );
             var macroAppearance = stxToObtainMethod( macroNameStx );
             if ( macroAppearance.type === "obtainInvalid" )
                 throw new Error();
@@ -4731,25 +4733,25 @@ function usingFuncDefNs( funcDefNs ) {
                     })(),
                 function ( macroFunction ) {
             
-            return callStcMulti( rt, macroFunction,
-                new StcForeign( "ns", nss.uniqueNs ),
-                new StcForeign( "ns", nss.definitionNs ),
-                stcTrivialStxDetails(),
-                stcCons.getProj( sExpr, "cdr" ),
-                stcFnPure( function ( rt, macroResult ) {
-                    return new StcForeign( "effects",
+            return callSinkMulti( rt, macroFunction,
+                new SinkForeign( "ns", nss.uniqueNs ),
+                new SinkForeign( "ns", nss.definitionNs ),
+                sinkTrivialStxDetails(),
+                mkCons.getProj( sExpr, "cdr" ),
+                sinkFnPure( function ( rt, macroResult ) {
+                    return new SinkForeign( "effects",
                         function ( rawMode ) {
                         
                         collectPutDefined( rawMode, outDefiner,
                             macroResult );
-                        return macLookupRet( stcNil.ofNow() );
+                        return macLookupRet( mkNil.ofNow() );
                     } );
                 } ) );
             
             } );
         } );
         
-        return macLookupRet( stcNil.ofNow() );
+        return macLookupRet( mkNil.ofNow() );
     }
     
     function macroexpand( nss, rawMode, locatedExpr, outNs, then ) {
@@ -4758,24 +4760,24 @@ function usingFuncDefNs( funcDefNs ) {
         collectDefer( rawMode, {}, function ( rawMode ) {
             return macLookupThen(
                 macLookupGet( definer, function () {
-                    if ( !stcStx.tags( locatedExpr ) )
+                    if ( !mkStx.tags( locatedExpr ) )
                         throw new Error();
                     var sExpr =
-                        stcStx.getProj( locatedExpr, "s-expr" );
-                    if ( !stcCons.tags( sExpr ) )
+                        mkStx.getProj( locatedExpr, "s-expr" );
+                    if ( !mkCons.tags( sExpr ) )
                         throw new Error();
                     var macroNameStx =
-                        stcCons.getProj( sExpr, "car" );
+                        mkCons.getProj( sExpr, "car" );
                     throw new Error(
                         "Macro never completed: " +
                         macroNameStx.pretty() );
                 } ),
                 function ( macroResult ) {
                 
-                if ( !(macroResult instanceof StcForeign
+                if ( !(macroResult instanceof SinkForeign
                     && macroResult.purpose === "compiled-code") )
                     throw new Error();
-                return macLookupRet( new StcForeign( "effects",
+                return macLookupRet( new SinkForeign( "effects",
                     function ( rawMode ) {
                     
                     return then( rawMode, macroResult.foreignVal );
@@ -4791,22 +4793,23 @@ function usingFuncDefNs( funcDefNs ) {
         sourceMainTagName, repMainTagName, projSourceToRep ) {
         
         var n = projSourceToRep.length;
-        var struct = stcStructArr( repMainTagName, projSourceToRep );
+        var struct = cgenStructArr( repMainTagName, projSourceToRep );
         collectPutDefined( rawMode,
             getConstructorGlossaryDefiner( definitionNs,
                 sourceMainTagName ),
-            stcConstructorGlossary.ofNow(
-                new StcForeign( "name", repMainTagName ),
-                stcArrayToConsList( arrMap( struct.unsortedProjNames,
-                    function ( entry ) {
+            mkConstructorGlossary.ofNow(
+                new SinkForeign( "name", repMainTagName ),
+                sinkConsListFromArray(
+                    arrMap( struct.unsortedProjNames,
+                        function ( entry ) {
                     
-                    return stcAssoc.ofNow(
-                        new StcForeign( "name", entry.source ),
-                        new StcForeign( "name", entry.rep ) );
+                    return mkAssoc.ofNow(
+                        new SinkForeign( "name", entry.source ),
+                        new SinkForeign( "name", entry.rep ) );
                 } ) ) ) );
         // TODO: Make this expand multiple subexpressions
         // concurrently.
-        stcAddPureMacro( definitionNs, rawMode, sourceMainTagName,
+        addPureMacro( definitionNs, rawMode, sourceMainTagName,
             [ "claim:struct" ],
             function ( myStxDetails, body, then ) {
             
@@ -4822,7 +4825,7 @@ function usingFuncDefNs( funcDefNs ) {
                     return next( rawMode, nss,
                         revProjVals, remainingBody );
                 
-                if ( !stcCons.tags( remainingBody ) )
+                if ( !mkCons.tags( remainingBody ) )
                     throw new Error(
                         "Expected more arguments to " +
                         JSON.stringify( sourceMainTagName ) );
@@ -4831,13 +4834,13 @@ function usingFuncDefNs( funcDefNs ) {
                 
                 return macroexpand( nssGet( firstNss, "unique" ),
                     rawMode,
-                    stcCons.getProj( remainingBody, "car" ),
+                    mkCons.getProj( remainingBody, "car" ),
                     nssGet( firstNss, "outbox" ).uniqueNs,
                     function ( rawMode, projVal ) {
                     
                     return loop( rawMode, nss, i + 1,
                         { first: projVal, rest: revProjVals },
-                        stcCons.getProj( remainingBody, "cdr" ),
+                        mkCons.getProj( remainingBody, "cdr" ),
                         nssGet( projectionsNss, "rest" ) );
                 } );
             }
@@ -4853,7 +4856,7 @@ function usingFuncDefNs( funcDefNs ) {
                     
                     return macLookupThenRunEffects( rawMode,
                         then(
-                            stcCallArr(
+                            cgenCallArr(
                                 struct.ofArr(
                                     revJsListToArr( revProjVals ) ),
                                 expandedArgs ) ) );
@@ -4875,33 +4878,34 @@ function usingFuncDefNs( funcDefNs ) {
         commitDummyMode( namespaceDefs, dummyMode );
     }
     
-    function readerExprToStc( myStxDetails, readerExpr ) {
+    function sinkFromReaderExpr( myStxDetails, readerExpr ) {
         if ( readerExpr.type === "nil" ) {
-            return stcStx.ofNow( myStxDetails, stcNil.ofNow() );
+            return mkStx.ofNow( myStxDetails, mkNil.ofNow() );
         } else if ( readerExpr.type === "cons" ) {
-            return stcStx.ofNow( myStxDetails,
-                stcCons.ofNow(
-                    readerExprToStc( myStxDetails, readerExpr.first ),
-                    stcStx.getProj(
-                        readerExprToStc( myStxDetails,
+            return mkStx.ofNow( myStxDetails,
+                mkCons.ofNow(
+                    sinkFromReaderExpr( myStxDetails,
+                        readerExpr.first ),
+                    mkStx.getProj(
+                        sinkFromReaderExpr( myStxDetails,
                             readerExpr.rest ),
                         "s-expr" )
                 ) );
         } else if ( readerExpr.type === "stringNil" ) {
-            return stcStx.ofNow( myStxDetails,
-                stcIstringNil.ofNow(
-                    stcForeignStrFromJs(
+            return mkStx.ofNow( myStxDetails,
+                mkIstringNil.ofNow(
+                    sinkForeignStrFromJs(
                         readerStringNilToString( readerExpr ) ) ) );
         } else if ( readerExpr.type === "stringCons" ) {
-            return stcStx.ofNow( myStxDetails,
-                stcIstringCons.ofNow(
-                    stcForeignStrFromJs(
+            return mkStx.ofNow( myStxDetails,
+                mkIstringCons.ofNow(
+                    sinkForeignStrFromJs(
                         readerStringListToString(
                             readerExpr.string ) ),
-                    readerExprToStc( myStxDetails,
+                    sinkFromReaderExpr( myStxDetails,
                         readerExpr.interpolation ),
-                    stcStx.getProj(
-                        readerExprToStc( myStxDetails,
+                    mkStx.getProj(
+                        sinkFromReaderExpr( myStxDetails,
                             readerExpr.rest ),
                         "s-expr" ) ) );
         } else {
@@ -4922,8 +4926,8 @@ function usingFuncDefNs( funcDefNs ) {
                 var firstNss = nssGet( thisRemainingNss, "first" );
                 return macroexpand( nssGet( firstNss, "unique" ),
                     rawMode,
-                    readerExprToStc(
-                        stcTrivialStxDetails(), tryExpr.val ),
+                    sinkFromReaderExpr(
+                        sinkTrivialStxDetails(), tryExpr.val ),
                     nssGet( firstNss, "outbox" ).uniqueNs,
                     function ( rawMode, code ) {
                     
@@ -4946,7 +4950,7 @@ function usingFuncDefNs( funcDefNs ) {
     
     return {
         rt: rt,
-        stcAddCoreMacros: stcAddCoreMacros,
+        addCoreMacros: addCoreMacros,
         processCoreStructs: processCoreStructs,
         topLevelTryExprsToMacLookupThreads:
             topLevelTryExprsToMacLookupThreads,
@@ -4954,7 +4958,7 @@ function usingFuncDefNs( funcDefNs ) {
         
         // NOTE: These are only needed for era-cene-api.js.
         processDefStruct: processDefStruct,
-        stcArrayToConsList: stcArrayToConsList,
+        sinkConsListFromArray: sinkConsListFromArray,
         makeDummyMode: makeDummyMode,
         commitDummyMode: commitDummyMode
     };
