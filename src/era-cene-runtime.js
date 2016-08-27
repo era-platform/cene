@@ -174,10 +174,10 @@ function stcStructArr( repMainTagName, projSourceToRep ) {
     result.tags = function ( x ) {
         return x instanceof Stc && x.flatTag === flatTag;
     };
-    result.getProj = function ( stc, projStringyName ) {
+    result.getProj = function ( stc, sourceProjName ) {
         if ( !(stc instanceof Stc && stc.flatTag === flatTag) )
             throw new Error();
-        var i = sourceProjNamesToSortedIndices.get( projStringyName );
+        var i = sourceProjNamesToSortedIndices.get( sourceProjName );
         if ( i === void 0 )
             throw new Error();
         return stc.projVals[ i ];
