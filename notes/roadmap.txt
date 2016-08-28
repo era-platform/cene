@@ -10,17 +10,6 @@ Refactor the entire "File I/O for simple builds" system so that it looks like it
 
 Revisit `output-path-directory`, `output-path-utf-8`, and especially `cli-output-environment-variable-shadow` to be sure they behave as though they contribute to a namespace the user-level Cene code has no access to. Right now, I think `cli-output-environment-variable-shadow` outputs to a visible place in the definition namespace.
 
-Implement eval like so:
-
-  .. _eval-cexpr:
-  
-  eval-cexpr
-  ----------
-  
-  Call with ``mode cexpr``
-  
-  Given a compiled expression with no free variables, executes it to produce a result. The given mode must be current, and it must allow for macroexpansion-time side effects.
-
 
 
 -----
