@@ -2801,11 +2801,8 @@ function usingFuncDefNs( funcDefNs ) {
                                 function ( entry, i ) {
                                 
                                 return "var " +
-                                    cgenIdentifier(
-                                        pattern.localVars[ entry.i ] ) +
-                                    " = " +
-                                    "cgenLocal_matchSubject.projVals[ " +
-                                        i + " ]; ";
+                                    cgenIdentifier( pattern.localVars[ entry.i ] ) + " = " +
+                                    "cgenLocal_matchSubject.projVals[ " + i + " ]; ";
                             } ).join( "" ) +
                             "return ", body.assertNotFreeVars(
                                 [ "cgenLocal_matchSubject" ]
