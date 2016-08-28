@@ -96,6 +96,58 @@ Call with ``ns macro-name``
 From a standard but obscure location known as ``$$macro-implementation`` in the given namespace, obtains a getdef that is used to associate the given macro name with a macro implementation.
 
 
+.. _cexpr-var:
+
+cexpr-var
+---------
+
+Call with ``var``
+
+Given a name, returns a compiled expression with just that name in its free variables. It represents an expression which looks up a local variable by the given name.
+
+
+.. _cexpr-reified:
+
+cexpr-reified
+-------------
+
+Call with ``val``
+
+Given any value, returns a compiled expression with no free variables. It represents an expression that returns the given value.
+
+
+.. _cexpr-let:
+
+cexpr-let
+---------
+
+Call with ``bindings body``
+
+Given an ordered :ref:`assoc` list from mutually unique names to compiled expressions, and given a compiled expression ``body``, returns another compiled expression with the union of the ``bindings`` expressions' free variables and all but the given variables out of the free variables of ``body``. It represents an expression which runs the binding expressions in order followed by the body expression. The results of the binding expressions are in scope as local variables with the given names in the body expression.
+
+
+.. _let:
+
+let
+---
+
+Macro. Example: ``(let a (nil) b (nil) (append a b))``
+
+.. todo:: Document this.
+
+
+.. _compiled-code-from-cexpr:
+
+compiled-code-from-cexpr
+------------------------
+
+Call with ``cexpr``
+
+Given a compiled expression, returns compiled code in a format suitable for a macroexpansion result. The compiled expression must have no free variables.
+
+.. todo:: Refactor macroexpansion so it expects a compiled expression, instead of having two different formats for this.
+
+
 .. _compile-expression:
 
 compile-expression
@@ -103,7 +155,7 @@ compile-expression
 
 Call with ``unique-ns definition-ns stx out-definer``
 
-Monadically, macroexpands the given ``stx`` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce a fully compiled expression. If the expression is successfully computed, it is defined in the given ``out-definer``.
+Monadically, macroexpands the given ``stx`` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce compiled code in a format suitable for a macroexpansion result. If the compiled code is successfully computed, it is defined in the given ``out-definer``.
 
 ..
   TODO: Decide if this should conform to the ``...-later`` calling convention with a simple callback or if all the ``...-later`` utilities should instead conform to the :ref:`compile-expression` calling convention with an ``out-definer``.
@@ -154,13 +206,3 @@ When a macro is expanded, its implementation function is called with several arg
 ``then``: A callable value that takes compiled code (the result of :ref:`compile-expression`) and returns a monadic effect. Invoking this effect causes the compiled code to be used as the macro result. The macro must invoke this effect exactly once, or else there's an error. The effect doesn't necessarily need to be invoked right away; the macro can use :ref:`later` to invoke more effects in a future tick.
 
 The macro's return value is a monadic effect, which will be invoked by the macroexpander.
-
-
-.. _let:
-
-let
----
-
-Macro. Example: ``(let a (nil) b (nil) (append a b))``
-
-.. todo:: Document this.

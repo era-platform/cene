@@ -135,6 +135,14 @@ function nameCompare( a, b ) {
     return jsnCompare( a, b );
 }
 
+function makeFlatTag( mainTagName, sortedProjNames ) {
+    return JSON.stringify( [
+        mainTagName,
+        arrMap( sortedProjNames, function ( entry ) {
+            return entry.rep;
+        } )
+    ] );
+}
 function cgenStructArr( repMainTagName, projSourceToRep ) {
     var sortedProjNames = arrMap( projSourceToRep,
         function ( entry, i ) {
@@ -157,12 +165,7 @@ function cgenStructArr( repMainTagName, projSourceToRep ) {
             rep: entry.rep
         };
     } );
-    var flatTag = JSON.stringify( [
-        repMainTagName,
-        arrMap( sortedProjNames, function ( entry ) {
-            return entry.rep;
-        } )
-    ] );
+    var flatTag = makeFlatTag( repMainTagName, sortedProjNames );
     var n = projSourceToRep.length;
     
     var result = {};
@@ -964,9 +967,10 @@ SinkFuseIntByTimes.prototype.pretty = function () {
     return "(fuse-int-by-times)";
 };
 function SinkFuseStruct(
-    nameTag, affiliation, expectedFlatTag, projFuses ) {
+    nameTag, prettyTag, affiliation, expectedFlatTag, projFuses ) {
     
     this.nameTag = nameTag;
+    this.prettyTag = prettyTag;
     this.affiliation = affiliation;
     // NOTE: We originally avoided naming this field the same thing as
     // `flatTag` because we were doing some naive `x.flatTag === y`
@@ -1033,14 +1037,14 @@ SinkFuseStruct.prototype.getName = function () {
         } ) );
 };
 SinkFuseStruct.prototype.pretty = function () {
-    return "(" + this.nameTag + " " +
+    return "(" + this.prettyTag + " " +
         prettifyFlatTag( this.expectedFlatTag ) +
         arrMap( this.projFuses, function ( projDex, i ) {
             return " " + projDex.i + ":" + projDex.val.pretty();
         } ).join( "" ) + ")";
 };
 function SinkFuseDefault(
-    nameTag, affiliation, first, second ) {
+    nameTag, prettyTag, affiliation, first, second ) {
     
     if ( first.affiliation !== affiliation )
         throw new Error();
@@ -1048,6 +1052,7 @@ function SinkFuseDefault(
         throw new Error();
     
     this.nameTag = nameTag;
+    this.prettyTag = prettyTag;
     this.affiliation = affiliation;
     this.first = first;
     this.second = second;
@@ -1077,14 +1082,15 @@ SinkFuseDefault.prototype.getName = function () {
         this.second.getName() ];
 };
 SinkFuseDefault.prototype.pretty = function () {
-    return "(" + this.nameTag + " " +
+    return "(" + this.prettyTag + " " +
         this.first.pretty() + " " +
         this.second.pretty() + ")";
 };
 function SinkFuseByOwnMethod(
-    nameTag, affiliation, dexableGetMethod ) {
+    nameTag, prettyTag, affiliation, dexableGetMethod ) {
     
     this.nameTag = nameTag;
+    this.prettyTag = prettyTag;
     this.affiliation = affiliation;
     this.dexableGetMethod = dexableGetMethod;
 }
@@ -1129,11 +1135,14 @@ SinkFuseByOwnMethod.prototype.getName = function () {
     return [ this.nameTag, this.dexableGetMethod.getName() ];
 };
 SinkFuseByOwnMethod.prototype.pretty = function () {
-    return "(" + this.nameTag + " " +
+    return "(" + this.prettyTag + " " +
         this.dexableGetMethod.pretty() + ")";
 };
-function SinkFuseFix( nameTag, affiliation, dexableUnwrap ) {
+function SinkFuseFix(
+    nameTag, prettyTag, affiliation, dexableUnwrap ) {
+    
     this.nameTag = nameTag;
+    this.prettyTag = prettyTag;
     this.affiliation = affiliation;
     this.dexableUnwrap = dexableUnwrap;
 }
@@ -1160,14 +1169,15 @@ SinkFuseFix.prototype.getName = function () {
     return [ this.nameTag, this.dexableUnwrap.getName() ];
 };
 SinkFuseFix.prototype.pretty = function () {
-    return "(" + this.nameTag + " " +
+    return "(" + this.prettyTag + " " +
         this.dexableUnwrap.pretty() + ")";
 };
-function SinkFuseTable( nameTag, affiliation, mergeVal ) {
+function SinkFuseTable( nameTag, prettyTag, affiliation, mergeVal ) {
     if ( mergeVal.affiliation !== affiliation )
         throw new Error();
     
     this.nameTag = nameTag;
+    this.prettyTag = prettyTag;
     this.affiliation = affiliation;
     this.mergeVal = mergeVal;
 }
@@ -1221,8 +1231,364 @@ SinkFuseTable.prototype.getName = function () {
     return [ this.nameTag, this.mergeVal.getName() ];
 };
 SinkFuseTable.prototype.pretty = function () {
-    return "(" + this.nameTag + " " + this.mergeVal.pretty() + ")";
+    return "(" + this.prettyTag + " " + this.mergeVal.pretty() + ")";
 };
+function SinkCexpr( cexpr ) {
+    this.cexpr = cexpr;
+}
+SinkCexpr.prototype.callSink = function ( rt, arg ) {
+    throw new Error();
+};
+SinkCexpr.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+SinkCexpr.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
+};
+SinkCexpr.prototype.getName = function () {
+    return this.cexpr.getName();
+};
+SinkCexpr.prototype.pretty = function () {
+    return this.cexpr.pretty();
+};
+function CexprVar( va ) {
+    this.va = va;
+}
+CexprVar.prototype.getFreeVars = function () {
+    return jsnMap().plusTruth( this.va );
+};
+CexprVar.prototype.toJsCode = function () {
+    return jsCodeRetCgenVar( this.va );
+};
+CexprVar.prototype.getName = function () {
+    return [ "n:cexpr-var", this.va ];
+};
+CexprVar.prototype.pretty = function () {
+    return "(cexpr-var " + JSON.stringify( this.va ) + ")";
+};
+function CexprReified( val ) {
+    this.val = val;
+}
+CexprReified.prototype.getFreeVars = function () {
+    return jsnMap();
+};
+CexprReified.prototype.toJsCode = function () {
+    // #GEN
+    return jsCodeReified( this.val );
+};
+CexprReified.prototype.getName = function () {
+    return [ "n:cexpr-reified", this.val.getName() ];
+};
+CexprReified.prototype.pretty = function () {
+    return "(cexpr-reified " + this.val.pretty() + ")";
+};
+function CexprLet( bindings, body ) {
+    this.bindings = bindings;
+    this.body = body;
+}
+CexprLet.prototype.getFreeVars = function () {
+    var bindingsFreeVars = jsnMap();
+    var bodyFreeVars = this.body.getFreeVars();
+    arrEach( this.bindings, function ( binding, i ) {
+        bodyFreeVars.del( binding.k );
+        bindingsFreeVars.setAll( binding.v.getFreeVars() );
+    } );
+    return bindingsFreeVars.plus( bodyFreeVars );
+};
+CexprLet.prototype.toJsCode = function () {
+    // #GEN
+    var bindings = arrMap( this.bindings, function ( binding, i ) {
+        return {
+            innerVar: cgenIdentifier( binding.k ),
+            obscureVar: "cgenLocal_" + i,
+            jsCode: binding.v.toJsCode()
+        };
+    } );
+    var obscureVars = arrMap( bindings, function ( binding, i ) {
+        return binding.obscureVar;
+    } );
+    var innerVars = arrMap( bindings, function ( binding, i ) {
+        return binding.innerVar;
+    } );
+    arrEach( bindings, function ( binding, i ) {
+        return binding.jsCode.assertNotFreeVars(
+            obscureVars.concat( innerVars ) );
+    } );
+    var body = this.body.toJsCode().assertNotFreeVars( obscureVars );
+    
+    var result = jsCode(
+        "(function () {\n",
+        arrMap( bindings, function ( binding, i ) {
+            return jsCode(
+                "var " + binding.innerVar + " = ",
+                    jsCodeVar( binding.obscureVar ), ";\n" );
+        } ),
+        "return ", body.minusFreeVars( innerVars ), ";\n" +
+        "})()" );
+    for ( var i = bindings.length - 1; 0 <= i; i-- ) {
+        var binding = bindings[ i ];
+        result = jsCode( jsCodeVar( "macLookupThen" ), "( ",
+            binding.jsCode, ", " +
+            "function ( " + binding.obscureVar + " ) {\n" +
+            "return ", result.minusFreeVars(
+                [ binding.obscureVar ] ), ";\n" +
+            "} )" );
+    }
+    
+    return result;
+};
+CexprLet.prototype.getName = function () {
+    return [ "n:cexpr-let" ].concat(
+        arrMappend( this.bindings, function ( binding ) {
+            return [ binding.k, binding.v.getName() ];
+        } ),
+        [ this.body.getName() ] );
+};
+CexprLet.prototype.pretty = function () {
+    return "(cexpr-let " +
+        arrMap( this.bindings, function ( binding ) {
+            return JSON.stringify( binding.k ) + " " +
+                binding.v.pretty() + " ";
+        } ).join( "" ) + this.body.pretty() + ")";
+};
+function CexprCall( func, arg ) {
+    this.func = func;
+    this.arg = arg;
+}
+CexprCall.prototype.getFreeVars = function () {
+    return this.func.getFreeVars().plus( this.arg.getFreeVars() );
+};
+CexprCall.prototype.toJsCode = function () {
+    // #GEN
+    return jsCode(
+        jsCodeVar( "macLookupThen" ), "( ",
+            this.func.toJsCode(), ", " +
+            "function ( cgenLocal_result ) {\n" +
+        "    \n" +
+        "    return macLookupThen( ",
+            this.arg.toJsCode().assertNotFreeVars(
+                [ "cgenLocal_result" ] ), ", " +
+                "function ( cgenLocal_arg ) {\n" +
+        "        \n" +
+        "        return cgenLocal_result.callSink( rt, " +
+                    "cgenLocal_arg );\n" +
+        "    } );\n" +
+        "} )" );
+};
+CexprCall.prototype.getName = function () {
+    return [ "n:cexpr-call",
+        this.func.getName(), this.arg.getName() ];
+};
+CexprCall.prototype.pretty = function () {
+    return "(cexpr-call " +
+        this.func.pretty() + " " + this.arg.pretty() + ")";
+};
+function CexprCase( subject, mainTagName, bindings, then, els ) {
+    var bindingsArr = [];
+    bindings.each( function ( projName, localName ) {
+        bindingsArr.push( { proj: projName, local: localName } );
+    } );
+    bindingsArr.sort( function ( a, b ) {
+        return nameCompare( a.proj, b.proj );
+    } );
+    
+    this.subject = subject;
+    this.mainTagName = mainTagName;
+    this.flatTag = makeFlatTag( mainTagName,
+        arrMap( bindingsArr, function ( binding, i ) {
+            return binding.proj;
+        } ) );
+    this.bindings = bindingsArr;
+    this.then = then;
+    this.els = els;
+}
+CexprCase.prototype.getFreeVars = function () {
+    var localNames = jsnMap();
+    arrEach( this.bindings, function ( binding, i ) {
+        localNames.add( binding.local );
+    } );
+    return this.then.getFreeVars().minus( localNames ).
+        plus( this.subject.getFreeVars() ).
+        plus( this.els.getFreeVars() );
+};
+CexprCase.prototype.toJsCode = function () {
+    // #GEN
+    return jsCode( jsCodeVar( "macLookupThen" ), "( ",
+        this.subject.toJsCode(), ", " +
+        "function ( cgenLocal_matchSubject ) { " +
+        
+        "if ( cgenLocal_matchSubject instanceof ",
+            jsCodeVar( "SinkStruct" ), " " +
+            "&& cgenLocal_matchSubject.flatTag === " +
+                jsStr( this.flatTag ) + " " +
+        ") return (function () { " +
+            arrMap( this.bindings, function ( binding, i ) {
+                return "var " + cgenIdentifier( binding.local ) +
+                    " = " +
+                    "cgenLocal_matchSubject.projVals[ " + i + " ]; ";
+            } ).join( "" ) +
+            "return ", this.then.toJsCode().assertNotFreeVars(
+                [ "cgenLocal_matchSubject" ]
+            ).minusFreeVars(
+                arrMap( this.bindings, function ( binding, i ) {
+                    return binding.local;
+                } ) ), "; " +
+        "})(); " +
+        
+        "return ", this.els.toJsCode().assertNotFreeVars(
+            [ "cgenLocal_matchSubject" ] ), "; " +
+    "} )" );
+};
+CexprCase.prototype.getName = function () {
+    return [ "n:cexpr-case",
+        this.subject.getName(), this.mainTagName
+    ].concat(
+        arrMappend( this.bindings, function ( binding, i ) {
+            return [ binding.proj, binding.local ];
+        } ),
+        [ this.then.getName(), this.els.getName() ] );
+};
+CexprCase.prototype.pretty = function () {
+    return "(cexpr-case " +
+        this.subject.pretty() + " " +
+        JSON.stringify( this.mainTagName ) + " " +
+        arrMap( this.bindings, function ( binding, i ) {
+            return JSON.stringify( binding.proj ) + " " +
+                JSON.stringify( binding.local ) + " ";
+        } ).join( "" ) +
+        this.then.pretty() + " " +
+        this.els.pretty() + ")";
+};
+function classCexprStructMapper(
+    nameTag, prettyTag, genJsConstructor ) {
+    
+    function CexprConstructMapper( mainTagName, projections ) {
+        var projectionsWithSortedI =
+            arrMap( projections, function ( projection, i ) {
+                return {
+                    name: projection.name,
+                    expr: projection.expr,
+                    sortedI: null
+                };
+            } );
+        var sortedProjections =
+            projectionsWithSortedI.slice().sort( function ( a, b ) {
+                return nameCompare( a.name, b.name );
+            } );
+        arrEach( sortedProjections, function ( projection, i ) {
+            projection.sortedI = i;
+        } );
+        
+        this.mainTagName = mainTagName;
+        this.flatTag = makeFlatTag( mainTagName,
+            arrMap( sortedProjections, function ( projection, i ) {
+                return projection.name;
+            } ) );
+        this.projections = projectionsWithSortedI;
+    }
+    CexprConstructMapper.prototype.getFreeVars = function () {
+        var result = jsnMap();
+        arrEach( this.projections, function ( projection, i ) {
+            result.setAll( projection.expr.getFreeVars() );
+        } );
+        return result;
+    };
+    CexprConstructMapper.prototype.toJsCode = function () {
+        // #GEN
+        var projectionVars = arrMap( this.projections,
+            function ( projection, i ) {
+            
+            return "cgenLocal_proj" + i;
+        } );
+        var result = jsCode( jsCodeVar( "macLookupRet" ), "( ",
+            genJsConstructor( this.flatTag,
+                arrMap( projectionVars, function ( va ) {
+                    return jsCodeVar( va );
+                } ),
+                arrMap( this.projections, function ( projection ) {
+                    return projection.sortedI;
+                } )
+            ).minusFreeVars( projectionVars ), " )" );
+        for ( var i = this.projections.length - 1; 0 <= i; i-- ) {
+            var projVar =
+                projectionVars[ this.projections[ i ].sortedI ];
+            result = jsCode( jsCodeVar( "macLookupThen" ), "( ",
+                this.projections[ i ].expr.assertNotFreeVars(
+                    projectionVars ),
+                ", " +
+                "function ( " + projVar + " ) {\n" +
+            
+            "return ", result, ";\n" +
+            "} )" );
+        }
+        return result;
+    };
+    CexprConstructMapper.prototype.getName = function () {
+        return [ nameTag, this.mainTagName ].concat(
+            arrMappend( this.projections, function ( projection, i ) {
+                return [ projection.name, projection.expr.getName() ];
+            } ) );
+    };
+    CexprConstructMapper.prototype.pretty = function () {
+        return "(" + prettyTag + " " +
+            JSON.stringify( this.mainTagName ) + " " +
+            arrMap( this.projections, function ( projection, i ) {
+                return JSON.stringify( projection.name ) + " " +
+                    JSON.stringify( projection.expr.pretty() );
+            } ).join( " " ) + ")";
+    };
+    
+    return CexprConstructMapper;
+}
+function classCexprStructMapperOrdered(
+    nameTag, prettyTag, genJsConstructor ) {
+    
+    return classCexprStructMapper( nameTag, prettyTag,
+        function ( flatTag, sortedProjections, order ) {
+        
+        return genJsConstructor(
+            jsStr( flatTag ) + ", " +
+            "[ ", arrMappend( order, function ( sortedI, i ) {
+                return [ ", ", jsCode( "{ " +
+                    "i: " + JSON.stringify( sortedI ) + ", " +
+                    "val: ", sortedProjections[ sortedI ], " " +
+                "}" ) ];
+            } ).slice( 1 ), " ]" );
+    } );
+}
+var CexprConstruct = classCexprStructMapper( "n:cexpr-construct",
+    "cexpr-construct",
+    function ( flatTag, sortedProjections, order ) {
+    
+    return jsCode( "new ", jsCodeVar( "SinkStruct" ), "( " +
+        jsStr( flatTag ) + ", " +
+        "[ ", arrMappend( sortedProjections, function ( proj, i ) {
+            return [ ", ", proj ];
+        } ).slice( 1 ), " ] )" );
+} );
+var CexprDexStruct = classCexprStructMapperOrdered(
+    "n:cexpr-dex-struct", "cexpr-dex-struct",
+    function ( args ) {
+    
+    return jsCode( "new ", jsCodeVar( "SinkDexStruct" ), "( ",
+        args, " )" );
+} );
+var CexprMergeStruct = classCexprStructMapperOrdered(
+    "n:cexpr-merge-struct", "cexpr-merge-struct",
+    function ( args ) {
+    
+    return jsCode( "new ", jsCodeVar( "SinkFuseStruct" ), "( " +
+        "\"n:merge-struct\", \"merge-struct\", \"merge\", ",
+        args, " )" );
+} );
+var CexprFuseStruct = classCexprStructMapperOrdered(
+    "n:cexpr-fuse-struct", "cexpr-fuse-struct",
+    function ( args ) {
+    
+    return jsCode( "new ", jsCodeVar( "SinkFuseStruct" ), "( " +
+        "\"n:fuse-struct\", \"fuse-struct\", \"fuse\", ",
+        args, " )" );
+} );
 
 
 var builtInStructAccumulator = { val: null };
@@ -2427,16 +2793,21 @@ function usingFuncDefNs( funcDefNs ) {
         } );
     }
     
-    function mapConsListToArr( list, func ) {
-        var result = [];
+    function eachConsList( list, body ) {
         for ( var e = list;
             mkCons.tags( e );
             e = mkCons.getProj( e, "cdr" )
         ) {
-            result.push( func( mkCons.getProj( e, "car" ) ) );
+            body( mkCons.getProj( e, "car" ) );
         }
         if ( !mkNil.tags( e ) )
             throw new Error();
+    }
+    function mapConsListToArr( list, func ) {
+        var result = [];
+        eachConsList( list, function ( elem ) {
+            result.push( func( elem ) );
+        } );
         return result;
     }
     
@@ -3371,13 +3742,15 @@ function usingFuncDefNs( funcDefNs ) {
             return structMapper( body, then, function ( args ) {
                 return jsCode(
                     "new ", jsCodeVar( "SinkFuseStruct" ), "( " +
-                        "\"merge-struct\", \"merge\", ", args, " )" );
+                        "\"n:merge-struct\", \"merge-struct\", " +
+                        "\"merge\", ", args, " )" );
             } );
         } );
         
         fun( "merge-default", function ( rt, first ) {
             return sinkFnPure( function ( rt, second ) {
-                return new SinkFuseDefault( "merge-default", "merge",
+                return new SinkFuseDefault( "n:merge-default",
+                    "merge-default", "merge",
                     first, second );
             } );
         } );
@@ -3389,8 +3762,8 @@ function usingFuncDefNs( funcDefNs ) {
                 function ( getMethod ) {
                 
                 return macLookupRet(
-                    new SinkFuseByOwnMethod( "merge-by-own-method",
-                        "merge",
+                    new SinkFuseByOwnMethod( "n:merge-by-own-method",
+                        "merge-by-own-method", "merge",
                         dexableGetMethod ) );
             } );
         } );
@@ -3400,13 +3773,15 @@ function usingFuncDefNs( funcDefNs ) {
                 function ( unwrap ) {
                 
                 return macLookupRet(
-                    new SinkFuseFix( "merge-fix", "merge",
+                    new SinkFuseFix( "n:merge-fix", "merge-fix",
+                        "merge",
                         dexableUnwrap ) );
             } );
         } );
         
         fun( "merge-table", function ( rt, mergeVal ) {
-            return new SinkFuseTable( "merge-table", "merge",
+            return new SinkFuseTable( "n:merge-table", "merge-table",
+                "merge",
                 mergeVal );
         } );
         
@@ -3429,13 +3804,15 @@ function usingFuncDefNs( funcDefNs ) {
             return structMapper( body, then, function ( args ) {
                 return jsCode(
                     "new ", jsCodeVar( "SinkFuseStruct" ), "( " +
-                        "\"fuse-struct\", \"fuse\", ", args, " )" );
+                        "\"n:fuse-struct\", \"fuse-struct\", " +
+                        "\"fuse\", ", args, " )" );
             } );
         } );
         
         fun( "fuse-default", function ( rt, first ) {
             return sinkFnPure( function ( rt, second ) {
-                return new SinkFuseDefault( "fuse-default", "fuse",
+                return new SinkFuseDefault( "n:fuse-default",
+                    "fuse-default", "fuse",
                     first, second );
             } );
         } );
@@ -3447,8 +3824,8 @@ function usingFuncDefNs( funcDefNs ) {
                 function ( getMethod ) {
                 
                 return macLookupRet(
-                    new SinkFuseByOwnMethod( "fuse-by-own-method",
-                        "fuse",
+                    new SinkFuseByOwnMethod( "n:fuse-by-own-method",
+                        "fuse-by-own-method", "fuse",
                         dexableGetMethod ) );
             } );
         } );
@@ -3458,13 +3835,15 @@ function usingFuncDefNs( funcDefNs ) {
                 function ( unwrap ) {
                 
                 return macLookupRet(
-                    new SinkFuseFix( "fuse-fix", "fuse",
+                    new SinkFuseFix( "n:fuse-fix", "fuse-fix", "fuse",
                         dexableUnwrap ) );
             } );
         } );
         
         fun( "fuse-table", function ( rt, fuseVal ) {
-            return new SinkFuseTable( "fuse-table", "fuse", fuseVal );
+            return new SinkFuseTable( "n:fuse-table", "fuse-table",
+                "fuse",
+                fuseVal );
         } );
         
         fun( "fuse-int-by-plus", function ( rt, ignored ) {
@@ -4261,13 +4640,202 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
+        fun( "cexpr-var", function ( rt, va ) {
+            if ( !(va instanceof SinkForeign
+                && va.purpose === "name") )
+                throw new Error();
+            
+            return new SinkCexpr( new CexprVar( va.foreignVal ) );
+        } );
+        
+        fun( "cexpr-reified", function ( rt, val ) {
+            return new SinkCexpr( new CexprReified( val ) );
+        } );
+        
+        fun( "cexpr-let", function ( rt, bindings ) {
+            return sinkFnPure( function ( rt, body ) {
+                
+                var varsSeen = jsnMap();
+                var bindingsArr =
+                    mapConsListToArr( bindings, function ( binding ) {
+                        if ( !mkAssoc.tags( binding ) )
+                            throw new Error();
+                        var k = mkAssoc.getProj( binding, "key" );
+                        var v = mkAssoc.getProj( binding, "val" );
+                        if ( !(k instanceof SinkForeign
+                            && k.purpose === "name") )
+                            throw new Error();
+                        if ( !(v instanceof SinkCexpr) )
+                            throw new Error();
+                        
+                        if ( varsSeen.has( k.foreignVal ) )
+                            throw new Error();
+                        varsSeen.add( k.foreignVal );
+                        
+                        return { k: k.foreignVal, v: v.cexpr };
+                    } );
+                
+                if ( !(body instanceof SinkCexpr) )
+                    throw new Error();
+                
+                return new SinkCexpr(
+                    new CexprLet( bindingsArr, body.cexpr ) );
+            } );
+        } );
+        
+        fun( "cexpr-call", function ( rt, func ) {
+            return sinkFnPure( function ( rt, arg ) {
+                if ( !(func instanceof SinkCexpr) )
+                    throw new Error();
+                if ( !(arg instanceof SinkCexpr) )
+                    throw new Error();
+                
+                return new SinkCexpr(
+                    new CexprCall( func.cexpr, arg.cexpr ) );
+            } );
+        } );
+        
+        fun( "cexpr-case", function ( rt, subject ) {
+            return sinkFnPure( function ( rt, mainTagName ) {
+                return sinkFnPure( function ( rt, bindings ) {
+                    return sinkFnPure( function ( rt, then ) {
+                        return sinkFnPure( function ( rt, els ) {
+                            if ( !(subject instanceof SinkCexpr) )
+                                throw new Error();
+                            if ( !(mainTagName instanceof SinkForeign
+                                && mainTagName.purpose === "name") )
+                                throw new Error();
+                            
+                            if ( !(bindings instanceof SinkForeign
+                                && bindings.purpose === "table") )
+                                throw new Error();
+                            var localsSeen = jsnMap();
+                            var bindingsMap = bindings.foreignVal.map(
+                                function ( localName, projName ) {
+                                
+                                if ( !(localName instanceof
+                                        SinkForeign
+                                    && localName.purpose === "name") )
+                                    throw new Error();
+                                
+                                if ( localsSeen.has(
+                                    localName.foreignVal ) )
+                                    throw new Error();
+                                localsSeen.add(
+                                    localName.foreignVal );
+                                return localName.foreignVal;
+                            } );
+                            
+                            if ( !(then instanceof SinkCexpr) )
+                                throw new Error();
+                            if ( !(els instanceof SinkCexpr) )
+                                throw new Error();
+                            
+                            return new SinkCexpr(
+                                new CexprCase(
+                                    subject.cexpr,
+                                    mainTagName.foreignVal,
+                                    bindingsMap,
+                                    then.cexpr,
+                                    els.cexpr ) );
+                        } );
+                    } );
+                } );
+            } );
+        } );
+        
+        function makeCexprStructMapper(
+            CexprStructMapper, mainTagName, projections ) {
+            
+            if ( !(mainTagName instanceof SinkForeign
+                && mainTagName.purpose === "name") )
+                throw new Error();
+            
+            var projNamesSeen = jsnMap();
+            var projectionsArr = mapConsListToArr( projections,
+                function ( projection ) {
+                
+                if ( !mkAssoc.tags( projection ) )
+                    throw new Error();
+                var projName = mkAssoc.getProj( projection, "key" );
+                var expr = mkAssoc.getProj( projection, "val" );
+                if ( !(projName instanceof SinkForeign
+                    && projName.purpose === "name") )
+                    throw new Error();
+                if ( !(expr instanceof SinkCexpr) )
+                    throw new Error();
+                
+                if ( projNamesSeen.has( projName.foreignVal ) )
+                    throw new Error();
+                projNamesSeen.add( projName.foreignVal );
+                
+                return { name: projName.foreignVal,
+                    expr: expr.cexpr };
+            } );
+            
+            return new SinkCexpr(
+                new CexprStructMapper(
+                    mainTagName.foreignVal, projectionsArr ) );
+        }
+        
+        fun( "cexpr-construct", function ( rt, mainTagName ) {
+            return sinkFnPure( function ( rt, projections ) {
+                return makeCexprStructMapper(
+                    CexprConstruct, mainTagName, projections );
+            } );
+        } );
+        
+        fun( "cexpr-dex-struct", function ( rt, mainTagName ) {
+            return sinkFnPure( function ( rt, projections ) {
+                return makeCexprStructMapper(
+                    CexprDexStruct, mainTagName, projections );
+            } );
+        } );
+        
+        fun( "cexpr-merge-struct", function ( rt, mainTagName ) {
+            return sinkFnPure( function ( rt, projections ) {
+                return makeCexprStructMapper(
+                    CexprMergeStruct, mainTagName, projections );
+            } );
+        } );
+        
+        fun( "cexpr-fuse-struct", function ( rt, mainTagName ) {
+            return sinkFnPure( function ( rt, projections ) {
+                return makeCexprStructMapper(
+                    CexprFuseStruct, mainTagName, projections );
+            } );
+        } );
+        
+        fun( "compiled-code-from-cexpr", function ( rt, cexpr ) {
+            if ( !(cexpr instanceof SinkCexpr) )
+                throw new Error();
+            
+            if ( cexpr.cexpr.getFreeVars().hasAny() )
+                throw new Error();
+            
+            return new SinkForeign( "compiled-code",
+                cexpr.cexpr.toJsCode() );
+        } );
+        
         // NOTE: This is the only way to establish a function behavior
         // for a struct that has more than zero projections.
-        fun( "function-implementation-opaque", function ( rt, impl ) {
+        fun( "function-implementation-from-cexpr",
+            function ( rt, cexpr ) {
+            
+            // #GEN
+            
+            if ( !(cexpr instanceof SinkCexpr) )
+                throw new Error();
+            
+            if ( cexpr.cexpr.getFreeVars().hasAny() )
+                throw new Error();
+            
+            var impl = cgenExecute( rt, cexpr );
+            
             return new SinkForeign( "native-definition",
-                function ( rt, funcVal, argVal ) {
+                function ( rt, func, arg ) {
                 
-                return callSinkMulti( rt, impl, funcVal, argVal );
+                return callSinkMulti( rt, impl, func, arg );
             } );
         } );
         

@@ -153,15 +153,7 @@ Immediate actionable tasks:
 
 Change `contributing-only-to` to accept a collection (e.g. a table) of namespaces-with-holes-in-them, rather than a single namespace.
 
-Implement more ways to obtain and use compiled code values. Once there are enough of these, derive `compile-expression-later` from them instead of having `compile-expression` built in.
-
-  Implement a non-macro version of `case`: Given a constructor tag, a "subject" compiled expression, a one-to-one table from projection names to local variable names, a "then" compiled expression, and an "else" compiled expression, obtain another compiled expression with all the free variables of "subject" and "else" and all but the given local variable names out of the free variables of "then."
-  Implement non-macro versions of each of `def-struct` construction, `dex-struct`, `merge-struct`, and `fuse-struct`: Given a constructor tag and an ordered association list from mutually unique projection names to compiled expressions, obtain another compiled expression with the union of their free variables.
-  Implement a non-macro version of `c`: Given a "func" compiled expression and an "arg" compiled expression, obtain another compiled expression with the union of their free variables.
-  Implement a non-macro version of `compile-expression` on a variable access: Given a local variable name, obtain a compiled expression with just that variable in its free variables.
-  Implement a non-second-class version of `function-implementation-opaque`: Given any value, obtain a compiled expression with no free variables.
-  Implement a non-macro version of `defn`: Given an local variable name and a compiled expression with no free variables other than that one, obtain a "native definition" value. This value should not be directly callable (to prevent reflection at run time), but it can be installed in the namespace.
-  Implement a non-macro version of `let`: Given a "bindings" ordered association list from mutually unique local variable names to compiled expressions, and given a "body" compiled expression, obtain another compiled expression with the union of the "bindings" free variables and all but the given variables out of the free variables of "body."
+Make all the built-in macros generate the `cexpr-...` values instead of generating their own JavaScript code directly. Once we do this, derive `compile-expression-later` from the `cexpr-...` primitives instead of having `compile-expression` built in.
 
 Implement and use `committing-to-define` and `committing-to-define-function-implementations`.
 
