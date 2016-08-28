@@ -47,14 +47,14 @@ A value that refers to the tag of a struct value with the indicated main tag nam
 Function behaviors are associated with this aspect of a struct, so this struct is the kind of value :ref:`procure-function-definer` expects. A :ref:`defn` call builds and uses this value internally.
 
 
-.. _function-implementation-opaque:
+.. _function-implementation-from-cexpr:
 
-function-implementation-opaque
-------------------------------
+function-implementation-from-cexpr
+----------------------------------
 
-Call with ``impl``
+Call with ``cexpr``
 
-.. todo:: Document this.
+Given a compiled expression, returns a compiled function implementation. The result of the expression will be invoked with the value being called and the argument it's being called with. The expression must have no free variables.
 
 
 .. _constructor-glossary:

@@ -79,7 +79,7 @@ A value that can be invoked with the arguments of a macro call, as described in 
 
 functions/<`constructor-tag` value>/call/val.el
 ```
-Another namespace, on which `./<`constructor-tag` value>.el` is the place to associate a particular constructor with a particular function implementation. The function implementation is a value, usually containing compiled code but sometimes a first-class value passed to `function-implementation-opaque`, that the Cene runtime can use to call a value of the specified constructor as a function with another value as its argument.
+Another namespace, on which `./<`constructor-tag` value>.el` is the place to associate a particular constructor with a particular function implementation. The function implementation is a value, usually a builtin or a value obtained by `function-implementation-from-cexpr`, that the Cene runtime can use to call a value of the specified constructor as a function with another value as its argument.
 
 -
 

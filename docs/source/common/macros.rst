@@ -96,6 +96,48 @@ Call with ``ns macro-name``
 From a standard but obscure location known as ``$$macro-implementation`` in the given namespace, obtains a getdef that is used to associate the given macro name with a macro implementation.
 
 
+.. _cexpr-var:
+
+cexpr-var
+---------
+
+Call with ``var``
+
+Returns a compiled expression which looks up a local variable by the given name. It has that variable as a free variable.
+
+
+.. _cexpr-reified:
+
+cexpr-reified
+-------------
+
+Call with ``val``
+
+Returns a compiled expression which returns the given first-class value. It has no free variables.
+
+
+.. _cexpr-let:
+
+cexpr-let
+---------
+
+Call with ``bindings body``
+
+Given an :ref:`assoc` list binding mutually unique names to compiled expressions, and given a compiled expression ``body``, returns a compiled expression which runs the binding expressions in order followed by the body expression. The results of the binding expressions are in scope as local variables with the given names in the body expression. The result expression's free variables are the body's free variables minus the given variable names, plus the free variables of all the binding expressions.
+
+
+.. _compiled-code-from-cexpr:
+
+compiled-code-from-cexpr
+------------------------
+
+Call with ``cexpr``
+
+Given a compiled expression, returns compiled code in a format suitable for a macroexpansion result. The compiled expression must have no free variables.
+
+.. todo:: Refactor macroexpansion so it expects a compiled expression, instead of having two different formats for this.
+
+
 .. _compile-expression:
 
 compile-expression
@@ -103,7 +145,7 @@ compile-expression
 
 Call with ``unique-ns definition-ns stx out-definer``
 
-Monadically, macroexpands the given ``stx`` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce a fully compiled expression. If the expression is successfully computed, it is defined in the given ``out-definer``.
+Monadically, macroexpands the given ``stx`` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce compiled code in a format suitable for a macroexpansion result. If the compiled code is successfully computed, it is defined in the given ``out-definer``.
 
 ..
   TODO: Decide if this should conform to the ``...-later`` calling convention with a simple callback or if all the ``...-later`` utilities should instead conform to the :ref:`compile-expression` calling convention with an ``out-definer``.
