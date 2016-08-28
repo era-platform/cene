@@ -309,6 +309,11 @@ function sinkNameSetAll() {
         return true;
     };
 }
+function sinkNameSetUnion( a, b ) {
+    return function ( name ) {
+        return a( name ) || b( name );
+    };
+}
 function sinkNameSetIntersection( a, b ) {
     return function ( name ) {
         return a( name ) && b( name );
@@ -4971,11 +4976,23 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
-        fun( "contributing-only-to", function ( rt, ns ) {
+        fun( "contributing-only-to",
+            function ( rt, tableOfNamespaces ) {
+            
             return sinkFnPure( function ( rt, effects ) {
-                if ( !(ns instanceof SinkForeign
-                    && ns.purpose === "ns") )
+                
+                if ( !(tableOfNamespaces instanceof SinkForeign
+                    && tableOfNamespaces.purpose === "table") )
                     throw new Error();
+                var nameSet = sinkNameSetEmpty();
+                tableOfNamespaces.foreignVal.each( function ( k, v ) {
+                    if ( !(v instanceof SinkForeign
+                        && v.purpose === "ns") )
+                        throw new Error();
+                    nameSet = sinkNameSetUnion( nameSet,
+                        sinkNameSetNsDescendants( v.foreignVal ) );
+                } );
+                
                 if ( !(effects instanceof SinkForeign
                     && effects.purpose === "effects") )
                     throw new Error();
@@ -4985,9 +5002,7 @@ function usingFuncDefNs( funcDefNs ) {
                     
                     collectDefer( rawMode, {
                         contributingOnlyTo: sinkNameSetIntersection(
-                            rawMode.contributingOnlyTo,
-                            sinkNameSetNsDescendants(
-                                ns.foreignVal ) )
+                            rawMode.contributingOnlyTo, nameSet )
                     }, function ( rawMode ) {
                         return macLookupRet( effects );
                     } );

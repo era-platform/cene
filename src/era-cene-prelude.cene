@@ -190,7 +190,10 @@
     err.\;qq[Called after-cwa with too few arguments]
   /cast args nil
     err.\;qq[Called after-cwa with too many arguments]
-  /contributing-only-to caller-unique-ns
+  /contributing-only-to
+    (table-shadow (name-of/dexable dex-struct.nil /nil)
+      yep.caller-unique-ns
+    /table-empty/nil)
   /basic-pure-macro home-scope caller-scope my-stx-details then
   /fn unique-ns s mac
     body))

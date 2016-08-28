@@ -1,7 +1,5 @@
 Immediate actionable tasks:
 
-Change `contributing-only-to` to accept a collection (e.g. a table) of namespaces-with-holes-in-them, rather than a single namespace.
-
 Make all the built-in macros generate the `cexpr-...` values instead of generating their own JavaScript code directly. Once we do this, derive `compile-expression-later` from the `cexpr-...` primitives instead of having `compile-expression` built in.
 
 Implement and use `committing-to-define` and `committing-to-define-function-implementations`.

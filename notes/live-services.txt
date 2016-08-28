@@ -50,14 +50,14 @@
 (defn clock mode zero-timestamp one-duration ...)
 Takes the current timestamp minus the given timestamp, divides it by the given duration, and takes the floor of that. The given modality must be current and must be be a live service modality.
 
-(defn contributing-only-to-unless-after ns start-timestamp effects ...)
-Monadically, runs the given effects in a later tick with a guarantee that they will only give contributions after the given timestamp or in the given namespace. The current modality must be a live service modality.
+(defn contributing-only-to-unless-after table-of-namespaces start-timestamp effects ...)
+Monadically, runs the given effects in a later tick with a guarantee that they will only give contributions after the given timestamp or in the given namespaces. The current modality must be a live service modality.
 
-(defn contributing-only-to-unless-before ns stop-timestamp effects ...)
-Monadically, runs the given effects in a later tick with a guarantee that they will only give contributions before the given timestamp or in the given namespace. The current modality must be a live service modality.
+(defn contributing-only-to-unless-before table-of-namespaces stop-timestamp effects ...)
+Monadically, runs the given effects in a later tick with a guarantee that they will only give contributions before the given timestamp or in the given namespaces. The current modality must be a live service modality.
 
-(defn onbserving-only-from-unless-after ns start-timestamp effects ...)
-Monadically, schedules the effects to occur in a later tick where using `procure-contribute-listener` and `procure-contributed-elements` on namespaces outside the given one is not allowed unless it's after the given timestamp. (TODO: See if there's any point to this other than garbage collection.)
+(defn onbserving-only-from-unless-after table-of-namespaces start-timestamp effects ...)
+Monadically, schedules the effects to occur in a later tick where using `procure-contribute-listener` and `procure-contributed-elements` on namespaces outside the given ones is not allowed unless it's after the given timestamp. (TODO: See if there's any point to this other than garbage collection.)
 
 (defn delay-by duration effects ...)
 Monadically, runs the given effects in a later tick at a later timestamp determined by adding the duration to the current timestamp. The current modality must be a live service modality. The effects can potentially see feedback from the outside world concerning current actions, so errors in that tick don't invalidate this one.

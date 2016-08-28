@@ -65,6 +65,6 @@ This is a way to make frameworks that are extensible in the sense of the closed-
 contributing-only-to
 --------------------
 
-Call with ``ns effects``
+Call with ``table-of-namespaces effects``
 
-Monadically, schedules the effects to occur in a future tick where contributing to multimethods outside the given namespace is not allowed, but reading closed-world-assumption collections of contributions outside the given namespace is allowed.
+Monadically, schedules the effects to occur in a future tick where contributing to multimethods outside the given namespaces is not allowed, but reading closed-world-assumption collections of contributions outside the given namespaces is allowed.
