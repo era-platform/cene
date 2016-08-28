@@ -103,7 +103,7 @@ cexpr-var
 
 Call with ``var``
 
-Returns a compiled expression which looks up a local variable by the given name. It has that variable as a free variable.
+Given a name, returns a compiled expression with just that name in its free variables. It represents an expression which looks up a local variable by the given name.
 
 
 .. _cexpr-reified:
@@ -113,7 +113,7 @@ cexpr-reified
 
 Call with ``val``
 
-Returns a compiled expression which returns the given first-class value. It has no free variables.
+Given any value, returns a compiled expression with no free variables. It represents an expression that returns the given value.
 
 
 .. _cexpr-let:
@@ -123,7 +123,17 @@ cexpr-let
 
 Call with ``bindings body``
 
-Given an :ref:`assoc` list binding mutually unique names to compiled expressions, and given a compiled expression ``body``, returns a compiled expression which runs the binding expressions in order followed by the body expression. The results of the binding expressions are in scope as local variables with the given names in the body expression. The result expression's free variables are the body's free variables minus the given variable names, plus the free variables of all the binding expressions.
+Given an ordered :ref:`assoc` list from mutually unique names to compiled expressions, and given a compiled expression ``body``, returns another compiled expression with the union of the ``bindings`` expressions' free variables and all but the given variables out of the free variables of ``body``. It represents an expression which runs the binding expressions in order followed by the body expression. The results of the binding expressions are in scope as local variables with the given names in the body expression.
+
+
+.. _let:
+
+let
+---
+
+Macro. Example: ``(let a (nil) b (nil) (append a b))``
+
+.. todo:: Document this.
 
 
 .. _compiled-code-from-cexpr:
@@ -196,13 +206,3 @@ When a macro is expanded, its implementation function is called with several arg
 ``then``: A callable value that takes compiled code (the result of :ref:`compile-expression`) and returns a monadic effect. Invoking this effect causes the compiled code to be used as the macro result. The macro must invoke this effect exactly once, or else there's an error. The effect doesn't necessarily need to be invoked right away; the macro can use :ref:`later` to invoke more effects in a future tick.
 
 The macro's return value is a monadic effect, which will be invoked by the macroexpander.
-
-
-.. _let:
-
-let
----
-
-Macro. Example: ``(let a (nil) b (nil) (append a b))``
-
-.. todo:: Document this.
