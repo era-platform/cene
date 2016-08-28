@@ -158,6 +158,16 @@ Macro. Example: ``(let a (nil) b (nil) (append a b))``
 .. todo:: Document this.
 
 
+.. _eval-cexpr:
+
+eval-cexpr
+----------
+
+Call with ``mode cexpr``
+
+Given a compiled expression, executes it to produce a result. The compiled expression must have no free variables. The given mode must be current, and it must allow for macroexpansion-time side effects.
+
+
 .. _compiled-code-from-cexpr:
 
 compiled-code-from-cexpr

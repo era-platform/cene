@@ -1776,6 +1776,9 @@ function isMacroOrUnitTestOrJsRawMode( rawMode ) {
 function isMacroOrDummyRawMode( rawMode ) {
     return isMacroRawMode( rawMode ) || rawMode.type === "dummy-mode";
 }
+function rawModeSupportsEval( rawMode ) {
+    return isMacroOrUnitTestRawMode( rawMode );
+}
 function rawModeSupportsDefer( rawMode ) {
     return isMacroOrUnitTestRawMode( rawMode );
 }
@@ -4931,6 +4934,20 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
+        fun( "eval-cexpr", function ( rt, mode ) {
+            return sinkFnPure( function ( rt, cexpr ) {
+                assertMode( rawModeSupportsEval, mode );
+                
+                if ( !(cexpr instanceof SinkCexpr) )
+                    throw new Error();
+                
+                if ( cexpr.cexpr.getFreeVars().hasAny() )
+                    throw new Error();
+                
+                return cgenExecute( rt, cexpr.cexpr );
+            } );
+        } );
+        
         fun( "compiled-code-from-cexpr", function ( rt, cexpr ) {
             if ( !(cexpr instanceof SinkCexpr) )
                 throw new Error();
@@ -4955,7 +4972,7 @@ function usingFuncDefNs( funcDefNs ) {
             if ( cexpr.cexpr.getFreeVars().hasAny() )
                 throw new Error();
             
-            var impl = cgenExecute( rt, cexpr );
+            var impl = cgenExecute( rt, cexpr.cexpr );
             
             return new SinkForeign( "native-definition",
                 function ( rt, func, arg ) {
