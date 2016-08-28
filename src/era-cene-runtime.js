@@ -4944,7 +4944,7 @@ function usingFuncDefNs( funcDefNs ) {
                 if ( cexpr.cexpr.getFreeVars().hasAny() )
                     throw new Error();
                 
-                return cgenExecute( rt, cexpr.cexpr );
+                return cgenExecute( rt, cexpr.cexpr.toJsCode() );
             } );
         } );
         
@@ -4972,7 +4972,7 @@ function usingFuncDefNs( funcDefNs ) {
             if ( cexpr.cexpr.getFreeVars().hasAny() )
                 throw new Error();
             
-            var impl = cgenExecute( rt, cexpr.cexpr );
+            var impl = cgenExecute( rt, cexpr.cexpr.toJsCode() );
             
             return new SinkForeign( "native-definition",
                 function ( rt, func, arg ) {
