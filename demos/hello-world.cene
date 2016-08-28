@@ -14,8 +14,8 @@
 \= fin/hello-world/hello-world.txt.
 
 
-(def-macro go unique-ns definition-ns my-stx-details args then
-  (basic-nil-macro unique-ns definition-ns my-stx-details then
+(def-macro go home-scope caller-scope my-stx-details args then
+  (basic-nil-macro home-scope caller-scope my-stx-details then
   /fn unique-ns s mac
   /get-mode/fn mode
   /output-path-blob-utf-8

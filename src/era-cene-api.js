@@ -236,7 +236,8 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
         
         function fun( name, body ) {
             var sourceMainTagName =
-                sinkForeignStrFromJs( name ).getName();
+                sinkNameQualify(
+                    sinkForeignStrFromJs( name ).getName() );
             var repMainTagName = [ "n:main-core", name ];
             var constructorTagName =
                 sinkNameConstructorTagAlreadySorted(

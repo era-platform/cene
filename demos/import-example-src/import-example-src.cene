@@ -1,8 +1,8 @@
 \= import-example-src.cene
 \= Copyright 2016 Ross Angle. Released under the MIT License.
 
-(def-macro inner-go unique-ns definition-ns my-stx-details args then
-  (basic-nil-macro unique-ns definition-ns my-stx-details then
+(def-macro inner-go home-scope caller-scope my-stx-details args then
+  (basic-nil-macro home-scope caller-scope my-stx-details then
   /fn unique-ns s mac
   /get-mode/fn mode
   /output-path-blob-utf-8

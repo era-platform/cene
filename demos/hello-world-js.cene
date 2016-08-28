@@ -14,8 +14,10 @@
 \= fin/hello-world-js/hello-world.js.
 
 
-(def-macro go unique-ns definition-ns my-stx-details args then
-  (basic-nil-macro unique-ns definition-ns my-stx-details then
+(def-macro go home-scope caller-scope my-stx-details args then
+  (cast home-scope scope - home-def-ns home-qualify
+    err.\;qq[Internal error]
+  /basic-nil-macro home-scope caller-scope my-stx-details then
   /fn unique-ns s mac
   /get-mode/fn mode
   /output-path-blob-utf-8
@@ -23,8 +25,8 @@
       str.\;qq[hello-world.js])
   /sloppy-javascript-quine mode
     (cast
-      (procure-constructor-glossary-getdef definition-ns
-      /name-of/dexable (dex-string/nil) str.js-main)
+      (procure-constructor-glossary-getdef home-def-ns
+      /c home-qualify /name-of/dexable (dex-string/nil) str.js-main)
       getdef get def
       err.\;qq[Internal error]
     /cast (c get mode)
