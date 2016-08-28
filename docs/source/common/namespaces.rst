@@ -11,21 +11,7 @@ Call with ``table ns``
 
 Makes a table with entries corresponding to the given table, except each value is replaced with a sub-namespace, which is to say a namespace uniquely determined by the given namespace and the entry's key. The entry's value is ignored.
 
-Unless the sub-namespaces are shadowed (which can happen using :ref:`shadow-procure-sub-ns-table`), distinct keys will yield distinct sub-namespaces.
-
-
-.. _shadow-procure-sub-ns-table:
-
-shadow-procure-sub-ns-table
----------------------------
-
-Call with ``table ns``
-
-Creates a new namespace that behaves like the given namespace in almost every way, except that when it's used with :ref:`procure-sub-ns-table` where some of the keys are from the given table, the corresponding values of the table are returned as the sub-namespaces instead. The values of the table must be namespaces.
-
-A namespace created this way works the same way as the old one when it's used in any other ``procure-...`` primitive. This way, we can imagine that the namespace's identity (:ref:`procure-name`) and contribution state (:ref:`procure-contributed-elements` etc.) are stored under a sub-namespace somewhere, just using a key that we don't have the ability to construct.
-
-One useful purpose of this tool is to establish local macros. The layout of the definition namespace has been designed so that specific parts can be shadowed conveniently.
+Distinct keys yield distinct sub-namespaces.
 
 
 .. _procure-name:
