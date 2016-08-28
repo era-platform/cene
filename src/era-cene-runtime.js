@@ -2361,6 +2361,7 @@ function cgenExecute( rt, expr ) {
         SinkDexStruct: SinkDexStruct,
         SinkFuseStruct: SinkFuseStruct,
         sinkForeignStrFromJs: sinkForeignStrFromJs,
+        mkClamorErr: mkClamorErr,
         macLookupRet: macLookupRet,
         macLookupFollowHeart: macLookupFollowHeart,
         macLookupThen: macLookupThen
@@ -2396,11 +2397,13 @@ function addDefun( rt, funcDefNs, rawMode, name, argName, body ) {
 
 function cgenErr( msg ) {
     // #GEN
+    
+    // NOTE: This doesn't use `mkClamorErr.of()` because that would be
+    // asynchronous.
     return jsCode( jsCodeVar( "macLookupFollowHeart" ), "( ",
-        mkClamorErr.of(
-            jsCode(
-                jsCodeVar( "sinkForeignStrFromJs" ), "( " +
-                    jsStr( msg ) + " )" ) ), " )" );
+        jsCodeVar( "mkClamorErr" ), ".ofNow( ",
+            jsCodeVar( "sinkForeignStrFromJs" ), "( " +
+                jsStr( msg ) + " ) ) )" );
 }
 
 function evalCgenForTest( rt, expr ) {
@@ -3376,62 +3379,6 @@ function usingFuncDefNs( funcDefNs ) {
                     mkCons.getProj( body, "car" ),
                     mkCons.getProj( body, "cdr" ),
                     then );
-            };
-        } );
-        
-        mac( "isa", function ( myStxDetails, body, then ) {
-            // #GEN
-            if ( !mkCons.tags( body ) )
-                throw new Error();
-            var body1 = mkCons.getProj( body, "cdr" );
-            if ( !mkCons.tags( body1 ) )
-                throw new Error();
-            var body2 = mkCons.getProj( body1, "cdr" );
-            if ( mkCons.tags( body2 ) )
-                throw new Error();
-            
-            return function ( rawMode, nss ) {
-                var sourceMainTagNameRepExpr =
-                    mkCons.getProj( body, "car" );
-                return stxToMaybeName( rt, nss,
-                    sourceMainTagNameRepExpr,
-                    function ( sourceMainTagNameRep ) {
-                    
-                    if ( sourceMainTagNameRep === null )
-                        throw new Error(
-                            "Encountered an isa with a source " +
-                            "main tag name that wasn't a syntactic " +
-                            "name: " +
-                            sourceMainTagNameRepExpr.pretty() );
-                
-                return macroexpand( nssGet( nss, "unique" ), rawMode,
-                    mkCons.getProj( body1, "car" ),
-                    nssGet( nss, "outbox" ).uniqueNs,
-                    function ( rawMode, expandedBody ) {
-                return macLookupThen(
-                    getStruct( nss.definitionNs,
-                        sourceMainTagNameRep ),
-                    function ( struct ) {
-                
-                return macLookupThenRunEffects( rawMode,
-                    then(
-                        jsCode(
-                            jsCodeVar( "macLookupThen" ), "( ",
-                                expandedBody, ", " +
-                                "function ( cgenLocal_body ) {\n" +
-                            "    \n" +
-                            "    return cgenLocal_body instanceof ",
-                                jsCodeVar( "SinkStruct" ), " " +
-                                    "&& cgenLocal_body.flatTag === " +
-                                        jsStr( struct.getFlatTag() ) + " ? ",
-                                    mkYep.of( mkNil.of() ), " : ",
-                                    mkNope.of( mkNil.of() ), ";\n" +
-                            "} )" ) ) );
-                
-                } );
-                } );
-                
-                } );
             };
         } );
         

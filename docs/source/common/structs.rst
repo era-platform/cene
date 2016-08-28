@@ -248,16 +248,6 @@ Macro. Example::
 .. todo:: Document this.
 
 
-.. _isa:
-
-isa
----
-
-Macro. Example: ``(isa nil /append (nil) (nil))``
-
-.. todo:: Document this.
-
-
 .. _fn:
 
 fn

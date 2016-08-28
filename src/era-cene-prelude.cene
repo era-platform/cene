@@ -2,11 +2,6 @@
 \= Copyright 2015, 2016 Ross Angle. Released under the MIT License.
 
 
-\= TODO: Find a good place for this.
-(defn fix func arg
-  (c func fix.func arg))
-
-
 \= ===== Lists, boolean tags, and macro utilities ====================
 
 (def-struct pair first second)
@@ -153,7 +148,7 @@
     err.\;qq[Internal error]
   /cast args cons constructor args
     err.\;qq[Called proj1 with too few args]
-  /cast args cons expr args
+  /cast args cons subject args
     err.\;qq[Called proj1 with too few args]
   /cast args nil
     err.\;qq[Called proj1 with too many args]
@@ -167,10 +162,139 @@
     then
   /fn unique-ns s mac
   /let var (c s /foreign/obtain-by-qualified-name var)
-  /c s /c mac str.cast /list expr constructor var
+  /c s /c mac str.cast /list subject constructor var
     (c s /c mac str.err /list
     /c s /istring-nil str.\;qq[Internal error])
     var))
+
+(defn append past rest
+  (rev-append rev.past rest))
+
+(defn map list func
+  (rev/foldl (nil) list /fn state elem /cons (c func elem) state))
+
+(defn stx-to-obtain-method scope stx
+  (cast scope scope - -b qualify
+    err.\;qq[Expected a scope value of type scope]
+  /cast stx stx - sexpr
+    err.\;qq[Expected a stx value of type stx]
+  /case sexpr
+    
+    foreign val
+    (yep/case val
+      
+      obtain-by-unqualified-name name
+      (obtain-by-qualified-name/c qualify name)
+      
+      obtain-by-qualified-name name val
+      
+      val)
+    
+    istring-nil string
+    (yep/obtain-by-qualified-name
+    /c qualify /name-of/dexable (dex-string/nil) string)
+    
+  /nil))
+
+(defn stx-to-maybe-name scope stx
+  (cast (stx-to-obtain-method scope stx) yep obtain-method (nil)
+  /cast obtain-method obtain-by-qualified-name name (nil)
+    yep.name))
+
+(defn stx-to-name scope stx
+  (cast (stx-to-maybe-name scope stx) yep name
+    err.\;qq[Expected a syntactic name]
+    name))
+
+(defn fix func arg
+  (c func fix.func arg))
+
+(defn validate-constructor-glossary glossary
+  (cast glossary constructor-glossary main-tag source-to-rep
+    err.\;qq[
+      Encountered a constructor glossary that wasn't of type
+      constructor-glossary]
+  /cast (in-dex (dex-name/nil) main-tag) yep -
+    err.\;qq[
+      Encountered a constructor glossary whose main tag name wasn't of
+      type name]
+  /let check-list
+    (fix/fn check-list sources-seen reps-seen list
+      (case list
+        
+        nil glossary
+        
+        cons first rest
+        (cast first assoc source rep
+          err.\;qq[
+            Encountered a constructor glossary with a source-to-rep
+            entry that wasn't an assoc]
+        /cast (in-dex (dex-name/nil) source) yep -
+          err.\;qq[
+            Encountered a constructor glossary with a source-level
+            projection name that wasn't a name]
+        /cast (in-dex (dex-name/nil) rep) yep -
+          err.\;qq[
+            Encountered a constructor glossary with a
+            representation-level projection name that wasn't a name]
+        /case (table-get source sources-seen) yep -
+          err.\;qq[
+            Encountered a constructor glossary with a duplicate
+            source-level projection name]
+        /case (table-get rep reps-seen) yep -
+          err.\;qq[
+            Encountered a constructor glossary with a duplicate
+            representation-level projection name]
+        /c check-list
+          (table-shadow source (yep/nil) sources-seen)
+          (table-shadow rep (yep/nil) reps-seen)
+          rest)
+        
+        err.\;qq[
+          Encountered a constructor glossary whose source-to-rep
+          mapping wasn't a proper list]))
+  /c check-list (table-empty/nil) (table-empty/nil) source-to-rep))
+
+(def-macro isa home-scope caller-scope my-stx-details args then
+  (cast caller-scope
+    scope caller-unique-ns caller-def-ns caller-qualify
+    err.\;qq[Internal error]
+  /cast args cons constructor args
+    err.\;qq[Called isa with too few args]
+  /cast args cons subject args
+    err.\;qq[Called isa with too few args]
+  /cast args nil
+    err.\;qq[Called isa with too many args]
+  /join-effects procure-claim.caller-unique-ns
+  /get-mode/fn mode
+  /cast (stx-to-maybe-name caller-scope constructor) yep constructor
+    err.\;qq[Expected a constructor that was a syntactic name]
+  /cast
+    (procure-constructor-glossary-getdef caller-def-ns constructor)
+    getdef get-glossary -
+    err.\;qq[Internal error]
+  /cast (validate-constructor-glossary/c get-glossary mode)
+    constructor-glossary main-tag source-to-rep
+    err.\;qq[Internal error]
+  /let vars-ns (ns-get str.vars caller-unique-ns)
+  /let vars
+    (map source-to-rep /fn assoc
+      (cast assoc assoc source rep
+        err.\;qq[Internal error]
+      /procure-name mode /ns-get rep vars-ns))
+  /basic-pure-macro home-scope
+    (scope (ns-get str.body caller-unique-ns)
+      caller-def-ns caller-qualify)
+    my-stx-details
+    then
+  /fn unique-ns s mac
+  /c s /c mac str.case /cons subject
+  /cons (c s /foreign/obtain-by-qualified-name constructor)
+  /append
+    (map vars /fn var /c s /foreign/obtain-by-qualified-name var)
+  /list
+    (c s /c mac str.yep /list/c s /c mac str.nil /list)
+    (c s /c mac str.nope /list/c s /c mac str.nil /list)))
 
 \= Macro calls appearing inside an `(after-cwa ...)` form will be able
 \= to depend on anything that uses `procure-contributed-elements`
@@ -202,12 +326,6 @@
   (proj1 nope
   /double-any-foldl state list-a list-b /fn state elem-a elem-b
     (nope/c combiner state elem-a elem-b)))
-
-(defn append past rest
-  (rev-append rev.past rest))
-
-(defn map list func
-  (rev/foldl (nil) list /fn state elem /cons (c func elem) state))
 
 (defn mappend list func
   (rev/foldl (nil) list /fn state elem
