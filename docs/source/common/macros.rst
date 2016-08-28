@@ -31,17 +31,39 @@ foreign
 
 Construct with ``val``
 
-An s-expression that consists of any first-class value, but usually an (:ref:`obtain-by-name` ...), an (:ref:`obtain-directly` ...), or a name. The program may not know of a way to encode the name as serializable data, but it can still be passed to (:ref:`compile-expression` ...).
+An s-expression that consists of any first-class value, but usually an (:ref:`obtain-by-unqualified-name` ...), an (:ref:`obtain-by-qualified-name` ...), an (:ref:`obtain-directly` ...), or a name. The program may not know of a way to encode the name as serializable data, but it can still be passed to (:ref:`compile-expression` ...).
 
 
-.. _obtain-by-name:
+.. _scope:
 
-obtain-by-name
---------------
+scope
+-----
+
+Construct with ``unique-ns def-ns qualify``
+
+A bundle of a unique namespace, a definition namespace, and a function to qualify unqualified names.
+
+Macros use these values. A macro has access to the lexical scope and uniqueness where it was defined, as well as the lexical scope and uniqueness of its caller.
+
+
+.. _obtain-by-unqualified-name:
+
+obtain-by-unqualified-name
+--------------------------
 
 Construct with ``name``
 
-A foreign occurrence in a Cene code s-expression that indicates something should be looked up by the indicated arbitrary name, instead of by the name of a literal string.
+A foreign occurrence in a Cene code s-expression that indicates something should be looked up by the qualification of the indicated unqualified name, instead of by the qualification of the name of a literal string.
+
+
+.. _obtain-by-qualified-name:
+
+obtain-by-qualified-name
+------------------------
+
+Construct with ``name``
+
+A foreign occurrence in a Cene code s-expression that indicates something should be looked up by the indicated qualified name, instead of by the qualification of the name of a literal string.
 
 
 .. _obtain-directly:
@@ -153,7 +175,7 @@ Given a compiled expression, returns compiled code in a format suitable for a ma
 compile-expression
 ------------------
 
-Call with ``unique-ns definition-ns stx out-definer``
+Call with ``caller-scope stx out-definer``
 
 Monadically, macroexpands the given ``stx`` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce compiled code in a format suitable for a macroexpansion result. If the compiled code is successfully computed, it is defined in the given ``out-definer``.
 
@@ -178,23 +200,27 @@ def-macro
 
 Macro. Example::
 
-  (def-macro list unique-ns definition-ns my-stx-details args then
-    (basic-pure-macro unique-ns definition-ns my-stx-details then
+  (def-macro list home-scope caller-scope my-stx-details args then
+    (basic-pure-macro home-scope caller-scope my-stx-details then
     /fn unique-ns s mac
     /foldr args (c s /c mac str.nil /nil) /fn first rest
       (c s /c mac str.cons /cons first /cons rest /nil)))
 
-Defines a macro. The first argument is a syntactic name ((:ref:`istring-nil` ``<string>``) or (:ref:`foreign` ``<name>``)) for the macro. The rest of the arguments are the parameters and body of a curried function. The function will be called whenever a macro by the given syntactic name is expanded.
+Defines a macro. The first argument is a syntactic name ((:ref:`istring-nil` ``<string>``) or (:ref:`foreign` ``<name>``)) for the macro. The rest of the arguments are the parameters and body of a curried function. The function will be called immediately with the :ref:`scope` where the macro is defined, and the result will then be called whenever a macro by the given syntactic name is expanded.
 
 ..
   TODO: Document the namespaces used to resolve syntactic names and to define the macro.
   TODO: Document that this returns (:ref:`nil`).
 
-When a macro is expanded, its implementation function is called with several arguments: ``unique-ns definition-ns my-stx-details args then``
+When a macro is expanded, its implementation function is called with several arguments: ``caller-scope my-stx-details args then``
 
-``unique-ns``: A namespace that is supposedly used exclusively for this macroexpansion. It's useful in the way that gensyms are typically useful in other macro-capable languages, but the uniqueness is achieved by playing along: If the macro compiles more than one subexpression, each subexpression should be given a ``unique-ns`` derived in different ways from each other.
+``caller-scope``: A (:ref:`scope` ``unique-ns def-ns qualify``) value representing the caller's scope.
 
-``definition-ns``: A namespace that is supposedly shared across all nearby macroexpansions. If the macro needs to install any definitions or look up any definitions, this is the namespace for that purpose. It should usually be passed as-is to any compiled subexpressions, except when a macro needs to establish a local definition scope.
+The ``caller-scope``'s ``unique-ns``: A namespace that is supposedly used exclusively for this macroexpansion. It's useful in the way that gensyms are typically useful in other macro-capable languages, but the uniqueness is achieved by playing along: If the macro compiles more than one subexpression, each subexpression should be given a ``unique-ns`` derived in different ways from each other.
+
+The ``caller-scope``'s ``def-ns``: A namespace that is supposedly shared across all nearby macroexpansions. If the macro needs to install any definitions or look up any definitions using names that come from the caller, this is the namespace for that purpose. It should usually be passed as-is to any compiled subexpressions, except when a macro needs to establish a local definition scope.
+
+The ``caller-scope``'s ``qualify``: A function that takes an unqualified name and returns a qualified name. This is useful for establishing local definition scopes that work by translating the local names to obscure global names.
 
 ``my-stx-details``: A collection of source location information. This is a value user-level code doesn't know how to deconstruct, but it conveys information about this macro invocation, so the macro can attach it to the :ref:`stx` values it creates in order to receive proper attribution for them.
 

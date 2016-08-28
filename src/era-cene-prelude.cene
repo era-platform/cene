@@ -95,8 +95,13 @@
 
 (def-struct basic-macro-result effects expression)
 
-(defn basic-macro unique-ns definition-ns my-stx-details then body
-  (join-effects procure-claim.unique-ns
+(defn basic-macro home-scope caller-scope my-stx-details then body
+  (cast home-scope scope home-unique-ns home-def-ns home-qualify
+    err.\;qq[Expected a home-scope of type scope]
+  /cast caller-scope
+    scope caller-unique-ns caller-def-ns caller-qualify
+    err.\;qq[Expected a caller-scope of type scope]
+  /join-effects procure-claim.caller-unique-ns
   /make-promise-later/fn outbox-getdef
   /cast outbox-getdef getdef get-outbox outbox-definer
     err.\;qq[Internal error]
@@ -105,54 +110,63 @@
   /let mac
     (fn str rest
       (cast
-        (procure-macro-implementation-getdef definition-ns
-        /name-of/dexable (dex-string/nil) str)
+        (procure-macro-implementation-getdef home-def-ns
+        /c home-qualify /name-of/dexable (dex-string/nil) str)
         getdef macro-get macro-definer
         err.\;qq[Internal error]
       /cons (c s /foreign/obtain-directly/c macro-get mode) rest))
   /join-effects (later/get-mode/fn mode /c then /c get-outbox mode)
-  /cast (c body (ns-get str.body unique-ns) s mac)
+  /cast (c body (ns-get str.body caller-unique-ns) s mac)
     basic-macro-result effects expression
     err.\;qq[Expected a body result of type basic-macro-result]
   /join-effects effects
-  /compile-expression (ns-get str.compilation unique-ns)
-    definition-ns expression outbox-definer))
+  /compile-expression
+    (scope (ns-get str.compilation caller-unique-ns)
+      caller-def-ns caller-qualify)
+    expression
+    outbox-definer))
 
 (defn basic-pure-macro
-  unique-ns definition-ns my-stx-details then body
+  home-scope caller-scope my-stx-details then body
   
-  (basic-macro unique-ns definition-ns my-stx-details then
+  (basic-macro home-scope caller-scope my-stx-details then
   /fn unique-ns s mac
   /basic-macro-result (no-effects/nil) /c body unique-ns s mac))
 
 (defn basic-nil-macro
-  unique-ns definition-ns my-stx-details then body
+  home-scope caller-scope my-stx-details then body
   
-  (basic-macro unique-ns definition-ns my-stx-details then
+  (basic-macro home-scope caller-scope my-stx-details then
   /fn unique-ns s mac
   /basic-macro-result (c body unique-ns s mac)
   /c s /c mac str.nil /nil))
 
-(def-macro list unique-ns definition-ns my-stx-details args then
-  (basic-pure-macro unique-ns definition-ns my-stx-details then
+(def-macro list home-scope caller-scope my-stx-details args then
+  (basic-pure-macro home-scope caller-scope my-stx-details then
   /fn unique-ns s mac
   /foldr args (c s /c mac str.nil /nil) /fn first rest
     (c s /c mac str.cons /cons first /cons rest /nil)))
 
-(def-macro proj1 unique-ns definition-ns my-stx-details args then
-  (cast args cons constructor args
+(def-macro proj1 home-scope caller-scope my-stx-details args then
+  (cast caller-scope
+    scope caller-unique-ns caller-def-ns caller-qualify
+    err.\;qq[Internal error]
+  /cast args cons constructor args
     err.\;qq[Called proj1 with too few args]
   /cast args cons expr args
     err.\;qq[Called proj1 with too few args]
   /cast args nil
     err.\;qq[Called proj1 with too many args]
-  /join-effects procure-claim.unique-ns
+  /join-effects procure-claim.caller-unique-ns
   /get-mode/fn mode
-  /let var (procure-name mode /ns-get str.var unique-ns)
-  /basic-pure-macro (ns-get str.body unique-ns) definition-ns
-    my-stx-details then
+  /let var (procure-name mode /ns-get str.var caller-unique-ns)
+  /basic-pure-macro home-scope
+    (scope (ns-get str.body caller-unique-ns)
+      caller-def-ns caller-qualify)
+    my-stx-details
+    then
   /fn unique-ns s mac
-  /let var (c s /foreign/obtain-by-name var)
+  /let var (c s /foreign/obtain-by-qualified-name var)
   /c s /c mac str.cast /list expr constructor var
     (c s /c mac str.err /list
     /c s /istring-nil str.\;qq[Internal error])
@@ -169,13 +183,15 @@
 \= macroexpansion time, so we might want to move them all to their own
 \= section.
 \=
-(def-macro after-cwa unique-ns definition-ns my-stx-details args then
-  (cast args cons body args
+(def-macro after-cwa home-scope caller-scope my-stx-details args then
+  (cast caller-scope scope caller-unique-ns - -b
+    err.\;qq[Internal error]
+  /cast args cons body args
     err.\;qq[Called after-cwa with too few arguments]
   /cast args nil
     err.\;qq[Called after-cwa with too many arguments]
-  /contributing-only-to unique-ns
-  /basic-pure-macro unique-ns definition-ns my-stx-details then
+  /contributing-only-to caller-unique-ns
+  /basic-pure-macro home-scope caller-scope my-stx-details then
   /fn unique-ns s mac
     body))
 

@@ -19,8 +19,10 @@
 \= read from demos/import-example-src/import-example-src.cene.
 
 
-(def-macro import unique-ns definition-ns my-stx-details args then
-  (basic-nil-macro unique-ns definition-ns my-stx-details then
+(def-macro import home-scope caller-scope my-stx-details args then
+  (cast caller-scope scope - caller-def-ns caller-qualify
+    err.\;qq[Internal error]
+  /basic-nil-macro home-scope caller-scope my-stx-details then
   /fn unique-ns s mac
   /get-mode/fn mode
   /cast
@@ -39,8 +41,8 @@
       /cast outbox-getdef getdef get-outbox outbox-definer
         err.\;qq[Internal error]
       /compile-expression
-        (ns-get str.unique first-ns)
-        definition-ns
+        (scope (ns-get str.unique first-ns)
+          caller-def-ns caller-qualify)
         expr
         outbox-definer))
     folding unique-ns launch-rest
@@ -53,8 +55,8 @@
 \= Now that we've imported that file, the (hello-world -) function is
 \= available for use.
 
-(def-macro go unique-ns definition-ns my-stx-details args then
-  (basic-nil-macro unique-ns definition-ns my-stx-details then
+(def-macro go home-scope caller-scope my-stx-details args then
+  (basic-nil-macro home-scope caller-scope my-stx-details then
   /fn unique-ns s mac
   /get-mode/fn mode
   /output-path-blob-utf-8

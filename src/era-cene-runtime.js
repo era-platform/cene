@@ -151,16 +151,24 @@ function cgenStructArr( repMainTagName, projSourceToRep ) {
     } ).sort( function ( a, b ) {
         return nameCompare( a.rep, b.rep );
     } );
-    var sourceProjNamesToSortedIndices = jsnMap();
+    var repProjNamesToSortedIndices = jsnMap();
+    var sourceProjNameStringsToRepSortedIndices = strMap();
     arrEach( sortedProjNames, function ( entry, i ) {
-        sourceProjNamesToSortedIndices.set(
-            projSourceToRep[ entry.i ].source, i );
+        var source = projSourceToRep[ entry.i ].source;
+        
+        repProjNamesToSortedIndices.set( entry.rep, i );
+        
+        if ( isArray( source )
+            && source[ 0 ] === "n:$$qualified-name"
+            && isPrimString( source[ 1 ] ) )
+            sourceProjNameStringsToRepSortedIndices.set(
+                source[ 1 ], i );
     } );
     var unsortedProjNames = arrMap( projSourceToRep,
         function ( entry, i ) {
         
         return {
-            i: sourceProjNamesToSortedIndices.get( entry.source ),
+            i: repProjNamesToSortedIndices.get( entry.rep ),
             source: entry.source,
             rep: entry.rep
         };
@@ -181,7 +189,8 @@ function cgenStructArr( repMainTagName, projSourceToRep ) {
     result.getProj = function ( x, sourceProjName ) {
         if ( !(x instanceof SinkStruct && x.flatTag === flatTag) )
             throw new Error();
-        var i = sourceProjNamesToSortedIndices.get( sourceProjName );
+        var i = sourceProjNameStringsToRepSortedIndices.get(
+            sourceProjName );
         if ( i === void 0 )
             throw new Error();
         return x.projVals[ i ];
@@ -297,8 +306,9 @@ function sinkNameIsAncestor( ancestor, descendant ) {
 // means "namespace."
 function nssGet( nss, stringOrName ) {
     return {
+        uniqueNs: sinkNsGet( stringOrName, nss.uniqueNs ),
         definitionNs: nss.definitionNs,
-        uniqueNs: sinkNsGet( stringOrName, nss.uniqueNs )
+        qualify: nss.qualify
     };
 }
 
@@ -1594,12 +1604,14 @@ var CexprFuseStruct = classCexprStructMapperOrdered(
 var builtInStructAccumulator = { val: null };
 function builtInStruct( sourceMainTagNameJs, var_args ) {
     var sourceMainTagName =
-        sinkForeignStrFromJs( sourceMainTagNameJs ).getName();
+        sinkNameQualify(
+            sinkForeignStrFromJs( sourceMainTagNameJs ).getName() );
     var repMainTagName = [ "n:main-core", sourceMainTagName ];
     var projSourceToRep =
         arrMap( [].slice.call( arguments, 1 ), function ( projName ) {
             var source =
-                sinkForeignStrFromJs( projName ).getName();
+                sinkNameQualify(
+                    sinkForeignStrFromJs( projName ).getName() );
             return {
                 source: source,
                 rep: [ "n:proj-core", source, sourceMainTagName ]
@@ -1665,10 +1677,18 @@ var mkIstringCons = builtInStruct( "istring-cons",
     "string-past", "interpolated", "istring-rest" );
 var mkForeign = builtInStruct( "foreign", "val" );
 
+// This constructor is needed to deconstruct the scope values a macro
+// has access to.
+var mkScope =
+    builtInStruct( "scope", "unique-ns", "def-ns", "qualify" );
+
 // These occur in `(foreign ...)` s-expressions to signify that a
 // value should be looked up by an arbitrary name or by immediate
 // value instead of by the name of a literal string.
-var mkObtainByName = builtInStruct( "obtain-by-name", "name" );
+var mkObtainByUnqualifiedName =
+    builtInStruct( "obtain-by-unqualified-name", "name" );
+var mkObtainByQualifiedName =
+    builtInStruct( "obtain-by-qualified-name", "name" );
 var mkObtainDirectly = builtInStruct( "obtain-directly", "val" );
 
 // This constructor is needed so that macros can parse their located
@@ -1712,6 +1732,18 @@ function getFunctionImplementationEntryDefiner(
     
     return elementDefiner( constructorTagName, funcDefNs );
 }
+
+function sinkNameQualify( unqualifiedName ) {
+    return [ "n:$$qualified-name", unqualifiedName ];
+}
+var rootQualify = new SinkFn( function ( rt, unqualifiedName ) {
+    if ( !(unqualifiedName instanceof SinkForeign
+        && unqualifiedName.purpose === "name") )
+        throw new Error();
+    return macLookupRet(
+        new SinkForeign( "name",
+            sinkNameQualify( unqualifiedName.foreignVal ) ) );
+} );
 
 function parseMode( mode ) {
     if ( !(mode instanceof SinkForeign
@@ -2429,23 +2461,47 @@ function usingFuncDefNs( funcDefNs ) {
         return string.foreignVal;
     }
     
-    function stxToObtainMethod( stx ) {
+    function stxToObtainMethod( rt, nss, stx, then ) {
         if ( !mkStx.tags( stx ) )
-            return { type: "obtainInvalid" };
+            return then( { type: "obtainInvalid" } );
         var sExpr = mkStx.getProj( stx, "s-expr" );
+        
+        function qualify( unqualifiedName ) {
+            if ( !(unqualifiedName instanceof SinkForeign
+                && unqualifiedName.purpose === "name") )
+                throw new Error();
+            return macLookupThen(
+                nss.qualify.callSink( rt, unqualifiedName ),
+                function ( qualifiedName ) {
+                
+                if ( !(qualifiedName instanceof SinkForeign
+                    && qualifiedName.purpose === "name") )
+                    throw new Error();
+                return then( { type: "obtainByName",
+                    name: qualifiedName.foreignVal } );
+            } );
+        }
+        
         if ( mkForeign.tags( sExpr ) ) {
             var obtainMethod = mkForeign.getProj( sExpr, "val" );
-            if ( mkObtainByName.tags( obtainMethod ) ) {
-                var name =
-                    mkObtainByName.getProj( obtainMethod, "name" );
+            if ( mkObtainByQualifiedName.tags( obtainMethod ) ) {
+                var name = mkObtainByQualifiedName.getProj(
+                    obtainMethod, "name" );
                 if ( !(name instanceof SinkForeign
                     && name.purpose === "name") )
                     throw new Error();
-                return { type: "obtainByName",
-                    name: name.foreignVal };
+                return then( { type: "obtainByName",
+                    name: name.foreignVal } );
+            } else if (
+                mkObtainByUnqualifiedName.tags( obtainMethod ) ) {
+                
+                return qualify(
+                    mkObtainByQualifiedName.getProj(
+                        obtainMethod, "name" ) );
             } else if ( mkObtainDirectly.tags( obtainMethod ) ) {
-                return { type: "obtainDirectly", val:
-                    mkObtainDirectly.getProj( obtainMethod, "val" ) };
+                return then( { type: "obtainDirectly",
+                    val: mkObtainDirectly.getProj(
+                        obtainMethod, "val" ) } );
             } else {
                 throw new Error();
             }
@@ -2454,17 +2510,28 @@ function usingFuncDefNs( funcDefNs ) {
             if ( !(string instanceof SinkForeign
                 && string.purpose === "string") )
                 throw new Error();
-            return { type: "obtainByName", name: string.getName() };
+            return qualify(
+                new SinkForeign( "name", string.getName() ) );
         } else {
-            return { type: "obtainInvalid" };
+            return then( { type: "obtainInvalid" } );
         }
     }
     
-    function stxToMaybeName( stx ) {
-        var obtainMethod = stxToObtainMethod( stx );
-        if ( obtainMethod.type === "obtainByName" )
-            return obtainMethod.name;
-        return null;
+    function stxToMaybeName( rt, nss, stx, then ) {
+        return stxToObtainMethod( rt, nss, stx,
+            function ( obtainMethod ) {
+            
+            if ( obtainMethod.type === "obtainByName" )
+                return then( obtainMethod.name );
+            return then( null );
+        } );
+    }
+    function stxToName( rt, nss, stx, then ) {
+        return stxToMaybeName( rt, nss, stx, function ( name ) {
+            if ( name === null )
+                throw new Error();
+            return then( name );
+        } );
     }
     
     function sinkConsListToArray( list ) {
@@ -2548,42 +2615,51 @@ function usingFuncDefNs( funcDefNs ) {
         } );
     }
     
-    function extractPattern( definitionNs, body ) {
+    function extractPattern( nss, body ) {
         if ( !mkCons.tags( body ) )
             throw new Error();
+        
         var sourceMainTagNameRepExpr = mkCons.getProj( body, "car" );
-        var sourceMainTagNameRep =
-            stxToMaybeName( sourceMainTagNameRepExpr );
-        if ( sourceMainTagNameRep === null )
-            throw new Error(
-                "Encountered a case branch with a source main tag " +
-                "name that wasn't a syntactic name: " +
-                sourceMainTagNameRepExpr.pretty() );
+        return stxToMaybeName( rt, nss, sourceMainTagNameRepExpr,
+            function ( sourceMainTagNameRep ) {
+            
+            if ( sourceMainTagNameRep === null )
+                throw new Error(
+                    "Encountered a case branch with a source " +
+                    "main tag name that wasn't a syntactic name: " +
+                    sourceMainTagNameRepExpr.pretty() );
         
         return macLookupThen(
-            getStruct( definitionNs, sourceMainTagNameRep ),
+            getStruct( nss.definitionNs, sourceMainTagNameRep ),
             function ( struct ) {
             
             var remainingBody = mkCons.getProj( body, "cdr" );
             var localVars = [];
             var n = struct.sortedProjNames.length;
-            for ( var i = 0; i < n; i++ ) {
+            
+            return loop( 0, [], mkCons.getProj( body, "cdr" ) );
+            function loop( i, localVars, remainingBody ) {
+                if ( n <= i ) {
+                    var result = {};
+                    result.struct = struct;
+                    result.localVars = localVars;
+                    result.remainingBody = remainingBody;
+                    return macLookupRet( result );
+                }
+                
                 if ( !mkCons.tags( remainingBody ) )
                     throw new Error();
-                var localVar = stxToMaybeName(
-                    mkCons.getProj( remainingBody, "car" ) );
-                if ( localVar === null )
-                    throw new Error();
-                localVars.push( localVar );
-                remainingBody =
-                    mkCons.getProj( remainingBody, "cdr" );
+                return stxToName( rt, nss,
+                    mkCons.getProj( remainingBody, "car" ),
+                    function ( localVar ) {
+                    
+                    return loop( i + 1,
+                        localVars.concat( [ localVar ] ),
+                        mkCons.getProj( remainingBody, "cdr" ) );
+                } );
             }
-            
-            var result = {};
-            result.struct = struct;
-            result.localVars = localVars;
-            result.remainingBody = remainingBody;
-            return macLookupRet( result );
+        } );
+        
         } );
     }
     
@@ -2608,8 +2684,7 @@ function usingFuncDefNs( funcDefNs ) {
                             [ "cgenLocal_matchSubject" ] ), "; " ) );
                 } );
             
-            return macLookupThen(
-                extractPattern( nss.definitionNs, body ),
+            return macLookupThen( extractPattern( nss, body ),
                 function ( pattern ) {
             
             if ( !mkCons.tags( pattern.remainingBody ) )
@@ -2689,8 +2764,7 @@ function usingFuncDefNs( funcDefNs ) {
     // TODO: Make this expand multiple expressions concurrently.
     function cgenCast( nss, rawMode, matchSubject, body, then ) {
         // #GEN
-        return macLookupThen(
-            extractPattern( nss.definitionNs, body ),
+        return macLookupThen( extractPattern( nss, body ),
             function ( pattern ) {
         
         if ( !mkCons.tags( pattern.remainingBody ) )
@@ -2761,7 +2835,7 @@ function usingFuncDefNs( funcDefNs ) {
         } );
     }
     
-    function processFn( nss, rawMode, body, then ) {
+    function processFn( rt, nss, rawMode, body, then ) {
         // #GEN
         if ( !mkCons.tags( body ) )
             throw new Error();
@@ -2771,25 +2845,30 @@ function usingFuncDefNs( funcDefNs ) {
                 mkCons.getProj( body, "car" ),
                 nssGet( nss, "outbox" ).uniqueNs,
                 then );
+        
         var param = mkCons.getProj( body, "car" );
-        var paramName = stxToMaybeName( param );
-        if ( paramName === null )
-            throw new Error(
-                "Called fn with a variable name that wasn't a " +
-                "syntactic name: " + param.pretty() );
-        return processFn( nss, rawMode, body1,
-            function ( rawMode, processedRest ) {
+        return stxToMaybeName( rt, nss, param,
+            function ( paramName ) {
             
-            var va = cgenIdentifier( paramName );
-            return then( rawMode,
-                jsCode(
-                    jsCodeVar( "macLookupRet" ), "( " +
-                        "new ", jsCodeVar( "SinkFn" ), "( " +
-                            "function ( rt, " + va + " ) { " +
-                        
-                        "return ", processedRest.minusFreeVars(
-                            [ "rt", va ] ), "; " +
-                    "} ) )" ) );
+            if ( paramName === null )
+                throw new Error(
+                    "Called fn with a variable name that wasn't a " +
+                    "syntactic name: " + param.pretty() );
+            
+            return processFn( rt, nss, rawMode, body1,
+                function ( rawMode, processedRest ) {
+                
+                var va = cgenIdentifier( paramName );
+                return then( rawMode,
+                    jsCode(
+                        jsCodeVar( "macLookupRet" ), "( " +
+                            "new ", jsCodeVar( "SinkFn" ), "( " +
+                                "function ( rt, " + va + " ) { " +
+                            
+                            "return ", processedRest.minusFreeVars(
+                                [ "rt", va ] ), "; " +
+                        "} ) )" ) );
+            } );
         } );
     }
     
@@ -2855,40 +2934,51 @@ function usingFuncDefNs( funcDefNs ) {
         return nssGet( nss, [ "n:$$claimed-for", forWhatMacro ] );
     }
     
+    function parseScope( scope ) {
+        if ( !mkScope.tags( scope ) )
+            throw new Error();
+        var uniqueNs = mkScope.getProj( scope, "unique-ns" );
+        var defNs = mkScope.getProj( scope, "def-ns" );
+        var qualify = mkScope.getProj( scope, "qualify" );
+        if ( !(uniqueNs instanceof SinkForeign
+            && uniqueNs.purpose === "ns") )
+            throw new Error();
+        if ( !(defNs instanceof SinkForeign
+            && defNs.purpose === "ns") )
+            throw new Error();
+        
+        return {
+            uniqueNs: uniqueNs.foreignVal,
+            definitionNs: defNs.foreignVal,
+            qualify: qualify
+        };
+    }
+    
     function addMacro(
-        definitionNs, rawMode, name, claim, macroFunctionImpl ) {
+        macroDefNs, rawMode, name, claim, macroFunctionImpl ) {
         
         collectPutDefined( rawMode,
-            getMacroFunctionDefiner( definitionNs, name ),
-            sinkFnPure( function ( rt, uniqueNs ) {
-                return sinkFnPure( function ( rt, definitionNs ) {
-                    return sinkFnPure( function ( rt, myStxDetails ) {
-                        return sinkFnPure( function ( rt, body ) {
-                            return new SinkFn( function ( rt, then ) {
-                                if ( !(uniqueNs instanceof SinkForeign
-                                    && uniqueNs.purpose === "ns") )
-                                    throw new Error();
-                                if ( !(definitionNs instanceof
-                                        SinkForeign
-                                    && definitionNs.purpose === "ns") )
-                                    throw new Error();
-                                
-                                return macLookupThen(
-                                    macroFunctionImpl( myStxDetails, body, function ( code ) {
-                                        return then.callSink( rt,
-                                            new SinkForeign( "compiled-code", code ) );
-                                    } ),
-                                    function ( effectsImpl ) {
+            getMacroFunctionDefiner( macroDefNs, name ),
+            sinkFnPure( function ( rt, callerScope ) {
+                return sinkFnPure( function ( rt, myStxDetails ) {
+                    return sinkFnPure( function ( rt, body ) {
+                        return new SinkFn( function ( rt, then ) {
+                            var nss = parseScope( callerScope );
+                            
+                            return macLookupThen(
+                                macroFunctionImpl( myStxDetails, body,
+                                    function ( code ) {
                                     
-                                    return macLookupRet(
-                                        new SinkForeign( "effects", function ( rawMode ) {
-                                            var nss = nssClaim( rawMode, {
-                                                definitionNs: definitionNs.foreignVal,
-                                                uniqueNs: uniqueNs.foreignVal
-                                            }, claim );
-                                            return effectsImpl( rawMode, nss );
-                                        } ) );
-                                } );
+                                    return then.callSink( rt,
+                                        new SinkForeign( "compiled-code", code ) );
+                                } ),
+                                function ( effectsImpl ) {
+                                
+                                return macLookupRet(
+                                    new SinkForeign( "effects", function ( rawMode ) {
+                                        return effectsImpl( rawMode,
+                                            nssClaim( rawMode, nss, claim ) );
+                                    } ) );
                             } );
                         } );
                     } );
@@ -2928,12 +3018,14 @@ function usingFuncDefNs( funcDefNs ) {
         var dummyMode = makeDummyMode();
         
         function mac( name, body ) {
-            addPureMacro( targetDefNs, dummyMode, name,
+            var qualifiedName = sinkNameQualify( name );
+            addPureMacro( targetDefNs, dummyMode, qualifiedName,
                 [ "claim:primitive", name ], body );
         }
         function effectfulFun( name, body ) {
             var sourceMainTagName =
-                sinkForeignStrFromJs( name ).getName();
+                sinkNameQualify(
+                    sinkForeignStrFromJs( name ).getName() );
             var repMainTagName = [ "n:main-core", sourceMainTagName ];
             var constructorTagName =
                 sinkNameConstructorTagAlreadySorted(
@@ -2962,30 +3054,45 @@ function usingFuncDefNs( funcDefNs ) {
                 throw new Error();
             var body1 = mkCons.getProj( body, "cdr" );
             
-            var sourceMainTagName =
-                stxToMaybeName( mkCons.getProj( body, "car" ) );
-            if ( sourceMainTagName === null )
-                throw new Error();
-            
             return function ( rawMode, nss ) {
-                var repMainTagName =
-                    [ "n:main", sourceMainTagName,
-                        nss.uniqueNs.name ];
-                processDefStruct( nss.definitionNs, rawMode,
-                    sourceMainTagName, repMainTagName,
-                    mapConsListToArr( body1, function ( projName ) {
-                        var source = stxToMaybeName( projName );
-                        if ( source === null )
-                            throw new Error();
-                        return {
-                            source: source,
-                            rep:
-                                [ "n:proj", source, sourceMainTagName,
-                                    nss.uniqueNs.name ]
-                        };
-                    } ) );
-                return macLookupThenRunEffects( rawMode,
-                    then( mkNil.of() ) );
+                return stxToName( rt, nss,
+                    mkCons.getProj( body, "car" ),
+                    function ( sourceMainTagName ) {
+                
+                return loop( [], body1 );
+                function loop( projSourceToRep, remainingBody ) {
+                    if ( mkNil.tags( remainingBody ) ) {
+                        var repMainTagName =
+                            [ "n:main", sourceMainTagName,
+                                nss.uniqueNs.name ];
+                        processDefStruct( nss.definitionNs, rawMode,
+                            sourceMainTagName, repMainTagName,
+                            projSourceToRep );
+                        
+                        return macLookupThenRunEffects( rawMode,
+                            then( mkNil.of() ) );
+                    } else if ( mkCons.tags( remainingBody ) ) {
+                        return stxToName( rt, nss,
+                            mkCons.getProj( remainingBody, "car" ),
+                            function ( source ) {
+                            
+                            return loop(
+                                [ {
+                                    source: source,
+                                    rep:
+                                        [ "n:proj", source,
+                                            sourceMainTagName,
+                                            nss.uniqueNs.name ]
+                                } ].concat( projSourceToRep ),
+                                mkCons.getProj( remainingBody,
+                                    "cdr" ) );
+                        } );
+                    } else {
+                        throw new Error();
+                    }
+                }
+                
+                } );
             };
         } );
         
@@ -2997,23 +3104,20 @@ function usingFuncDefNs( funcDefNs ) {
             if ( !mkCons.tags( body1 ) )
                 throw new Error();
             
-            var sourceMainTagName =
-                stxToMaybeName( mkCons.getProj( body, "car" ) );
-            if ( sourceMainTagName === null )
-                throw new Error();
-            
-            var firstArg =
-                stxToMaybeName( mkCons.getProj( body1, "car" ) );
-            if ( firstArg === null )
-                throw new Error();
-            
             return function ( rawMode, nss ) {
+                return stxToName( rt, nss,
+                    mkCons.getProj( body, "car" ),
+                    function ( sourceMainTagName ) {
+                return stxToName( rt, nss,
+                    mkCons.getProj( body1, "car" ),
+                    function ( firstArg ) {
+                
                 var repMainTagName =
                     [ "n:main", sourceMainTagName,
                         nssGet( nss, "constructor" ).uniqueNs.name ];
                 processDefStruct( nss.definitionNs, rawMode,
                     sourceMainTagName, repMainTagName, [] );
-                return processFn( nssGet( nss, "body" ), rawMode,
+                return processFn( rt, nssGet( nss, "body" ), rawMode,
                     body1,
                     function ( rawMode, processedFn ) {
                     
@@ -3047,6 +3151,9 @@ function usingFuncDefNs( funcDefNs ) {
                     return macLookupThenRunEffects( rawMode,
                         then( mkNil.of() ) );
                 } );
+                
+                } );
+                } );
             };
         } );
         
@@ -3057,24 +3164,31 @@ function usingFuncDefNs( funcDefNs ) {
             if ( !mkCons.tags( body1 ) )
                 throw new Error();
             
-            var name =
-                stxToMaybeName( mkCons.getProj( body, "car" ) );
-            if ( name === null )
-                throw new Error();
-            
             return function ( rawMode, nss ) {
-                return processFn( nss, rawMode, body1,
+                return stxToName( rt, nss,
+                    mkCons.getProj( body, "car" ),
+                    function ( name ) {
+                return processFn( rt, nss, rawMode, body1,
                     function ( rawMode, processedFn ) {
                 return macLookupThen( cgenExecute( rt, processedFn ),
                     function ( executedFn ) {
+                return macLookupThen(
+                    executedFn.callSink( rt,
+                        mkScope.ofNow(
+                            new SinkForeign( "ns", nss.uniqueNs ),
+                            new SinkForeign( "ns", nss.definitionNs ),
+                            nss.qualify ) ),
+                    function ( curriedFn ) {
                 
                 collectPutDefined( rawMode,
                     getMacroFunctionDefiner( nss.definitionNs, name ),
-                    executedFn );
+                    curriedFn );
                 
                 return macLookupThenRunEffects( rawMode,
                     then( mkNil.of() ) );
                 
+                } );
+                } );
                 } );
                 } );
             };
@@ -3251,16 +3365,18 @@ function usingFuncDefNs( funcDefNs ) {
             var body1 = mkCons.getProj( body, "cdr" );
             if ( !mkCons.tags( body1 ) )
                 throw new Error();
-            var va = stxToMaybeName( mkCons.getProj( body, "car" ) );
-            if ( va === null )
-                throw new Error();
             
             return function ( rawMode, nss ) {
-                return cgenCaseletForRunner( nss, rawMode,
-                    { val: va },
-                    mkCons.getProj( body1, "car" ),
-                    mkCons.getProj( body1, "cdr" ),
-                    then );
+                return stxToName( rt, nss,
+                    mkCons.getProj( body, "car" ),
+                    function ( va ) {
+                    
+                    return cgenCaseletForRunner( nss, rawMode,
+                        { val: va },
+                        mkCons.getProj( body1, "car" ),
+                        mkCons.getProj( body1, "cdr" ),
+                        then );
+                } );
             };
         } );
         
@@ -3285,17 +3401,21 @@ function usingFuncDefNs( funcDefNs ) {
             var body2 = mkCons.getProj( body1, "cdr" );
             if ( mkCons.tags( body2 ) )
                 throw new Error();
-            var sourceMainTagNameRepExpr =
-                mkCons.getProj( body, "car" );
-            var sourceMainTagNameRep =
-                stxToMaybeName( sourceMainTagNameRepExpr );
-            if ( sourceMainTagNameRep === null )
-                throw new Error(
-                    "Encountered an isa with a source main tag " +
-                    "name that wasn't a syntactic name: " +
-                    sourceMainTagNameRepExpr.pretty() );
             
             return function ( rawMode, nss ) {
+                var sourceMainTagNameRepExpr =
+                    mkCons.getProj( body, "car" );
+                return stxToMaybeName( rt, nss,
+                    sourceMainTagNameRepExpr,
+                    function ( sourceMainTagNameRep ) {
+                    
+                    if ( sourceMainTagNameRep === null )
+                        throw new Error(
+                            "Encountered an isa with a source " +
+                            "main tag name that wasn't a syntactic " +
+                            "name: " +
+                            sourceMainTagNameRepExpr.pretty() );
+                
                 return macroexpand( nssGet( nss, "unique" ), rawMode,
                     mkCons.getProj( body1, "car" ),
                     nssGet( nss, "outbox" ).uniqueNs,
@@ -3321,6 +3441,8 @@ function usingFuncDefNs( funcDefNs ) {
                             "} )" ) ) );
                 
                 } );
+                } );
+                
                 } );
             };
         } );
@@ -3435,7 +3557,7 @@ function usingFuncDefNs( funcDefNs ) {
         //
         mac( "fn", function ( myStxDetails, body, then ) {
             return function ( rawMode, nss ) {
-                return processFn( nss, rawMode, body,
+                return processFn( rt, nss, rawMode, body,
                     function ( rawMode, processedFn ) {
                     
                     return macLookupThenRunEffects( rawMode,
@@ -3483,10 +3605,10 @@ function usingFuncDefNs( funcDefNs ) {
                                 "})()" ) );
                     } );
                 }
-                var va = stxToMaybeName(
-                    mkCons.getProj( remainingBody, "car" ) );
-                if ( va === null )
-                    throw new Error();
+                
+                return stxToName( rt, nss,
+                    mkCons.getProj( remainingBody, "car" ),
+                    function ( va ) {
                 
                 var firstNss = nssGet( bindingsNss, "first" );
                 return macroexpand( nssGet( firstNss, "unique" ),
@@ -3520,6 +3642,8 @@ function usingFuncDefNs( funcDefNs ) {
                             "} )" ) );
                     } );
                 } );
+                
+                } );
             }
         } );
         
@@ -3531,19 +3655,20 @@ function usingFuncDefNs( funcDefNs ) {
             
             if ( !mkCons.tags( body ) )
                 throw new Error();
-            var sourceMainTagNameRep =
-                stxToMaybeName( mkCons.getProj( body, "car" ) );
-            if ( sourceMainTagNameRep === null )
-                throw new Error();
             
             return function ( rawMode, nss ) {
+                return stxToName( rt, nss,
+                    mkCons.getProj( body, "car" ),
+                    function ( sourceMainTagNameRep ) {
                 return macLookupThen(
                     getStruct( nss.definitionNs,
                         sourceMainTagNameRep ),
                     function ( struct ) {
-                    
-                    return loop( nss, rawMode, struct, 0, null,
-                        mkCons.getProj( body, "cdr" ) );
+                
+                return loop( nss, rawMode, struct, 0, null,
+                    mkCons.getProj( body, "cdr" ) );
+                
+                } );
                 } );
             };
             
@@ -5201,30 +5326,20 @@ function usingFuncDefNs( funcDefNs ) {
             return mkNil.ofNow();
         } );
         
-        fun( "compile-expression", function ( rt, uniqueNs ) {
-            return sinkFnPure( function ( rt, definitionNs ) {
-                return sinkFnPure( function ( rt, stx ) {
-                    return sinkFnPure( function ( rt, outDefiner ) {
-                        if ( !(uniqueNs instanceof SinkForeign
-                            && uniqueNs.purpose === "ns") )
-                            throw new Error();
+        fun( "compile-expression", function ( rt, callerScope ) {
+            return sinkFnPure( function ( rt, stx ) {
+                return sinkFnPure( function ( rt, outDefiner ) {
+                    var nss = parseScope( callerScope );
+                    
+                    if ( !(outDefiner instanceof SinkForeign
+                        && outDefiner.purpose === "definer") )
+                        throw new Error();
+                    
+                    return new SinkForeign( "effects",
+                        function ( rawMode ) {
                         
-                        if ( !(definitionNs instanceof SinkForeign
-                            && definitionNs.purpose === "ns") )
-                            throw new Error();
-                        
-                        if ( !(outDefiner instanceof SinkForeign
-                            && outDefiner.purpose === "definer") )
-                            throw new Error();
-                        
-                        return new SinkForeign( "effects",
-                            function ( rawMode ) {
-                            
-                            return macroexpandToDefiner( {
-                                definitionNs: definitionNs.foreignVal,
-                                uniqueNs: uniqueNs.foreignVal
-                            }, rawMode, stx, outDefiner.foreignVal );
-                        } );
+                        return macroexpandToDefiner( nss, rawMode,
+                            stx, outDefiner.foreignVal );
                     } );
                 } );
             } );
@@ -5259,29 +5374,36 @@ function usingFuncDefNs( funcDefNs ) {
         
         // #GEN
         collectDefer( rawMode, {}, function ( rawMode ) {
-            var identifier = stxToMaybeName( locatedExpr );
-            if ( identifier !== null )
-                return macLookupRet( new SinkForeign( "effects",
-                    function ( rawMode ) {
-                    
-                    // TODO: Report better errors if an unbound local
-                    // variable is used. Currently, we report errors
-                    // using `JsCode#assertNoFreeVars()`, but that's
-                    // not aware of Cene variable names.
-                    collectPutDefined( rawMode, outDefiner,
-                        new SinkForeign( "compiled-code",
-                            jsCodeRetCgenVar( identifier ) ) );
-                    return macLookupRet( mkNil.ofNow() );
-                } ) );
+            return stxToMaybeName( rt, nss, locatedExpr,
+                function ( identifier ) {
+                
+                if ( identifier !== null )
+                    return macLookupRet( new SinkForeign( "effects",
+                        function ( rawMode ) {
+                        
+                        // TODO: Report better errors if an unbound
+                        // local variable is used. Currently, we
+                        // report errors using
+                        // `JsCode#assertNoFreeVars()`, but that's not
+                        // aware of Cene variable names.
+                        collectPutDefined( rawMode, outDefiner,
+                            new SinkForeign( "compiled-code",
+                                jsCodeRetCgenVar( identifier ) ) );
+                        return macLookupRet( mkNil.ofNow() );
+                    } ) );
+            
             if ( !mkStx.tags( locatedExpr ) )
                 throw new Error();
             var sExpr = mkStx.getProj( locatedExpr, "s-expr" );
             if ( !mkCons.tags( sExpr ) )
                 throw new Error();
             var macroNameStx = mkCons.getProj( sExpr, "car" );
-            var macroAppearance = stxToObtainMethod( macroNameStx );
-            if ( macroAppearance.type === "obtainInvalid" )
-                throw new Error();
+            
+            return stxToObtainMethod( rt, nss, macroNameStx,
+                function ( macroAppearance ) {
+                
+                if ( macroAppearance.type === "obtainInvalid" )
+                    throw new Error();
             
             return macLookupThen(
                 macroAppearance.type === "obtainByName" ?
@@ -5302,8 +5424,10 @@ function usingFuncDefNs( funcDefNs ) {
                 function ( macroFunction ) {
             
             return callSinkMulti( rt, macroFunction,
-                new SinkForeign( "ns", nss.uniqueNs ),
-                new SinkForeign( "ns", nss.definitionNs ),
+                mkScope.ofNow(
+                    new SinkForeign( "ns", nss.uniqueNs ),
+                    new SinkForeign( "ns", nss.definitionNs ),
+                    nss.qualify ),
                 sinkTrivialStxDetails(),
                 mkCons.getProj( sExpr, "cdr" ),
                 sinkFnPure( function ( rt, macroResult ) {
@@ -5315,6 +5439,10 @@ function usingFuncDefNs( funcDefNs ) {
                         return macLookupRet( mkNil.ofNow() );
                     } );
                 } ) );
+            
+            } );
+            
+            } );
             
             } );
         } );

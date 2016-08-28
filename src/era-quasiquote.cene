@@ -494,20 +494,25 @@
   /cons (c combiner (ns-get str.first unique-ns) first)
   /unique-ns-spread (ns-get str.rest unique-ns) rest combiner))
 
-(def-macro qlet unique-ns definition-ns my-stx-details args then
-  (cast args cons body args
+(def-macro qlet home-scope caller-scope my-stx-details args then
+  (cast caller-scope
+    scope caller-unique-ns caller-def-ns caller-qualify
+    err.\;qq[Internal error]
+  /cast args cons body args
     err.\;qq[Called qlet without any arguments]
   /cast args nil
     err.\;qq[Called qlet with more than one argument]
-  /join-effects procure-claim.unique-ns
+  /join-effects procure-claim.caller-unique-ns
   /parse-quasiquotation-for-macro-later body /fn body
   /get-mode/fn mode
   /let s (fn it /stx my-stx-details it)
   /let spread-leaves
-    (unique-ns-spread (ns-get str.bindings unique-ns)
+    (unique-ns-spread (ns-get str.bindings caller-unique-ns)
       (s-expr-leaves (unwrap-for-macro) body)
     /fn unique-ns leaf
-      (pair (c s /foreign/obtain-by-name/procure-name mode unique-ns)
+      (pair
+        (c s /foreign/obtain-by-qualified-name/procure-name mode
+          unique-ns)
         leaf))
   /s-expr-splice-leaves-later (unwrap-for-macro) body
     (map spread-leaves /fn spread-leaf
@@ -522,8 +527,11 @@
     err.\;qq[Internal error]
   /cast body nope body
     err.\;qq[Internal error]
-  /basic-pure-macro (ns-get str.body unique-ns)
-    definition-ns my-stx-details then
+  /basic-pure-macro home-scope
+    (scope (ns-get str.body caller-unique-ns)
+      caller-def-ns caller-qualify)
+    my-stx-details
+    then
   /fn unique-ns s mac
   /c s /c mac str.let /append
     (mappend spread-leaves /fn spread-leaf

@@ -20,8 +20,9 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
     } );
     
     var nss = {
+        uniqueNs: sinkNsGet( "unique-ns", sinkNsRoot() ),
         definitionNs: sinkNsGet( "definition-ns", sinkNsRoot() ),
-        uniqueNs: sinkNsGet( "unique-ns", sinkNsRoot() )
+        qualify: rootQualify
     };
     var funcDefNs =
         sinkNsGet( "function-implementations-ns", sinkNsRoot() );

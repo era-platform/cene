@@ -102,6 +102,7 @@ function runCeneSync(
         "    jsnMap: jsnMap,\n" +
         "    sinkNsGet: sinkNsGet,\n" +
         "    sinkNsRoot: sinkNsRoot,\n" +
+        "    rootQualify: rootQualify,\n" +
         "    usingFuncDefNs: usingFuncDefNs,\n" +
         "    ceneApiUsingFuncDefNs: ceneApiUsingFuncDefNs\n" +
         "};\n"
@@ -125,9 +126,10 @@ function runCeneSync(
     var readMillis = new Date().getTime();
     
     var nss = {
+        uniqueNs: $cene.sinkNsGet( "unique-ns", $cene.sinkNsRoot() ),
         definitionNs:
             $cene.sinkNsGet( "definition-ns", $cene.sinkNsRoot() ),
-        uniqueNs: $cene.sinkNsGet( "unique-ns", $cene.sinkNsRoot() )
+        qualify: $cene.rootQualify
     };
     var funcDefNs =
         $cene.sinkNsGet( "function-implementations-ns",
