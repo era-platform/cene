@@ -250,10 +250,7 @@ function cgenStructArr( repMainTagName, projSourceToRep ) {
 }
 
 function sinkNsRoot() {
-    return {
-        name: [ "n:root" ],
-        shadows: jsnMap()
-    };
+    return { name: [ "n:root" ] };
 }
 function sinkNameGet( stringOrName, parent ) {
     
@@ -267,17 +264,7 @@ function sinkNameGet( stringOrName, parent ) {
         [ "n:get", stringOrName, 1, parent ];
 }
 function sinkNsGet( stringOrName, ns ) {
-    return ns.shadows.has( stringOrName ) ?
-        ns.shadows.get( stringOrName ) : {
-            name: sinkNameGet( stringOrName, ns.name ),
-            shadows: jsnMap()
-        };
-}
-function sinkNsShadow( stringOrName, subNs, ns ) {
-    return {
-        name: ns.name,
-        shadows: ns.shadows.plusEntry( stringOrName, subNs )
-    };
+    return { name: sinkNameGet( stringOrName, ns.name ) };
 }
 function sinkNameConstructorTagAlreadySorted(
     mainTagName, projNames ) {
@@ -329,14 +316,7 @@ function sinkNameSetIntersection( a, b ) {
 }
 function sinkNameSetNsDescendants( ns ) {
     return function ( name ) {
-        return (sinkNameIsAncestor( ns.name, name )
-            && !ns.shadows.any( function ( v, k ) {
-                return sinkNameIsAncestor( sinkNameGet( k, ns.name ),
-                    name );
-            } )
-        ) || ns.shadows.any( function ( v, k ) {
-            return sinkNameSetNsDescendants( v )( name );
-        } );
+        return sinkNameIsAncestor( ns.name, name );
     };
 }
 function sinkNameSetContains( nameSet, name ) {
@@ -5031,30 +5011,6 @@ function usingFuncDefNs( funcDefNs ) {
                             return new SinkForeign( "ns",
                                 sinkNsGet( k, ns.foreignVal ) );
                         } ) ) );
-            } );
-        } );
-        
-        fun( "shadow-procure-sub-ns-table", function ( rt, table ) {
-            return new SinkFn( function ( rt, ns ) {
-                if ( !(table instanceof SinkForeign
-                    && table.purpose === "table") )
-                    throw new Error();
-                if ( !(ns instanceof SinkForeign
-                    && ns.purpose === "ns") )
-                    throw new Error();
-                
-                var result = ns.foreignVal;
-                
-                table.each( function ( k, subNs ) {
-                    if ( !(subNs instanceof SinkForeign
-                        && subNs.purpose === "ns") )
-                        throw new Error();
-                    result =
-                        sinkNsShadow( k, subNs.foreignVal, result );
-                } );
-                
-                return macLookupRet(
-                    new SinkForeign( "ns", result ) );
             } );
         } );
         

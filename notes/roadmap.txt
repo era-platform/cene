@@ -22,7 +22,6 @@ Update most of the various built-in macros that use `stxToMaybeName` to use `stx
 Consider renaming "mode" to "world" throughout.
 See if there's any real point to calling things "...-later", since errors that happen in the "later" portion are escalated to invalidate the prior portion anyway. Maybe we even want the mode to remain current across these operations. That could make it confusing when some operations change the mode and others don't.
 Consider renaming `test-async` to `test`.
-Get rid of namespace shadowing, unless we decide we need it again to achieve local macros.
 Consider renaming `contributing-only-to` and the `committing-...` operations to `...-later`, since they "change" the current mode.
 Reconsider the parameters to `macro-stx-details`. The mode really should be the current mode if the call is going to do anything with `unique-ns` and `definition-ns`, but why does it need those? It would probably be more relevant for this value to reify the identity of the macro definition itself, or at least contain a struct with a tag unique to that macro definition.
 Implement `read-all-force` instead of having it built in.
