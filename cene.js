@@ -84,6 +84,7 @@ function runCeneSync(
     
     var $cene = Function(
         readInternalFiles( [
+            "src/era-avl.js",
             "src/era-misc-strmap-avl.js",
             "src/era-misc.js",
             "src/era-reader.js",
@@ -289,6 +290,7 @@ function runCeneSync(
                 
                 var quine =
                     readInternalFiles( [
+                        "src/era-avl.js",
                         "src/era-misc-strmap-avl.js",
                         "src/era-misc.js",
                         "src/era-reader.js",
@@ -498,6 +500,7 @@ var tasks = [];
 if ( args.test_era ) tasks.push( function ( then ) {
     var $test = Function(
         readInternalFiles( [
+            "src/era-avl.js",
             "src/era-misc-strmap-avl.js",
             "src/era-misc.js",
             "test/harness-first.js",

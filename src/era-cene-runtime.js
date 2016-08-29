@@ -76,61 +76,6 @@ function cgenCall( func, var_args ) {
     return cgenCallArr( func, [].slice.call( arguments, 1 ) );
 }
 
-function jsnCompare( a, b ) {
-    function rank( x ) {
-        var result = 0;
-        if ( x === null )
-            return result;
-        result++;
-        if ( typeof x === "number" && x < 0 )
-            return result;
-        result++;
-        if ( x === 0 && 1 / x === 1 / -0 )
-            return result;
-        result++;
-        if ( x !== x )
-            return result;
-        result++;
-        if ( x === 0 && 1 / x === 1 / 0 )
-            return result;
-        result++;
-        if ( typeof x === "number" && 0 < x )
-            return result;
-        result++;
-        if ( typeof x === "string" )
-            return result;
-        result++;
-        if ( isArray( x ) )
-            return result;
-        
-        throw new Error();
-    }
-    function compareByBuiltIn( a, b ) {
-        if ( a < b )
-            return -1;
-        if ( b < a )
-            return 1;
-        return 0;
-    }
-    var compareByRank = compareByBuiltIn( rank( a ), rank( b ) );
-    if ( compareByRank !== 0 )
-        return compareByRank;
-    if ( typeof a === "string" || typeof a == "number" )
-        return compareByBuiltIn( a, b );
-    if ( isArray( a ) ) {
-        // We compare by lexicographic order.
-        for ( var i = 0, n = a.length, bn = b.length; i < n; i++ ) {
-            if ( bn <= i )
-                return 1;
-            var compareElem = compareByBuiltIn( a[ i ], b[ i ] );
-            if ( compareElem !== 0 )
-                return compareElem;
-        }
-        return 0;
-    }
-    throw new Error();
-}
-
 function nameCompare( a, b ) {
     return jsnCompare( a, b );
 }

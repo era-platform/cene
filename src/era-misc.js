@@ -854,49 +854,133 @@ function jsListMappend( yoke, list, func, then ) {
     } );
 }
 
+function jsnCompare( a, b ) {
+    function rank( x ) {
+        var result = 0;
+        if ( x === null )
+            return result;
+        result++;
+        if ( typeof x === "number" && x < 0 )
+            return result;
+        result++;
+        if ( x === 0 && 1 / x === 1 / -0 )
+            return result;
+        result++;
+        if ( x !== x )
+            return result;
+        result++;
+        if ( x === 0 && 1 / x === 1 / 0 )
+            return result;
+        result++;
+        if ( typeof x === "number" && 0 < x )
+            return result;
+        result++;
+        if ( typeof x === "string" )
+            return result;
+        result++;
+        if ( isArray( x ) )
+            return result;
+        
+        throw new Error();
+    }
+    function compareByBuiltIn( a, b ) {
+        if ( a < b )
+            return -1;
+        if ( b < a )
+            return 1;
+        return 0;
+    }
+    var compareByRank = compareByBuiltIn( rank( a ), rank( b ) );
+    if ( compareByRank !== 0 )
+        return compareByRank;
+    if ( typeof a === "string" || typeof a == "number" )
+        return compareByBuiltIn( a, b );
+    if ( isArray( a ) ) {
+        // We compare by lexicographic order.
+        for ( var i = 0, n = a.length, bn = b.length; i < n; i++ ) {
+            if ( bn <= i )
+                return 1;
+            var compareElem = compareByBuiltIn( a[ i ], b[ i ] );
+            if ( compareElem !== 0 )
+                return compareElem;
+        }
+        return 0;
+    }
+    throw new Error();
+}
+
 function JsnMap() {}
 JsnMap.prototype.init_ = function ( contents ) {
     this.contents_ = contents;
     return this;
 };
 function jsnMap() {
-    return new JsnMap().init_( strMap() );
+    return new JsnMap().init_( avlMap( function ( yoke, a, b, then ) {
+        return then( yoke, jsnCompare( a, b ) );
+    } ) );
 }
 JsnMap.prototype.has = function ( k ) {
-    return this.contents_.has( JSON.stringify( k ) );
+    var self = this;
+    return runSyncYoke( null, function ( yoke, then ) {
+        return self.contents_.getMaybe( yoke, k,
+            function ( yoke, result ) {
+            
+            return then( yoke, result === null ? false : true );
+        } );
+    } ).result;
 };
 JsnMap.prototype.get = function ( k ) {
-    return this.contents_.get( JSON.stringify( k ) ).v;
+    var self = this;
+    return runSyncYoke( null, function ( yoke, then ) {
+        return self.contents_.getMaybe( yoke, k,
+            function ( yoke, result ) {
+            
+            return then( yoke,
+                result === null ? void 0 : result.val );
+        } );
+    } ).result;
 };
 JsnMap.prototype.del = function ( k ) {
-    this.contents_.del( JSON.stringify( k ) );
-    return this;
+    var self = this;
+    self.contents_ = runSyncYoke( null, function ( yoke, then ) {
+        return self.contents_.minusEntry( yoke, k, then );
+    } ).result;
+    return self;
 };
 JsnMap.prototype.set = function ( k, v ) {
-    this.contents_.set( JSON.stringify( k ), { k: k, v: v } );
-    return this;
+    var self = this;
+    self.contents_ = runSyncYoke( null, function ( yoke, then ) {
+        return self.contents_.plusEntry( yoke, k, v, then );
+    } ).result;
+    return self;
 };
 JsnMap.prototype.setObj = function ( obj ) {
     var self = this;
     objOwnEach( obj, function ( k, v ) {
         self.set( k, v );
     } );
-    return this;
+    return self;
 };
 JsnMap.prototype.setAll = function ( other ) {
     if ( !(other instanceof JsnMap) )
         throw new Error();
-    this.contents_.setAll( other.contents_ );
-    return this;
+    var self = this;
+    self.contents_ = runSyncYoke( null, function ( yoke, then ) {
+        return self.contents_.plus( yoke, other.contents_, then );
+    } ).result;
+    return self;
 };
 JsnMap.prototype.delAll = function ( other ) {
     if ( !(other instanceof JsnMap) )
         throw new Error();
-    this.contents_.delAll( other.contents_ );
-    return this;
+    var self = this;
+    other.each( function ( k, v ) {
+        self.del( k );
+    } );
+    return self;
 };
 JsnMap.prototype.copy = function () {
-    return new JsnMap().init_( this.contents_.copy() );
+    return new JsnMap().init_( this.contents_ );
 };
 JsnMap.prototype.add = function ( k ) {
     return this.set( k, true );
@@ -932,9 +1016,14 @@ JsnMap.prototype.minus = function ( other ) {
 };
 // NOTE: This body takes its args as ( v, k ).
 JsnMap.prototype.any = function ( body ) {
-    return this.contents_.any( function ( kv, k ) {
-        return body( kv.v, kv.k );
-    } );
+    var self = this;
+    return runSyncYoke( null, function ( yoke, then ) {
+        return self.contents_.any( yoke,
+            function ( yoke, k, v, then ) {
+            
+            return then( yoke, body( v, k ) );
+        }, then );
+    } ).result;
 };
 JsnMap.prototype.hasAny = function () {
     return this.contents_.hasAny();
@@ -951,11 +1040,15 @@ JsnMap.prototype.each = function ( body ) {
 };
 // NOTE: This body takes its args as ( v, k ).
 JsnMap.prototype.map = function ( func ) {
-    return new JsnMap().init_( this.contents_.map(
-        function ( kv, k ) {
-        
-        return { k: k, v: func( kv.v, kv.k ) };
-    } ) );
+    var self = this;
+    var newContents = runSyncYoke( null, function ( yoke, then ) {
+        return self.contents_.map( yoke,
+            function ( yoke, k, v, then ) {
+            
+            return then( yoke, func( v, k ) );
+        }, then );
+    } ).result;
+    return new JsnMap().init_( newContents );
 };
 // NOTE: This body takes its args as ( v, k ).
 JsnMap.prototype.keep = function ( body ) {
