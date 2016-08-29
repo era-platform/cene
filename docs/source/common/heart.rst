@@ -24,13 +24,3 @@ clamor-err
 Construct with ``message``
 
 A clamor that recommends for the program to terminate with the indicated error message.
-
-
-.. _err:
-
-err
----
-
-Macro. Example: ``err.\;qq[Divided by zero]``
-
-Makes a call to :ref:`follow-heart` using a :ref:`clamor-err` with the given error message. This recommends for the program to terminate with that message.

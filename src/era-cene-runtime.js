@@ -2116,7 +2116,7 @@ function runTopLevelMacLookupsSync(
             return true;
         } else if (
             thread.monad.type === "get"
-            || thread.monad.type === "follow-heart"
+            || thread.monad.type === "followHeart"
             || thread.monad.type === "procureContributedElements" ) {
             return replaceThread(
                 macLookupThen( thread.monad, function ( ignored ) {
@@ -2361,9 +2361,7 @@ function cgenExecute( rt, expr ) {
         SinkDexStruct: SinkDexStruct,
         SinkFuseStruct: SinkFuseStruct,
         sinkForeignStrFromJs: sinkForeignStrFromJs,
-        mkClamorErr: mkClamorErr,
         macLookupRet: macLookupRet,
-        macLookupFollowHeart: macLookupFollowHeart,
         macLookupThen: macLookupThen
     } );
 }
@@ -2393,17 +2391,6 @@ function addDefun( rt, funcDefNs, rawMode, name, argName, body ) {
         
         return innerFunc( rt, argVal );
     } );
-}
-
-function cgenErr( msg ) {
-    // #GEN
-    
-    // NOTE: This doesn't use `mkClamorErr.of()` because that would be
-    // asynchronous.
-    return jsCode( jsCodeVar( "macLookupFollowHeart" ), "( ",
-        jsCodeVar( "mkClamorErr" ), ".ofNow( ",
-            jsCodeVar( "sinkForeignStrFromJs" ), "( " +
-                jsStr( msg ) + " ) ) )" );
 }
 
 function evalCgenForTest( rt, expr ) {
@@ -3434,21 +3421,6 @@ function usingFuncDefNs( funcDefNs ) {
         
         effectfulFun( "follow-heart", function ( rt, clamor ) {
             return macLookupFollowHeart( clamor );
-        } );
-        
-        mac( "err", function ( myStxDetails, body, then ) {
-            if ( !mkCons.tags( body ) )
-                throw new Error();
-            if ( mkCons.tags( mkCons.getProj( body, "cdr" ) ) )
-                throw new Error();
-            return function ( rawMode, nss ) {
-                return macLookupThenRunEffects( rawMode,
-                    then(
-                        cgenErr(
-                            stxToDefiniteString(
-                                mkCons.getProj(
-                                    body, "car" ) ).jsStr ) ) );
-            };
         } );
         
         mac( "str", function ( myStxDetails, body, then ) {

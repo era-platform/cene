@@ -19,9 +19,10 @@
     (caselet recur-result (map-any-foldl state rest combiner)
       yep result recur-result
       folding state rest (folding state /cons first rest)
-      err.\;qq[Internal error])
+      [follow-heart/clamor-err/str \;qq/Internal error])
     
-    err.\;qq[Expected a combiner-result of type yep or folding]))
+    [follow-heart/clamor-err/str \;qq/
+      Expected a combiner-result of type yep or folding]))
 
 (defn map-any list check
   (caselet fold-result
@@ -29,17 +30,19 @@
       (caselet check-result (c check elem)
         yep - check-result
         nope val (folding (nil) val)
-        err.\;qq[Expected a check-result of type yep or nope]))
+        [follow-heart/clamor-err/str \;qq/
+          Expected a check-result of type yep or nope]))
     yep - fold-result
     folding - val nope.val
-    err.\;qq[Internal error]))
+    [follow-heart/clamor-err/str \;qq/Internal error]))
 
 (defn any-foldl state list combiner
   (cast list cons first rest nope.state
   /caselet combiner-result (c combiner state first)
     yep result combiner-result
     nope result (any-foldl result rest combiner)
-    err.\;qq[Expected a combiner-result of type yep or nope]))
+    [follow-heart/clamor-err/str \;qq/
+      Expected a combiner-result of type yep or nope]))
 
 (defn foldl state list combiner
   (cast list cons first rest state
@@ -59,7 +62,7 @@
       /table-empty/nil)
       ns)
     yep result
-    err.\;qq[Internal error]
+    [follow-heart/clamor-err/str \;qq/Internal error]
     result))
 
 (defn ns-path ns path
@@ -72,7 +75,8 @@
   /caselet combiner-result (c combiner state first-a first-b)
     yep result combiner-result
     nope result (double-any-foldl result list-a list-b combiner)
-    err.\;qq[Expected a combiner-result of type yep or nope]))
+    [follow-heart/clamor-err/str \;qq/
+      Expected a combiner-result of type yep or nope]))
 
 (defn rev-append rev-past rest
   (foldl rest rev-past /fn state elem /cons elem state))
@@ -85,21 +89,24 @@
 
 (defn join-effects a b
   (cast (call-fuse (fuse-effects/nil) a b) yep result
-    err.\;qq[Expected both parts to be monadic computations]
+    [follow-heart/clamor-err/str \;qq/
+      Expected both parts to be monadic computations]
     result))
 
 (def-struct basic-macro-result effects expression)
 
 (defn basic-macro home-scope caller-scope my-stx-details then body
   (cast home-scope scope home-unique-ns home-def-ns home-qualify
-    err.\;qq[Expected a home-scope of type scope]
+    [follow-heart/clamor-err/str \;qq/
+      Expected a home-scope of type scope]
   /cast caller-scope
     scope caller-unique-ns caller-def-ns caller-qualify
-    err.\;qq[Expected a caller-scope of type scope]
+    [follow-heart/clamor-err/str \;qq/
+      Expected a caller-scope of type scope]
   /join-effects procure-claim.caller-unique-ns
   /make-promise-later/fn outbox-getdef
   /cast outbox-getdef getdef get-outbox outbox-definer
-    err.\;qq[Internal error]
+    [follow-heart/clamor-err/str \;qq/Internal error]
   /get-mode/fn mode
   /let s (fn it /stx my-stx-details it)
   /let mac
@@ -108,12 +115,13 @@
         (procure-macro-implementation-getdef home-def-ns
         /c home-qualify /name-of/dexable (dex-string/nil) str)
         getdef macro-get macro-definer
-        err.\;qq[Internal error]
+        [follow-heart/clamor-err/str \;qq/Internal error]
       /cons (c s /foreign/obtain-directly/c macro-get mode) rest))
   /join-effects (later/get-mode/fn mode /c then /c get-outbox mode)
   /cast (c body (ns-get str.body caller-unique-ns) s mac)
     basic-macro-result effects expression
-    err.\;qq[Expected a body result of type basic-macro-result]
+    [follow-heart/clamor-err/str \;qq/
+      Expected a body result of type basic-macro-result]
   /join-effects effects
   /compile-expression
     (scope (ns-get str.compilation caller-unique-ns)
@@ -135,6 +143,17 @@
   /fn unique-ns s mac
   /basic-macro-result (c body unique-ns s mac)
   /c s /c mac str.nil /nil))
+
+(def-macro err home-scope caller-scope my-stx-details args then
+  (cast args cons string args
+    [follow-heart/clamor-err/str \;qq/Called err with too few args]
+  /cast args nil
+    [follow-heart/clamor-err/str \;qq/Called err with too many args]
+  /basic-pure-macro home-scope caller-scope my-stx-details then
+  /fn unique-ns s mac
+  /c s /c mac str.follow-heart /list
+  /c s /c mac str.clamor-err /list
+  /c s /c mac str.str /list string))
 
 (def-macro list home-scope caller-scope my-stx-details args then
   (basic-pure-macro home-scope caller-scope my-stx-details then
