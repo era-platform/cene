@@ -98,7 +98,10 @@ function strAvlRotateBiggerToLesser( lesser, bigger, k, v, balance ) {
     }
 }
 
-function StrAvlLeaf_() {}
+function StrAvlLeaf_( compare ) {
+    this.compare_ = compare;
+    return this;
+}
 StrAvlLeaf_.prototype.has = function ( k ) {
     return false;
 };
@@ -132,14 +135,17 @@ function StrAvlBranch_( lesser, bigger, key, val, balance ) {
     this.key_ = key;
     this.val_ = val;
     this.balance_ = balance;
+    this.compare_ = lesser.compare_;
 }
 StrAvlBranch_.prototype.has = function ( k ) {
-    return this.key_ === k ? true :
-        k < this.key_ ? this.lesser_.has( k ) : this.bigger_.has( k );
+    var kVsKey = this.compare_( k, this.key_ );
+    return kVsKey === 0 ? true :
+        kVsKey < 0 ? this.lesser_.has( k ) : this.bigger_.has( k );
 };
 StrAvlBranch_.prototype.get = function ( k ) {
-    return this.key_ === k ? this.val_ :
-        k < this.key_ ? this.lesser_.get( k ) : this.bigger_.get( k );
+    var kVsKey = this.compare_( k, this.key_ );
+    return kVsKey === 0 ? this.val_ :
+        kVsKey < 0 ? this.lesser_.get( k ) : this.bigger_.get( k );
 };
 StrAvlBranch_.prototype.shrinkLesser_ = function ( lm ) {
     if ( !lm.depthDecreased )
@@ -158,7 +164,8 @@ StrAvlBranch_.prototype.shrinkBigger_ = function ( bm ) {
         this.lesser_, bm.after, this.key_, this.val_, this.balance_ );
 };
 StrAvlBranch_.prototype.minusEntry_ = function ( k ) {
-    if ( this.key_ === k ) {
+    var kVsKey = this.compare_( k, this.key_ );
+    if ( kVsKey === 0 ) {
         if ( this.balance_ === "lesser" ) {
             var lmb = this.lesser_.minusBiggest_();
             if ( lmb === null )
@@ -191,7 +198,7 @@ StrAvlBranch_.prototype.minusEntry_ = function ( k ) {
         } else {
             throw new Error();
         }
-    } else if ( k < this.key_ ) {
+    } else if ( kVsKey < 0 ) {
         return this.shrinkLesser_( this.lesser_.minusEntry_( k ) );
     } else {
         return this.shrinkBigger_( this.bigger_.minusEntry_( k ) );
@@ -215,11 +222,12 @@ StrAvlBranch_.prototype.minusBiggest_ = function () {
         shrunk: this.shrinkBigger_( bmb.shrunk ) };
 };
 StrAvlBranch_.prototype.plusEntry_ = function ( k, v ) {
-    if ( this.key_ === k )
+    var kVsKey = this.compare_( k, this.key_ );
+    if ( kVsKey === 0 )
         return { depthIncreased: false,
             after: new StrAvlBranch_(
                 this.lesser_, this.bigger_, k, v, this.balance_ ) };
-    if ( k < this.key_ ) {
+    if ( kVsKey < 0 ) {
         var subPlus = this.lesser_.plusEntry_( k, v );
         if ( !subPlus.depthIncreased )
             return { depthIncreased: false,
@@ -261,7 +269,9 @@ StrMap.prototype.init_ = function ( contents ) {
     return this;
 };
 function strMap() {
-    return new StrMap().init_( new StrAvlLeaf_() );
+    return new StrMap().init_( new StrAvlLeaf_( function ( a, b ) {
+        return a === b ? 0 : a < b ? -1 : 1;
+    } ) );
 }
 StrMap.prototype.has = function ( k ) {
     return this.contents_.has( k );
@@ -367,4 +377,23 @@ StrMap.prototype.each = function ( body ) {
 // NOTE: This body takes its args as ( v, k ).
 StrMap.prototype.map = function ( func ) {
     return new StrMap().init_( this.contents_.map( func ) );
+};
+// NOTE: This body takes its args as ( v, k ).
+StrMap.prototype.keep = function ( body ) {
+    var result = new StrMap().init_(
+        new StrAvlLeaf_( this.contents_.compare_ ) );
+    this.each( function ( k, v ) {
+        if ( body( v, k ) )
+            result.set( k, v );
+    } );
+    return result;
+};
+// NOTE: This body takes its args as ( k ).
+StrMap.prototype.mapKeys = function ( func ) {
+    var result = new StrMap().init_(
+        new StrAvlLeaf_( this.contents_.compare_ ) );
+    this.each( function ( k, v ) {
+        result.set( func( k ), v );
+    } );
+    return result;
 };
