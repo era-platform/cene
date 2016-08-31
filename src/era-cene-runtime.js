@@ -1846,7 +1846,7 @@ function collectDefer( rawMode, partialAttenuation, body ) {
         body: body
     } );
 }
-function runPuts( namespaceDefs, rawMode ) {
+function runPuts( namespaceDefs, rt, rawMode ) {
     
     
     // First we do sanity checks to make sure the puts are not
@@ -1938,8 +1938,12 @@ function runPuts( namespaceDefs, rawMode ) {
         var singletonTable = new SinkForeign( "table",
             jsnMap().plusEntry( put.definer.name, put.value ) );
         contribs.listeners.each( function ( k, v ) {
-            listenersFired.push(
-                { singletonTable: singletonTable, listener: v } );
+            listenersFired.push( {
+                attenuation: v.attenuation,
+                computation: function () {
+                    return v.listener.callSink( rt, singletonTable );
+                }
+            } );
         } );
     } );
     
@@ -1951,20 +1955,20 @@ function runPuts( namespaceDefs, rawMode ) {
         var contribs = getContributionTable( put.namespace.name );
         if ( contribs.listeners.has( put.name ) )
             throw new Error();
-        var listenerObj = {
-            attenuation: {
-                type: rawMode.type,
-                unitTestId: rawMode.unitTestId,
-                contributingOnlyTo: rawMode.contributingOnlyTo
-            },
-            listener: put.listener
+        var attenuation = {
+            type: rawMode.type,
+            unitTestId: rawMode.unitTestId,
+            contributingOnlyTo: rawMode.contributingOnlyTo
         };
         contribs.listeners.set( put.name, listenerObj );
         contribs.elements.each( function ( k, v ) {
             listenersFired.push( {
-                singletonTable: new SinkForeign( "table",
-                    jsnMap().plusEntry( k, v ) ),
-                listener: listenerObj
+                attenuation: attenuation,
+                computation: function () {
+                    return put.listener.callSink( rt,
+                        new SinkForeign( "table",
+                            jsnMap().plusEntry( k, v ) ) );
+                }
             } );
         } );
     } );
@@ -2019,14 +2023,13 @@ function runTopLevelMacLookupsSync(
             } ),
             function ( ignored ) {
             
-            var listenersFired = runPuts( namespaceDefs, rawMode );
+            var listenersFired =
+                runPuts( namespaceDefs, rt, rawMode );
             arrEach( listenersFired, function ( listenerFired ) {
-                addMacroThread( listenerFired.listener.attenuation,
+                addMacroThread( listenerFired.attenuation,
                     function ( rawMode ) {
                     
-                    return macLookupThen(
-                        listenerFired.listener.listener.callSink( rt,
-                            listenerFired.singletonTable ),
+                    return macLookupThen( listenerFired.computation(),
                         function ( effects ) {
                         
                         return currentlyMode( rawMode, function () {
@@ -2099,6 +2102,18 @@ function runTopLevelMacLookupsSync(
         }
     } );
     
+    var stats = {
+        shallowRet: 0,
+        shallowOther: 0,
+        ret: 0,
+        getContributedElementSuccess: 0,
+        getObjectSuccess: 0,
+        getContributedElementFailure: 0,
+        getObjectFailure: 0,
+        followHeart: 0,
+        procureContributedElements: 0,
+        then: 0
+    };
     function advanceThread( i ) {
         var thread = threads[ i ];
         
@@ -2112,25 +2127,9 @@ function runTopLevelMacLookupsSync(
             return true;
         }
         
-        if ( thread.monad.type === "ret" ) {
-            return true;
-        } else if (
-            thread.monad.type === "get"
-            || thread.monad.type === "follow-heart"
-            || thread.monad.type === "procureContributedElements" ) {
-            return replaceThread(
-                macLookupThen( thread.monad, function ( ignored ) {
-                    return macLookupRet( null );
-                } ) );
-        } else if ( thread.monad.type === "then" ) {
+        if ( thread.monad.type === "then" ) {
             var then = thread.monad.then;
-            if ( thread.monad.first.type === "ret" ) {
-                return replaceThread(
-                    currentlyThread( thread, function () {
-                        return then( thread.monad.first.val );
-                    } ) );
-            } else if ( thread.monad.first.type === "get" ) {
-                
+            if ( thread.monad.first.type === "get" ) {
                 var definer = thread.monad.first.definer;
                 
                 currentlyThread( thread, function () {
@@ -2157,15 +2156,45 @@ function runTopLevelMacLookupsSync(
                 }
                 
                 if ( maybeValue !== null ) {
+                    if ( definer.type === "contributedElement" ) {
+                        stats.getContributedElementSuccess++;
+                    } else if ( definer.type === "object" ) {
+                        stats.getObjectSuccess++;
+                    } else {
+                        throw new Error();
+                    }
                     return replaceThread(
                         currentlyThread( thread, function () {
                             return then( maybeValue.val );
                         } ) );
                 } else {
+                    if ( definer.type === "contributedElement" ) {
+                        stats.getContributedElementFailure++;
+                    } else if ( definer.type === "object" ) {
+                        stats.getObjectFailure++;
+                    } else {
+                        throw new Error();
+                    }
                     thread.failedAdvances++;
                     return false;
                 }
+            } else if ( thread.monad.first.type === "ret" ) {
+                stats.ret++;
+                return replaceThread(
+                    currentlyThread( thread, function () {
+                        return then( thread.monad.first.val );
+                    } ) );
+            } else if ( thread.monad.first.type === "then" ) {
+                stats.then++;
+                return replaceThread( macLookupThen(
+                    thread.monad.first.first,
+                    function ( val ) {
+                    
+                    var firstThen = thread.monad.first.then;
+                    return macLookupThen( firstThen( val ), then );
+                } ) );
             } else if ( thread.monad.first.type === "followHeart" ) {
+                stats.followHeart++;
                 var clamor = thread.monad.first.clamor;
                 
                 var unknownClamor = function () {
@@ -2185,6 +2214,7 @@ function runTopLevelMacLookupsSync(
                 
             } else if ( thread.monad.first.type ===
                 "procureContributedElements" ) {
+                stats.procureContributedElements++;
                 
                 // We check that the current thread has stopped
                 // contributing to this state.
@@ -2214,17 +2244,21 @@ function runTopLevelMacLookupsSync(
                     currentlyThread( thread, function () {
                         return then( result );
                     } ) );
-            } else if ( thread.monad.first.type === "then" ) {
-                return replaceThread( macLookupThen(
-                    thread.monad.first.first,
-                    function ( val ) {
-                    
-                    var firstThen = thread.monad.first.then;
-                    return macLookupThen( firstThen( val ), then );
-                } ) );
             } else {
                 throw new Error();
             }
+        } else if ( thread.monad.type === "ret" ) {
+            stats.shallowRet++;
+            return true;
+        } else if (
+            thread.monad.type === "get"
+            || thread.monad.type === "follow-heart"
+            || thread.monad.type === "procureContributedElements" ) {
+            stats.shallowOther++;
+            return replaceThread(
+                macLookupThen( thread.monad, function ( ignored ) {
+                    return macLookupRet( null );
+                } ) );
         } else {
             throw new Error();
         }
@@ -2343,6 +2377,8 @@ function runTopLevelMacLookupsSync(
         raiseErrorsForStalledThread( thread );
         rt.anyTestFailed = true;
     } );
+    
+    console.log( stats );
 }
 
 function cgenExecute( rt, expr ) {
@@ -2997,7 +3033,7 @@ function usingFuncDefNs( funcDefNs ) {
     function commitDummyMode( namespaceDefs, rawMode ) {
         if ( rawMode.type !== "dummy-mode" )
             throw new Error();
-        var listenersFired = runPuts( namespaceDefs, rawMode );
+        var listenersFired = runPuts( namespaceDefs, rt, rawMode );
         if ( listenersFired.length !== 0 )
             throw new Error();
     }
