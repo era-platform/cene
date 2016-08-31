@@ -349,6 +349,12 @@ function sinkForeignStrFromPadded( paddedStr ) {
     } );
 }
 
+var sinkForeignEffectsNil = new SinkForeign( "effects",
+    function ( rawMode ) {
+    
+    return macLookupRet( mkNil.ofNow() );
+} );
+
 function macLookupRet( result ) {
     return { type: "ret", val: result };
 }
@@ -1846,6 +1852,26 @@ function collectDefer( rawMode, partialAttenuation, body ) {
         body: body
     } );
 }
+function getContributionTable( namespaceDefs, name ) {
+    if ( !namespaceDefs.has( name ) )
+        namespaceDefs.set( name, {
+            elements: jsnMap(),
+            listeners: jsnMap()
+        } );
+    return namespaceDefs.get( name );
+}
+function getContributionEntry(
+    namespaceDefs, namespaceName, entryName ) {
+    
+    var table =
+        getContributionTable( namespaceDefs, namespaceName ).elements;
+    if ( !table.has( entryName ) )
+        table.set( entryName, {
+            maybeValue: null,
+            directListeners: []
+        } );
+    return table.get( entryName );
+}
 function runPuts( namespaceDefs, rt, rawMode ) {
     
     
@@ -1878,9 +1904,8 @@ function runPuts( namespaceDefs, rt, rawMode ) {
     
     assertJsnUnique( putDefinedContributedElements, function ( put ) {
         var nsName = put.definer.namespace.name;
-        if ( namespaceDefs.has( nsName )
-            && namespaceDefs.get( nsName
-                ).elements.has( put.definer.name ) )
+        if ( getContributionEntry( namespaceDefs,
+            nsName, put.definer.name ).maybeValue !== null )
             throw new Error();
         return [ nsName, put.definer.name ];
     } );
@@ -1918,27 +1943,28 @@ function runPuts( namespaceDefs, rt, rawMode ) {
     
     var listenersFired = [];
     
-    function getContributionTable( name ) {
-        if ( !namespaceDefs.has( name ) )
-            namespaceDefs.set( name, {
-                elements: jsnMap(),
-                listeners: jsnMap()
-            } );
-        return namespaceDefs.get( name );
-    }
-    
     // NOTE: This adds the `listenersFired` entries for preexisting
     // listeners and new elements.
     arrEach( putDefinedContributedElements, function ( put ) {
-        var contribs =
-            getContributionTable( put.definer.namespace.name );
-        if ( contribs.elements.has( put.definer.name ) )
+        var contribsTable = getContributionTable(
+            namespaceDefs, put.definer.namespace.name );
+        var contribsEntry = getContributionEntry( namespaceDefs,
+            put.definer.namespace.name, put.definer.name );
+        if ( contribsEntry.maybeValue !== null )
             throw new Error();
-        contribs.elements.set( put.definer.name, put.value );
+        
+        contribsEntry.maybeValue = { val: put.value };
+        
+        arrEach( contribsEntry.directListeners, function ( dl ) {
+            listenersFired.push( dl );
+        } );
+        contribsEntry.directListeners = null;
+        
         var singletonTable = new SinkForeign( "table",
             jsnMap().plusEntry( put.definer.name, put.value ) );
-        contribs.listeners.each( function ( k, v ) {
+        contribsTable.listeners.each( function ( k, v ) {
             listenersFired.push( {
+                type: "collectiveListener",
                 attenuation: v.attenuation,
                 computation: function () {
                     return v.listener.callSink( rt, singletonTable );
@@ -1952,7 +1978,8 @@ function runPuts( namespaceDefs, rt, rawMode ) {
     // elements. It includes both old and new elements because the new
     // elements were already added above.
     arrEach( rawMode.putListener, function ( put ) {
-        var contribs = getContributionTable( put.namespace.name );
+        var contribs =
+            getContributionTable( namespaceDefs, put.namespace.name );
         if ( contribs.listeners.has( put.name ) )
             throw new Error();
         var attenuation = {
@@ -1963,6 +1990,7 @@ function runPuts( namespaceDefs, rt, rawMode ) {
         contribs.listeners.set( put.name, listenerObj );
         contribs.elements.each( function ( k, v ) {
             listenersFired.push( {
+                type: "collectiveListener",
                 attenuation: attenuation,
                 computation: function () {
                     return put.listener.callSink( rt,
@@ -2026,17 +2054,28 @@ function runTopLevelMacLookupsSync(
             var listenersFired =
                 runPuts( namespaceDefs, rt, rawMode );
             arrEach( listenersFired, function ( listenerFired ) {
-                addMacroThread( listenerFired.attenuation,
-                    function ( rawMode ) {
+                if ( listenerFired.type === "directListener" ) {
+                    threads.push( listenerFired.thread );
+                } else if (
+                    listenerFired.type === "collectiveListener" ) {
                     
-                    return macLookupThen( listenerFired.computation(),
-                        function ( effects ) {
+                    addMacroThread( listenerFired.attenuation,
+                        function ( rawMode ) {
                         
-                        return currentlyMode( rawMode, function () {
-                            return runEffects( rawMode, effects );
+                        return macLookupThen(
+                            listenerFired.computation(),
+                            function ( effects ) {
+                            
+                            return currentlyMode( rawMode,
+                                function () {
+                                
+                                return runEffects( rawMode, effects );
+                            } );
                         } );
                     } );
-                } );
+                } else {
+                    throw new Error();
+                }
             } );
             arrEach( rawMode.defer, function ( deferred ) {
                 addMacroThread( deferred.attenuation,
@@ -2139,16 +2178,10 @@ function runTopLevelMacLookupsSync(
                 } );
                 
                 if ( definer.type === "contributedElement" ) {
-                    var maybeValue = null;
-                    var k = definer.namespace.name;
-                    if ( namespaceDefs.has( k ) ) {
-                        var contributions = namespaceDefs.get( k );
-                        if ( contributions.elements.has(
-                            definer.name ) )
-                            maybeValue = { val:
-                                contributions.elements.get(
-                                    definer.name ) };
-                    }
+                    var contributionEntry = getContributionEntry(
+                        namespaceDefs,
+                        definer.namespace.name, definer.name );
+                    var maybeValue = contributionEntry.maybeValue;
                 } else if ( definer.type === "object" ) {
                     var maybeValue = definer.value;
                 } else {
@@ -2170,13 +2203,19 @@ function runTopLevelMacLookupsSync(
                 } else {
                     if ( definer.type === "contributedElement" ) {
                         stats.getContributedElementFailure++;
+                        contributionEntry.directListeners.push( {
+                            type: "directListener",
+                            thread: thread
+                        } );
+                        return replaceThread(
+                            macLookupRet( sinkForeignEffectsNil ) );
                     } else if ( definer.type === "object" ) {
                         stats.getObjectFailure++;
+                        thread.failedAdvances++;
+                        return false;
                     } else {
                         throw new Error();
                     }
-                    thread.failedAdvances++;
-                    return false;
                 }
             } else if ( thread.monad.first.type === "ret" ) {
                 stats.ret++;
@@ -2237,9 +2276,9 @@ function runTopLevelMacLookupsSync(
                 }
                 
                 var result = new SinkForeign( "table",
-                    (namespaceDefs.get(
-                        thread.monad.first.namespace.name )
-                        || { elements: jsnMap() }).elements );
+                    getContributionTable( namespaceDefs,
+                        thread.monad.first.namespace.name ).elements
+                );
                 return replaceThread(
                     currentlyThread( thread, function () {
                         return then( result );
@@ -2264,13 +2303,11 @@ function runTopLevelMacLookupsSync(
         }
     }
     
-    function raiseErrorsForStalledThread( thread ) {
+    function raiseErrorsForStalledThread( err ) {
         // TODO: Stop using `setTimeout` here. We don't typically use
         // `setTimeout` directly if we can use a user-supplied defer
         // procedure instead.
         setTimeout( function () {
-            var err = thread.monad.first.err;
-            
             // TODO: Throwing an error and then catching it and
             // logging it like this is a little odd. See if we should
             // refactor this. For a while, we just threw an error, but
@@ -2348,15 +2385,39 @@ function runTopLevelMacLookupsSync(
     
     // We raise errors for any threads that have stalled due to
     // blocking on definitions that will never come.
-    if ( arrAnyButKeepGoing( threads, function ( thread ) {
+    //
+    // NOTE: Some of the threads aren't in the `threads` array, but
+    // are instead scattered on individual entries in the
+    // `namespaceDefs` data. We probably pay a bit of a performance
+    // cost looking them up here, but the savings from not iterating
+    // over all those dead threads during macroexpansion more than
+    // makes up for it.
+    //
+    var hadError = false;
+    arrEach( threads, function ( thread, i ) {
         if ( thread.isJs )
-            return false;
+            return;
         
-        raiseErrorsForStalledThread( thread );
+        raiseErrorsForStalledThread( thread.monad.first.err );
+        hadError = true;
+    } );
+    namespaceDefs.each( function ( nsName, contributionTable ) {
+        contributionTable.elements.each( function ( keyName, entry ) {
+            if ( entry.directListeners === null )
+                return;
+            arrEach( entry.directListeners, function ( listener, i ) {
+                if ( listener.type !== "directListener" )
+                    throw new Error();
+                raiseErrorsForStalledThread(
+                    listener.thread.monad.first.err );
+                hadError = true;
+            } );
+        } );
+    } );
+    if ( hadError ) {
         rt.anyTestFailed = true;
-        return true;
-    } ) )
         return;
+    }
     
     // If no threads have stalled, we advance every thread, now
     // including the threads which can perform JavaScript side
@@ -2374,7 +2435,7 @@ function runTopLevelMacLookupsSync(
     // We raise errors for any threads that have stalled due to
     // blocking on definitions that will never come.
     arrEach( threads.slice(), function ( thread ) {
-        raiseErrorsForStalledThread( thread );
+        raiseErrorsForStalledThread( thread.monad.first.err );
         rt.anyTestFailed = true;
     } );
     
@@ -3164,11 +3225,7 @@ function usingFuncDefNs( funcDefNs ) {
                                     jsCodeRetCgenVar( firstArg ) ) );
                             
                             return macLookupRet(
-                                new SinkForeign( "effects",
-                                    function ( rawMode ) {
-                                
-                                return macLookupRet( mkNil.ofNow() );
-                            } ) );
+                                sinkForeignEffectsNil );
                         } );
                     } );
                     
