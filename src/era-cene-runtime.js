@@ -2141,18 +2141,44 @@ function runTopLevelMacLookupsSync(
         }
     } );
     
-    var stats = {
-        shallowRet: 0,
-        shallowOther: 0,
-        ret: 0,
-        getContributedElementSuccess: 0,
-        getObjectSuccess: 0,
-        getContributedElementFailure: 0,
-        getObjectFailure: 0,
-        followHeart: 0,
-        procureContributedElements: 0,
-        then: 0
-    };
+    // NOTE: This statistics-gathering code came in handy to notice an
+    // optimization opportunity. The `getContributedElementFailure`
+    // total was very high (1339630), so we moved threads that were
+    // doing those blocking reads to be stored with the element entry,
+    // instead of iterating over them every time we advanced the
+    // threads. (We could probably optimize `getObjectFailure` in a
+    // similar way, but we haven't bothered yet.)
+    //
+    // Here's the last outcome from when we had this code uncommented:
+    //
+    // {
+    //     shallowRet: 0,
+    //     shallowOther: 0,
+    //     ret: 133957,
+    //     getContributedElementSuccess: 11270,
+    //     getObjectSuccess: 106,
+    //     getContributedElementFailure: 6571,
+    //     getObjectFailure: 15736,
+    //     followHeart: 0,
+    //     procureContributedElements: 0,
+    //     then: 118453
+    // }
+    //
+    // If anything's the bottleneck now, it seems to be `ret` or
+    // `then`.
+    //
+//    var stats = {
+//        shallowRet: 0,
+//        shallowOther: 0,
+//        ret: 0,
+//        getContributedElementSuccess: 0,
+//        getObjectSuccess: 0,
+//        getContributedElementFailure: 0,
+//        getObjectFailure: 0,
+//        followHeart: 0,
+//        procureContributedElements: 0,
+//        then: 0
+//    };
     function advanceThread( i ) {
         var thread = threads[ i ];
         
@@ -2189,20 +2215,20 @@ function runTopLevelMacLookupsSync(
                 }
                 
                 if ( maybeValue !== null ) {
-                    if ( definer.type === "contributedElement" ) {
-                        stats.getContributedElementSuccess++;
-                    } else if ( definer.type === "object" ) {
-                        stats.getObjectSuccess++;
-                    } else {
-                        throw new Error();
-                    }
+//                    if ( definer.type === "contributedElement" ) {
+//                        stats.getContributedElementSuccess++;
+//                    } else if ( definer.type === "object" ) {
+//                        stats.getObjectSuccess++;
+//                    } else {
+//                        throw new Error();
+//                    }
                     return replaceThread(
                         currentlyThread( thread, function () {
                             return then( maybeValue.val );
                         } ) );
                 } else {
                     if ( definer.type === "contributedElement" ) {
-                        stats.getContributedElementFailure++;
+//                        stats.getContributedElementFailure++;
                         contributionEntry.directListeners.push( {
                             type: "directListener",
                             thread: thread
@@ -2210,7 +2236,7 @@ function runTopLevelMacLookupsSync(
                         return replaceThread(
                             macLookupRet( sinkForeignEffectsNil ) );
                     } else if ( definer.type === "object" ) {
-                        stats.getObjectFailure++;
+//                        stats.getObjectFailure++;
                         thread.failedAdvances++;
                         return false;
                     } else {
@@ -2218,13 +2244,13 @@ function runTopLevelMacLookupsSync(
                     }
                 }
             } else if ( thread.monad.first.type === "ret" ) {
-                stats.ret++;
+//                stats.ret++;
                 return replaceThread(
                     currentlyThread( thread, function () {
                         return then( thread.monad.first.val );
                     } ) );
             } else if ( thread.monad.first.type === "then" ) {
-                stats.then++;
+//                stats.then++;
                 return replaceThread( macLookupThen(
                     thread.monad.first.first,
                     function ( val ) {
@@ -2233,7 +2259,7 @@ function runTopLevelMacLookupsSync(
                     return macLookupThen( firstThen( val ), then );
                 } ) );
             } else if ( thread.monad.first.type === "followHeart" ) {
-                stats.followHeart++;
+//                stats.followHeart++;
                 var clamor = thread.monad.first.clamor;
                 
                 var unknownClamor = function () {
@@ -2253,7 +2279,7 @@ function runTopLevelMacLookupsSync(
                 
             } else if ( thread.monad.first.type ===
                 "procureContributedElements" ) {
-                stats.procureContributedElements++;
+//                stats.procureContributedElements++;
                 
                 // We check that the current thread has stopped
                 // contributing to this state.
@@ -2287,13 +2313,13 @@ function runTopLevelMacLookupsSync(
                 throw new Error();
             }
         } else if ( thread.monad.type === "ret" ) {
-            stats.shallowRet++;
+//            stats.shallowRet++;
             return true;
         } else if (
             thread.monad.type === "get"
             || thread.monad.type === "follow-heart"
             || thread.monad.type === "procureContributedElements" ) {
-            stats.shallowOther++;
+//            stats.shallowOther++;
             return replaceThread(
                 macLookupThen( thread.monad, function ( ignored ) {
                     return macLookupRet( null );
@@ -2439,7 +2465,7 @@ function runTopLevelMacLookupsSync(
         rt.anyTestFailed = true;
     } );
     
-    console.log( stats );
+//    console.log( stats );
 }
 
 function cgenExecute( rt, expr ) {
