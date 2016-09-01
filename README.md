@@ -1,5 +1,7 @@
 # Cene
 
+<img title="Cene logo" width="166" height="166" src="notes/logo/cene-logo-rough-small.png" align="right">
+
 [![Travis build](https://travis-ci.org/rocketnia/era-cene.svg?branch=master)](https://travis-ci.org/rocketnia/era-cene)
 
 [Run some Cene code in your browser, logging to the console.](https://rocketnia.github.io/era-cene/demos/cene.html)
