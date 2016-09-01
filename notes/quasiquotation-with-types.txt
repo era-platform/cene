@@ -164,8 +164,108 @@ Let's answer no, but let's still make it possible to express this when needed. W
   (handshake-type-lexical-namespace -)
   Ignores its argument, and returns the handshake type of lexical namespaces. If function types are introduced to this system, they should not usually be capable of taking parameters of this type. Think of it as a kinding distinction. The point is that a lexical namespace can't actually leave the lexical region where it makes sense.
   
-  (handshake-let-fresh-lexical-namespace lexical-namespace-handshake-expr)
+  (handshake-bind-fresh-lexical-namespace lexical-namespace-handshake-expr)
   Given a handshake expression (or rather more of a handshake pattern), introduces a binding to that expression with a fresh lexical namespace.
   
   (handshake-expr-lexical-namespace lexical-namespace var)
   Given a handshake expression that returns a lexical namespace and a handshake expression, evaluates the expression in the given namespace. This can be used as a pattern or as an expression.
+
+-----
+
+We have a model for quasiquotation syntax now, but it's not a closed type; we can only make handshakes, not take them apart. Here's an attempt at describing the quasiquotation result, the kind of value macros would take as input.
+
+Here's a really compelling illustration of the relationship between lists (bounded by parens) and s-expressions (bounded by quasiquotations):
+
+  -- Void
+  E0 : * -> *
+  E0 a = 0
+  
+  -- Unit
+  E1 : * -> *
+  E1 a = 1 + a * E0 (E1 a)
+  
+  -- Optional `a`
+  E2 : * -> *
+  E2 a = 1 + a * E1 (E2 a)
+  
+  -- List of `a`
+  E3 : * -> *
+  E3 a = 1 + a * E2 (E3 a)
+  
+  -- Optional s-expression with parenthesis variants from `a`
+  E4 : * -> *
+  E4 a = 1 + a * E3 (E4 a)
+
+Each type is capable of representing all the values of the type before. To get a representation of any dimension we want, we just need to close the loop:
+
+  E : * -> *
+  E a = 1 + a * E (E a)
+
+Our standard handshake type fits in snugly as our preferred value of `a`. That is, if `H` is the handshake type, we deal with expressions of type `E H`.
+
+Building a macro system in this syntax is almost uncannily simple. If we have a value of type `H * E (E H)`, then we can consult the `H` component to determine what macro to call.
+
+What if we have a value on the `1` branch? That's where the current type breaks down. The only reason for the `1` branch was to stop the tree so that it wouldn't be infinite.
+
+Now we can adapt this type to suit the application we actually want.
+
+The macroexpander will stop when it reaches something it trivially knows how to compile.
+
+The macros themselves will be handshakes as we've been describing, and those form a monoid, so we'll need *composable macros*. A composition of two macros behaves like the outer one applied to a macro call of the inner one. To support the monoid identity law, a composition of zero macros just proceeds to macroexpand its body.
+
+The syntax we traverse can have features in it other than expressions. Often those features are interpolated string literals, but generally they follow the monad laws. For compatibility with the handshakes' monoid laws, the monad laws are exactly what we need: A syntax of a handshake call of a syntax of a handshake call of an expression is equivalent to the monad-binded syntax of the monoid-joined handshake of the expression. A singleton syntax of an expression is equivalent to a singleton syntax of the monoid-identity handshake of the expression.
+
+So here's a type that does all of that, which we'll call q-expressions:
+
+  -- Either a q-expression is trivial for us to compile in the current dimension, or we have to compile it by compiling two higher-dimensional q-expressions to obtain a handshake and a macro body, then passing the macro body to the handshake's macro behavior. The macro body itself is a current-dimensional q-expression, and of course it is; prepending an empty handshake to an expression has no effect on its dimensionality.
+  QExpr : (* -> *) -> * -> *
+  QExpr f a = f a + QExpr f (Handshake f a) * QExpr f (QExpr f a)
+
+It still resembles `E a = 1 + a * E (E a)` a little bit. The `1` has become `f a`, and the `a *` has become a handshake. It turns out we explore *two* "higher dimensions" from a given dimension of q-expressions. One is a higher-dimensional syntax whose semantics is the current-dimensional q-expression syntax, and one is a higher-dimensional syntax whose semantics is a the current-dimensional space of handshakes.
+
+The `f` functor here is the syntax monad we're riding on. It can be as simple as the identity functor `(\a -> a)` if we have nothing like interpolated string literals to support.
+
+Here's some surrounding infrastructure for that q-expression type:
+
+  -- We just have these as placeholders with no implementation. They would typically be responsible for accessing the macro's scope (which we now consider to work according to the handshake-pairing rules), performing side effects to aid in type inference, and filling a hole along the way with the macro result.
+  MacroIO : * -> *
+  macroIoReturn : (a : *) -> MacroIO a
+  macroIoBind : (a : *) -> (b : *) -> MacroIO a -> (a -> MacroIO b) -> MacroIO b
+  
+  -- Potentially, we'll add `handshake-bind-label`, `handshake-consume-label`, `handshake-restore-label`, `handshake-let`, `handshake-quote`, and `handshake-bind-fresh-lexical-namespace` as well. For now, we just implement the support for `handshake-empty`, `handshake-join`, `handshake-reverse`, and a macro embedded as a compile-time first-class function.
+  Handshake : (* -> *) -> * -> *
+  data Handshake f a where
+    MkHandshakeEmpty : (f : * -> *) -> (a : *) -> Handshake f a
+    MkHandshakeJoin : (f : * -> *) -> (a : *) -> Handshake f a -> Handshake f a -> Handshake f a
+    MkHandshakeMacro : (f : * -> *) -> (a : *) -> (QExpr f a -> MacroIO (f a)) -> Handshake f a
+  
+  macroexpand : (f : * -> *) -> Monad f -> (a : *) -> QExpr f a -> MacroIO (f a)
+  macroexpand _ _ _ (Left compiledProgram) = macroIoReturn (f a) compiledProgram
+  macroexpand f (m @ MkMonad return bind monadLaws) a (Right (handshake * macroBody)) =
+    macroIoBind (f (Handshake f a)) (f a) (macroexpand f m (Handshake f a) handshake) \handshake ->
+    macroIoBind (f (QExpr f a)) (f a) (macroexpand f m (QExpr f a) macroBody) \macroBody ->
+    macroIoReturn (f a) (
+      bind (Handshake f a) a handshake \handshake ->
+      bind (QExpr f a) a macroBody \macroBody ->
+      handshaketoMacro f m a handshake macroBody
+    )
+  
+  handshakeToMacro : (f : * -> *) -> Monad f -> (a : *) -> Handshake f a -> QExpr f a -> MacroIO (f a)
+  handshakeToMacro f m a (MkHandshakeEmpty _ _) = macroexpand f m a
+  handshakeToMacro f m a (MkHandshakeJoin _ _ (MkHandshakeEmpty _ _) inner) =
+    handshakeToMacro f m a inner
+  handshakeToMacro f m a (MkHandshakeJoin _ _ (MkHandshakeJoin _ _ outer middle) inner) =
+    handshakeToMacro f m a (MkHandshakeJoin f a outer (MkHandshakeJoin f a middle inner))
+  handshakeToMacro f m a (MkHandshakeJoin _ _ (MkHandshakeMacro _ _ outer) inner) macroBody =
+    outer (Right (Left (return (Handshake f a) inner) * Left (return (QExpr f a) macroBody)))
+  handshakeToMacro f m a (MkHandshakeMacro _ _ macro) = macro
+  
+  handshakeReverse : (f : * -> *) -> (a : *) -> Handshake f a -> Handshake f a
+  handshakeReverse f a (MkHandshakeEmpty f a) = MkHandshakeEmpty f a
+  handshakeReverse f a (MkHandshakeJoin f a oldOuter newOuter) = MkHandshakeJoin f a newOuter oldOuter
+  -- TODO: We have a macro reorient itself when it's reversed. See if we should treat this as an error instead. We should probably do whatever we do for other "atom" handshakes... but the thing is, we have no other atoms in the design. When a handshake that acts as a paren does a traversal, should it treat a `MkHandshakeMacro` and its reversal as "matching up"?
+  handshakeReverse f a (MkHandshakeMacro f a macro) = MkHandshakeMacro f a macro
+
+TODO: Add `handshake-quote-let` to this model.
+
+TODO: Er, what happens if someone passes in a label to a `handshake-quote-let`? Maybe the types used by `handshake-let` and `handshake-quote-let` serve different purposes, hence should be separate type systems (or maybe not a syntactic distinction so much as a kinding one).
