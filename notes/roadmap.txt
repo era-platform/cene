@@ -1,7 +1,5 @@
 Immediate actionable tasks:
 
-Make all the built-in macros generate the `cexpr-...` values instead of generating their own JavaScript code directly. Once we do this, derive `compile-expression-later` from the `cexpr-...` primitives instead of having `compile-expression` built in.
-
 Implement and use `committing-to-define` and `committing-to-define-function-implementations`.
 
 Refactor the entire "File I/O for simple builds" system so that it looks like it could use namespaces, but doesn't actually use any sub-namespaces the Cene code has access to.
@@ -21,7 +19,7 @@ Consider renaming "mode" to "world" throughout.
 See if there's any real point to calling things "...-later", since errors that happen in the "later" portion are escalated to invalidate the prior portion anyway. Maybe we even want the mode to remain current across these operations. That could make it confusing when some operations change the mode and others don't.
 Consider renaming `test-async` to `test`.
 Consider renaming `contributing-only-to` and the `committing-...` operations to `...-later`, since they "change" the current mode.
-Reconsider the parameters to `macro-stx-details`. The mode really should be the current mode if the call is going to do anything with `unique-ns` and `definition-ns`, but why does it need those? It would probably be more relevant for this value to reify the identity of the macro definition itself, or at least contain a struct with a tag unique to that macro definition.
+Consider whether we could pass any useful parameters to `trivial-stx-details` (making it less trivial). It would probably be relevant for this value to reify the identity of the macro definition, or at least contain a name or struct unique to that macro definition.
 Implement `read-all-force` instead of having it built in.
 Consider making `int-compare` a dex, which would make it the first visibly ordered dex. If we ever want a merge for dexes, a dex like this could be a problem.
 Implement the `--command` command line option.

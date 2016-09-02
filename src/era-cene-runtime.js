@@ -4,14 +4,8 @@
 // This file implements the main Cene runtime and built-in operators.
 
 
-// NOTE: We've tagged code with "#GEN" if it generates JavaScript code
-// strings using `JsCode` from era-code-gen-js.js.
-//
-// TODO: For each of these, make sure user-defined macros can produce
-// these kinds of generated code with sufficient flexibility. If they
-// have to look up the built-in macros to do it, that's probably not
-// good enough; macro calls sometimes require namespaces when there's
-// no namespace really needed for this task, etc.
+// NOTE: We've tagged code with "#GEN" if it's part of the JavaScript
+// compilation target.
 //
 // TODO: It would be nice to update the JavaScript FFI so that it's
 // not repeatedly evaluating JavaScript code strings at run time. We
@@ -52,22 +46,9 @@ function jsCodeRetCgenVar( identifier ) {
 
 
 function cgenCallArr( func, argsArr ) {
-    // #GEN
     var result = func;
     arrEach( argsArr, function ( arg ) {
-        result = jsCode(
-            jsCodeVar( "macLookupThen" ), "( ", result, ", " +
-                "function ( cgenLocal_result ) {\n" +
-            "    \n" +
-            "    return macLookupThen( ",
-                arg.assertNotFreeVars(
-                    [ "cgenLocal_result" ] ), ", " +
-                    "function ( cgenLocal_arg ) {\n" +
-            "        \n" +
-            "        return cgenLocal_result.callSink( rt, " +
-                        "cgenLocal_arg );\n" +
-            "    } );\n" +
-            "} )" );
+        result = new CexprCall( result, arg );
     } );
     return result;
 }
@@ -136,12 +117,7 @@ function nameCompare( a, b ) {
 }
 
 function makeFlatTag( mainTagName, sortedProjNames ) {
-    return JSON.stringify( [
-        mainTagName,
-        arrMap( sortedProjNames, function ( entry ) {
-            return entry.rep;
-        } )
-    ] );
+    return JSON.stringify( [ mainTagName, sortedProjNames ] );
 }
 function cgenStructArr( repMainTagName, projSourceToRep ) {
     var sortedProjNames = arrMap( projSourceToRep,
@@ -173,7 +149,10 @@ function cgenStructArr( repMainTagName, projSourceToRep ) {
             rep: entry.rep
         };
     } );
-    var flatTag = makeFlatTag( repMainTagName, sortedProjNames );
+    var flatTag = makeFlatTag( repMainTagName,
+        arrMap( sortedProjNames, function ( entry ) {
+            return entry.rep;
+        } ) );
     var n = projSourceToRep.length;
     
     var result = {};
@@ -196,40 +175,13 @@ function cgenStructArr( repMainTagName, projSourceToRep ) {
         return x.projVals[ i ];
     };
     result.ofArr = function ( args ) {
-        // #GEN
         if ( args.length !== n )
             throw new Error();
         
-        var projectionVals =
-            arrMap( sortedProjNames, function ( entry ) {
-                return args[ entry.i ];
-            } );
-        
-        var projectionVars = arrMap( projectionVals,
-            function ( entry, i ) {
-            
-            return "cgenLocal_proj" + i;
-        } );
-        var result = jsCode( jsCodeVar( "macLookupRet" ), "( " +
-            "new ", jsCodeVar( "SinkStruct" ), "( " +
-                jsStr( flatTag ) + ", [ ",
-                
-                arrMappend( projectionVars, function ( projVar, i ) {
-                    return [ ", ", jsCodeVar( projVar ) ];
-                } ).slice( 1 ),
-            " ] ) )" );
-        for ( var i = n - 1; 0 <= i; i-- ) {
-            var projVar = projectionVars[ i ];
-            result = jsCode( jsCodeVar( "macLookupThen" ), "( ",
-                projectionVals[ i ].assertNotFreeVars(
-                    projectionVars ),
-                ", " +
-                "function ( " + projVar + " ) {\n" +
-            
-            "return ", result.minusFreeVars( [ projVar ] ), ";\n" +
-            "} )" );
-        }
-        return result;
+        return new CexprConstruct( repMainTagName,
+            arrMap( sortedProjNames, function ( entry, i ) {
+                return { name: entry.rep, expr: args[ entry.i ] };
+            } ) );
     };
     result.of = function ( var_args ) {
         return this.ofArr( [].slice.call( arguments, 0 ) );
@@ -387,7 +339,7 @@ function prettifyFlatTag( flatTag ) {
     var parsed = JSON.parse( flatTag );
     var mainTagName = parsed[ 0 ];
     if ( mainTagName[ 0 ] === "n:main-core" )
-        return mainTagName[ 1 ];
+        return mainTagName[ 1 ][ 1 ];
     return flatTag;
 }
 
@@ -1275,6 +1227,16 @@ CexprReified.prototype.getFreeVars = function () {
 };
 CexprReified.prototype.toJsCode = function () {
     // #GEN
+    
+    // For values that are strings, we actually encode them inline in
+    // the generated code so that it's easier to debug the compiler
+    // output.
+    if ( this.val instanceof SinkForeign
+        && this.val.purpose === "string" )
+        return jsCode( jsCodeVar( "macLookupRet" ), "( ",
+            jsCodeVar( "sinkForeignStrFromJs" ), "( " +
+                jsStr( this.val.foreignVal.jsStr ) + " ) )" );
+    
     return jsCodeReified( this.val );
 };
 CexprReified.prototype.getName = function () {
@@ -1313,7 +1275,7 @@ CexprLet.prototype.toJsCode = function () {
     } );
     arrEach( bindings, function ( binding, i ) {
         return binding.jsCode.assertNotFreeVars(
-            obscureVars.concat( innerVars ) );
+            obscureVars.concat( obscureVars ) );
     } );
     var body = this.body.toJsCode().assertNotFreeVars( obscureVars );
     
@@ -1432,7 +1394,7 @@ CexprCase.prototype.toJsCode = function () {
                 [ "cgenLocal_matchSubject" ]
             ).minusFreeVars(
                 arrMap( this.bindings, function ( binding, i ) {
-                    return binding.local;
+                    return cgenIdentifier( binding.local );
                 } ) ), "; " +
         "})(); " +
         
@@ -1514,8 +1476,9 @@ function classCexprStructMapper(
             var projVar =
                 projectionVars[ this.projections[ i ].sortedI ];
             result = jsCode( jsCodeVar( "macLookupThen" ), "( ",
-                this.projections[ i ].expr.assertNotFreeVars(
-                    projectionVars ),
+                this.projections[ i
+                    ].expr.toJsCode().assertNotFreeVars(
+                        projectionVars ),
                 ", " +
                 "function ( " + projVar + " ) {\n" +
             
@@ -1548,13 +1511,14 @@ function classCexprStructMapperOrdered(
         function ( flatTag, sortedProjections, order ) {
         
         return genJsConstructor(
-            jsStr( flatTag ) + ", " +
-            "[ ", arrMappend( order, function ( sortedI, i ) {
-                return [ ", ", jsCode( "{ " +
-                    "i: " + JSON.stringify( sortedI ) + ", " +
-                    "val: ", sortedProjections[ sortedI ], " " +
-                "}" ) ];
-            } ).slice( 1 ), " ]" );
+            jsCode(
+                jsStr( flatTag ) + ", " +
+                "[ ", arrMappend( order, function ( sortedI, i ) {
+                    return [ ", ", jsCode( "{ " +
+                        "i: " + JSON.stringify( sortedI ) + ", " +
+                        "val: ", sortedProjections[ sortedI ], " " +
+                    "}" ) ];
+                } ).slice( 1 ), " ]" ) );
     } );
 }
 var CexprConstruct = classCexprStructMapper( "n:cexpr-construct",
@@ -1590,6 +1554,63 @@ var CexprFuseStruct = classCexprStructMapperOrdered(
         "\"n:fuse-struct\", \"fuse-struct\", \"fuse\", ",
         args, " )" );
 } );
+function CexprErr( msg ) {
+    this.msg = msg;
+}
+CexprErr.prototype.getFreeVars = function () {
+    return jsnMap();
+};
+CexprErr.prototype.toJsCode = function () {
+    return jsCode( jsCodeVar( "sinkErr" ), "( " +
+        jsStr( this.msg ) + " )" );
+};
+CexprErr.prototype.getName = function () {
+    // NOTE: We only have `CexprErr` for the sake of efficiency. For
+    // other purposes, we can treat it as this other cexpr.
+    return new CexprCall(
+        new CexprConstruct( [ "n:main-core", "follow-heart" ], [] ),
+        mkClamorErr.of(
+            new CexprReified( sinkForeignStrFromJs( this.msg ) ) )
+    ).getName();
+};
+CexprErr.prototype.pretty = function () {
+    return "(cexpr-err " + jsStr( this.msg ) + ")";
+};
+function CexprFn( param, body ) {
+    this.param = param;
+    this.body = body;
+}
+CexprFn.prototype.getFreeVars = function () {
+    return this.body.getFreeVars().minus( [ this.param ] );
+};
+CexprFn.prototype.toJsCode = function () {
+    // #GEN
+    var va = cgenIdentifier( this.param );
+    return jsCode(
+        jsCodeVar( "macLookupRet" ), "( " +
+            "new ", jsCodeVar( "SinkFn" ), "( " +
+                "function ( rt, " + va + " ) { " +
+            
+            "return ", this.body.toJsCode().minusFreeVars(
+                [ "rt", va ] ), "; " +
+        "} ) )" );
+};
+CexprFn.prototype.getName = function () {
+    // NOTE: We only have `CexprFn` for the sake of efficiency.
+    // However, the cexpr we would otherwise use involves a function
+    // definition that we don't actually define right now, so there's
+    // no cexpr we can use here.
+    //
+    // The `getName` of a cexpr is never called anyway, at this point.
+    // The rest of the `getName` implementations here are just in case
+    // we need them.
+    //
+    throw new Error();
+};
+CexprFn.prototype.pretty = function () {
+    return "(cexpr-fn " +
+        JSON.stringify( this.param ) + " " + this.body.pretty() + ")";
+};
 
 
 var builtInStructAccumulator = { val: null };
@@ -2484,9 +2505,8 @@ function cgenExecute( rt, expr ) {
         SinkDexStruct: SinkDexStruct,
         SinkFuseStruct: SinkFuseStruct,
         sinkForeignStrFromJs: sinkForeignStrFromJs,
-        mkClamorErr: mkClamorErr,
+        sinkErr: sinkErr,
         macLookupRet: macLookupRet,
-        macLookupFollowHeart: macLookupFollowHeart,
         macLookupThen: macLookupThen
     } );
 }
@@ -2507,7 +2527,7 @@ function addDefun( rt, funcDefNs, rawMode, name, argName, body ) {
     var innerFunc = cgenExecute( rt,
         jsCode(
             "function ( rt, " + argVar + " ) { " +
-                "return ", body.minusFreeVars(
+                "return ", body.toJsCode().minusFreeVars(
                     [ "rt", argVar ] ), "; " +
             "}" ) );
     addFunctionNativeDefinition(
@@ -2518,19 +2538,16 @@ function addDefun( rt, funcDefNs, rawMode, name, argName, body ) {
     } );
 }
 
-function cgenErr( msg ) {
-    // #GEN
-    
-    // NOTE: This doesn't use `mkClamorErr.of()` because that would be
-    // asynchronous.
-    return jsCode( jsCodeVar( "macLookupFollowHeart" ), "( ",
-        jsCodeVar( "mkClamorErr" ), ".ofNow( ",
-            jsCodeVar( "sinkForeignStrFromJs" ), "( " +
-                jsStr( msg ) + " ) ) )" );
-}
-
-function evalCgenForTest( rt, expr ) {
-    return cgenExecute( rt, expr );
+// TODO: Start using this to report errors instead of
+// `throw new Error()` everywhere.
+//
+// Not all places that use `throw new Error()` should change to this.
+// Some indicate bugs in the language implementation, and it might
+// make sense to handle those differently.
+//
+function sinkErr( msg ) {
+    return macLookupFollowHeart(
+        mkClamorErr.ofNow( sinkForeignStrFromJs( msg ) ) );
 }
 
 function usingFuncDefNs( funcDefNs ) {
@@ -2754,9 +2771,17 @@ function usingFuncDefNs( funcDefNs ) {
             return loop( 0, [], mkCons.getProj( body, "cdr" ) );
             function loop( i, localVars, remainingBody ) {
                 if ( n <= i ) {
+                    var bindingsMap = jsnMap();
+                    arrEach( struct.sortedProjNames,
+                        function ( projName, i ) {
+                        
+                        bindingsMap.set( projName.rep,
+                            localVars[ projName.i ] );
+                    } );
+                    
                     var result = {};
                     result.struct = struct;
-                    result.localVars = localVars;
+                    result.bindingsMap = bindingsMap;
                     result.remainingBody = remainingBody;
                     return macLookupRet( result );
                 }
@@ -2781,7 +2806,8 @@ function usingFuncDefNs( funcDefNs ) {
     function cgenCaseletForRunner(
         nss, rawMode, maybeVa, matchSubject, body, then ) {
         
-        // #GEN
+        var subjectVar = maybeVa !== null ? maybeVa.val :
+            nssGet( nss, "subject-var" ).uniqueNs.name;
         
         function processTail( nss, rawMode, body, then ) {
             if ( !mkCons.tags( body ) )
@@ -2791,12 +2817,7 @@ function usingFuncDefNs( funcDefNs ) {
                 return macroexpand( nssGet( nss, "unique" ), rawMode,
                     mkCons.getProj( body, "car" ),
                     nssGet( nss, "outbox" ).uniqueNs,
-                    function ( rawMode, expanded ) {
-                    
-                    return then( rawMode,
-                        jsCode( "return ", expanded.assertNotFreeVars(
-                            [ "cgenLocal_matchSubject" ] ), "; " ) );
-                } );
+                    then );
             
             return macLookupThen( extractPattern( nss, body ),
                 function ( pattern ) {
@@ -2812,33 +2833,16 @@ function usingFuncDefNs( funcDefNs ) {
                 function ( rawMode, thenBranch ) {
             
             var els = mkCons.getProj( pattern.remainingBody, "cdr" );
-            
             return processTail( nssGet( nss, "tail" ), rawMode, els,
                 function ( rawMode, processedTail ) {
             
-            return then( rawMode, jsCode( "if ( ",
-                jsCodeVar( "cgenLocal_matchSubject" ), " " +
-                    "instanceof ", jsCodeVar( "SinkStruct" ), " " +
-                "&& cgenLocal_matchSubject.flatTag === " +
-                    jsStr( pattern.struct.getFlatTag() ) + " " +
-            ") return (function () { " +
-                arrMap( pattern.struct.sortedProjNames,
-                    function ( entry, i ) {
-                    
-                    return "var " +
-                        cgenIdentifier(
-                            pattern.localVars[ entry.i ] ) +
-                        " = " +
-                        "cgenLocal_matchSubject.projVals[ " +
-                            i + " ]; ";
-                } ).join( "" ) +
-                "return ", thenBranch.assertNotFreeVars(
-                    [ "cgenLocal_matchSubject" ]
-                ).minusFreeVars(
-                    arrMap( pattern.localVars, function ( va, i ) {
-                        return cgenIdentifier( va );
-                    } ) ), "; " +
-            "})(); ", processedTail ) );
+            return then( rawMode,
+                new CexprCase(
+                    new CexprVar( subjectVar ),
+                    pattern.struct.repMainTagName,
+                    pattern.bindingsMap,
+                    thenBranch,
+                    processedTail ) );
             
             } );
             
@@ -2857,19 +2861,9 @@ function usingFuncDefNs( funcDefNs ) {
         
         return macLookupThenRunEffects( rawMode,
             then(
-                jsCode( jsCodeVar( "macLookupThen" ), "( ",
-                    expandedSubject, ", " +
-                    "function ( cgenLocal_matchSubject ) { " +
-                    
-                    (maybeVa === null ? "" :
-                        "var " +
-                            cgenIdentifier( maybeVa.val ) + " = " +
-                            "cgenLocal_matchSubject; "),
-                    processedTail.minusFreeVars( [].concat(
-                        (maybeVa === null ? [] :
-                            [ cgenIdentifier( maybeVa.val ) ]),
-                        [ "cgenLocal_matchSubject" ] ) ),
-                "} )" ) ) );
+                new CexprLet(
+                    [ { k: subjectVar, v: expandedSubject } ],
+                    processedTail ) ) );
         
         } );
         } );
@@ -2877,7 +2871,6 @@ function usingFuncDefNs( funcDefNs ) {
     
     // TODO: Make this expand multiple expressions concurrently.
     function cgenCast( nss, rawMode, matchSubject, body, then ) {
-        // #GEN
         return macLookupThen( extractPattern( nss, body ),
             function ( pattern ) {
         
@@ -2909,35 +2902,12 @@ function usingFuncDefNs( funcDefNs ) {
         
         return macLookupThenRunEffects( rawMode,
             then(
-                jsCode(
-                    jsCodeVar( "macLookupThen" ), "( ",
-                        expandedSubject, ", " +
-                        "function ( cgenLocal_matchSubject ) { " +
-                        
-                        "if ( cgenLocal_matchSubject instanceof ",
-                                jsCodeVar( "SinkStruct" ), " " +
-                            "&& cgenLocal_matchSubject.flatTag === " +
-                                jsStr( pattern.struct.getFlatTag() ) +
-                            " " +
-                        ") return (function () { " +
-                            arrMap( pattern.struct.sortedProjNames,
-                                function ( entry, i ) {
-                                
-                                return "var " +
-                                    cgenIdentifier( pattern.localVars[ entry.i ] ) + " = " +
-                                    "cgenLocal_matchSubject.projVals[ " + i + " ]; ";
-                            } ).join( "" ) +
-                            "return ", body.assertNotFreeVars(
-                                [ "cgenLocal_matchSubject" ]
-                            ).minusFreeVars(
-                                arrMap( pattern.localVars,
-                                    function ( va, i ) {
-                                        return cgenIdentifier( va );
-                                    } ) ), "; " +
-                        "})(); " +
-                        "return ", onCastErr.assertNotFreeVars(
-                            [ "cgenLocal_matchSubject" ] ), "; " +
-                    "} )" ) ) );
+                new CexprCase(
+                    expandedSubject,
+                    pattern.struct.repMainTagName,
+                    pattern.bindingsMap,
+                    body,
+                    onCastErr ) ) );
         
         } );
         } );
@@ -2947,7 +2917,6 @@ function usingFuncDefNs( funcDefNs ) {
     }
     
     function processFn( rt, nss, rawMode, body, then ) {
-        // #GEN
         if ( !mkCons.tags( body ) )
             throw new Error();
         var body1 = mkCons.getProj( body, "cdr" );
@@ -2969,16 +2938,8 @@ function usingFuncDefNs( funcDefNs ) {
             return processFn( rt, nss, rawMode, body1,
                 function ( rawMode, processedRest ) {
                 
-                var va = cgenIdentifier( paramName );
                 return then( rawMode,
-                    jsCode(
-                        jsCodeVar( "macLookupRet" ), "( " +
-                            "new ", jsCodeVar( "SinkFn" ), "( " +
-                                "function ( rt, " + va + " ) { " +
-                            
-                            "return ", processedRest.minusFreeVars(
-                                [ "rt", va ] ), "; " +
-                        "} ) )" ) );
+                    new CexprFn( paramName, processedRest ) );
             } );
         } );
     }
@@ -3081,7 +3042,7 @@ function usingFuncDefNs( funcDefNs ) {
                                     function ( code ) {
                                     
                                     return then.callSink( rt,
-                                        new SinkForeign( "compiled-code", code ) );
+                                        new SinkCexpr( code ) );
                                 } ),
                                 function ( effectsImpl ) {
                                 
@@ -3208,7 +3169,6 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         mac( "defn", function ( myStxDetails, body, then ) {
-            // #GEN
             if ( !mkCons.tags( body ) )
                 throw new Error();
             var body1 = mkCons.getProj( body, "cdr" );
@@ -3248,7 +3208,7 @@ function usingFuncDefNs( funcDefNs ) {
                                 repMainTagName,
                                 firstArg,
                                 cgenCall( processedFn,
-                                    jsCodeRetCgenVar( firstArg ) ) );
+                                    new CexprVar( firstArg ) ) );
                             
                             return macLookupRet(
                                 sinkForeignEffectsNil );
@@ -3277,7 +3237,8 @@ function usingFuncDefNs( funcDefNs ) {
                     function ( name ) {
                 return processFn( rt, nss, rawMode, body1,
                     function ( rawMode, processedFn ) {
-                return macLookupThen( cgenExecute( rt, processedFn ),
+                return macLookupThen(
+                    cgenExecute( rt, processedFn.toJsCode() ),
                     function ( executedFn ) {
                 return macLookupThen(
                     executedFn.callSink( rt,
@@ -3338,7 +3299,8 @@ function usingFuncDefNs( funcDefNs ) {
                             function ( rawMode, then ) {
                             
                             return macLookupThen(
-                                evalCgenForTest( rt, expanded ),
+                                cgenExecute( rt,
+                                    expanded.toJsCode() ),
                                 function ( evaluated ) {
                                 
                                 return then( rawMode, evaluated );
@@ -3526,14 +3488,18 @@ function usingFuncDefNs( funcDefNs ) {
             };
         } );
         
-        function stxToDefiniteString( stx ) {
+        function stxToDefiniteSinkString( stx ) {
             if ( !mkStx.tags( stx ) )
                 throw new Error();
             var istringNil = mkStx.getProj( stx, "s-expr" );
             if ( !mkIstringNil.tags( istringNil ) )
                 throw new Error();
-            return parseString(
-                mkIstringNil.getProj( istringNil, "string" ) );
+            var result = mkIstringNil.getProj( istringNil, "string" );
+            parseString( result );
+            return result;
+        }
+        function stxToDefiniteString( stx ) {
+            return parseString( stxToDefiniteSinkString( stx ) );
         }
         
         function assertValidDexable( rt, x, then ) {
@@ -3555,6 +3521,8 @@ function usingFuncDefNs( funcDefNs ) {
             return macLookupFollowHeart( clamor );
         } );
         
+        // OPTIMIZATION: While `err` could be derived instead of built
+        // in, that seems to slow things down too much.
         mac( "err", function ( myStxDetails, body, then ) {
             if ( !mkCons.tags( body ) )
                 throw new Error();
@@ -3563,7 +3531,7 @@ function usingFuncDefNs( funcDefNs ) {
             return function ( rawMode, nss ) {
                 return macLookupThenRunEffects( rawMode,
                     then(
-                        cgenErr(
+                        new CexprErr(
                             stxToDefiniteString(
                                 mkCons.getProj(
                                     body, "car" ) ).jsStr ) ) );
@@ -3571,7 +3539,6 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         mac( "str", function ( myStxDetails, body, then ) {
-            // #GEN
             if ( !mkCons.tags( body ) )
                 throw new Error();
             if ( mkCons.tags( mkCons.getProj( body, "cdr" ) ) )
@@ -3579,12 +3546,10 @@ function usingFuncDefNs( funcDefNs ) {
             return function ( rawMode, nss ) {
                 return macLookupThenRunEffects( rawMode,
                     then(
-                        jsCode(
-                            jsCodeVar( "macLookupRet" ), "( ",
-                                jsCodeVar( "sinkForeignStrFromJs" ), "( " +
-                                    jsStr(
-                                        stxToDefiniteString( mkCons.getProj( body, "car" ) ).jsStr ) +
-                                    " ) )" ) ) );
+                        new CexprReified(
+                            stxToDefiniteSinkString(
+                                mkCons.getProj(
+                                    body, "car" ) ) ) ) );
             };
         } );
         
@@ -3618,11 +3583,9 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         mac( "let", function ( myStxDetails, body, then ) {
-            // #GEN
             return function ( rawMode, nss ) {
                 return loop( rawMode, nss, 0,
-                    body, nssGet( nss, "bindings" ),
-                    [], [], jsCode( "" ),
+                    body, nssGet( nss, "bindings" ), [],
                     function ( rawMode, code ) {
                     
                     return macLookupThenRunEffects( rawMode,
@@ -3631,8 +3594,8 @@ function usingFuncDefNs( funcDefNs ) {
             };
             
             function loop( rawMode, nss, i,
-                remainingBody, bindingsNss,
-                innerVars, obscureVars, obscureVarsCode, then ) {
+                remainingBody, bindingsNss, bindings,
+                then ) {
                 
                 if ( !mkCons.tags( remainingBody ) )
                     throw new Error();
@@ -3647,13 +3610,7 @@ function usingFuncDefNs( funcDefNs ) {
                         function ( rawMode, body ) {
                         
                         return then( rawMode,
-                            jsCode(
-                                "(function () {\n",
-                                obscureVarsCode,
-                                "return ", body.assertNotFreeVars(
-                                    obscureVars ).minusFreeVars(
-                                    innerVars ), ";\n" +
-                                "})()" ) );
+                            new CexprLet( bindings, body ) );
                     } );
                 }
                 
@@ -3668,30 +3625,12 @@ function usingFuncDefNs( funcDefNs ) {
                     nssGet( firstNss, "outbox" ).uniqueNs,
                     function ( rawMode, bindingVal ) {
                     
-                    var innerVar = cgenIdentifier( va );
-                    var obscureVar = "cgenLocal_" + i;
-                    
                     return loop( rawMode, nss, i + 1,
                         mkCons.getProj( remainingBody1, "cdr" ),
                         nssGet( bindingsNss, "rest" ),
-                        innerVars.concat( [ innerVar ] ),
-                        obscureVars.concat( [ obscureVar ] ),
-                        jsCode( obscureVarsCode,
-                            "var " + innerVar + " = ",
-                                jsCodeVar( obscureVar ), ";\n" ),
-                        function ( rawMode, loopResult ) {
-                        
-                        return then( rawMode,
-                            jsCode(
-                                jsCodeVar( "macLookupThen" ), "( ",
-                                    bindingVal.assertNotFreeVars(
-                                        obscureVars ), ", " +
-                                "function ( " +
-                                    obscureVar + " ) {\n" +
-                            "return ", loopResult.minusFreeVars(
-                                [ obscureVar ] ), ";\n" +
-                            "} )" ) );
-                    } );
+                        bindings.concat(
+                            [ { k: va, v: bindingVal } ] ),
+                        then );
                 } );
                 
                 } );
@@ -3700,9 +3639,7 @@ function usingFuncDefNs( funcDefNs ) {
         
         // TODO: Make this expand multiple subexpressions
         // concurrently.
-        function structMapper( body, then, genJsConstructor ) {
-            
-            // #GEN
+        function structMapper( body, then, CexprConstructor ) {
             
             if ( !mkCons.tags( body ) )
                 throw new Error();
@@ -3748,8 +3685,8 @@ function usingFuncDefNs( funcDefNs ) {
                         struct,
                         i + 1,
                         { first:
-                            { i: struct.unsortedProjNames[ i ].i,
-                                val: projVal },
+                            { name: struct.unsortedProjNames[ i ].rep,
+                                expr: projVal },
                             rest: revProjVals },
                         mkCons.getProj( remainingBody, "cdr" ) );
                 } );
@@ -3761,47 +3698,15 @@ function usingFuncDefNs( funcDefNs ) {
                 if ( mkCons.tags( remainingBody ) )
                     throw new Error();
                 
-                var projVals = revJsListToArr( revProjVals );
-                
-                var result = jsCode(
-                    jsCodeVar( "macLookupRet" ), "( ",
-                        genJsConstructor(
-                            jsCode(
-                                jsStr( struct.getFlatTag() ) + ", " +
-                                "[ ",
-                                
-                                arrMappend( projVals,
-                                    function ( entry, i ) {
-                                    
-                                    return [ ", ", jsCode( "{ " +
-                                        "i: " + JSON.stringify( entry.i ) + ", " +
-                                        "val: ", jsCodeVar( "cgenLocal_proj" + i ), " " +
-                                    "}" ) ];
-                                } ).slice( 1 ), " " +
-                            "]" ) ), " )" );
-                for ( var i = projVals.length - 1; 0 <= i; i-- ) {
-                    var projVar = "cgenLocal_proj" + i;
-                    result = jsCode(
-                        jsCodeVar( "macLookupThen" ), "( ",
-                            projVals[ i ].val, ", " +
-                            "function ( " + projVar + " ) {\n" +
-                        
-                        "return ", result.minusFreeVars(
-                            [ projVar ] ), ";\n" +
-                        "} )" );
-                }
                 return macLookupThenRunEffects( rawMode,
-                    then( result ) );
+                    then(
+                        new CexprConstructor( struct.repMainTagName,
+                            revJsListToArr( revProjVals ) ) ) );
             }
         }
         
         mac( "dex-struct", function ( myStxDetails, body, then ) {
-            // #GEN
-            return structMapper( body, then, function ( args ) {
-                return jsCode(
-                    "new ", jsCodeVar( "SinkDexStruct" ), "( ",
-                        args, " )" );
-            } );
+            return structMapper( body, then, CexprDexStruct );
         } );
         
         fun( "dex-default", function ( rt, first ) {
@@ -3914,13 +3819,7 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         mac( "merge-struct", function ( myStxDetails, body, then ) {
-            // #GEN
-            return structMapper( body, then, function ( args ) {
-                return jsCode(
-                    "new ", jsCodeVar( "SinkFuseStruct" ), "( " +
-                        "\"n:merge-struct\", \"merge-struct\", " +
-                        "\"merge\", ", args, " )" );
-            } );
+            return structMapper( body, then, CexprMergeStruct );
         } );
         
         fun( "merge-default", function ( rt, first ) {
@@ -3976,13 +3875,7 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         mac( "fuse-struct", function ( myStxDetails, body, then ) {
-            // #GEN
-            return structMapper( body, then, function ( args ) {
-                return jsCode(
-                    "new ", jsCodeVar( "SinkFuseStruct" ), "( " +
-                        "\"n:fuse-struct\", \"fuse-struct\", " +
-                        "\"fuse\", ", args, " )" );
-            } );
+            return structMapper( body, then, CexprFuseStruct );
         } );
         
         fun( "fuse-default", function ( rt, first ) {
@@ -4996,23 +4889,10 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
-        fun( "compiled-code-from-cexpr", function ( rt, cexpr ) {
-            if ( !(cexpr instanceof SinkCexpr) )
-                throw new Error();
-            
-            if ( cexpr.cexpr.getFreeVars().hasAny() )
-                throw new Error();
-            
-            return new SinkForeign( "compiled-code",
-                cexpr.cexpr.toJsCode() );
-        } );
-        
         // NOTE: This is the only way to establish a function behavior
         // for a struct that has more than zero projections.
         fun( "function-implementation-from-cexpr",
             function ( rt, cexpr ) {
-            
-            // #GEN
             
             if ( !(cexpr instanceof SinkCexpr) )
                 throw new Error();
@@ -5029,14 +4909,8 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
-        fun( "macro-stx-details", function ( rt, mode ) {
-            return sinkFnPure( function ( rt, uniqueNs ) {
-                return sinkFnPure( function ( rt, definitionNs ) {
-                    return sinkFnPure( function ( rt, stx ) {
-                        return sinkTrivialStxDetails();
-                    } );
-                } );
-            } );
+        fun( "trivial-stx-details", function ( rt, ignored ) {
+            return sinkTrivialStxDetails();
         } );
         
         fun( "contributing-only-to",
@@ -5377,25 +5251,6 @@ function usingFuncDefNs( funcDefNs ) {
             return mkNil.ofNow();
         } );
         
-        fun( "compile-expression", function ( rt, callerScope ) {
-            return sinkFnPure( function ( rt, stx ) {
-                return sinkFnPure( function ( rt, outDefiner ) {
-                    var nss = parseScope( callerScope );
-                    
-                    if ( !(outDefiner instanceof SinkForeign
-                        && outDefiner.purpose === "definer") )
-                        throw new Error();
-                    
-                    return new SinkForeign( "effects",
-                        function ( rawMode ) {
-                        
-                        return macroexpandToDefiner( nss, rawMode,
-                            stx, outDefiner.foreignVal );
-                    } );
-                } );
-            } );
-        } );
-        
         fun( "get-mode", function ( rt, body ) {
             return new SinkForeign( "effects", function ( rawMode ) {
                 return macLookupThenRunEffects( rawMode,
@@ -5423,7 +5278,6 @@ function usingFuncDefNs( funcDefNs ) {
     function macroexpandToDefiner(
         nss, rawMode, locatedExpr, outDefiner ) {
         
-        // #GEN
         collectDefer( rawMode, {}, function ( rawMode ) {
             return stxToMaybeName( rt, nss, locatedExpr,
                 function ( identifier ) {
@@ -5438,8 +5292,8 @@ function usingFuncDefNs( funcDefNs ) {
                         // `JsCode#assertNoFreeVars()`, but that's not
                         // aware of Cene variable names.
                         collectPutDefined( rawMode, outDefiner,
-                            new SinkForeign( "compiled-code",
-                                jsCodeRetCgenVar( identifier ) ) );
+                            new SinkCexpr(
+                                new CexprVar( identifier ) ) );
                         return macLookupRet( mkNil.ofNow() );
                     } ) );
             
@@ -5521,13 +5375,12 @@ function usingFuncDefNs( funcDefNs ) {
                 } ),
                 function ( macroResult ) {
                 
-                if ( !(macroResult instanceof SinkForeign
-                    && macroResult.purpose === "compiled-code") )
+                if ( !(macroResult instanceof SinkCexpr) )
                     throw new Error();
                 return macLookupRet( new SinkForeign( "effects",
                     function ( rawMode ) {
                     
-                    return then( rawMode, macroResult.foreignVal );
+                    return then( rawMode, macroResult.cexpr );
                 } ) );
             } );
         } );

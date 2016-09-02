@@ -31,7 +31,9 @@ foreign
 
 Construct with ``val``
 
-An s-expression that consists of any first-class value, but usually an (:ref:`obtain-by-unqualified-name` ...), an (:ref:`obtain-by-qualified-name` ...), an (:ref:`obtain-directly` ...), or a name. The program may not know of a way to encode the name as serializable data, but it can still be passed to (:ref:`compile-expression` ...).
+An s-expression that consists of any first-class value.
+
+Most of the built-in macros expect a value embedded this way to be an (:ref:`obtain-by-unqualified-name` ...), an (:ref:`obtain-by-qualified-name` ...), or an (:ref:`obtain-directly` ...).
 
 
 .. _scope:
@@ -86,14 +88,14 @@ Construct with ``stx-details s-expr``
 An s-expression tagged with source location information.
 
 
-.. _macro-stx-details:
+.. _trivial-stx-details:
 
-macro-stx-details
------------------
+trivial-stx-details
+-------------------
 
-Call with ``mode unique-ns definition-ns stx``
+Call with ``(ignored)``
 
-Constructs a syntax details object that refers to a macro's input, so that the macro's output can be associated with it. The ``stx`` must be a located cons list whose first element is a string or foreign name referring to a macro. The ``mode`` doesn't need to be the current modality; it's just part of the macro call information.
+Returns a syntax details object that conveys no information.
 
 
 .. _procure-claim:
@@ -168,29 +170,19 @@ Call with ``mode cexpr``
 Given a compiled expression, executes it to produce a result. The compiled expression must have no free variables. The given mode must be current, and it must allow for macroexpansion-time side effects.
 
 
-.. _compiled-code-from-cexpr:
+.. _compile-expression-later:
 
-compiled-code-from-cexpr
+compile-expression-later
 ------------------------
 
-Call with ``cexpr``
+Call with ``caller-scope stx (fn result)``
 
-Given a compiled expression, returns compiled code in a format suitable for a macroexpansion result. The compiled expression must have no free variables.
+Monadically, macroexpands the given ``stx`` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks, and either monadically invokes the given callback with the resulting compiled expression itself, or passes the callback on to a macro implementation to do it.
 
-.. todo:: Refactor macroexpansion so it expects a compiled expression, instead of having two different formats for this.
-
-
-.. _compile-expression:
-
-compile-expression
-------------------
-
-Call with ``caller-scope stx out-definer``
-
-Monadically, macroexpands the given ``stx`` in a later tick, allowing the macro calls to monadically install definitions over the course of any number of ticks and produce compiled code in a format suitable for a macroexpansion result. If the compiled code is successfully computed, it is defined in the given ``out-definer``.
+.. note:: This isn't a built-in operation. It's defined in era-prelude.cene.
 
 ..
-  TODO: Decide if this should conform to the ``...-later`` calling convention with a simple callback or if all the ``...-later`` utilities should instead conform to the :ref:`compile-expression` calling convention with an ``out-definer``.
+  TODO: Since this isn't a builtin, put this documentation somewhere else. We'll probably want a place for documenting the contents of era-prelude.cene, but that's a very volatile area. They'll be out of date fast.
 
 
 .. _read-all-force:
@@ -239,6 +231,6 @@ The ``caller-scope``'s ``qualify``: A function that takes an unqualified name an
 
 ``args``: The cons list of (:ref:`stx` ``stx-details s-expr``) values that correspond to the subexpressions at the macro call site.
 
-``then``: A callable value that takes compiled code (the result of :ref:`compile-expression`) and returns a monadic effect. Invoking this effect causes the compiled code to be used as the macro result. The macro must invoke this effect exactly once, or else there's an error. The effect doesn't necessarily need to be invoked right away; the macro can use :ref:`later` to invoke more effects in a future tick.
+``then``: A callable value that takes a compiled expression and returns a monadic effect. Invoking this effect causes the compiled expression to be used as the macro result. A macro should invoke this effect exactly once. The effect doesn't necessarily need to be invoked right away; the macro can use :ref:`later` to invoke more effects in a future tick.
 
 The macro's return value is a monadic effect, which will be invoked by the macroexpander.
