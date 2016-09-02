@@ -88,6 +88,71 @@
     err.\;qq[Expected both parts to be monadic computations]
     result))
 
+(defn stx-to-obtain-method scope stx
+  (cast scope scope - -b qualify
+    err.\;qq[Expected a scope value of type scope]
+  /cast stx stx - sexpr
+    err.\;qq[Expected a stx value of type stx]
+  /case sexpr
+    
+    foreign val
+    (yep/case val
+      
+      obtain-by-unqualified-name name
+      (obtain-by-qualified-name/c qualify name)
+      
+      obtain-by-qualified-name name val
+      
+      val)
+    
+    istring-nil string
+    (yep/obtain-by-qualified-name
+    /c qualify /name-of/dexable (dex-string/nil) string)
+    
+  /nil))
+
+(defn stx-to-maybe-name scope stx
+  (cast (stx-to-obtain-method scope stx) yep obtain-method (nil)
+  /cast obtain-method obtain-by-qualified-name name (nil)
+    yep.name))
+
+(defn stx-to-name scope stx
+  (cast (stx-to-maybe-name scope stx) yep name
+    err.\;qq[Expected a syntactic name]
+    name))
+
+(defn compile-expression-later scope expression then
+  (cast scope scope unique-ns def-ns qualify
+    err.\;qq[Internal error]
+  /later/get-mode/fn mode
+  /case (stx-to-maybe-name scope expression) yep name
+    (c then /cexpr-var name)
+  /cast expression stx - macro-call
+    err.\;qq[Expected an expression that was a stx]
+  /cast macro-call cons macro-name macro-body
+    err.\;qq[Expected an expression that was a macro call]
+  /let macro-impl
+    (let obtain-method-err
+      (fn -
+        err.\;qq[
+          Expected a macro call with a macro name that was a literal
+          string, a foreign obtain-by-unqualified-name, a foreign
+          obtain-by-qualified-name, or a foreign obtain-directly])
+    /cast (stx-to-obtain-method scope macro-name) yep obtain-method
+      (c obtain-method-err /nil)
+    /case obtain-method
+      
+      obtain-directly macro-function macro-function
+      
+      obtain-by-qualified-name name
+      (cast (procure-macro-implementation-getdef def-ns name)
+        getdef macro-get macro-definer
+        err.\;qq[Internal error]
+      /c macro-get mode)
+      
+    /c obtain-method-err /nil)
+  /c macro-impl scope (trivial-stx-details/nil) macro-body then))
+
 (def-struct basic-macro-result effects expression)
 
 (defn basic-macro home-scope caller-scope my-stx-details then body
@@ -97,9 +162,6 @@
     scope caller-unique-ns caller-def-ns caller-qualify
     err.\;qq[Expected a caller-scope of type scope]
   /join-effects procure-claim.caller-unique-ns
-  /make-promise-later/fn outbox-getdef
-  /cast outbox-getdef getdef get-outbox outbox-definer
-    err.\;qq[Internal error]
   /get-mode/fn mode
   /let s (fn it /stx my-stx-details it)
   /let mac
@@ -110,16 +172,15 @@
         getdef macro-get macro-definer
         err.\;qq[Internal error]
       /cons (c s /foreign/obtain-directly/c macro-get mode) rest))
-  /join-effects (later/get-mode/fn mode /c then /c get-outbox mode)
   /cast (c body (ns-get str.body caller-unique-ns) s mac)
     basic-macro-result effects expression
     err.\;qq[Expected a body result of type basic-macro-result]
   /join-effects effects
-  /compile-expression
+  /compile-expression-later
     (scope (ns-get str.compilation caller-unique-ns)
       caller-def-ns caller-qualify)
     expression
-    outbox-definer))
+    then))
 
 (defn basic-pure-macro
   home-scope caller-scope my-stx-details then body
@@ -172,39 +233,6 @@
 
 (defn map list func
   (rev/foldl (nil) list /fn state elem /cons (c func elem) state))
-
-(defn stx-to-obtain-method scope stx
-  (cast scope scope - -b qualify
-    err.\;qq[Expected a scope value of type scope]
-  /cast stx stx - sexpr
-    err.\;qq[Expected a stx value of type stx]
-  /case sexpr
-    
-    foreign val
-    (yep/case val
-      
-      obtain-by-unqualified-name name
-      (obtain-by-qualified-name/c qualify name)
-      
-      obtain-by-qualified-name name val
-      
-      val)
-    
-    istring-nil string
-    (yep/obtain-by-qualified-name
-    /c qualify /name-of/dexable (dex-string/nil) string)
-    
-  /nil))
-
-(defn stx-to-maybe-name scope stx
-  (cast (stx-to-obtain-method scope stx) yep obtain-method (nil)
-  /cast obtain-method obtain-by-qualified-name name (nil)
-    yep.name))
-
-(defn stx-to-name scope stx
-  (cast (stx-to-maybe-name scope stx) yep name
-    err.\;qq[Expected a syntactic name]
-    name))
 
 (defn fix func arg
   (c func fix.func arg))

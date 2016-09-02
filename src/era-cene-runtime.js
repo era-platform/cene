@@ -339,7 +339,7 @@ function prettifyFlatTag( flatTag ) {
     var parsed = JSON.parse( flatTag );
     var mainTagName = parsed[ 0 ];
     if ( mainTagName[ 0 ] === "n:main-core" )
-        return mainTagName[ 1 ];
+        return mainTagName[ 1 ][ 1 ];
     return flatTag;
 }
 
@@ -4909,14 +4909,8 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
-        fun( "macro-stx-details", function ( rt, mode ) {
-            return sinkFnPure( function ( rt, uniqueNs ) {
-                return sinkFnPure( function ( rt, definitionNs ) {
-                    return sinkFnPure( function ( rt, stx ) {
-                        return sinkTrivialStxDetails();
-                    } );
-                } );
-            } );
+        fun( "trivial-stx-details", function ( rt, ignored ) {
+            return sinkTrivialStxDetails();
         } );
         
         fun( "contributing-only-to",
@@ -5255,25 +5249,6 @@ function usingFuncDefNs( funcDefNs ) {
                 && mode.foreignVal.current) )
                 throw new Error();
             return mkNil.ofNow();
-        } );
-        
-        fun( "compile-expression", function ( rt, callerScope ) {
-            return sinkFnPure( function ( rt, stx ) {
-                return sinkFnPure( function ( rt, outDefiner ) {
-                    var nss = parseScope( callerScope );
-                    
-                    if ( !(outDefiner instanceof SinkForeign
-                        && outDefiner.purpose === "definer") )
-                        throw new Error();
-                    
-                    return new SinkForeign( "effects",
-                        function ( rawMode ) {
-                        
-                        return macroexpandToDefiner( nss, rawMode,
-                            stx, outDefiner.foreignVal );
-                    } );
-                } );
-            } );
         } );
         
         fun( "get-mode", function ( rt, body ) {
