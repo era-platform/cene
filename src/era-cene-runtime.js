@@ -4889,16 +4889,6 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
-        fun( "compiled-code-from-cexpr", function ( rt, cexpr ) {
-            if ( !(cexpr instanceof SinkCexpr) )
-                throw new Error();
-            
-            if ( cexpr.cexpr.getFreeVars().hasAny() )
-                throw new Error();
-            
-            return cexpr;
-        } );
-        
         // NOTE: This is the only way to establish a function behavior
         // for a struct that has more than zero projections.
         fun( "function-implementation-from-cexpr",

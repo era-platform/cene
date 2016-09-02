@@ -168,18 +168,6 @@ Call with ``mode cexpr``
 Given a compiled expression, executes it to produce a result. The compiled expression must have no free variables. The given mode must be current, and it must allow for macroexpansion-time side effects.
 
 
-.. _compiled-code-from-cexpr:
-
-compiled-code-from-cexpr
-------------------------
-
-Call with ``cexpr``
-
-Given a compiled expression, returns compiled code in a format suitable for a macroexpansion result. The compiled expression must have no free variables.
-
-.. todo:: Refactor macroexpansion so it expects a compiled expression, instead of having two different formats for this.
-
-
 .. _compile-expression:
 
 compile-expression
