@@ -4,7 +4,9 @@ Implement and use `committing-to-define` and `committing-to-define-function-impl
 
 Refactor the entire "File I/O for simple builds" system so that it looks like it could use namespaces, but doesn't actually use any sub-namespaces the Cene code has access to.
 
-Revisit `output-path-directory`, `output-path-utf-8`, and especially `cli-output-environment-variable-shadow` to be sure they behave as though they contribute to a namespace the user-level Cene code has no access to. Right now, I think `cli-output-environment-variable-shadow` outputs to a visible place in the definition namespace.
+- Revisit `output-path-directory`, `output-path-utf-8`, and especially `cli-output-environment-variable-shadow` to be sure they behave as though they contribute to a namespace the user-level Cene code has no access to. Right now, I think `cli-output-environment-variable-shadow` outputs to a visible place in the definition namespace.
+
+- See if we should revisit `input-path-type`, `input-path-directory-list`, and `input-path-blob-utf-8` so they behave as though they have an obscure sub-namespace they're reading from.
 
 
 
