@@ -314,7 +314,25 @@ function macLookupGet( definer, err ) {
     return { type: "get", definer: definer, err: err };
 }
 function macLookupFollowHeart( clamor ) {
-    return { type: "followHeart", clamor: clamor };
+    // NOTE: We could do this monadically like the rest of the
+    // `macLookup...` operations -- and we're going to want to if we
+    // want to support multiple `follow-heart` behaviors in a single
+    // Cene language implementation -- but if we process the errors
+    // here, we get somewhat better JavaScript stack traces.
+    
+    function unknownClamor() {
+        throw new Error(
+            "Can't follow my heart to an unknown clamor: " +
+            clamor.pretty() );
+    }
+    
+    if ( !mkClamorErr.tags( clamor ) )
+        unknownClamor();
+    var message = mkClamorErr.getProj( clamor, "message" );
+    if ( !(message instanceof SinkForeign
+        && message.purpose === "string") )
+        unknownClamor();
+    throw new Error( message.foreignVal.jsStr );
 }
 function macLookupProcureContributedElements( namespace, err ) {
     return { type: "procureContributedElements",
@@ -2279,25 +2297,6 @@ function runTopLevelMacLookupsSync(
                     var firstThen = thread.monad.first.then;
                     return macLookupThen( firstThen( val ), then );
                 } ) );
-            } else if ( thread.monad.first.type === "followHeart" ) {
-//                stats.followHeart++;
-                var clamor = thread.monad.first.clamor;
-                
-                var unknownClamor = function () {
-                    throw new Error(
-                        "Can't follow my heart to an unknown " +
-                        "clamor: " + clamor.pretty() );
-                };
-                
-                if ( !mkClamorErr.tags( clamor ) )
-                    unknownClamor();
-                var message =
-                    mkClamorErr.getProj( clamor, "message" );
-                if ( !(message instanceof SinkForeign
-                    && message.purpose === "string") )
-                    unknownClamor();
-                throw new Error( message.foreignVal.jsStr );
-                
             } else if ( thread.monad.first.type ===
                 "procureContributedElements" ) {
 //                stats.procureContributedElements++;
@@ -2338,7 +2337,6 @@ function runTopLevelMacLookupsSync(
             return true;
         } else if (
             thread.monad.type === "get"
-            || thread.monad.type === "follow-heart"
             || thread.monad.type === "procureContributedElements" ) {
 //            stats.shallowOther++;
             return replaceThread(
