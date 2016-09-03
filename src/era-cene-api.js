@@ -302,6 +302,58 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                 entry.projSourceToRep );
         } );
         
+        var observeFilesystemDefiner =
+            elementDefiner( "val",
+                sinkNsGet( [ "n:$$observe-filesystem" ],
+                    targetDefNs ) );
+        collectPutDefined( dummyMode, observeFilesystemDefiner,
+            mkNil.ofNow() );
+        
+        // NOTE: We use `observeFilesystem()` to make sure the Cene
+        // code doesn't do things that observe the filesystem unless
+        // it has a compatible mode and as long as it can observe the
+        // original top-level definition namespace. (TODO: A future
+        // extension to the language might allow parts of the Cene
+        // code to declare that they will no longer observe the
+        // top-level definition namespace, at which point this becomes
+        // a meaningful thing to check. Once that future extension
+        // exists, mention it here as the reason we're doing this.)
+        function observeFilesystem( mode, then ) {
+            assertMode( rawModeSupportsObserveCli, mode );
+            return macLookupThen(
+                macLookupGet( observeFilesystemDefiner, function () {
+                    throw new Error();
+                } ),
+                function ( ignored ) {
+                    return macLookupRet( then() );
+                } );
+        }
+        
+        // NOTE: We use `claimOutputPath()` to make sure the Cene code
+        // doesn't try to output to the same filesystem path twice,
+        // and also to make sure the Cene code hasn't done something
+        // like `contributing-only-to` to declare that it's not
+        // contributing to the original top-level definition
+        // namespace. Furthermore, it ensures the mode is compatible.
+        //
+        // TODO: What about when the Cene code tries to write to a
+        // path and also tries to write a non-folder to an ancestor of
+        // that path? We should probably change definers so they take
+        // a dex to apply if there's a duplicate write, so that we can
+        // just merge duplicate writes while still complaining about
+        // writes that conflict.
+        //
+        function claimOutputPath( rawMode, outputPath ) {
+            assertRawMode( rawModeSupportsContributeCli, rawMode );
+            collectPutDefined( rawMode,
+                elementDefiner(
+                    [ "n:output-path" ].concat(
+                        outputPath.foreignVal.nameParts ),
+                    sinkNsGet( [ "n:$$out-filesystem" ],
+                        targetDefNs ) ),
+                mkNil.ofNow() );
+        }
+        
         fun( "cli-arguments", function ( rt, mode ) {
             assertMode( rawModeSupportsObserveCli, mode );
             
@@ -322,8 +374,10 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
         fun( "cli-output-directory", function ( rt, mode ) {
             assertMode( rawModeSupportsObserveCli, mode );
             
-            return new SinkForeign( "output-path",
-                apiOps.cliOutputDirectory() );
+            return new SinkForeign( "output-path", {
+                nameParts: [],
+                apiDelegate: apiOps.cliOutputDirectory()
+            } );
         } );
         
         fun( "input-path-get", function ( rt, inputPath ) {
@@ -341,56 +395,57 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
         } );
         
         fun( "input-path-type", function ( rt, mode ) {
-            return sinkFnPure( function ( rt, inputPath ) {
-                assertMode( rawModeSupportsObserveCli, mode );
-                
-                if ( !(inputPath instanceof SinkForeign
-                    && inputPath.purpose === "input-path") )
-                    throw new Error();
-                
-                var type =
-                    apiOps.inputPathType( inputPath.foreignVal );
-                if ( type.type === "directory" )
-                    return mkFileTypeDirectory.ofNow();
-                else if ( type.type === "blob" )
-                    return mkFileTypeBlob.ofNow();
-                else if ( type.type === "missing" )
-                    return mkFileTypeMissing.ofNow();
-                else
-                    throw new Error();
+            return new SinkFn( function ( rt, inputPath ) {
+                return observeFilesystem( mode, function () {
+                    if ( !(inputPath instanceof SinkForeign
+                        && inputPath.purpose === "input-path") )
+                        throw new Error();
+                    
+                    var type =
+                        apiOps.inputPathType( inputPath.foreignVal );
+                    if ( type.type === "directory" )
+                        return mkFileTypeDirectory.ofNow();
+                    else if ( type.type === "blob" )
+                        return mkFileTypeBlob.ofNow();
+                    else if ( type.type === "missing" )
+                        return mkFileTypeMissing.ofNow();
+                    else
+                        throw new Error();
+                } );
             } );
         } );
         
         fun( "input-path-directory-list", function ( rt, mode ) {
-            return sinkFnPure( function ( rt, inputPath ) {
-                assertMode( rawModeSupportsObserveCli, mode );
-                
-                if ( !(inputPath instanceof SinkForeign
-                    && inputPath.purpose === "input-path") )
-                    throw new Error();
-                
-                return usingDefNs.sinkConsListFromArray(
-                    arrMap(
-                        apiOps.inputPathDirectoryList(
-                            inputPath.foreignVal ),
-                        function ( basename ) {
-                        
-                        return unparseNonUnicodeString( basename );
-                    } ) );
+            return new SinkFn( function ( rt, inputPath ) {
+                return observeFilesystem( mode, function () {
+                    if ( !(inputPath instanceof SinkForeign
+                        && inputPath.purpose === "input-path") )
+                        throw new Error();
+                    
+                    return usingDefNs.sinkConsListFromArray(
+                        arrMap(
+                            apiOps.inputPathDirectoryList(
+                                inputPath.foreignVal ),
+                            function ( basename ) {
+                            
+                            return unparseNonUnicodeString(
+                                basename );
+                        } ) );
+                } );
             } );
         } );
         
         fun( "input-path-blob-utf-8", function ( rt, mode ) {
-            return sinkFnPure( function ( rt, inputPath ) {
-                assertMode( rawModeSupportsObserveCli, mode );
-                
-                if ( !(inputPath instanceof SinkForeign
-                    && inputPath.purpose === "input-path") )
-                    throw new Error();
-                
-                return unparseNonUnicodeString(
-                    apiOps.inputPathBlobUtf8(
-                        inputPath.foreignVal ) );
+            return new SinkFn( function ( rt, inputPath ) {
+                return observeFilesystem( mode, function () {
+                    if ( !(inputPath instanceof SinkForeign
+                        && inputPath.purpose === "input-path") )
+                        throw new Error();
+                    
+                    return unparseNonUnicodeString(
+                        apiOps.inputPathBlobUtf8(
+                            inputPath.foreignVal ) );
+                } );
             } );
         } );
         
@@ -402,9 +457,13 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                 
                 var nameInternal = parseString( name ).jsStr;
                 
-                return new SinkForeign( "output-path",
-                    apiOps.outputPathGet(
-                        outputPath.foreignVal, nameInternal ) );
+                return new SinkForeign( "output-path", {
+                    nameParts: outputPath.foreignVal.nameParts.concat(
+                        nameInternal ),
+                    apiDelegate: apiOps.outputPathGet(
+                        outputPath.foreignVal.apiDelegate,
+                        nameInternal )
+                } );
             } );
         } );
         
@@ -414,9 +473,9 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                 throw new Error();
             
             return simpleEffects( function ( rawMode ) {
-                assertRawMode(
-                    rawModeSupportsContributeCli, rawMode );
-                apiOps.outputPathDirectory( outputPath.foreignVal );
+                claimOutputPath( rawMode, outputPath );
+                apiOps.outputPathDirectory(
+                    outputPath.foreignVal.apiDelegate );
             } );
         } );
         
@@ -430,16 +489,15 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                     parsePossiblyEncapsulatedString( outputString );
                 
                 return simpleEffects( function ( rawMode ) {
-                    assertRawMode(
-                        rawModeSupportsContributeCli, rawMode );
-                    
+                    claimOutputPath( rawMode, outputPath );
                     // TODO: Figure out if we actually need
                     // onceDependenciesComplete. We were already using
                     // defer to run these write effects after the read
                     // effects.
 //                    apiOps.onceDependenciesComplete( function () {
                         apiOps.outputPathBlobUtf8(
-                            outputPath.foreignVal, getContent() );
+                            outputPath.foreignVal.apiDelegate,
+                            getContent() );
 //                    } );
                 } );
             } );
@@ -450,21 +508,16 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
             
             return sinkFnPure( function ( rt, value ) {
                 var keyInternal = parseString( key ).jsStr;
+                parsePossiblyEncapsulatedString( value );
                 
                 return new SinkForeign( "effects",
                     function ( rawMode ) {
                     
-                    // TODO: Document the namespace path we're using
-                    // for this,
-                    // /cli-output-environment-variable-shadows/<key>.
-                    // Maybe we don't actually need this to be a
-                    // built-in function.
                     collectPutDefined( rawMode,
-                        nsToDefiner( rt,
-                            sinkNsGet( keyInternal,
-                                sinkNsGet(
-                                    "cli-output-environment-variable-shadows",
-                                    defNs ) ) ),
+                        elementDefiner( keyInternal,
+                            sinkNsGet(
+                                [ "n:$$cli-output-environment-variable-shadows" ],
+                                targetDefNs ) ),
                         value );
                     return macLookupRet( mkNil.ofNow() );
                 } );

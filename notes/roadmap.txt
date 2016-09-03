@@ -2,13 +2,16 @@ Immediate actionable tasks:
 
 Implement and use `committing-to-define` and `committing-to-define-function-implementations`.
 
-Refactor the entire "File I/O for simple builds" system so that it looks like it could use namespaces, but doesn't actually use any sub-namespaces the Cene code has access to.
+Expose a suite of operations for building sets of namespaces to pass to `contributing-only-to`, rather than only being able to pass in a table of namespaces.
 
-- Revisit `output-path-directory`, `output-path-utf-8`, and especially `cli-output-environment-variable-shadow` to be sure they behave as though they contribute to a namespace the user-level Cene code has no access to. Right now, I think `cli-output-environment-variable-shadow` outputs to a visible place in the definition namespace.
+Address this TODO from era-cene-api.js:
 
-- See if we should revisit `input-path-type`, `input-path-directory-list`, and `input-path-blob-utf-8` so they behave as though they have an obscure sub-namespace they're reading from.
-
-
+        // TODO: What about when the Cene code tries to write to a
+        // path and also tries to write a non-folder to an ancestor of
+        // that path? We should probably change definers so they take
+        // a dex to apply if there's a duplicate write, so that we can
+        // just merge duplicate writes while still complaining about
+        // writes that conflict.
 
 -----
 
