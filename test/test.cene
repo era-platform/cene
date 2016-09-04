@@ -19,7 +19,7 @@
   (dex-fix/dexable dex-struct.dex-test-fix /dex-test-fix))
 
 (defn define-into-definer val out
-  (definer-define out val))
+  (definer-define out (dex-give-up/nil) val))
 
 (def-macro test-sync unique-ns definition-ns my-stx-details args then
   (basic-pure-macro unique-ns definition-ns my-stx-details then
@@ -116,24 +116,26 @@
   (regex-if condition (regex-while condition /regex-empty/nil) else))
 
 (test-async (dex-test/nil)
-  (fn out /definer-define out /nil)
-  (fn out /definer-define out /nil))
+  (fn out /definer-define out (dex-give-up/nil) /nil)
+  (fn out /definer-define out (dex-give-up/nil) /nil))
 
 (test-async (dex-test/nil)
   (fn out
-  /optimize-regex-later
-    (regex-if-consume (regex-from-string str.\;qq[a])
-    /regex-if-consume (regex-from-string str.\;qq[b])
-    /regex-if-consume (regex-from-string str.\;qq[c])
-    /regex-give-up/nil)
-  /fn optimized-regex
-  /let subject str.\;qq[aaabbbccc]
-  /optimized-regex-match-later optimized-regex subject
-    (int0/nil)
-    string-length.subject
-  /fn stop
-  /definer-define out stop)
-  (fn out /definer-define out /regex-result-matched/int3/nil))
+    (optimize-regex-later
+      (regex-if-consume (regex-from-string str.\;qq[a])
+      /regex-if-consume (regex-from-string str.\;qq[b])
+      /regex-if-consume (regex-from-string str.\;qq[c])
+      /regex-give-up/nil)
+    /fn optimized-regex
+    /let subject str.\;qq[aaabbbccc]
+    /optimized-regex-match-later optimized-regex subject
+      (int0/nil)
+      string-length.subject
+    /fn stop
+    /definer-define out (dex-give-up/nil) stop))
+  (fn out
+    (definer-define out (dex-give-up/nil)
+    /regex-result-matched/int3/nil)))
 
 
 (test-sync (dex-int/nil)
@@ -143,8 +145,9 @@
 (test-async (dex-string/nil)
   (fn out
     (string-append-later str.\;qq[Hello,\s] str.\;qq[world!] /fn str
-    /definer-define out str))
-  (fn out /definer-define out str.\;qq[Hello, world!]))
+    /definer-define out (dex-give-up/nil) str))
+  (fn out
+    (definer-define out (dex-give-up/nil) str.\;qq[Hello, world!])))
 
 (test-sync (dex-int/nil)
   (qlet/^/qq/-/int-plus (int1/nil) (int1/nil))

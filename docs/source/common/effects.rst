@@ -87,9 +87,9 @@ A value that indicates a function ``get`` that takes a mode and obtains a value,
 definer-define
 --------------
 
-Call with ``definer value``
+Call with ``definer dex value``
 
-Monadically, writes to the given definer. If the definition cannot be installed, the program is in error; other computations that depend on the defined value may or may not be canceled or retroactively voided.
+Monadically, checks whether the given value satisfies the given dex, and writes to the given definer with the dex and the value either way. If two definitions are written to the same dex, then they must have the same dex and value, and the value must satisfy the dex, or there's an error. The dex serves no purpose other than to verify this.
 
 
 .. _committing-to-define:
