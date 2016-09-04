@@ -60,11 +60,51 @@ During macroexpansion, this operation will not compute a result until at least a
 This is a way to make frameworks that are extensible in the sense of the closed-world assumption (CWA).
 
 
+.. _nsset-empty:
+
+nsset-empty
+-----------
+
+Call with ``(ignored)``
+
+Returns an empty set of namespaces.
+
+
+.. _fuse-nsset-by-union:
+
+fuse-nsset-by-union
+-------------------
+
+Call with ``(ignored)``
+
+Returns a fuse that takes the union of sets of namespaces.
+
+
+.. _nsset-not:
+
+nsset-not
+---------
+
+Call with ``nsset``
+
+Returns a set of namespaces that contains all namespaces except the ones in the given set of namespaces.
+
+
+.. _nsset-ns-descendants:
+
+nsset-ns-descendants
+--------------------
+
+Call with ``ns``
+
+Returns the set of namespaces descending from the given namespace, including the given namespace itself.
+
+
 .. _contributing-only-to:
 
 contributing-only-to
 --------------------
 
-Call with ``table-of-namespaces effects``
+Call with ``nsset effects``
 
-Monadically, schedules the effects to occur in a future tick where contributing to multimethods outside the given namespaces is not allowed, but reading closed-world-assumption collections of contributions outside the given namespaces is allowed.
+Monadically, schedules the effects to occur in a future tick where contributing to multimethods outside the given set of namespaces is not allowed, but reading closed-world-assumption collections of contributions outside the given set of namespace is allowed.
