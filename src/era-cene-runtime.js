@@ -1207,6 +1207,7 @@ SinkFuseTable.prototype.pretty = function () {
 function SinkCexpr( cexpr ) {
     this.cexpr = cexpr;
 }
+SinkCexpr.prototype.affiliation = "none";
 SinkCexpr.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
@@ -1863,10 +1864,17 @@ function rawModeSupportsListen( ns ) {
     };
 }
 
-function collectPutDefined( rawMode, definer, value ) {
+function collectPutDefinedDexAndValue( rawMode,
+    definer, dexAndValue ) {
+    
     assertRawMode( rawModeSupportsContributeDefiner( definer ),
         rawMode );
-    rawMode.putDefined.push( { definer: definer, value: value } );
+    rawMode.putDefined.push(
+        { definer: definer, dexAndValue: dexAndValue } );
+}
+function collectPutDefinedValue( rawMode, definer, value ) {
+    collectPutDefinedDexAndValue( rawMode, definer,
+        { satisfiesDex: false, value: value } );
 }
 function collectPutListener( rawMode, namespace, name, listener ) {
     assertRawMode( rawModeSupportsListen( namespace ), rawMode );
@@ -1906,10 +1914,21 @@ function getContributionEntry(
         getContributionTable( namespaceDefs, namespaceName ).elements;
     if ( !table.has( entryName ) )
         table.set( entryName, {
-            maybeValue: null,
-            directListeners: []
+            directListeners: [],
+            visit: null,
+            dexAndValue: null
         } );
     return table.get( entryName );
+}
+function definerToVisitable( namespaceDefs, definer ) {
+    if ( definer.type === "contributedElement" ) {
+        return getContributionEntry( namespaceDefs,
+            definer.namespace.name, definer.name );
+    } else if ( definer.type === "object" ) {
+        return definer;
+    } else {
+        throw new Error();
+    }
 }
 function runPuts( namespaceDefs, rt, rawMode ) {
     
@@ -1941,27 +1960,34 @@ function runPuts( namespaceDefs, rt, rawMode ) {
             return put.definer.type === "object";
         } );
     
-    assertJsnUnique( putDefinedContributedElements, function ( put ) {
-        var nsName = put.definer.namespace.name;
-        if ( getContributionEntry( namespaceDefs,
-            nsName, put.definer.name ).maybeValue !== null )
-            throw new Error();
-        return [ nsName, put.definer.name ];
-    } );
+    function sameDexAndValue( a, b ) {
+        return (a.satisfiesDex && b.satisfiesDex
+            && nameCompare( a.dexName, b.dexName ) === 0
+            && nameCompare( a.valueName, b.valueName ) === 0);
+    }
     
-    var unique = !arrAny( putDefinedObjects, function ( put ) {
-        if ( put.definer.visited )
-            return true;
-        put.definer.visited = true;
-        return false;
+    var unique = !arrAny( rawMode.putDefined, function ( put ) {
+        var visitable =
+            definerToVisitable( namespaceDefs, put.definer );
+        if ( visitable.visit === null ) {
+            visitable.visit = put.dexAndValue;
+            return false;
+        } else {
+            return !sameDexAndValue(
+                visitable.visit, put.dexAndValue );
+        }
     } );
-    arrEach( putDefinedObjects, function ( put ) {
-        put.definer.visited = false;
+    arrEach( rawMode.putDefined, function ( put ) {
+        definerToVisitable( namespaceDefs, put.definer ).visit = null;
     } );
     if ( !unique )
         throw new Error();
-    arrEach( putDefinedObjects, function ( put ) {
-        if ( put.definer.value !== null )
+    arrEach( rawMode.putDefined, function ( put ) {
+        var visitable =
+            definerToVisitable( namespaceDefs, put.definer );
+        if ( visitable.dexAndValue !== null
+            && !sameDexAndValue(
+                visitable.dexAndValue, put.dexAndValue ) )
             throw new Error();
     } );
     
@@ -1977,7 +2003,7 @@ function runPuts( namespaceDefs, rt, rawMode ) {
     // Now that we know the puts are valid, we follow through on them.
     
     arrEach( putDefinedObjects, function ( put ) {
-        put.definer.value = { val: put.value };
+        put.definer.dexAndValue = put.dexAndValue;
     } );
     
     var listenersFired = [];
@@ -1989,10 +2015,8 @@ function runPuts( namespaceDefs, rt, rawMode ) {
             namespaceDefs, put.definer.namespace.name );
         var contribsEntry = getContributionEntry( namespaceDefs,
             put.definer.namespace.name, put.definer.name );
-        if ( contribsEntry.maybeValue !== null )
-            throw new Error();
         
-        contribsEntry.maybeValue = { val: put.value };
+        contribsEntry.dexAndValue = put.dexAndValue;
         
         arrEach( contribsEntry.directListeners, function ( dl ) {
             listenersFired.push( dl );
@@ -2000,7 +2024,8 @@ function runPuts( namespaceDefs, rt, rawMode ) {
         contribsEntry.directListeners = null;
         
         var singletonTable = new SinkForeign( "table",
-            jsnMap().plusEntry( put.definer.name, put.value ) );
+            jsnMap().plusEntry(
+                put.definer.name, put.dexAndValue.value ) );
         contribsTable.listeners.each( function ( k, v ) {
             listenersFired.push( {
                 type: "collectiveListener",
@@ -2242,18 +2267,10 @@ function runTopLevelMacLookupsSync(
                         thread.rawMode );
                 } );
                 
-                if ( definer.type === "contributedElement" ) {
-                    var contributionEntry = getContributionEntry(
-                        namespaceDefs,
-                        definer.namespace.name, definer.name );
-                    var maybeValue = contributionEntry.maybeValue;
-                } else if ( definer.type === "object" ) {
-                    var maybeValue = definer.value;
-                } else {
-                    throw new Error();
-                }
+                var visitable =
+                    definerToVisitable( namespaceDefs, definer );
                 
-                if ( maybeValue !== null ) {
+                if ( visitable.dexAndValue !== null ) {
 //                    if ( definer.type === "contributedElement" ) {
 //                        stats.getContributedElementSuccess++;
 //                    } else if ( definer.type === "object" ) {
@@ -2263,11 +2280,13 @@ function runTopLevelMacLookupsSync(
 //                    }
                     return replaceThread(
                         currentlyThread( thread, function () {
-                            return then( maybeValue.val );
+                            return then(
+                                visitable.dexAndValue.value );
                         } ) );
                 } else {
                     if ( definer.type === "contributedElement" ) {
 //                        stats.getContributedElementFailure++;
+                        var contributionEntry = visitable;
                         contributionEntry.directListeners.push( {
                             type: "directListener",
                             thread: thread
@@ -2512,7 +2531,7 @@ function cgenExecute( rt, expr ) {
 function addFunctionNativeDefinition(
     funcDefNs, rawMode, constructorTagName, impl ) {
     
-    collectPutDefined( rawMode,
+    collectPutDefinedValue( rawMode,
         getFunctionImplementationEntryDefiner(
             funcDefNs, constructorTagName ),
         new SinkForeign( "native-definition", impl ) );
@@ -2999,7 +3018,8 @@ function usingFuncDefNs( funcDefNs ) {
     }
     
     function nssClaim( rawMode, nss, forWhatMacro ) {
-        collectPutDefined( rawMode, getClaimedDefiner( nss.uniqueNs ),
+        collectPutDefinedValue( rawMode,
+            getClaimedDefiner( nss.uniqueNs ),
             mkNil.ofNow() );
         return nssGet( nss, [ "n:$$claimed-for", forWhatMacro ] );
     }
@@ -3027,7 +3047,7 @@ function usingFuncDefNs( funcDefNs ) {
     function addMacro(
         macroDefNs, rawMode, name, claim, macroFunctionImpl ) {
         
-        collectPutDefined( rawMode,
+        collectPutDefinedValue( rawMode,
             getMacroFunctionDefiner( macroDefNs, name ),
             sinkFnPure( function ( rt, callerScope ) {
                 return sinkFnPure( function ( rt, myStxDetails ) {
@@ -3115,7 +3135,7 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         }
         
-        collectPutDefined( dummyMode,
+        collectPutDefinedValue( dummyMode,
             getFunctionImplementationsDefiner( targetDefNs ),
             new SinkForeign( "ns", funcDefNs ) );
         
@@ -3246,7 +3266,7 @@ function usingFuncDefNs( funcDefNs ) {
                             nss.qualify ) ),
                     function ( curriedFn ) {
                 
-                collectPutDefined( rawMode,
+                collectPutDefinedValue( rawMode,
                     getMacroFunctionDefiner( nss.definitionNs, name ),
                     curriedFn );
                 
@@ -3320,9 +3340,9 @@ function usingFuncDefNs( funcDefNs ) {
                     
                     var definer = {
                         type: "object",
-                        visited: false,
                         unitTestId: rawMode.unitTestId,
-                        value: null
+                        visit: null,
+                        dexAndValue: null
                     };
                     
                     collectDefer( rawMode, {}, function ( rawMode ) {
@@ -5061,7 +5081,7 @@ function usingFuncDefNs( funcDefNs ) {
                 throw new Error();
             return new SinkForeign( "effects", function ( rawMode ) {
                 
-                collectPutDefined( rawMode,
+                collectPutDefinedValue( rawMode,
                     getClaimedDefiner( ns.foreignVal ),
                     mkNil.ofNow() );
                 return macLookupRet( mkNil.ofNow() );
@@ -5112,7 +5132,7 @@ function usingFuncDefNs( funcDefNs ) {
                                     fromNs ) ),
                             function ( funcDefNs ) {
                             
-                            collectPutDefined( rawMode,
+                            collectPutDefinedValue( rawMode,
                                 getFunctionImplementationsDefiner(
                                     toNs ),
                                 funcDefNs );
@@ -5215,9 +5235,9 @@ function usingFuncDefNs( funcDefNs ) {
                     callSinkLater( rt, then,
                         getdef( {
                             type: "object",
-                            visited: false,
                             unitTestId: rawMode.unitTestId,
-                            value: null
+                            visit: null,
+                            dexAndValue: null
                         }, function () {
                             throw new Error(
                                 "Never fulfilled a promise" );
@@ -5226,17 +5246,34 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "definer-define", function ( rt, definer ) {
-            return sinkFnPure( function ( rt, value ) {
-                if ( !(definer instanceof SinkForeign
-                    && definer.purpose === "definer") )
-                    throw new Error();
-                
-                return new SinkForeign( "effects",
-                    function ( rawMode ) {
+            return sinkFnPure( function ( rt, dex ) {
+                return new SinkFn( function ( rt, value ) {
+                    if ( !(definer instanceof SinkForeign
+                        && definer.purpose === "definer") )
+                        throw new Error();
                     
-                    collectPutDefined( rawMode, definer.foreignVal,
-                        value );
-                    return macLookupRet( mkNil.ofNow() );
+                    if ( dex.affiliation !== "dex" )
+                        throw new Error();
+                    
+                    return rt.dexHas( dex, value, function ( has ) {
+                        return macLookupRet(
+                            new SinkForeign( "effects",
+                                function ( rawMode ) {
+                            
+                            collectPutDefinedDexAndValue( rawMode,
+                                definer.foreignVal,
+                                has ? {
+                                    satisfiesDex: true,
+                                    dexName: dex.getName(),
+                                    valueName: value.getName(),
+                                    value: value
+                                } : {
+                                    satisfiesDex: false,
+                                    value: value
+                                } );
+                            return macLookupRet( mkNil.ofNow() );
+                        } ) );
+                    } );
                 } );
             } );
         } );
@@ -5289,7 +5326,7 @@ function usingFuncDefNs( funcDefNs ) {
                         // report errors using
                         // `JsCode#assertNoFreeVars()`, but that's not
                         // aware of Cene variable names.
-                        collectPutDefined( rawMode, outDefiner,
+                        collectPutDefinedValue( rawMode, outDefiner,
                             new SinkCexpr(
                                 new CexprVar( identifier ) ) );
                         return macLookupRet( mkNil.ofNow() );
@@ -5337,7 +5374,7 @@ function usingFuncDefNs( funcDefNs ) {
                     return new SinkForeign( "effects",
                         function ( rawMode ) {
                         
-                        collectPutDefined( rawMode, outDefiner,
+                        collectPutDefinedValue( rawMode, outDefiner,
                             macroResult );
                         return macLookupRet( mkNil.ofNow() );
                     } );
@@ -5392,7 +5429,7 @@ function usingFuncDefNs( funcDefNs ) {
         
         var n = projSourceToRep.length;
         var struct = cgenStructArr( repMainTagName, projSourceToRep );
-        collectPutDefined( rawMode,
+        collectPutDefinedValue( rawMode,
             getConstructorGlossaryDefiner( definitionNs,
                 sourceMainTagName ),
             mkConstructorGlossary.ofNow(

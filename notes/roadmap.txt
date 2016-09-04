@@ -8,10 +8,10 @@ Address this TODO from era-cene-api.js:
 
         // TODO: What about when the Cene code tries to write to a
         // path and also tries to write a non-folder to an ancestor of
-        // that path? We should probably change definers so they take
-        // a dex to apply if there's a duplicate write, so that we can
-        // just merge duplicate writes while still complaining about
-        // writes that conflict.
+        // that path? We should probably use the feature of definers
+        // where they take a dex to apply if there's a duplicate
+        // write. In this case, a duplicate write to make something a
+        // directory is just fine.
 
 -----
 

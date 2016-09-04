@@ -306,7 +306,7 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
             elementDefiner( "val",
                 sinkNsGet( [ "n:$$observe-filesystem" ],
                     targetDefNs ) );
-        collectPutDefined( dummyMode, observeFilesystemDefiner,
+        collectPutDefinedValue( dummyMode, observeFilesystemDefiner,
             mkNil.ofNow() );
         
         // NOTE: We use `observeFilesystem()` to make sure the Cene
@@ -338,14 +338,14 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
         //
         // TODO: What about when the Cene code tries to write to a
         // path and also tries to write a non-folder to an ancestor of
-        // that path? We should probably change definers so they take
-        // a dex to apply if there's a duplicate write, so that we can
-        // just merge duplicate writes while still complaining about
-        // writes that conflict.
+        // that path? We should probably use the feature of definers
+        // where they take a dex to apply if there's a duplicate
+        // write. In this case, a duplicate write to make something a
+        // directory is just fine.
         //
         function claimOutputPath( rawMode, outputPath ) {
             assertRawMode( rawModeSupportsContributeCli, rawMode );
-            collectPutDefined( rawMode,
+            collectPutDefinedValue( rawMode,
                 elementDefiner(
                     [ "n:output-path" ].concat(
                         outputPath.foreignVal.nameParts ),
@@ -513,7 +513,7 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                 return new SinkForeign( "effects",
                     function ( rawMode ) {
                     
-                    collectPutDefined( rawMode,
+                    collectPutDefinedValue( rawMode,
                         elementDefiner( keyInternal,
                             sinkNsGet(
                                 [ "n:$$cli-output-environment-variable-shadows" ],
