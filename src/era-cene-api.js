@@ -329,29 +329,53 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                 } );
         }
         
-        // NOTE: We use `claimOutputPath()` to make sure the Cene code
-        // doesn't try to output to the same filesystem path twice,
-        // and also to make sure the Cene code hasn't done something
-        // like `contributing-only-to` to declare that it's not
-        // contributing to the original top-level definition
-        // namespace. Furthermore, it ensures the mode is compatible.
-        //
-        // TODO: What about when the Cene code tries to write to a
-        // path and also tries to write a non-folder to an ancestor of
-        // that path? We should probably use the feature of definers
-        // where they take a dex to apply if there's a duplicate
-        // write. In this case, a duplicate write to make something a
-        // directory is just fine.
-        //
+        // NOTE: We use `claimOutputDir()` and `claimOutputPath()` to
+        // make sure the Cene code doesn't try to output to the same
+        // filesystem path twice unless they're both creating
+        // directories, and also to make sure the Cene code isn't
+        // violating a prior `contributing-only-to` that prohibits it
+        // from contributing to the original top-level definition
+        // namespace.
+        
+        var claimOutputDir_dexAndValue_ = {
+            satisfiesDex: true,
+            dexName:
+                new SinkDexStruct( mkNil.getFlatTag(), [] ).getName(),
+            valueName: mkNil.ofNow().getName(),
+            value: mkNil.ofNow()
+        };
+        
+        function claimOutputDir( rawMode, nameParts ) {
+            var remainingNameParts = nameParts.slice();
+            while ( true ) {
+                collectPutDefinedDexAndValue( rawMode,
+                    elementDefiner(
+                        [ "n:output-path" ].concat(
+                            remainingNameParts ),
+                        sinkNsGet( [ "n:$$out-filesystem" ],
+                            targetDefNs ) ),
+                    claimOutputDir_dexAndValue_ );
+                if ( remainingNameParts.length === 0 )
+                    return;
+                remainingNameParts.pop();
+            }
+        }
         function claimOutputPath( rawMode, outputPath ) {
             assertRawMode( rawModeSupportsContributeCli, rawMode );
+            
+            var nameParts = outputPath.foreignVal.nameParts;
+            
             collectPutDefinedValue( rawMode,
                 elementDefiner(
-                    [ "n:output-path" ].concat(
-                        outputPath.foreignVal.nameParts ),
+                    [ "n:output-path" ].concat( nameParts ),
                     sinkNsGet( [ "n:$$out-filesystem" ],
                         targetDefNs ) ),
                 mkNil.ofNow() );
+            
+            var n = nameParts.length;
+            if ( n !== 0 )
+                claimOutputDir( rawMode,
+                    nameParts.slice( 0, n - 1 ) );
         }
         
         fun( "cli-arguments", function ( rt, mode ) {
@@ -473,7 +497,9 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                 throw new Error();
             
             return simpleEffects( function ( rawMode ) {
-                claimOutputPath( rawMode, outputPath );
+                assertRawMode( rawModeSupportsContributeCli,
+                    rawMode );
+                claimOutputDir( rawMode, outputPath );
                 apiOps.outputPathDirectory(
                     outputPath.foreignVal.apiDelegate );
             } );
@@ -489,6 +515,8 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                     parsePossiblyEncapsulatedString( outputString );
                 
                 return simpleEffects( function ( rawMode ) {
+                    assertRawMode( rawModeSupportsContributeCli,
+                        rawMode );
                     claimOutputPath( rawMode, outputPath );
                     // TODO: Figure out if we actually need
                     // onceDependenciesComplete. We were already using

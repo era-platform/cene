@@ -4,15 +4,6 @@ Implement and use `committing-to-define` and `committing-to-define-function-impl
 
 Expose a suite of operations for building sets of namespaces to pass to `contributing-only-to`, rather than only being able to pass in a table of namespaces.
 
-Address this TODO from era-cene-api.js:
-
-        // TODO: What about when the Cene code tries to write to a
-        // path and also tries to write a non-folder to an ancestor of
-        // that path? We should probably use the feature of definers
-        // where they take a dex to apply if there's a duplicate
-        // write. In this case, a duplicate write to make something a
-        // directory is just fine.
-
 -----
 
 Other low-level Cene tasks, in roughly the order of the Sphinx documentation table of contents:

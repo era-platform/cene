@@ -2016,6 +2016,9 @@ function runPuts( namespaceDefs, rt, rawMode ) {
         var contribsEntry = getContributionEntry( namespaceDefs,
             put.definer.namespace.name, put.definer.name );
         
+        if ( contribsEntry.dexAndValue !== null )
+            return;
+        
         contribsEntry.dexAndValue = put.dexAndValue;
         
         arrEach( contribsEntry.directListeners, function ( dl ) {
