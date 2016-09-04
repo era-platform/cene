@@ -271,6 +271,11 @@ function sinkNameSetIntersection( a, b ) {
         return a( name ) && b( name );
     };
 }
+function sinkNameSetNot( nameSet ) {
+    return function ( name ) {
+        return !nameSet( name );
+    };
+}
 function sinkNameSetNsDescendants( ns ) {
     return function ( name ) {
         return sinkNameIsAncestor( ns.name, name );
@@ -936,6 +941,32 @@ SinkFuseIntByTimes.prototype.getName = function () {
 };
 SinkFuseIntByTimes.prototype.pretty = function () {
     return "(fuse-int-by-times)";
+};
+function SinkFuseNssetByUnion() {
+    // We do nothing.
+}
+SinkFuseNssetByUnion.prototype.affiliation = "fuse";
+SinkFuseNssetByUnion.prototype.callSink = function ( rt, arg ) {
+    throw new Error();
+};
+SinkFuseNssetByUnion.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+SinkFuseNssetByUnion.prototype.fuse = function ( rt, a, b ) {
+    if ( !(a instanceof SinkForeign && a.purpose === "nsset") )
+        return macLookupRet( mkNil.ofNow() );
+    if ( !(b instanceof SinkForeign && b.purpose === "nsset") )
+        return macLookupRet( mkNil.ofNow() );
+    return macLookupRet(
+        mkYep.ofNow(
+            new SinkForeign( "nsset",
+                sinkNameSetUnion( a.foreignVal, b.foreignVal ) ) ) );
+};
+SinkFuseNssetByUnion.prototype.getName = function () {
+    return [ "n:fuse-nsset-by-union" ];
+};
+SinkFuseNssetByUnion.prototype.pretty = function () {
+    return "(fuse-nsset-by-union)";
 };
 function SinkFuseStruct(
     nameTag, prettyTag, affiliation, expectedFlatTag, projFuses ) {
@@ -4934,22 +4965,39 @@ function usingFuncDefNs( funcDefNs ) {
             return sinkTrivialStxDetails();
         } );
         
-        fun( "contributing-only-to",
-            function ( rt, tableOfNamespaces ) {
+        fun( "nsset-empty", function ( rt, ignored ) {
+            return new SinkForeign( "nsset", sinkNameSetEmpty() );
+        } );
+        
+        fun( "fuse-nsset-by-union", function ( rt, ignored ) {
+            return new FuseNssetByUnion();
+        } );
+        
+        fun( "nsset-not", function ( rt, nsset ) {
+            if ( !(nsset instanceof SinkForeign
+                && nsset.purpose === "nsset") )
+                throw new Error();
             
+            return new SinkForeign( "nsset",
+                sinkNameSetNot( nsset.foreignVal ) );
+        } );
+        
+        fun( "nsset-ns-descendants", function ( rt, ns ) {
+            if ( !(ns instanceof SinkForeign
+                && ns.purpose === "ns") )
+                throw new Error();
+            
+            return new SinkForeign( "nsset",
+                sinkNameSetNsDescendants( ns.foreignVal ) );
+        } );
+        
+        fun( "contributing-only-to", function ( rt, nsset ) {
             return sinkFnPure( function ( rt, effects ) {
                 
-                if ( !(tableOfNamespaces instanceof SinkForeign
-                    && tableOfNamespaces.purpose === "table") )
+                if ( !(nsset instanceof SinkForeign
+                    && nsset.purpose === "nsset") )
                     throw new Error();
-                var nameSet = sinkNameSetEmpty();
-                tableOfNamespaces.foreignVal.each( function ( k, v ) {
-                    if ( !(v instanceof SinkForeign
-                        && v.purpose === "ns") )
-                        throw new Error();
-                    nameSet = sinkNameSetUnion( nameSet,
-                        sinkNameSetNsDescendants( v.foreignVal ) );
-                } );
+                var nameSet = nsset.foreignVal;
                 
                 if ( !(effects instanceof SinkForeign
                     && effects.purpose === "effects") )
