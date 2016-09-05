@@ -10,6 +10,8 @@
 
 [Run the reader in your browser. This page is interactive!](https://rocketnia.github.io/era-cene/demos/reader.html)
 
+[See documentation of the built-in operations](https://cene.readthedocs.io/en/latest/)
+
 Programming is an activity of last resort; as soon as we're programming, we're not directly in the field, in the moment, acting and responding as our needs arise. Yet we find ourselves in a new kind of field, a new kind of moment, where it starts to look valuable to solve the problem that is now at hand -- programming itself. Thus we eventually build things that are sophisticated enough to be programming languages of their own, but sadly they're incompatible with all the languages that came before. Cene fixes that. Cene is a programming language that's designed so that if you find yourself implementing a programming language, you can make a slight detour and implement Cene all over again instead.
 
 Cene offers simple approaches to several problems that programming languages often fail to solve.
