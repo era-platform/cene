@@ -5365,23 +5365,30 @@ function usingFuncDefNs( funcDefNs ) {
         nss, rawMode, locatedExpr, outDefiner ) {
         
         collectDefer( rawMode, {}, function ( rawMode ) {
-            return stxToMaybeName( rt, nss, locatedExpr,
-                function ( identifier ) {
+            return stxToObtainMethod( rt, nss, locatedExpr,
+                function ( exprAppearance ) {
                 
-                if ( identifier !== null )
+                function finishWithCexpr( cexpr ) {
                     return macLookupRet( new SinkForeign( "effects",
                         function ( rawMode ) {
                         
-                        // TODO: Report better errors if an unbound
-                        // local variable is used. Currently, we
-                        // report errors using
-                        // `JsCode#assertNoFreeVars()`, but that's not
-                        // aware of Cene variable names.
                         collectPutDefinedValue( rawMode, outDefiner,
-                            new SinkCexpr(
-                                new CexprVar( identifier ) ) );
+                            cexpr );
                         return macLookupRet( mkNil.ofNow() );
                     } ) );
+                }
+                
+                // TODO: Report better errors if an unbound local
+                // variable is used. Currently, we report errors using
+                // `JsCode#assertNoFreeVars()`, but that's not aware
+                // of Cene variable names.
+                if ( exprAppearance.type === "obtainByName" )
+                    return finishWithCexpr(
+                        new SinkCexpr(
+                            new CexprVar( exprAppearance.name ) ) );
+                
+                if ( exprAppearance.type === "obtainDirectly" )
+                    return finishWithCexpr( exprAppearance.val );
             
             if ( !mkStx.tags( locatedExpr ) )
                 throw new Error();
