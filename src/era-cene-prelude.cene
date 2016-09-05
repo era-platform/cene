@@ -125,8 +125,15 @@
   (cast scope scope unique-ns def-ns qualify
     err.\;qq[Internal error]
   /later/get-mode/fn mode
-  /case (stx-to-maybe-name scope expression) yep name
-    (c then /cexpr-var name)
+  /case
+    (cast (stx-to-obtain-method scope expression) yep obtain-method
+      (nil)
+    /case obtain-method
+      obtain-directly cexpr yep.cexpr
+      obtain-by-qualified-name name (yep/cexpr-var name)
+    /nil)
+    yep cexpr
+    (c then cexpr)
   /cast expression stx - macro-call
     err.\;qq[Expected an expression that was a stx]
   /cast macro-call cons macro-name macro-body
@@ -377,6 +384,8 @@
       err.\;qq[Expected a check-result of type yep or nope])))
 
 (defn c-later func arg
+  \= NOTE: We don't just do `(later/c func arg)`, because we want the
+  \= actual execution of `(c func arg)` to happen in a later tick.
   (later/get-mode/fn - /c func arg))
 
 (defn foldl-later state list combiner-later then
