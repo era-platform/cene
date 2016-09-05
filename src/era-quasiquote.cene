@@ -445,8 +445,9 @@
     (s-expr-splice-leaves-later unwrap first leaves
     /fn first leaves
     /let first
-      (case first yep spliceable spliceable
-      /case first nope non-spliceable list.non-spliceable
+      (case first
+        yep spliceable spliceable
+        nope non-spliceable list.non-spliceable
         err.\;qq[Internal error])
     /s-expr-splice-leaves-later unwrap (c rewrap rest) leaves
     /fn rest leaves
@@ -462,7 +463,17 @@
   /case unwrapped-expr istring-cons prefix interpolation rest
     (s-expr-splice-leaves-later unwrap interpolation leaves
     /fn interpolation leaves
-    /s-expr-splice-leaves-later unwrap rest leaves
+    /let interpolation
+      (case interpolation
+        
+        yep spliceable spliceable
+        
+        nope non-spliceable
+        (istring-cons str.\;qq[] non-spliceable
+        /istring-nil str.\;qq[])
+        
+        err.\;qq[Internal error])
+    /s-expr-splice-leaves-later unwrap (c rewrap rest) leaves
     /fn rest leaves
     /cast rest nope rest
       err.\;qq[
@@ -471,14 +482,9 @@
       err.\;qq[
         Encountered trouble unwrapping an expression that had been
         rewrapped]
-    /case interpolation yep spliceable
-      (istring-append-later spliceable rest /fn rest
-      /istring-append-later istring-nil.prefix rest /fn result
-      /c then /c rewrap result)
-    /case interpolation nope non-spliceable
-      (later/c then /c rewrap
-      /istring-cons prefix non-spliceable rest)
-      err.\;qq[Internal error])
+    /istring-append-later interpolation rest /fn rest
+    /istring-append-later istring-nil.prefix rest /fn result
+    /c then (nope/c rewrap result) leaves)
   /case unwrapped-expr foreign val
     (cast leaves cons leaf leaves
       err.\;qq[
@@ -592,7 +598,7 @@
       /case leaf
         
         yep interpolation
-        (c s /c mac str.c /list bind
+        (c s /c mac str.c /list bind interpolation
         /c s /c mac str.fn /list var body)
         
         nope naturally-foreign body
