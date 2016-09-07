@@ -1631,7 +1631,7 @@ function CexprFn( param, body ) {
     this.body = body;
 }
 CexprFn.prototype.getFreeVars = function () {
-    return this.body.getFreeVars().minus( [ this.param ] );
+    return this.body.getFreeVars().minusEntry( this.param );
 };
 CexprFn.prototype.toJsCode = function () {
     // #GEN
@@ -4202,7 +4202,8 @@ function usingFuncDefNs( funcDefNs ) {
                 && unicodeScalar.purpose === "int") )
                 throw new Error();
             
-            var result = unicodeCodePointToString( unicodeScalar );
+            var result =
+                unicodeCodePointToString( unicodeScalar.foreignVal );
             if ( result === null )
                 throw new Error();
             
@@ -4231,19 +4232,22 @@ function usingFuncDefNs( funcDefNs ) {
                         if ( !(start instanceof SinkForeign
                             && start.purpose === "int") )
                             throw new Error();
+                        var startInternal = start.foreignVal;
                         if ( !(stop instanceof SinkForeign
                             && stop.purpose === "int") )
                             throw new Error();
+                        var stopInternal = stop.foreignVal;
                         
-                        if ( !(0 <= start
-                            && start <= stop
-                            && stop * 2 <= stringInternal.length) )
+                        if ( !(0 <= startInternal
+                            && startInternal <= stopInternal
+                            && stopInternal * 2 <=
+                                stringInternal.length) )
                             throw new Error();
                         
                         return callSinkLater( rt, then,
                             sinkForeignStrFromPadded(
                                 stringInternal.substring(
-                                    start * 2, stop * 2 ) ) );
+                                    startInternal * 2, stopInternal * 2 ) ) );
                     } );
                 } );
             } );
@@ -4268,16 +4272,18 @@ function usingFuncDefNs( funcDefNs ) {
                 if ( !(start instanceof SinkForeign
                     && start.purpose === "int") )
                     throw new Error();
+                var startInternal = start.foreignVal;
                 
-                if ( !(0 <= start
-                    && start * 2 < stringInternal.length) )
+                if ( !(0 <= startInternal
+                    && startInternal * 2 < stringInternal.length) )
                     throw new Error();
                 
                 return sinkForeignInt(
                     parseSingleUnicodeScalar(
                         sinkForeignStrFromPadded(
                             stringInternal.substring(
-                                start * 2, (start + 1) * 2 ) ) ) );
+                                startInternal * 2,
+                                (startInternal + 1) * 2 ) ) ) );
             } );
         } );
         
@@ -4421,9 +4427,11 @@ function usingFuncDefNs( funcDefNs ) {
                     // `_?` when `_` contains capture groups. The
                     // latter discards the groups if `_` matches an
                     // empty string.
-                    var compiled = new RegExp( "(?:" +
-                        necessary + "()|" +
-                        optional( "" ) + "()|)" );
+                    var compiled = new RegExp(
+                        "(?:" +
+                            necessary + "()|" +
+                            optional( "" ) + "()|)",
+                        "g" );
                     return function ( string, start, stop ) {
                         compiled.lastIndex = start * 2;
                         var s = string.length === stop * 2 ?
@@ -4928,7 +4936,7 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         fun( "eval-cexpr", function ( rt, mode ) {
-            return sinkFnPure( function ( rt, cexpr ) {
+            return new SinkFn( function ( rt, cexpr ) {
                 assertMode( rawModeSupportsEval, mode );
                 
                 if ( !(cexpr instanceof SinkCexpr) )
