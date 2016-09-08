@@ -363,6 +363,9 @@ function prettifyFlatTag( flatTag ) {
     var mainTagName = parsed[ 0 ];
     if ( mainTagName[ 0 ] === "n:main-core" )
         return mainTagName[ 1 ][ 1 ];
+    else if ( mainTagName[ 0 ] === "n:main"
+        && mainTagName[ 1 ][ 0 ] === "n:$$qualified-name" )
+        return mainTagName[ 1 ][ 1 ];
     return flatTag;
 }
 
@@ -475,10 +478,10 @@ SinkForeign.prototype.getName = function () {
     }
 };
 SinkForeign.prototype.pretty = function () {
-    return "(foreign " + this.purpose + " " +
-        JSON.stringify( this.purpose === "string" ?
-            this.foreignVal.jsStr :
-            this.foreignVal ) + ")";
+    return this.purpose === "string" ?
+        JSON.stringify( this.foreignVal.jsStr ) :
+        "(foreign " + this.purpose + " " +
+            JSON.stringify( this.foreignVal ) + ")";
 };
 function SinkDexDefault( first, second ) {
     if ( !(first.affiliation === "dex"
