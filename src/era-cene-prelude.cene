@@ -160,79 +160,80 @@
     /c obtain-method-err /nil)
   /c macro-impl scope (trivial-stx-details/nil) macro-body then))
 
-(def-struct basic-macro-result effects expression)
+(defn scope-get string scope
+  (cast scope scope unique-ns def-ns qualify
+    err.\;qq[Expected a scope that was a scope]
+  /scope (ns-get string unique-ns) def-ns qualify))
+
+(defn scope-claim scope
+  (cast scope scope unique-ns def-ns qualify
+    err.\;qq[Expected a scope that was a scope]
+  /procure-claim unique-ns))
+
+(defn c-later func arg
+  \= NOTE: We don't just do `(later/c func arg)`, because we want the
+  \= actual execution of `(c func arg)` to happen in a later tick.
+  (later/get-mode/fn - /c func arg))
 
 (defn basic-macro home-scope caller-scope my-stx-details then body
   (cast home-scope scope home-unique-ns home-def-ns home-qualify
     err.\;qq[Expected a home-scope of type scope]
-  /cast caller-scope
-    scope caller-unique-ns caller-def-ns caller-qualify
-    err.\;qq[Expected a caller-scope of type scope]
-  /join-effects procure-claim.caller-unique-ns
-  /get-mode/fn mode
+  /join-effects scope-claim.caller-scope
+  /later/get-mode/fn mode
   /let s (fn it /stx my-stx-details it)
   /let mac
-    (fn str rest
+    (fn mode str rest
       (cast
         (procure-macro-implementation-getdef home-def-ns
         /c home-qualify /name-of/dexable (dex-string/nil) str)
         getdef macro-get macro-definer
         err.\;qq[Internal error]
-      /cons (c s /foreign/obtain-directly/c macro-get mode) rest))
-  /cast (c body (ns-get str.body caller-unique-ns) s mac)
-    basic-macro-result effects expression
-    err.\;qq[Expected a body result of type basic-macro-result]
-  /join-effects effects
-  /compile-expression-later
-    (scope (ns-get str.compilation caller-unique-ns)
-      caller-def-ns caller-qualify)
-    expression
-    then))
+      /c s /cons (c s /foreign/obtain-directly/c macro-get mode)
+        rest))
+  /c body (scope-get str.body caller-scope) s mac /fn expression
+  /compile-expression-later (scope-get str.compilation caller-scope)
+    expression then))
 
 (defn basic-pure-macro
   home-scope caller-scope my-stx-details then body
   
   (basic-macro home-scope caller-scope my-stx-details then
-  /fn unique-ns s mac
-  /basic-macro-result (no-effects/nil) /c body unique-ns s mac))
+  /fn caller-scope s mac then
+  /get-mode/fn mode
+  /c then /c body mode caller-scope s /c mac mode))
 
 (defn basic-nil-macro
   home-scope caller-scope my-stx-details then body
   
   (basic-macro home-scope caller-scope my-stx-details then
-  /fn unique-ns s mac
-  /basic-macro-result (c body unique-ns s mac)
-  /c s /c mac str.nil /nil))
+  /fn caller-scope s mac then
+  /join-effects (c body caller-scope s mac)
+  /later/get-mode/fn mode /let mac (c mac mode)
+  /c then /c mac str.nil /nil))
 
 (def-macro list home-scope caller-scope my-stx-details args then
   (basic-pure-macro home-scope caller-scope my-stx-details then
-  /fn unique-ns s mac
-  /foldr args (c s /c mac str.nil /nil) /fn first rest
-    (c s /c mac str.cons /cons first /cons rest /nil)))
+  /fn mode caller-scope s mac
+  /foldr args (c mac str.nil /nil) /fn first rest
+    (c mac str.cons /cons first /cons rest /nil)))
 
 (def-macro proj1 home-scope caller-scope my-stx-details args then
-  (cast caller-scope
-    scope caller-unique-ns caller-def-ns caller-qualify
-    err.\;qq[Internal error]
-  /cast args cons constructor args
+  (cast args cons constructor args
     err.\;qq[Called proj1 with too few args]
   /cast args cons subject args
     err.\;qq[Called proj1 with too few args]
   /cast args nil
     err.\;qq[Called proj1 with too many args]
-  /join-effects procure-claim.caller-unique-ns
-  /get-mode/fn mode
-  /let var (procure-name mode /ns-get str.var caller-unique-ns)
-  /basic-pure-macro home-scope
-    (scope (ns-get str.body caller-unique-ns)
-      caller-def-ns caller-qualify)
-    my-stx-details
-    then
-  /fn unique-ns s mac
-  /let var (c s /foreign/obtain-by-qualified-name var)
-  /c s /c mac str.cast /list subject constructor var
-    (c s /c mac str.err /list
-    /c s /istring-nil str.\;qq[Internal error])
+  /basic-pure-macro home-scope caller-scope my-stx-details then
+  /fn mode caller-scope s mac
+  /cast caller-scope
+    scope caller-unique-ns caller-def-ns caller-qualify
+    err.\;qq[Internal error]
+  /let var
+    (c s /foreign/obtain-by-qualified-name
+    /procure-name mode /ns-get str.var caller-unique-ns)
+  /c mac str.cast /list subject constructor var
+    (c mac str.err /list/c s /istring-nil str.\;qq[Internal error])
     var))
 
 (defn append past rest
@@ -291,19 +292,19 @@
   /c check-list (table-empty/nil) (table-empty/nil) source-to-rep))
 
 (def-macro isa home-scope caller-scope my-stx-details args then
-  (cast caller-scope
-    scope caller-unique-ns caller-def-ns caller-qualify
-    err.\;qq[Internal error]
-  /cast args cons constructor args
+  (cast args cons constructor args
     err.\;qq[Called isa with too few args]
   /cast args cons subject args
     err.\;qq[Called isa with too few args]
   /cast args nil
     err.\;qq[Called isa with too many args]
-  /join-effects procure-claim.caller-unique-ns
-  /get-mode/fn mode
   /cast (stx-to-maybe-name caller-scope constructor) yep constructor
     err.\;qq[Expected a constructor that was a syntactic name]
+  /basic-pure-macro home-scope caller-scope my-stx-details then
+  /fn mode caller-scope s mac
+  /cast caller-scope
+    scope caller-unique-ns caller-def-ns caller-qualify
+    err.\;qq[Internal error]
   /cast
     (procure-constructor-glossary-getdef caller-def-ns constructor)
     getdef get-glossary -
@@ -311,25 +312,17 @@
   /cast (validate-constructor-glossary/c get-glossary mode)
     constructor-glossary main-tag source-to-rep
     err.\;qq[Internal error]
-  /let vars-ns (ns-get str.vars caller-unique-ns)
-  /let vars
+  /c mac str.case /cons subject
+  /cons (c s /foreign/obtain-by-qualified-name constructor)
+  /append
     (map source-to-rep /fn assoc
       (cast assoc assoc source rep
         err.\;qq[Internal error]
-      /procure-name mode /ns-get rep vars-ns))
-  /basic-pure-macro home-scope
-    (scope (ns-get str.body caller-unique-ns)
-      caller-def-ns caller-qualify)
-    my-stx-details
-    then
-  /fn unique-ns s mac
-  /c s /c mac str.case /cons subject
-  /cons (c s /foreign/obtain-by-qualified-name constructor)
-  /append
-    (map vars /fn var /c s /foreign/obtain-by-qualified-name var)
+      /c s /foreign/obtain-by-qualified-name/procure-name mode
+      /ns-get rep /ns-get str.vars caller-unique-ns))
   /list
-    (c s /c mac str.yep /list/c s /c mac str.nil /list)
-    (c s /c mac str.nope /list/c s /c mac str.nil /list)))
+    (c mac str.yep /list/c mac str.nil /list)
+    (c mac str.nope /list/c mac str.nil /list)))
 
 \= Macro calls appearing inside an `(after-cwa ...)` form will be able
 \= to depend on anything that uses `procure-contributed-elements`
@@ -351,7 +344,7 @@
     err.\;qq[Called after-cwa with too many arguments]
   /contributing-only-to nsset-ns-descendants.caller-unique-ns
   /basic-pure-macro home-scope caller-scope my-stx-details then
-  /fn unique-ns s mac
+  /fn mode caller-scope s mac
     body))
 
 (defn double-foldl state list-a list-b combiner
@@ -382,11 +375,6 @@
       yep result check-result
       nope result (nope/nil)
       err.\;qq[Expected a check-result of type yep or nope])))
-
-(defn c-later func arg
-  \= NOTE: We don't just do `(later/c func arg)`, because we want the
-  \= actual execution of `(c func arg)` to happen in a later tick.
-  (later/get-mode/fn - /c func arg))
 
 (defn foldl-later state list combiner-later then
   (cast list cons first rest

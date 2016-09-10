@@ -21,9 +21,9 @@
 (defn define-into-definer val out
   (definer-define out (dex-give-up/nil) val))
 
-(def-macro test-sync unique-ns definition-ns my-stx-details args then
-  (basic-pure-macro unique-ns definition-ns my-stx-details then
-  /fn unique-ns s mac
+(def-macro test-sync home-scope caller-scope my-stx-details args then
+  (basic-pure-macro home-scope caller-scope my-stx-details then
+  /fn mode caller-scope s mac
   /cast args cons dex args
     err.\;qq[Called test-sync with too few args]
   /cast args cons actual args
@@ -32,9 +32,9 @@
     err.\;qq[Called test-sync with too few args]
   /cast args nil
     err.\;qq[Called test-sync with too many args]
-  /c s /c mac str.test-async /list dex
-    (c s /c mac str.define-into-definer /list actual)
-    (c s /c mac str.define-into-definer /list expected)))
+  /c mac str.test-async /list dex
+    (c mac str.define-into-definer /list actual)
+    (c mac str.define-into-definer /list expected)))
 
 
 (test-sync (dex-test/nil)

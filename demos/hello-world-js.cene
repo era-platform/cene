@@ -18,7 +18,7 @@
   (cast home-scope scope - home-def-ns home-qualify
     err.\;qq[Internal error]
   /basic-nil-macro home-scope caller-scope my-stx-details then
-  /fn unique-ns s mac
+  /fn caller-scope s mac
   /get-mode/fn mode
   /output-path-blob-utf-8
     (output-path-get (cli-output-directory mode)

@@ -204,9 +204,9 @@ Macro. Example::
 
   (def-macro list home-scope caller-scope my-stx-details args then
     (basic-pure-macro home-scope caller-scope my-stx-details then
-    /fn unique-ns s mac
-    /foldr args (c s /c mac str.nil /nil) /fn first rest
-      (c s /c mac str.cons /cons first /cons rest /nil)))
+    /fn mode caller-scope s mac
+    /foldr args (c mac str.nil /nil) /fn first rest
+      (c mac str.cons /cons first /cons rest /nil)))
 
 Defines a macro. The first argument is a syntactic name ((:ref:`istring-nil` ``<string>``) or (:ref:`foreign` ``<name>``)) for the macro. The rest of the arguments are the parameters and body of a curried function. The function will be called immediately with the :ref:`scope` where the macro is defined, and the result will then be called whenever a macro by the given syntactic name is expanded.
 
