@@ -501,17 +501,17 @@
   /unique-ns-spread (ns-get str.rest unique-ns) rest combiner))
 
 (def-macro qlet home-scope caller-scope my-stx-details args then
-  (cast caller-scope
-    scope caller-unique-ns caller-def-ns caller-qualify
-    err.\;qq[Internal error]
-  /cast args cons body args
+  (cast args cons body args
     err.\;qq[Called qlet without any arguments]
   /cast args nil
     err.\;qq[Called qlet with more than one argument]
-  /join-effects procure-claim.caller-unique-ns
   /parse-quasiquotation-for-macro-later body /fn body
+  /basic-macro home-scope caller-scope my-stx-details then
+  /fn caller-scope s mac then
+  /cast caller-scope
+    scope caller-unique-ns caller-def-ns caller-qualify
+    err.\;qq[Internal error]
   /get-mode/fn mode
-  /let s (fn it /stx my-stx-details it)
   /let spread-leaves
     (unique-ns-spread (ns-get str.bindings caller-unique-ns)
       (s-expr-leaves (unwrap-for-macro) body)
@@ -533,13 +533,8 @@
     err.\;qq[Internal error]
   /cast body nope body
     err.\;qq[Internal error]
-  /basic-pure-macro home-scope
-    (scope (ns-get str.body caller-unique-ns)
-      caller-def-ns caller-qualify)
-    my-stx-details
-    then
-  /fn unique-ns s mac
-  /c s /c mac str.let /append
+  /get-mode/fn mode /c then /let mac (c mac mode)
+  /c mac str.let /append
     (mappend spread-leaves /fn spread-leaf
       (cast spread-leaf pair var leaf
         err.\;qq[Internal error]
@@ -550,17 +545,17 @@
     list.body))
 
 (def-macro qdo home-scope caller-scope my-stx-details args then
-  (cast caller-scope
-    scope caller-unique-ns caller-def-ns caller-qualify
-    err.\;qq[Internal error]
-  /cast args cons body args
+  (cast args cons body args
     err.\;qq[Called qdo without any arguments]
   /cast args nil
     err.\;qq[Called qdo with more than one argument]
-  /join-effects procure-claim.caller-unique-ns
   /parse-quasiquotation-for-macro-later body /fn body
+  /basic-macro home-scope caller-scope my-stx-details then
+  /fn caller-scope s mac then
+  /cast caller-scope
+    scope caller-unique-ns caller-def-ns caller-qualify
+    err.\;qq[Internal error]
   /get-mode/fn mode
-  /let s (fn it /stx my-stx-details it)
   /let bind
     (c s /foreign/obtain-by-qualified-name
     /procure-name mode /ns-get str.bind caller-unique-ns)
@@ -585,21 +580,16 @@
     err.\;qq[Internal error]
   /cast body nope body
     err.\;qq[Internal error]
-  /basic-pure-macro home-scope
-    (scope (ns-get str.body caller-unique-ns)
-      caller-def-ns caller-qualify)
-    my-stx-details
-    then
-  /fn unique-ns s mac
-  /c s /c mac str.fn /list bind
+  /get-mode/fn mode /c then /let mac (c mac mode)
+  /c mac str.fn /list bind
     (foldr spread-leaves body /fn spread-leaf body
       (cast spread-leaf pair var leaf
         err.\;qq[Internal error]
       /case leaf
         
         yep interpolation
-        (c s /c mac str.c /list bind interpolation
-        /c s /c mac str.fn /list var body)
+        (c mac str.c /list bind interpolation /c mac str.fn /list var
+          body)
         
         nope naturally-foreign body
         

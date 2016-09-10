@@ -20,30 +20,23 @@
 
 
 (def-macro import home-scope caller-scope my-stx-details args then
-  (cast caller-scope scope - caller-def-ns caller-qualify
-    err.\;qq[Internal error]
-  /basic-nil-macro home-scope caller-scope my-stx-details then
-  /fn unique-ns s mac
+  (basic-nil-macro home-scope caller-scope my-stx-details then
+  /fn caller-scope s mac
   /get-mode/fn mode
   /cast
     (foldr
       (read-all-force/input-path-blob-utf-8 mode
       /input-path-get (cli-input-directory mode)
         str.\;qq[import-example-src.cene])
-      (folding unique-ns /no-effects/nil)
+      (folding caller-scope /no-effects/nil)
     /fn expr state
-      (cast state folding unique-ns launch-rest
+      (cast state folding scope launch-rest
         err.\;qq[Internal error]
-      /folding (ns-get str.rest unique-ns)
+      /folding (scope-get str.rest scope)
       /join-effects launch-rest
-      /let first-ns (ns-get str.first unique-ns)
-      /compile-expression-later
-        (scope (ns-get str.unique first-ns)
-          caller-def-ns caller-qualify)
-        expr
-      /fn -
+      /compile-expression-later (scope-get str.first scope) expr /fn -
       /no-effects/nil))
-    folding unique-ns launch-rest
+    folding scope launch-rest
     err.\;qq[Internal error]
     
     launch-rest))
@@ -55,7 +48,7 @@
 
 (def-macro go home-scope caller-scope my-stx-details args then
   (basic-nil-macro home-scope caller-scope my-stx-details then
-  /fn unique-ns s mac
+  /fn caller-scope s mac
   /get-mode/fn mode
   /output-path-blob-utf-8
     (output-path-get (cli-output-directory mode)

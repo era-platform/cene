@@ -22,7 +22,7 @@
 
 (def-macro go home-scope caller-scope my-stx-details args then
   (basic-nil-macro home-scope caller-scope my-stx-details then
-  /fn unique-ns s mac
+  /fn caller-scope s mac
   /get-mode/fn mode
   /foldl-later str.\;qq[]
     (read-all-force/input-path-blob-utf-8 mode
