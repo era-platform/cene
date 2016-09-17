@@ -12,7 +12,7 @@ var quinerInputPathBlobUtf8 = jsnMap();
 var quinerQuine = null;
 var quinerTopLevelVars = null;
 
-function quinerCallWithSyncJavaScriptMode( constructorTag ) {
+function quinerCallWithSyncJavaScriptMode( calculateFunc ) {
     var codeOfFiles = arrMappend( quinerTextOfFiles,
         function ( text ) {
         
@@ -81,9 +81,7 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
                 
                 // Do nothing.
             },
-            sloppyJavaScriptQuine:
-                function ( constructorTag, topLevelVars ) {
-                
+            sloppyJavaScriptQuine: function ( cexpr, topLevelVars ) {
                 return null;
             },
             onDependenciesComplete: function ( listener ) {
@@ -114,11 +112,12 @@ function quinerCallWithSyncJavaScriptMode( constructorTag ) {
         usingDefNs.topLevelTryExprsToMacLookupThreads( nss,
             codeOfFiles ),
         [ { type: "jsEffectsThread", macLookupEffectsOfJsEffects:
-            new SinkStruct(
-                JSON.stringify( [ constructorTag, [] ] ),
-                []
-            ).callSink( usingDefNs.rt,
-                new SinkForeign( "foreign",
-                    ceneApiUsingDefNs.ceneClient ) ) } ]
+            macLookupThen( calculateFunc( usingDefNs.rt ),
+                function ( func ) {
+                
+                return func.callSink( usingDefNs.rt,
+                    new SinkForeign( "foreign",
+                        ceneApiUsingDefNs.ceneClient ) );
+            } ) } ]
     ) );
 }

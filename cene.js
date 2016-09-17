@@ -284,8 +284,7 @@ function runCeneSync(
                 fs.writeFileSync(
                     resolvedPath, outputString, "utf-8" );
             },
-            sloppyJavaScriptQuine:
-                function ( constructorTag, topLevelVars ) {
+            sloppyJavaScriptQuine: function ( cexpr, topLevelVars ) {
                 
                 var quine =
                     readInternalFiles( [
@@ -323,21 +322,32 @@ function runCeneSync(
                     "quinerQuine = quine;\n" +
                     "quinerTopLevelVars = topLevelVars;\n" +
                     "\n" +
-                    "return {\n" +
-                    "    quinerCallWithSyncJavaScriptMode:\n" +
-                    "        quinerCallWithSyncJavaScriptMode\n" +
-                    "};\n";
+                    "quinerCallWithSyncJavaScriptMode( " +
+                        "function ( rt ) {\n" +
+                        
+                        "return " + cexpr.toJsCode(
+                        ).toInstantiateExpr( {
+                            rt: "rt",
+                            SinkStruct: "SinkStruct",
+                            SinkFn: "SinkFn",
+                            SinkForeign: "SinkForeign",
+                            SinkDexStruct: "SinkDexStruct",
+                            SinkFuseStruct: "SinkFuseStruct",
+                            sinkForeignStrFromJs:
+                                "sinkForeignStrFromJs",
+                            sinkErr: "sinkErr",
+                            macLookupRet: "macLookupRet",
+                            macLookupThen: "macLookupThen"
+                        } ) + ";\n" +
+                    "} );\n";
                 
                 return (
                     "\"strict mode\";\n" +
                     "(function ( topLevelVars ) {\n" +
                     "\n" +
                     "var quine = " + _.jsStr( quine ) + ";\n" +
-                    "var quiner = " +
-                        "Function( \"quine\", \"topLevelVars\", " +
-                            "quine )( quine, topLevelVars );\n" +
-                    "quiner.quinerCallWithSyncJavaScriptMode( " +
-                        jsJsn( constructorTag ) + " );\n" +
+                    "Function( \"quine\", \"topLevelVars\", " +
+                        "quine )( quine, topLevelVars );\n" +
                     "\n" +
                     "})( {\n" +
                     $cene.arrMap( topLevelVars, function ( va ) {

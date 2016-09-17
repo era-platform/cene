@@ -563,13 +563,12 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
         } );
         
         fun( "sloppy-javascript-quine", function ( rt, mode ) {
-            return sinkFnPure( function ( rt, constructorTag ) {
+            return sinkFnPure( function ( rt, cexpr ) {
                 return sinkFnPure( function ( rt, topLevelVars ) {
                     
                     assertMode( rawModeSupportsObserveCli, mode );
                     
-                    if ( !(constructorTag instanceof SinkForeign
-                        && constructorTag.purpose === "name") )
+                    if ( !(cexpr instanceof SinkCexpr) )
                         throw new Error();
                     
                     var dedupVars = [];
@@ -587,7 +586,7 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                         new SinkForeign( "encapsulated-string",
                             function () {
                                 return apiOps.sloppyJavaScriptQuine(
-                                    constructorTag.foreignVal,
+                                    cexpr.cexpr,
                                     dedupVars );
                             } ) );
                 } );
