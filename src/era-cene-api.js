@@ -234,11 +234,16 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
     function addCeneApi( targetDefNs, funcDefNs ) {
         var dummyMode = usingDefNs.makeDummyMode();
         
-        function fun( name, body ) {
+        function effectfulFun( name, body ) {
+            var strName = sinkForeignStrFromJs( name );
+            var macroMainTagName =
+                sinkNameQualify(
+                    mkMacroOccurrence.ofNow( strName ).getName() );
             var sourceMainTagName =
                 sinkNameQualify(
-                    sinkForeignStrFromJs( name ).getName() );
-            var repMainTagName = [ "n:main-core", name ];
+                    mkConstructorOccurrence.ofNow(
+                        strName ).getName() );
+            var repMainTagName = [ "n:main-core", sourceMainTagName ];
             var constructorTagName =
                 sinkNameConstructorTagAlreadySorted(
                     repMainTagName, [] );
@@ -246,10 +251,16 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                 funcDefNs, dummyMode, constructorTagName,
                 function ( rt, funcVal, argVal ) {
                 
-                return macLookupRet( body( rt, argVal ) );
+                return body( rt, argVal );
             } );
             usingDefNs.processDefStruct( targetDefNs, dummyMode,
+                macroMainTagName,
                 sourceMainTagName, repMainTagName, [] );
+        }
+        function fun( name, body ) {
+            effectfulFun( name, function ( rt, argVal ) {
+                return macLookupRet( body( rt, argVal ) );
+            } );
         }
         
         function parseString( string ) {
@@ -297,9 +308,8 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
         }
         
         arrEach( builtInApiStructsToAdd, function ( entry ) {
-            usingDefNs.processDefStruct( targetDefNs, dummyMode,
-                entry.sourceMainTagName, entry.repMainTagName,
-                entry.projSourceToRep );
+            entry(
+                usingDefNs.processDefStruct, targetDefNs, dummyMode );
         } );
         
         var observeFilesystemDefiner =

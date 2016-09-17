@@ -134,11 +134,15 @@ function cgenStructArr( repMainTagName, projSourceToRep ) {
         
         repProjNamesToSortedIndices.set( entry.rep, i );
         
+        var stringIndex = projOccCompared < 0 ? 2 : 3;
         if ( isArray( source )
             && source[ 0 ] === "n:$$qualified-name"
-            && isPrimString( source[ 1 ] ) )
+            && isArray( source[ 1 ] )
+            && source[ 1 ][ 0 ] === "n:struct"
+            && source[ 1 ][ 1 ] === projOccFlatTag
+            && isPrimString( source[ 1 ][ stringIndex ] ) )
             sourceProjNameStringsToRepSortedIndices.set(
-                source[ 1 ], i );
+                source[ 1 ][ stringIndex ], i );
     } );
     var unsortedProjNames = arrMap( projSourceToRep,
         function ( entry, i ) {
@@ -362,7 +366,7 @@ function prettifyFlatTag( flatTag ) {
     var parsed = JSON.parse( flatTag );
     var mainTagName = parsed[ 0 ];
     if ( mainTagName[ 0 ] === "n:main-core" )
-        return mainTagName[ 1 ][ 1 ];
+        return mainTagName[ 1 ];
     else if ( mainTagName[ 0 ] === "n:main"
         && mainTagName[ 1 ][ 0 ] === "n:$$qualified-name" )
         return mainTagName[ 1 ][ 1 ];
@@ -1667,25 +1671,82 @@ CexprFn.prototype.pretty = function () {
 
 
 var builtInStructAccumulator = { val: null };
-function builtInStruct( sourceMainTagNameJs, var_args ) {
-    var sourceMainTagName =
-        sinkNameQualify(
-            sinkForeignStrFromJs( sourceMainTagNameJs ).getName() );
-    var repMainTagName = [ "n:main-core", sourceMainTagName ];
-    var projSourceToRep =
-        arrMap( [].slice.call( arguments, 1 ), function ( projName ) {
-            var source =
-                sinkNameQualify(
-                    sinkForeignStrFromJs( projName ).getName() );
-            return {
-                source: source,
-                rep: [ "n:proj-core", source, sourceMainTagName ]
-            };
-        } );
-    builtInStructAccumulator.val.push( {
-        sourceMainTagName: sourceMainTagName,
-        repMainTagName: repMainTagName,
-        projSourceToRep: projSourceToRep
+var projOccMainTagName = [ "n:main-core-projection-occurrence" ];
+var projOccProjString =
+    [ "n:proj-core-projection-occurrence-string" ];
+var projOccProjMainTagName =
+    [ "n:proj-core-projection-occurrence-main-tag-name" ];
+var projOccFlatTag = makeFlatTag( projOccMainTagName, [
+    projOccProjString,
+    projOccProjMainTagName
+].sort( function ( a, b ) {
+    return nameCompare( a, b );
+} ) );
+var projOccCompared =
+    nameCompare( projOccProjString, projOccProjMainTagName );
+if ( projOccCompared === 0 )
+    throw new Error();
+function makeProjectionOccurrenceName( string, mainTagName ) {
+    var compared =
+        nameCompare( projOccProjString, projOccProjMainTagName );
+    if ( projOccCompared < 0 )
+        return [ "n:struct", projOccFlatTag,
+        string.getName(), mainTagName.getName() ];
+    else
+        return [ "n:struct", projOccFlatTag,
+        mainTagName.getName(), string.getName() ];
+}
+function builtInStruct( name, var_args ) {
+    if ( name === "projection-occurrence" ) {
+        // NOTE: We special-case this one because otherwise we'll have
+        // infinitely long flatTags.
+        
+        var repMainTagName = projOccMainTagName;
+        var of = function ( projName ) {
+            return sinkNameQualify(
+                makeProjectionOccurrenceName(
+                    sinkForeignStrFromJs( projName ),
+                    new SinkForeign( "name", repMainTagName ) ) );
+        };
+        var projSourceToRep = [ {
+            source: of( arguments[ 1 ] ),
+            rep: projOccProjString
+        }, {
+            source: of( arguments[ 2 ] ),
+            rep: projOccProjMainTagName
+        } ];
+    } else {
+        var repMainTagName = [ "n:main-core", name ];
+        var projSourceToRep =
+            arrMap( [].slice.call( arguments, 1 ),
+                function ( projName ) {
+                
+                var source =
+                    sinkNameQualify(
+                        makeProjectionOccurrenceName(
+                            sinkForeignStrFromJs( projName ),
+                            new SinkForeign( "name", repMainTagName )
+                        ) );
+                return {
+                    source: source,
+                    rep: [ "n:proj-core", source, repMainTagName ]
+                };
+            } );
+    }
+    builtInStructAccumulator.val.push(
+        function ( processDefStruct, definitionNs, dummyMode ) {
+        
+        var strName = sinkForeignStrFromJs( name );
+        var macroMainTagName =
+            sinkNameQualify(
+                mkMacroOccurrence.ofNow( strName ).getName() );
+        var sourceMainTagName =
+            sinkNameQualify(
+                mkConstructorOccurrence.ofNow( strName ).getName() );
+        processDefStruct( definitionNs, dummyMode,
+            macroMainTagName,
+            sourceMainTagName, repMainTagName,
+            projSourceToRep );
     } );
     return cgenStructArr( repMainTagName, projSourceToRep );
 }
@@ -1693,6 +1754,20 @@ function builtInStruct( sourceMainTagNameJs, var_args ) {
 var builtInCoreStructsToAdd = [];
 
 builtInStructAccumulator.val = builtInCoreStructsToAdd;
+
+// These constructors are needed to build the unqualified variable
+// names corresponding to literal strings.
+//
+// NOTE: The definition of `mkProjectionOccurrence` needs to come
+// before all the others because the other `builtInStruct()` calls use
+// it.
+//
+var mkProjectionOccurrence = builtInStruct( "projection-occurrence",
+    "string", "main-tag-name" );
+var mkMacroOccurrence = builtInStruct( "macro-occurrence", "string" );
+var mkLocalOccurrence = builtInStruct( "local-occurrence", "string" );
+var mkConstructorOccurrence =
+    builtInStruct( "constructor-occurrence", "string" );
 
 // These constructors are needed for interpreting the results of
 // certain built-in operators, namely `isa` and the dex operations.
@@ -2646,7 +2721,7 @@ function usingFuncDefNs( funcDefNs ) {
         return string.foreignVal;
     }
     
-    function stxToObtainMethod( rt, nss, stx, then ) {
+    function stxToObtainMethod( rt, nss, stx, stringToUnq, then ) {
         if ( !mkStx.tags( stx ) )
             return then( { type: "obtainInvalid" } );
         var sExpr = mkStx.getProj( stx, "s-expr" );
@@ -2696,14 +2771,15 @@ function usingFuncDefNs( funcDefNs ) {
                 && string.purpose === "string") )
                 throw new Error();
             return qualify(
-                new SinkForeign( "name", string.getName() ) );
+                new SinkForeign( "name",
+                    stringToUnq( string ).getName() ) );
         } else {
             return then( { type: "obtainInvalid" } );
         }
     }
     
-    function stxToMaybeName( rt, nss, stx, then ) {
-        return stxToObtainMethod( rt, nss, stx,
+    function stxToMaybeName( rt, nss, stx, stringToUnq, then ) {
+        return stxToObtainMethod( rt, nss, stx, stringToUnq,
             function ( obtainMethod ) {
             
             if ( obtainMethod.type === "obtainByName" )
@@ -2711,11 +2787,30 @@ function usingFuncDefNs( funcDefNs ) {
             return then( null );
         } );
     }
-    function stxToName( rt, nss, stx, then ) {
-        return stxToMaybeName( rt, nss, stx, function ( name ) {
+    function stxToName( rt, nss, stx, stringToUnq, then ) {
+        return stxToMaybeName( rt, nss, stx, stringToUnq,
+            function ( name ) {
+            
             if ( name === null )
                 throw new Error();
             return then( name );
+        } );
+    }
+    function stxToConstructorNames( rt, nss, stx, then ) {
+        return stxToName( rt, nss, stx,
+            function ( string ) {
+                return mkMacroOccurrence.ofNow( string );
+            },
+            function ( macroMainTagName ) {
+        return stxToName( rt, nss, stx,
+            function ( string ) {
+                return mkConstructorOccurrence.ofNow( string );
+            },
+            function ( sourceMainTagName ) {
+        
+        return then( macroMainTagName, sourceMainTagName );
+        
+        } );
         } );
     }
     
@@ -2806,6 +2901,9 @@ function usingFuncDefNs( funcDefNs ) {
         
         var sourceMainTagNameRepExpr = mkCons.getProj( body, "car" );
         return stxToMaybeName( rt, nss, sourceMainTagNameRepExpr,
+            function ( string ) {
+                return mkConstructorOccurrence.ofNow( string );
+            },
             function ( sourceMainTagNameRep ) {
             
             if ( sourceMainTagNameRep === null )
@@ -2844,6 +2942,9 @@ function usingFuncDefNs( funcDefNs ) {
                     throw new Error();
                 return stxToName( rt, nss,
                     mkCons.getProj( remainingBody, "car" ),
+                    function ( string ) {
+                        return mkLocalOccurrence.ofNow( string );
+                    },
                     function ( localVar ) {
                     
                     return loop( i + 1,
@@ -2982,6 +3083,9 @@ function usingFuncDefNs( funcDefNs ) {
         
         var param = mkCons.getProj( body, "car" );
         return stxToMaybeName( rt, nss, param,
+            function ( string ) {
+                return mkLocalOccurrence.ofNow( string );
+            },
             function ( paramName ) {
             
             if ( paramName === null )
@@ -3145,14 +3249,22 @@ function usingFuncDefNs( funcDefNs ) {
         var dummyMode = makeDummyMode();
         
         function mac( name, body ) {
-            var qualifiedName = sinkNameQualify( name );
+            var strName = sinkForeignStrFromJs( name );
+            var qualifiedName =
+                sinkNameQualify(
+                    mkMacroOccurrence.ofNow( strName ).getName() );
             addPureMacro( targetDefNs, dummyMode, qualifiedName,
                 [ "claim:primitive", name ], body );
         }
         function effectfulFun( name, body ) {
+            var strName = sinkForeignStrFromJs( name );
+            var macroMainTagName =
+                sinkNameQualify(
+                    mkMacroOccurrence.ofNow( strName ).getName() );
             var sourceMainTagName =
                 sinkNameQualify(
-                    sinkForeignStrFromJs( name ).getName() );
+                    mkConstructorOccurrence.ofNow(
+                        strName ).getName() );
             var repMainTagName = [ "n:main-core", sourceMainTagName ];
             var constructorTagName =
                 sinkNameConstructorTagAlreadySorted(
@@ -3164,6 +3276,7 @@ function usingFuncDefNs( funcDefNs ) {
                 return body( rt, argVal );
             } );
             processDefStruct( targetDefNs, dummyMode,
+                macroMainTagName,
                 sourceMainTagName, repMainTagName, [] );
         }
         function fun( name, body ) {
@@ -3182,9 +3295,9 @@ function usingFuncDefNs( funcDefNs ) {
             var body1 = mkCons.getProj( body, "cdr" );
             
             return function ( rawMode, nss ) {
-                return stxToName( rt, nss,
+                return stxToConstructorNames( rt, nss,
                     mkCons.getProj( body, "car" ),
-                    function ( sourceMainTagName ) {
+                    function ( macroMainTagName, sourceMainTagName ) {
                 
                 return loop( [], body1 );
                 function loop( projSourceToRep, remainingBody ) {
@@ -3193,6 +3306,7 @@ function usingFuncDefNs( funcDefNs ) {
                             [ "n:main", sourceMainTagName,
                                 nss.uniqueNs.name ];
                         processDefStruct( nss.definitionNs, rawMode,
+                            macroMainTagName,
                             sourceMainTagName, repMainTagName,
                             projSourceToRep );
                         
@@ -3201,15 +3315,16 @@ function usingFuncDefNs( funcDefNs ) {
                     } else if ( mkCons.tags( remainingBody ) ) {
                         return stxToName( rt, nss,
                             mkCons.getProj( remainingBody, "car" ),
+                            function ( string ) {
+                                return mkProjectionOccurrence.ofNow(
+                                    string, new SinkForeign( "name", repMainTagName ) );
+                            },
                             function ( source ) {
                             
                             return loop(
                                 [ {
                                     source: source,
-                                    rep:
-                                        [ "n:proj", source,
-                                            sourceMainTagName,
-                                            nss.uniqueNs.name ]
+                                    rep: [ "n:proj", source, repMainTagName, nss.uniqueNs.name ]
                                 } ].concat( projSourceToRep ),
                                 mkCons.getProj( remainingBody,
                                     "cdr" ) );
@@ -3231,17 +3346,21 @@ function usingFuncDefNs( funcDefNs ) {
                 throw new Error();
             
             return function ( rawMode, nss ) {
-                return stxToName( rt, nss,
+                return stxToConstructorNames( rt, nss,
                     mkCons.getProj( body, "car" ),
-                    function ( sourceMainTagName ) {
+                    function ( macroMainTagName, sourceMainTagName ) {
                 return stxToName( rt, nss,
                     mkCons.getProj( body1, "car" ),
+                    function ( string ) {
+                        return mkLocalOccurrence.ofNow( string );
+                    },
                     function ( firstArg ) {
                 
                 var repMainTagName =
                     [ "n:main", sourceMainTagName,
                         nssGet( nss, "constructor" ).uniqueNs.name ];
                 processDefStruct( nss.definitionNs, rawMode,
+                    macroMainTagName,
                     sourceMainTagName, repMainTagName, [] );
                 return processFn( rt, nssGet( nss, "body" ), rawMode,
                     body1,
@@ -3289,6 +3408,9 @@ function usingFuncDefNs( funcDefNs ) {
             return function ( rawMode, nss ) {
                 return stxToName( rt, nss,
                     mkCons.getProj( body, "car" ),
+                    function ( string ) {
+                        return mkMacroOccurrence.ofNow( string );
+                    },
                     function ( name ) {
                 return processFn( rt, nss, rawMode, body1,
                     function ( rawMode, processedFn ) {
@@ -3493,6 +3615,9 @@ function usingFuncDefNs( funcDefNs ) {
             return function ( rawMode, nss ) {
                 return stxToName( rt, nss,
                     mkCons.getProj( body, "car" ),
+                    function ( string ) {
+                        return mkLocalOccurrence.ofNow( string );
+                    },
                     function ( va ) {
                     
                     return cgenCaseletForRunner( nss, rawMode,
@@ -3671,6 +3796,9 @@ function usingFuncDefNs( funcDefNs ) {
                 
                 return stxToName( rt, nss,
                     mkCons.getProj( remainingBody, "car" ),
+                    function ( string ) {
+                        return mkLocalOccurrence.ofNow( string );
+                    },
                     function ( va ) {
                 
                 var firstNss = nssGet( bindingsNss, "first" );
@@ -3702,6 +3830,10 @@ function usingFuncDefNs( funcDefNs ) {
             return function ( rawMode, nss ) {
                 return stxToName( rt, nss,
                     mkCons.getProj( body, "car" ),
+                    function ( string ) {
+                        return mkConstructorOccurrence.ofNow(
+                            string );
+                    },
                     function ( sourceMainTagNameRep ) {
                 return macLookupThen(
                     getStruct( nss.definitionNs,
@@ -5377,6 +5509,9 @@ function usingFuncDefNs( funcDefNs ) {
         
         collectDefer( rawMode, {}, function ( rawMode ) {
             return stxToObtainMethod( rt, nss, locatedExpr,
+                function ( string ) {
+                    return mkLocalOccurrence.ofNow( string );
+                },
                 function ( exprAppearance ) {
                 
                 function finishWithCexpr( cexpr ) {
@@ -5409,6 +5544,9 @@ function usingFuncDefNs( funcDefNs ) {
             var macroNameStx = mkCons.getProj( sExpr, "car" );
             
             return stxToObtainMethod( rt, nss, macroNameStx,
+                function ( string ) {
+                    return mkMacroOccurrence.ofNow( string );
+                },
                 function ( macroAppearance ) {
                 
                 if ( macroAppearance.type === "obtainInvalid" )
@@ -5494,7 +5632,8 @@ function usingFuncDefNs( funcDefNs ) {
     }
     
     function processDefStruct( definitionNs, rawMode,
-        sourceMainTagName, repMainTagName, projSourceToRep ) {
+        macroMainTagName, sourceMainTagName, repMainTagName,
+        projSourceToRep ) {
         
         var n = projSourceToRep.length;
         var struct = cgenStructArr( repMainTagName, projSourceToRep );
@@ -5513,7 +5652,7 @@ function usingFuncDefNs( funcDefNs ) {
                 } ) ) ) );
         // TODO: Make this expand multiple subexpressions
         // concurrently.
-        addPureMacro( definitionNs, rawMode, sourceMainTagName,
+        addPureMacro( definitionNs, rawMode, macroMainTagName,
             [ "claim:struct" ],
             function ( myStxDetails, body, then ) {
             
@@ -5532,7 +5671,7 @@ function usingFuncDefNs( funcDefNs ) {
                 if ( !mkCons.tags( remainingBody ) )
                     throw new Error(
                         "Expected more arguments to " +
-                        JSON.stringify( sourceMainTagName ) );
+                        JSON.stringify( macroMainTagName ) );
                 
                 var firstNss = nssGet( projectionsNss, "first" );
                 
@@ -5574,9 +5713,7 @@ function usingFuncDefNs( funcDefNs ) {
         var dummyMode = makeDummyMode();
         
         arrEach( builtInCoreStructsToAdd, function ( entry ) {
-            processDefStruct( definitionNs, dummyMode,
-                entry.sourceMainTagName, entry.repMainTagName,
-                entry.projSourceToRep );
+            entry( processDefStruct, definitionNs, dummyMode );
         } );
         
         commitDummyMode( namespaceDefs, dummyMode );

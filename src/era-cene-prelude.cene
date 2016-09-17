@@ -88,7 +88,7 @@
     err.\;qq[Expected both parts to be monadic computations]
     result))
 
-(defn stx-to-obtain-method scope stx
+(defn stx-to-obtain-method scope stx string-to-unq
   (cast scope scope - -b qualify
     err.\;qq[Expected a scope value of type scope]
   /cast stx stx - sexpr
@@ -107,17 +107,18 @@
     
     istring-nil string
     (yep/obtain-by-qualified-name
-    /c qualify /name-of/dexable (dex-string/nil) string)
+    /c qualify /c string-to-unq string)
     
   /nil))
 
-(defn stx-to-maybe-name scope stx
-  (cast (stx-to-obtain-method scope stx) yep obtain-method (nil)
+(defn stx-to-maybe-name scope stx string-to-unq
+  (cast (stx-to-obtain-method scope stx string-to-unq)
+    yep obtain-method (nil)
   /cast obtain-method obtain-by-qualified-name name (nil)
     yep.name))
 
-(defn stx-to-name scope stx
-  (cast (stx-to-maybe-name scope stx) yep name
+(defn stx-to-name scope stx string-to-unq
+  (cast (stx-to-maybe-name scope stx string-to-unq) yep name
     err.\;qq[Expected a syntactic name]
     name))
 
@@ -126,8 +127,11 @@
     err.\;qq[Internal error]
   /later/get-mode/fn mode
   /case
-    (cast (stx-to-obtain-method scope expression) yep obtain-method
-      (nil)
+    (cast
+      (stx-to-obtain-method scope expression /fn string
+        (name-of/dexable (dex-struct local-occurrence /dex-string/nil)
+        /local-occurrence string))
+      yep obtain-method (nil)
     /case obtain-method
       obtain-directly cexpr yep.cexpr
       obtain-by-qualified-name name (yep/cexpr-var name)
@@ -145,8 +149,11 @@
           Expected a macro call with a macro name that was a literal
           string, a foreign obtain-by-unqualified-name, a foreign
           obtain-by-qualified-name, or a foreign obtain-directly])
-    /cast (stx-to-obtain-method scope macro-name) yep obtain-method
-      (c obtain-method-err /nil)
+    /cast
+      (stx-to-obtain-method scope macro-name /fn string
+        (name-of/dexable (dex-struct macro-occurrence /dex-string/nil)
+        /macro-occurrence string))
+      yep obtain-method (c obtain-method-err /nil)
     /case obtain-method
       
       obtain-directly macro-function macro-function
@@ -185,7 +192,9 @@
     (fn mode str rest
       (cast
         (procure-macro-implementation-getdef home-def-ns
-        /c home-qualify /name-of/dexable (dex-string/nil) str)
+        /c home-qualify
+        /name-of/dexable (dex-struct macro-occurrence /dex-string/nil)
+        /macro-occurrence str)
         getdef macro-get macro-definer
         err.\;qq[Internal error]
       /c s /cons (c s /foreign/obtain-directly/c macro-get mode)
@@ -298,7 +307,12 @@
     err.\;qq[Called isa with too few args]
   /cast args nil
     err.\;qq[Called isa with too many args]
-  /cast (stx-to-maybe-name caller-scope constructor) yep constructor
+  /cast
+    (stx-to-maybe-name caller-scope constructor /fn string
+      (name-of/dexable
+        (dex-struct constructor-occurrence /dex-string/nil)
+      /constructor-occurrence string))
+    yep constructor
     err.\;qq[Expected a constructor that was a syntactic name]
   /basic-pure-macro home-scope caller-scope my-stx-details then
   /fn mode caller-scope s mac

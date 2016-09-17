@@ -48,6 +48,46 @@ A bundle of a unique namespace, a definition namespace, and a function to qualif
 Macros use these values. A macro has access to the lexical scope and uniqueness where it was defined, as well as the lexical scope and uniqueness of its caller.
 
 
+.. _macro-occurrence:
+
+macro-occurrence
+----------------
+
+Construct with ``string``
+
+.. todo:: Document this.
+
+
+.. _local-occurrence:
+
+local-occurrence
+----------------
+
+Construct with ``string``
+
+.. todo:: Document this.
+
+
+.. _constructor-occurrence:
+
+constructor-occurrence
+----------------------
+
+Construct with ``string``
+
+.. todo:: Document this.
+
+
+.. _projection-occurrence:
+
+projection-occurrence
+---------------------
+
+Construct with ``string main-tag-name``
+
+.. todo:: Document this.
+
+
 .. _obtain-by-unqualified-name:
 
 obtain-by-unqualified-name
