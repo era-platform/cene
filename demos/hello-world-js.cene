@@ -35,7 +35,7 @@
     /cast (c get mode)
       constructor-glossary main-tag proj-source-to-rep
       err.\;qq[Internal error]
-      main-tag)
+    /cexpr-construct main-tag /list)
   /nil))
 
 (go)

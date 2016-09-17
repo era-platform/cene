@@ -1390,7 +1390,8 @@ CexprCall.prototype.toJsCode = function () {
                 [ "cgenLocal_result" ] ), ", " +
                 "function ( cgenLocal_arg ) {\n" +
         "        \n" +
-        "        return cgenLocal_result.callSink( rt, " +
+        "        return cgenLocal_result.callSink( ",
+                    jsCodeVar( "rt" ), ", " +
                     "cgenLocal_arg );\n" +
         "    } );\n" +
         "} )" );

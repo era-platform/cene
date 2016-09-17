@@ -83,12 +83,9 @@ JsCode.prototype.asStatic = function () {
     this.assertNoFreeVars();
     return jsCodeSingleStatic_( { type: "expr", expr: this } );
 };
-JsCode.prototype.toFunction = function ( paramVarsArr ) {
-    if ( !isArray( paramVarsArr ) )
-        throw new Error();
-    this.minusFreeVars( paramVarsArr ).assertNoFreeVars();
+JsCode.prototype.toExpr_ = function (
+    disallowedGensyms, reifiedVars, reifiedVals ) {
     
-    var disallowedGensyms = strMap().plusArrTruth( paramVarsArr );
     var gensymNumber = 0;
     function nextGensym() {
         while ( true ) {
@@ -97,9 +94,6 @@ JsCode.prototype.toFunction = function ( paramVarsArr ) {
                 return candidate;
         }
     }
-    
-    var reifiedVars = [];
-    var reifiedVals = [];
     
     function toExpr( code ) {
         var result = "(function () {";
@@ -127,9 +121,31 @@ JsCode.prototype.toFunction = function ( paramVarsArr ) {
         return result;
     }
     
+    return toExpr( this );
+};
+JsCode.prototype.toExpr = function () {
+    this.assertNoFreeVars();
+    
+    var reifiedVars = [];
+    var expr = this.toExpr_( strMap(), reifiedVars, [] );
+    if ( reifiedVars.length !== 0 )
+        throw new Error();
+    return expr;
+};
+JsCode.prototype.toFunction = function ( paramVarsArr ) {
+    if ( !isArray( paramVarsArr ) )
+        throw new Error();
+    this.minusFreeVars( paramVarsArr ).assertNoFreeVars();
+    
+    var disallowedGensyms = strMap().plusArrTruth( paramVarsArr );
+    var reifiedVars = [];
+    var reifiedVals = [];
+    var expr =
+        this.toExpr_( disallowedGensyms, reifiedVars, reifiedVals );
+    
     var compiled =
         Function.apply( null, reifiedVars.concat( paramVarsArr, [
-            "return " + toExpr( this ) + ";"
+            "return " + expr + ";"
         ] ) );
     
     return function ( var_args ) {
@@ -146,6 +162,33 @@ JsCode.prototype.instantiate = function ( envObj ) {
         vals.push( val );
     } );
     return this.toFunction( vars ).apply( null, vals );
+};
+JsCode.prototype.toFunctionExpr = function ( paramVarsArr ) {
+    if ( !isArray( paramVarsArr ) )
+        throw new Error();
+    this.minusFreeVars( paramVarsArr ).assertNoFreeVars();
+    
+    var disallowedGensyms = strMap().plusArrTruth( paramVarsArr );
+    var reifiedVars = [];
+    var expr = this.toExpr_( disallowedGensyms, reifiedVars, [] );
+    if ( reifiedVars.length !== 0 )
+        throw new Error();
+    
+    return "Function( " + arrMap( paramVarsArr.concat( [
+        "return " + expr + ";"
+    ] ), function ( str ) {
+        return jsStr( str );
+    } ).join( ", " ) + " )";
+};
+JsCode.prototype.toInstantiateExpr = function ( envObj ) {
+    var vars = [];
+    var vals = [];
+    objOwnEach( envObj, function ( va, val ) {
+        vars.push( va );
+        vals.push( val );
+    } );
+    return this.toFunctionExpr( vars ) + "( " +
+        vals.join( ", " ) + " )";
 };
 JsCode.prototype.toString = function () {
     throw new Error( "Tried to convert a JsCode object to a string" );
