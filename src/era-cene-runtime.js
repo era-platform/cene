@@ -1267,7 +1267,10 @@ function CexprVar( va ) {
 CexprVar.prototype.getFreeVars = function () {
     return jsnMap().plusTruth( this.va );
 };
-CexprVar.prototype.toJsCode = function () {
+CexprVar.prototype.visitForCodePruning = function ( visitor ) {
+    // Do nothing.
+};
+CexprVar.prototype.toJsCode = function ( hasConstructor ) {
     return jsCodeRetCgenVar( this.va );
 };
 CexprVar.prototype.getName = function () {
@@ -1282,7 +1285,10 @@ function CexprReified( val ) {
 CexprReified.prototype.getFreeVars = function () {
     return jsnMap();
 };
-CexprReified.prototype.toJsCode = function () {
+CexprReified.prototype.visitForCodePruning = function ( visitor ) {
+    // Do nothing.
+};
+CexprReified.prototype.toJsCode = function ( hasConstructor ) {
     // #GEN
     
     // For values that are strings, we actually encode them inline in
@@ -1315,13 +1321,19 @@ CexprLet.prototype.getFreeVars = function () {
     } );
     return bindingsFreeVars.plus( bodyFreeVars );
 };
-CexprLet.prototype.toJsCode = function () {
+CexprLet.prototype.visitForCodePruning = function ( visitor ) {
+    arrEach( this.bindings, function ( binding, i ) {
+        binding.v.visitForCodePruning( visitor );
+    } );
+    this.body.visitForCodePruning( visitor );
+};
+CexprLet.prototype.toJsCode = function ( hasConstructor ) {
     // #GEN
     var bindings = arrMap( this.bindings, function ( binding, i ) {
         return {
             innerVar: cgenIdentifier( binding.k ),
             obscureVar: "cgenLocal_" + i,
-            jsCode: binding.v.toJsCode()
+            jsCode: binding.v.toJsCode( hasConstructor )
         };
     } );
     var obscureVars = arrMap( bindings, function ( binding, i ) {
@@ -1334,7 +1346,8 @@ CexprLet.prototype.toJsCode = function () {
         return binding.jsCode.assertNotFreeVars(
             obscureVars.concat( obscureVars ) );
     } );
-    var body = this.body.toJsCode().assertNotFreeVars( obscureVars );
+    var body = this.body.toJsCode( hasConstructor ).assertNotFreeVars(
+        obscureVars );
     
     var result = jsCode(
         "(function () {\n",
@@ -1378,15 +1391,19 @@ function CexprCall( func, arg ) {
 CexprCall.prototype.getFreeVars = function () {
     return this.func.getFreeVars().plus( this.arg.getFreeVars() );
 };
-CexprCall.prototype.toJsCode = function () {
+CexprCall.prototype.visitForCodePruning = function ( visitor ) {
+    this.func.visitForCodePruning( visitor );
+    this.arg.visitForCodePruning( visitor );
+};
+CexprCall.prototype.toJsCode = function ( hasConstructor ) {
     // #GEN
     return jsCode(
         jsCodeVar( "macLookupThen" ), "( ",
-            this.func.toJsCode(), ", " +
+            this.func.toJsCode( hasConstructor ), ", " +
             "function ( cgenLocal_result ) {\n" +
         "    \n" +
         "    return macLookupThen( ",
-            this.arg.toJsCode().assertNotFreeVars(
+            this.arg.toJsCode( hasConstructor ).assertNotFreeVars(
                 [ "cgenLocal_result" ] ), ", " +
                 "function ( cgenLocal_arg ) {\n" +
         "        \n" +
@@ -1432,32 +1449,40 @@ CexprCase.prototype.getFreeVars = function () {
         plus( this.subject.getFreeVars() ).
         plus( this.els.getFreeVars() );
 };
-CexprCase.prototype.toJsCode = function () {
+CexprCase.prototype.visitForCodePruning = function ( visitor ) {
+    this.subject.visitForCodePruning( visitor );
+    visitor.addCase( this.flatTag, this.then );
+    this.els.visitForCodePruning( visitor );
+};
+CexprCase.prototype.toJsCode = function ( hasConstructor ) {
     // #GEN
     return jsCode( jsCodeVar( "macLookupThen" ), "( ",
-        this.subject.toJsCode(), ", " +
-        "function ( cgenLocal_matchSubject ) { " +
+        this.subject.toJsCode( hasConstructor ), ", " +
+        "function ( cgenLocal_matchSubject ) { ",
         
-        "if ( cgenLocal_matchSubject instanceof ",
-            jsCodeVar( "SinkStruct" ), " " +
-            "&& cgenLocal_matchSubject.flatTag === " +
-                jsStr( this.flatTag ) + " " +
-        ") return (function () { " +
-            arrMap( this.bindings, function ( binding, i ) {
-                return "var " + cgenIdentifier( binding.local ) +
-                    " = " +
-                    "cgenLocal_matchSubject.projVals[ " + i + " ]; ";
-            } ).join( "" ) +
-            "return ", this.then.toJsCode().assertNotFreeVars(
-                [ "cgenLocal_matchSubject" ]
-            ).minusFreeVars(
+        (hasConstructor( this.flatTag ) ? [
+            "if ( cgenLocal_matchSubject instanceof ",
+                jsCodeVar( "SinkStruct" ), " " +
+                "&& cgenLocal_matchSubject.flatTag === " +
+                    jsStr( this.flatTag ) + " " +
+            ") return (function () { " +
                 arrMap( this.bindings, function ( binding, i ) {
-                    return cgenIdentifier( binding.local );
-                } ) ), "; " +
-        "})(); " +
+                    return "var " + cgenIdentifier( binding.local ) +
+                        " = " +
+                        "cgenLocal_matchSubject.projVals[ " +
+                            i + " ]; ";
+                } ).join( "" ) +
+                "return ", this.then.toJsCode( hasConstructor
+                ).assertNotFreeVars( [ "cgenLocal_matchSubject" ]
+                ).minusFreeVars(
+                    arrMap( this.bindings, function ( binding, i ) {
+                        return cgenIdentifier( binding.local );
+                    } ) ), "; " +
+            "})(); "
+        ] : ""),
         
-        "return ", this.els.toJsCode().assertNotFreeVars(
-            [ "cgenLocal_matchSubject" ] ), "; " +
+        "return ", this.els.toJsCode( hasConstructor
+        ).assertNotFreeVars( [ "cgenLocal_matchSubject" ] ), "; " +
     "} )" );
 };
 CexprCase.prototype.getName = function () {
@@ -1481,7 +1506,7 @@ CexprCase.prototype.pretty = function () {
         this.els.pretty() + ")";
 };
 function classCexprStructMapper(
-    nameTag, prettyTag, genJsConstructor ) {
+    nameTag, prettyTag, genJsConstructor, visitForCodePruning ) {
     
     function CexprConstructMapper( mainTagName, projections ) {
         var projectionsWithSortedI =
@@ -1514,7 +1539,17 @@ function classCexprStructMapper(
         } );
         return result;
     };
-    CexprConstructMapper.prototype.toJsCode = function () {
+    CexprConstructMapper.prototype.visitForCodePruning =
+        function ( visitor ) {
+        
+        visitForCodePruning( visitor, this.flatTag );
+        arrEach( this.projections, function ( projection, i ) {
+            projection.expr.visitForCodePruning( visitor );
+        } );
+    };
+    CexprConstructMapper.prototype.toJsCode =
+        function ( hasConstructor ) {
+        
         // #GEN
         var projectionVars = arrMap( this.projections,
             function ( projection, i ) {
@@ -1535,8 +1570,8 @@ function classCexprStructMapper(
                 projectionVars[ this.projections[ i ].sortedI ];
             result = jsCode( jsCodeVar( "macLookupThen" ), "( ",
                 this.projections[ i
-                    ].expr.toJsCode().assertNotFreeVars(
-                        projectionVars ),
+                    ].expr.toJsCode( hasConstructor
+                    ).assertNotFreeVars( projectionVars ),
                 ", " +
                 "function ( " + projVar + " ) {\n" +
             
@@ -1577,6 +1612,8 @@ function classCexprStructMapperOrdered(
                         "val: ", sortedProjections[ sortedI ], " " +
                     "}" ) ];
                 } ).slice( 1 ), " ]" ) );
+    }, function ( visitor, flatTag ) {
+        // Do nothing.
     } );
 }
 var CexprConstruct = classCexprStructMapper( "n:cexpr-construct",
@@ -1588,6 +1625,8 @@ var CexprConstruct = classCexprStructMapper( "n:cexpr-construct",
         "[ ", arrMappend( sortedProjections, function ( proj, i ) {
             return [ ", ", proj ];
         } ).slice( 1 ), " ] )" );
+}, function ( visitor, flatTag ) {
+    visitor.addConstructor( flatTag );
 } );
 var CexprDexStruct = classCexprStructMapperOrdered(
     "n:cexpr-dex-struct", "cexpr-dex-struct",
@@ -1618,7 +1657,11 @@ function CexprErr( msg ) {
 CexprErr.prototype.getFreeVars = function () {
     return jsnMap();
 };
-CexprErr.prototype.toJsCode = function () {
+CexprErr.prototype.visitForCodePruning = function ( visitor ) {
+    visitor.addConstructor(
+        makeFlatTag( [ "n:main-core", "follow-heart" ], [] ) );
+};
+CexprErr.prototype.toJsCode = function ( hasConstructor ) {
     return jsCode( jsCodeVar( "sinkErr" ), "( " +
         jsStr( this.msg ) + " )" );
 };
@@ -1641,7 +1684,10 @@ function CexprFn( param, body ) {
 CexprFn.prototype.getFreeVars = function () {
     return this.body.getFreeVars().minusEntry( this.param );
 };
-CexprFn.prototype.toJsCode = function () {
+CexprFn.prototype.visitForCodePruning = function ( visitor ) {
+    this.body.visitForCodePruning( visitor );
+};
+CexprFn.prototype.toJsCode = function ( hasConstructor ) {
     // #GEN
     var va = cgenIdentifier( this.param );
     return jsCode(
@@ -1649,8 +1695,8 @@ CexprFn.prototype.toJsCode = function () {
             "new ", jsCodeVar( "SinkFn" ), "( " +
                 "function ( rt, " + va + " ) { " +
             
-            "return ", this.body.toJsCode().minusFreeVars(
-                [ "rt", va ] ), "; " +
+            "return ", this.body.toJsCode( hasConstructor
+                ).minusFreeVars( [ "rt", va ] ), "; " +
         "} ) )" );
 };
 CexprFn.prototype.getName = function () {
@@ -2641,6 +2687,12 @@ function cgenExecute( rt, expr ) {
     } );
 }
 
+function cexprToSloppyJsCode( cexpr ) {
+    return cexpr.toJsCode( function ( constructor ) {
+        return true;
+    } );
+}
+
 function addFunctionNativeDefinition(
     funcDefNs, rawMode, constructorTagName, impl ) {
     
@@ -2657,7 +2709,7 @@ function addDefun( rt, funcDefNs, rawMode, name, argName, body ) {
     var innerFunc = cgenExecute( rt,
         jsCode(
             "function ( rt, " + argVar + " ) { " +
-                "return ", body.toJsCode().minusFreeVars(
+                "return ", cexprToSloppyJsCode( body ).minusFreeVars(
                     [ "rt", argVar ] ), "; " +
             "}" ) );
     addFunctionNativeDefinition(
@@ -3416,7 +3468,8 @@ function usingFuncDefNs( funcDefNs ) {
                 return processFn( rt, nss, rawMode, body1,
                     function ( rawMode, processedFn ) {
                 return macLookupThen(
-                    cgenExecute( rt, processedFn.toJsCode() ),
+                    cgenExecute( rt,
+                        cexprToSloppyJsCode( processedFn ) ),
                     function ( executedFn ) {
                 return macLookupThen(
                     executedFn.callSink( rt,
@@ -3478,7 +3531,7 @@ function usingFuncDefNs( funcDefNs ) {
                             
                             return macLookupThen(
                                 cgenExecute( rt,
-                                    expanded.toJsCode() ),
+                                    cexprToSloppyJsCode( expanded ) ),
                                 function ( evaluated ) {
                                 
                                 return then( rawMode, evaluated );
@@ -5081,7 +5134,8 @@ function usingFuncDefNs( funcDefNs ) {
                 if ( cexpr.cexpr.getFreeVars().hasAny() )
                     throw new Error();
                 
-                return cgenExecute( rt, cexpr.cexpr.toJsCode() );
+                return cgenExecute( rt,
+                    cexprToSloppyJsCode( cexpr.cexpr ) );
             } );
         } );
         
@@ -5096,7 +5150,8 @@ function usingFuncDefNs( funcDefNs ) {
             if ( cexpr.cexpr.getFreeVars().hasAny() )
                 throw new Error();
             
-            var impl = cgenExecute( rt, cexpr.cexpr.toJsCode() );
+            var impl = cgenExecute( rt,
+                cexprToSloppyJsCode( cexpr.cexpr ) );
             
             return new SinkForeign( "native-definition",
                 function ( rt, func, arg ) {

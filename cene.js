@@ -102,6 +102,7 @@ function runCeneSync(
         "    jsnMap: jsnMap,\n" +
         "    sinkNsGet: sinkNsGet,\n" +
         "    sinkNsRoot: sinkNsRoot,\n" +
+        "    cexprToSloppyJsCode: cexprToSloppyJsCode,\n" +
         "    rootQualify: rootQualify,\n" +
         "    usingFuncDefNs: usingFuncDefNs,\n" +
         "    ceneApiUsingFuncDefNs: ceneApiUsingFuncDefNs\n" +
@@ -325,7 +326,7 @@ function runCeneSync(
                     "quinerCallWithSyncJavaScriptMode( " +
                         "function ( rt ) {\n" +
                         
-                        "return " + cexpr.toJsCode(
+                        "return " + $cene.cexprToSloppyJsCode( cexpr
                         ).toInstantiateExpr( {
                             rt: "rt",
                             SinkStruct: "SinkStruct",
