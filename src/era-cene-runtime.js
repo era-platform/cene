@@ -373,6 +373,54 @@ function prettifyFlatTag( flatTag ) {
     return flatTag;
 }
 
+function getFunctionImplementationEntryDefinerByFlatTag(
+    funcDefNs, flatTag ) {
+    
+    var parsedTag = JSON.parse( flatTag );
+    return getFunctionImplementationEntryDefiner( funcDefNs,
+        sinkNameConstructorTagAlreadySorted(
+            parsedTag[ 0 ], parsedTag[ 1 ] ) );
+}
+
+function getFunctionImplementationByFlatTag(
+    funcDefNs, flatTag, then ) {
+    
+    return macLookupThen(
+        macLookupGet(
+            getFunctionImplementationEntryDefinerByFlatTag( funcDefNs,
+                flatTag ),
+            function () {
+                throw new Error(
+                    "No such function definition: " + flatTag );
+            } ),
+        function ( def ) {
+        
+        if ( !(def instanceof SinkForeign
+            && def.purpose === "native-definition") )
+            throw new Error();
+        
+        return then( def.foreignVal );
+    } );
+}
+
+function getFunctionImplementationCexprByFlatTag(
+    namespaceDefs, funcDefNs, flatTag ) {
+    
+    var visitable =
+        definerToVisitable( namespaceDefs,
+            getFunctionImplementationEntryDefinerByFlatTag( funcDefNs,
+                flatTag ) );
+    if ( visitable.dexAndValue === null )
+        return null;
+    var def = visitable.dexAndValue.value;
+    
+    if ( !(def instanceof SinkForeign
+        && def.purpose === "native-definition") )
+        throw new Error();
+    
+    return def.foreignVal.cexpr;
+}
+
 function SinkStruct( flatTag, opt_projVals ) {
     this.flatTag = flatTag;
     this.projVals = opt_projVals || [];
@@ -389,23 +437,11 @@ SinkStruct.prototype.callSink = function ( rt, arg ) {
     if ( func !== void 0 )
         return func( rt, self, arg );
     
-    var parsedTag = JSON.parse( self.flatTag );
-    return macLookupThen(
-        macLookupGet(
-            getFunctionImplementationEntryDefiner( rt.funcDefNs,
-                sinkNameConstructorTagAlreadySorted(
-                    parsedTag[ 0 ], parsedTag[ 1 ] ) ),
-            function () {
-                throw new Error(
-                    "No such function definition: " + self.flatTag );
-            } ),
+    return getFunctionImplementationByFlatTag( rt.funcDefNs,
+        self.flatTag,
         function ( def ) {
         
-        if ( !(def instanceof SinkForeign
-            && def.purpose === "native-definition") )
-            throw new Error();
-        
-        var func = def.foreignVal;
+        var func = def.func;
         rt.functionDefs[ self.flatTag ] = func;
         return func( rt, self, arg );
     } );
@@ -2693,6 +2729,20 @@ function cexprToSloppyJsCode( cexpr ) {
     } );
 }
 
+function callSinkMulti( rt, func, var_args ) {
+    var args = arguments;
+    var n = args.length;
+    return loop( func, 2 );
+    function loop( func, i ) {
+        if ( n <= i )
+            return macLookupRet( func );
+        return macLookupThen( func.callSink( rt, args[ i ] ),
+            function ( func ) {
+                return loop( func, i + 1 );
+            } );
+    }
+}
+
 function addFunctionNativeDefinition(
     funcDefNs, rawMode, constructorTagName, impl ) {
     
@@ -2702,22 +2752,21 @@ function addFunctionNativeDefinition(
         new SinkForeign( "native-definition", impl ) );
 }
 function addDefun( rt, funcDefNs, rawMode, name, argName, body ) {
-    // #GEN
     var constructorTagName =
         sinkNameConstructorTagAlreadySorted( name, [] );
-    var argVar = cgenIdentifier( argName );
-    var innerFunc = cgenExecute( rt,
-        jsCode(
-            "function ( rt, " + argVar + " ) { " +
-                "return ", cexprToSloppyJsCode( body ).minusFreeVars(
-                    [ "rt", argVar ] ), "; " +
-            "}" ) );
+    var cexpr =
+        new CexprFn( [ "n:ignored" ], new CexprFn( argName, body ) );
+    var impl = cgenExecute( rt, cexprToSloppyJsCode( cexpr ) );
     addFunctionNativeDefinition(
         funcDefNs, rawMode, constructorTagName,
-        function ( rt, funcVal, argVal ) {
-        
-        return innerFunc( rt, argVal );
-    } );
+        {
+            cexpr: cexpr,
+            func: function ( rt, func, arg ) {
+                return macLookupThen( impl, function ( impl ) {
+                    return callSinkMulti( rt, impl, func, arg );
+                } );
+            }
+        } );
 }
 
 // TODO: Start using this to report errors instead of
@@ -2752,20 +2801,6 @@ function usingFuncDefNs( funcDefNs ) {
             return then( rt.toBoolean( has ) );
         } );
     };
-    
-    function callSinkMulti( rt, func, var_args ) {
-        var args = arguments;
-        var n = args.length;
-        return loop( func, 2 );
-        function loop( func, i ) {
-            if ( n <= i )
-                return macLookupRet( func );
-            return macLookupThen( func.callSink( rt, args[ i ] ),
-                function ( func ) {
-                    return loop( func, i + 1 );
-                } );
-        }
-    }
     
     function parseString( string ) {
         if ( !(string instanceof SinkForeign
@@ -3324,10 +3359,12 @@ function usingFuncDefNs( funcDefNs ) {
                     repMainTagName, [] );
             addFunctionNativeDefinition(
                 funcDefNs, dummyMode, constructorTagName,
-                function ( rt, funcVal, argVal ) {
-                
-                return body( rt, argVal );
-            } );
+                {
+                    cexpr: null,
+                    func: function ( rt, funcVal, argVal ) {
+                        return body( rt, argVal );
+                    }
+                } );
             processDefStruct( targetDefNs, dummyMode,
                 macroMainTagName,
                 sourceMainTagName, repMainTagName, [] );
@@ -5153,10 +5190,11 @@ function usingFuncDefNs( funcDefNs ) {
             var impl = cgenExecute( rt,
                 cexprToSloppyJsCode( cexpr.cexpr ) );
             
-            return new SinkForeign( "native-definition",
-                function ( rt, func, arg ) {
-                
-                return callSinkMulti( rt, impl, func, arg );
+            return new SinkForeign( "native-definition", {
+                cexpr: cexpr,
+                func: function ( rt, func, arg ) {
+                    return callSinkMulti( rt, impl, func, arg );
+                }
             } );
         } );
         

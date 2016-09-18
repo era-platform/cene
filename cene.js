@@ -98,10 +98,14 @@ function runCeneSync(
         "    jsJson: jsJson,\n" +
         "    arrMap: arrMap,\n" +
         "    arrMappend: arrMappend,\n" +
+        "    arrKeep: arrKeep,\n" +
         "    arrEach: arrEach,\n" +
+        "    strMap: strMap,\n" +
         "    jsnMap: jsnMap,\n" +
         "    sinkNsGet: sinkNsGet,\n" +
         "    sinkNsRoot: sinkNsRoot,\n" +
+        "    getFunctionImplementationCexprByFlatTag:\n" +
+        "        getFunctionImplementationCexprByFlatTag,\n" +
         "    cexprToSloppyJsCode: cexprToSloppyJsCode,\n" +
         "    rootQualify: rootQualify,\n" +
         "    usingFuncDefNs: usingFuncDefNs,\n" +
@@ -189,6 +193,62 @@ function runCeneSync(
     }
     
     var namespaceDefs = $cene.jsnMap();
+    
+    function cexprToCode( cexpr, hasConstructor ) {
+        return "function ( rt ) {\n" +
+            "return " + cexpr.toJsCode( hasConstructor
+            ).toInstantiateExpr( {
+                rt: "rt",
+                SinkStruct: "SinkStruct",
+                SinkFn: "SinkFn",
+                SinkForeign: "SinkForeign",
+                SinkDexStruct: "SinkDexStruct",
+                SinkFuseStruct: "SinkFuseStruct",
+                sinkForeignStrFromJs:
+                    "sinkForeignStrFromJs",
+                sinkErr: "sinkErr",
+                macLookupRet: "macLookupRet",
+                macLookupThen: "macLookupThen"
+            } ) + ";\n" +
+        "}";
+    }
+    
+    function makeQuine( topLevelVars, quine ) {
+        return (
+            "\"strict mode\";\n" +
+            "(function ( topLevelVars ) {\n" +
+            "\n" +
+            "var quine = " + _.jsStr( quine ) + ";\n" +
+            "Function( \"quine\", \"topLevelVars\", " +
+                "quine )( quine, topLevelVars );\n" +
+            "\n" +
+            "})( {\n" +
+            $cene.arrMap( topLevelVars, function ( va ) {
+                if ( !/^[_$a-zA-Z][_$a-zA-Z01-9]*$/.test( va ) )
+                    throw new Error();
+                if ( va === "this" || va === "arguments" )
+                    throw new Error();
+                
+                // We raise an error if the function bodies we need
+                // wouldn't usually compile (particularly if the
+                // variable name is a reserved word).
+                Function( "return " + va + ";" );
+                Function( "" + va + " = arguments[ 0 ];" );
+                
+                return (
+                    "" + _.jsStr( "|" + va ) + ": {\n" +
+                    "    get: function () {\n" +
+                    "        return " + va + ";\n" +
+                    "    },\n" +
+                    "    set: function () {\n" +
+                    "        " + va + " = arguments[ 0 ];\n" +
+                    "    }\n" +
+                    "}"
+                );
+            } ).join( ",\n" ) + "\n" +
+            "} );\n"
+        );
+    }
     
     var ceneApiUsingDefNs =
         $cene.ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, {
@@ -324,60 +384,106 @@ function runCeneSync(
                     "quinerTopLevelVars = topLevelVars;\n" +
                     "\n" +
                     "quinerCallWithSyncJavaScriptMode( " +
-                        "function ( rt ) {\n" +
-                        
-                        "return " + $cene.cexprToSloppyJsCode( cexpr
-                        ).toInstantiateExpr( {
-                            rt: "rt",
-                            SinkStruct: "SinkStruct",
-                            SinkFn: "SinkFn",
-                            SinkForeign: "SinkForeign",
-                            SinkDexStruct: "SinkDexStruct",
-                            SinkFuseStruct: "SinkFuseStruct",
-                            sinkForeignStrFromJs:
-                                "sinkForeignStrFromJs",
-                            sinkErr: "sinkErr",
-                            macLookupRet: "macLookupRet",
-                            macLookupThen: "macLookupThen"
-                        } ) + ";\n" +
-                    "} );\n";
+                        cexprToCode( cexpr, function ( constructor ) {
+                            return true;
+                        } ) + " );\n";
                 
-                return (
-                    "\"strict mode\";\n" +
-                    "(function ( topLevelVars ) {\n" +
-                    "\n" +
-                    "var quine = " + _.jsStr( quine ) + ";\n" +
-                    "Function( \"quine\", \"topLevelVars\", " +
-                        "quine )( quine, topLevelVars );\n" +
-                    "\n" +
-                    "})( {\n" +
-                    $cene.arrMap( topLevelVars, function ( va ) {
-                        if ( !/^[_$a-zA-Z][_$a-zA-Z01-9]*$/.test(
-                            va ) )
-                            throw new Error();
-                        if ( va === "this" || va === "arguments" )
-                            throw new Error();
+                return makeQuine( topLevelVars, quine );
+            },
+            pickyJavaScriptQuine: function ( cexpr, topLevelVars ) {
+                
+                var cexprsToVisit = [ cexpr ];
+                var constructorsSeen = $cene.strMap();
+                var constructorsToVisit = [];
+                var constructorImpls = $cene.strMap();
+                var casesToVisit = [];
+                
+                var visitor = {};
+                visitor.addConstructor = function ( flatTag ) {
+                    if ( constructorsSeen.has( flatTag ) )
+                        return;
+                    constructorsSeen.add( flatTag );
+                    constructorsToVisit.push( flatTag );
+                    casesToVisit = $cene.arrKeep( casesToVisit,
+                        function ( caseToVisit ) {
                         
-                        // We raise an error if the function bodies we
-                        // need wouldn't usually compile (particularly
-                        // if the variable name is a reserved word).
-                        Function( "return " + va + ";" );
-                        Function( "" + va + " = arguments[ 0 ];" );
+                        if ( caseToVisit.flatTag === flatTag )
+                            cexprsToVisit.push(
+                                caseToVisit.then );
+                        return caseToVisit.flatTag !== flatTag;
+                    } );
+                };
+                visitor.addCase = function ( flatTag, then ) {
+                    if ( constructorsSeen.has( flatTag ) )
+                        cexprsToVisit.push( then );
+                    else
+                        casesToVisit.push(
+                            { flatTag: flatTag, then: then } );
+                };
+                
+                while ( true ) {
+                    while ( cexprsToVisit.length !== 0 ) {
+                        cexprsToVisit.shift().visitForCodePruning(
+                            visitor );
+                    }
+                    if ( constructorsToVisit.length === 0 )
+                        break;
+                    var flatTag = constructorsToVisit.shift();
+                    var parsedTag = JSON.parse( flatTag );
+                    var implCexpr =
+                        $cene.getFunctionImplementationCexprByFlatTag(
+                            namespaceDefs, funcDefNs, flatTag );
+                    if ( implCexpr !== null ) {
+                        cexprsToVisit.push( implCexpr );
+                        constructorImpls.set( flatTag, implCexpr );
+                    }
+                }
+                
+                var quine =
+                    readInternalFiles( [
+                        "src/era-misc-strmap-avl.js",
+                        "src/era-misc.js",
                         
-                        return (
-                            "" + _.jsStr( "|" + va ) + ": " +
-                                "{\n" +
-                            "    get: function () {\n" +
-                            "        return " + va + ";\n" +
-                            "    },\n" +
-                            "    set: function () {\n" +
-                            "        " + va + " = arguments[ 0 ];\n" +
-                            "    }\n" +
-                            "}"
-                        );
-                    } ).join( ",\n" ) + "\n" +
-                    "} );\n"
-                );
+                        // NOTE: By commenting these out, we save on
+                        // file size. Some parts of the code end up
+                        // referring to global variables that don't
+                        // exist, but those parts should all be
+                        // unreachable at run time anyway.
+//                        "src/era-reader.js",
+//                        "src/era-code-gen-js.js",
+                        
+                        "src/era-cene-runtime.js",
+                        "src/era-cene-api.js",
+                        "src/era-cene-quiner.js"
+                    ] ) + "\n" +
+                    "\n";
+                
+                constructorImpls.each(
+                    function ( flatTag, cexpr ) {
+                    
+                    quine +=
+                        "quinerAddFuncDef( " +
+                            _.jsStr( flatTag ) + ", " +
+                            cexprToCode( cexpr,
+                                function ( constructor ) {
+                                
+                                return constructorsSeen.has(
+                                    constructor );
+                            } ) + " );\n";
+                } );
+                
+                quine +=
+                    "\n" +
+                    "quinerQuine = quine;\n" +
+                    "quinerTopLevelVars = topLevelVars;\n" +
+                    "\n" +
+                    "quinerCallWithSyncJavaScriptMode( " +
+                        cexprToCode( cexpr, function ( constructor ) {
+                            return constructorsSeen.has(
+                                constructor );
+                        } ) + " );\n";
+                
+                return makeQuine( topLevelVars, quine );
             },
             onceDependenciesComplete: function ( listener ) {
                 onceDependenciesCompleteListeners.push( listener );

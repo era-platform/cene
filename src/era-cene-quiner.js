@@ -12,6 +12,26 @@ var quinerInputPathBlobUtf8 = jsnMap();
 var quinerQuine = null;
 var quinerTopLevelVars = null;
 
+var quinerFuncDefs = [];
+
+function quinerAddFuncDef( flatTag, calculateFuncImpl ) {
+    quinerFuncDefs.push( function ( rawMode, funcDefNs ) {
+        collectPutDefinedValue( rawMode,
+            getFunctionImplementationEntryDefinerByFlatTag(
+                funcDefNs, flatTag ),
+            new SinkForeign( "native-definition", {
+                cexpr: null,
+                func: function ( rt, func, arg ) {
+                    return macLookupThen( calculateFuncImpl( rt ),
+                        function ( impl ) {
+                        
+                        return callSinkMulti( rt, impl, func, arg );
+                    } );
+                }
+            } ) );
+    } );
+}
+
 function quinerCallWithSyncJavaScriptMode( calculateFunc ) {
     var codeOfFiles = arrMappend( quinerTextOfFiles,
         function ( text ) {
@@ -84,6 +104,9 @@ function quinerCallWithSyncJavaScriptMode( calculateFunc ) {
             sloppyJavaScriptQuine: function ( cexpr, topLevelVars ) {
                 return null;
             },
+            pickyJavaScriptQuine: function ( cexpr, topLevelVars ) {
+                return null;
+            },
             onDependenciesComplete: function ( listener ) {
                 // Do nothing.
             },
@@ -105,6 +128,12 @@ function quinerCallWithSyncJavaScriptMode( calculateFunc ) {
         namespaceDefs, nss.definitionNs, funcDefNs );
     usingDefNs.processCoreStructs( namespaceDefs, nss.definitionNs );
     ceneApiUsingDefNs.addCeneApi( nss.definitionNs, funcDefNs );
+    
+    var dummyMode = usingDefNs.makeDummyMode();
+    arrEach( quinerFuncDefs, function ( funcDef, i ) {
+        funcDef( dummyMode, funcDefNs );
+    } );
+    usingDefNs.commitDummyMode( namespaceDefs, dummyMode );
     
     runTopLevelMacLookupsSync( namespaceDefs, usingDefNs.rt,
         [].concat(

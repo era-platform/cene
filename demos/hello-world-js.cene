@@ -20,10 +20,7 @@
   /basic-nil-macro home-scope caller-scope my-stx-details then
   /fn caller-scope s mac
   /get-mode/fn mode
-  /output-path-blob-utf-8
-    (output-path-get (cli-output-directory mode)
-      str.\;qq[hello-world.js])
-  /sloppy-javascript-quine mode
+  /let cexpr
     (cast
       (procure-constructor-glossary-getdef home-def-ns
       /c home-qualify
@@ -36,7 +33,16 @@
       constructor-glossary main-tag proj-source-to-rep
       err.\;qq[Internal error]
     /cexpr-construct main-tag /list)
-  /nil))
+  /let outdir (cli-output-directory mode)
+  /join-effects
+    (output-path-blob-utf-8
+      (output-path-get outdir str.\;qq[hello-world-sloppy.js])
+    /sloppy-javascript-quine mode cexpr /list)
+  /join-effects
+    (output-path-blob-utf-8
+      (output-path-get outdir str.\;qq[hello-world-picky.js])
+    /picky-javascript-quine mode cexpr /list)
+  /no-effects/nil))
 
 (go)
 

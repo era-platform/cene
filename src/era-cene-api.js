@@ -249,10 +249,12 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                     repMainTagName, [] );
             addFunctionNativeDefinition(
                 funcDefNs, dummyMode, constructorTagName,
-                function ( rt, funcVal, argVal ) {
-                
-                return body( rt, argVal );
-            } );
+                {
+                    cexpr: null,
+                    func: function ( rt, funcVal, argVal ) {
+                        return body( rt, argVal );
+                    }
+                } );
             usingDefNs.processDefStruct( targetDefNs, dummyMode,
                 macroMainTagName,
                 sourceMainTagName, repMainTagName, [] );
@@ -586,6 +588,37 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                         new SinkForeign( "encapsulated-string",
                             function () {
                                 return apiOps.sloppyJavaScriptQuine(
+                                    cexpr.cexpr,
+                                    dedupVars );
+                            } ) );
+                } );
+            } );
+        } );
+        
+        fun( "picky-javascript-quine", function ( rt, mode ) {
+            return sinkFnPure( function ( rt, cexpr ) {
+                return sinkFnPure( function ( rt, topLevelVars ) {
+                    
+                    assertMode( rawModeSupportsObserveCli, mode );
+                    
+                    if ( !(cexpr instanceof SinkCexpr) )
+                        throw new Error();
+                    
+                    var dedupVars = [];
+                    var dedupVarsMap = {};
+                    eachConsList( topLevelVars, function ( va ) {
+                        var vaInternal = parseString( va ).jsStr;
+                        var k = "|" + vaInternal;
+                        if ( dedupVarsMap[ k ] )
+                            return;
+                        dedupVarsMap[ k ] = true;
+                        dedupVars.push( vaInternal );
+                    } );
+                    
+                    return mkEncapsulatedString.ofNow(
+                        new SinkForeign( "encapsulated-string",
+                            function () {
+                                return apiOps.pickyJavaScriptQuine(
                                     cexpr.cexpr,
                                     dedupVars );
                             } ) );
