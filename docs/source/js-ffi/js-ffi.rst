@@ -12,6 +12,16 @@ Call with ``mode cexpr top-level-vars``
 Creates an (:ref:`encapsulated-string` ...) with self-contained JavaScript that captures the given cons list of variable name strings and synchronously executes the given compiled expression, using the definitions currently existing in this runtime, passing the result :doc:`a Cene client object <js-client>` with access to the captured variables. This will make no attempt to serialize first-class values; it will only put all Cene code and dependency data into a single massive JavaScript file together with a Cene interpreter that can re-run the build (including re-running the (:ref:`sloppy-javascript-quine` ...) operation itself!). The given mode must be a current one, and it must permit CLI-time operations.
 
 
+.. _picky-javascript-quine:
+
+picky-javascript-quine
+----------------------
+
+Call with ``mode cexpr top-level-vars``
+
+Creates an (:ref:`encapsulated-string` ...) with self-contained JavaScript that captures the given cons list of variable name strings and synchronously executes the given compiled expression, using the definitions currently existing in this runtime, passing the result :doc:`a Cene client object <js-client>` with access to the captured variables. This will crawl the compiled expression and only produce code for the case branches and function implementations corresponding to the constructors it calls. It will serialize reified strings, but not other kinds of reified value. The given mode must be a current one, and it must permit CLI-time operations.
+
+
 .. _string-to-javascript-utf-16:
 
 string-to-javascript-utf-16

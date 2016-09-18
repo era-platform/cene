@@ -18,7 +18,8 @@ cene.runCeneSync( [
 ], {
     out: "fin/hello-world-js"
 } );
-require( "./fin/hello-world-js/hello-world" );
+require( "./fin/hello-world-js/hello-world-sloppy" );
+require( "./fin/hello-world-js/hello-world-picky" );
 
 cene.runCeneSync( [
     "src/era-cene-prelude.cene",
