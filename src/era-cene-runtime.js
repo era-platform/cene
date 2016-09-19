@@ -699,13 +699,7 @@ SinkClineGiveUp.prototype.dexHas = function ( rt, x ) {
     return macLookupRet( mkNope.ofNow( mkNil.ofNow() ) );
 };
 SinkClineGiveUp.prototype.clineRate = function ( rt, x ) {
-    return macLookupRet( {
-        compatible: [ "clineTriviallyCompatible" ],
-        prepared: x,
-        func: function ( rt, a, b ) {
-            return macLookupRet( mkNil.ofNow() );
-        }
-    } );
+    return macLookupRet( null );
 };
 SinkClineGiveUp.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
@@ -764,18 +758,25 @@ SinkClineStruct.prototype.dexHas = function ( rt, x ) {
         return macLookupRet( rt.fromBoolean( false ) );
     
     var n = self.projClines.length;
-    return loop( 0 );
-    function loop( i ) {
+    return loop( 0, true );
+    function loop( i, result ) {
         if ( n <= i )
-            return macLookupRet( rt.fromBoolean( true ) );
+            return macLookupRet( rt.fromBoolean( result ) );
         var projCline = self.projClines[ i ];
         return macLookupThen(
             projCline.val.dexHas( rt, x.projVals[ projCline.i ] ),
-            function ( result ) {
+            function ( subResult ) {
             
-            if ( !rt.toBoolean( result ) )
-                return macLookupRet( result );
-            return loop( i + 1 );
+            // NOTE: Even if `subResult` is false, we still compute
+            // the rest of the projections' results. This way, if any
+            // of them diverge, then this computation also diverges.
+            // In order for us to be able to sort tables without
+            // having to compare every single combination of two
+            // elements, we want to risk divergence of
+            // `cline-by-own-method` and `cline-fix` in the individual
+            // rating step, not the comparison step.
+            
+            return loop( i + 1, result && subResult );
         } );
     }
 };
