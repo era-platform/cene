@@ -568,13 +568,11 @@ SinkClineByDex.prototype.clineRate = function ( rt, x ) {
         func: function ( rt, a, b ) {
             var result = nameCompare( a, b );
             if ( result < 0 )
-                return macLookupRet(
-                    mkYep.ofNow( new SinkForeign( "lt", null ) ) );
+                return mkYep.ofNow( new SinkForeign( "lt", null ) );
             if ( 0 < result )
-                return macLookupRet(
-                    mkYep.ofNow( new SinkForeign( "gt", null ) ) );
+                return mkYep.ofNow( new SinkForeign( "gt", null ) );
             
-            return macLookupRet( mkYep.ofNow( mkNil.ofNow() ) );
+            return mkYep.ofNow( mkNil.ofNow() );
         }
     } );
     
@@ -638,13 +636,9 @@ SinkClineDefault.prototype.clineRate = function ( rt, x ) {
         prepared: { first: first, second: second },
         func: function ( rt, a, b ) {
             if ( a.first !== null && b.first === null )
-                return macLookupRet(
-                    mcYep.ofNow(
-                        mkYep.ofNow( mkNil.ofNow() ) ) );
+                return mcYep.ofNow( mkYep.ofNow( mkNil.ofNow() ) );
             if ( a.first === null && b.first !== null )
-                return macLookupRet(
-                    mcYep.ofNow(
-                        mkNope.ofNow( mkNil.ofNow() ) ) );
+                return mcYep.ofNow( mkNope.ofNow( mkNil.ofNow() ) );
             
             function tryComparingBy( a, b, then ) {
                 if ( a === null || b === null
@@ -652,22 +646,18 @@ SinkClineDefault.prototype.clineRate = function ( rt, x ) {
                         a.compatible, b.compatible ) !== 0 )
                     return then();
                 var func = a.func;
-                return macLookupThen(
-                    func( rt, a.prepared, b.prepared ),
-                    function ( result ) {
-                    
-                    if ( !mkYep.tags( result )
-                        || !mkNil.tags(
-                            mkYep.getProj( result, "yep" ) ) )
-                        return macLookupRet( result );
-                    return then();
-                } );
+                var result = func( rt, a.prepared, b.prepared );
+                if ( !mkYep.tags( result )
+                    || !mkNil.tags(
+                        mkYep.getProj( result, "yep" ) ) )
+                    return result;
+                return then();
             }
             
             return tryComparingBy( a.first, b.first, function () {
             return tryComparingBy( a.second, b.second, function () {
             
-            return macLookupRet( mkNil.ofNow() );
+            return mkNil.ofNow();
             
             } );
             } );
@@ -798,26 +788,18 @@ SinkClineStruct.prototype.clineRate = function ( rt, x ) {
                     } ) ),
                 prepared: projRatings,
                 func: function ( rt, a, b ) {
-                    return loop( 0 );
-                    function loop( i ) {
-                        if ( n <= i )
-                            return macLookupRet(
-                                mkYep.ofNow( mkNil.ofNow() ) );
-                        
+                    for ( var i = 0; i < n; i++ ) {
                         var func = a[ i ].func;
-                        return macLookupThen(
-                            func( rt,
-                                a[ i ].prepared,
-                                b[ i ].prepared ),
-                            function ( result ) {
-                            
-                            if ( !mkYep.tags( result )
-                                || !mkNil.tags(
-                                    mkYep.getProj( result, "yep" ) ) )
-                                return macLookupRet( result );
-                            return loop( i + 1 );
-                        } );
+                        var result = func( rt,
+                            a[ i ].prepared,
+                            b[ i ].prepared );
+                        
+                        if ( !mkYep.tags( result )
+                            || !mkNil.tags(
+                                mkYep.getProj( result, "yep" ) ) )
+                            return result;
                     }
+                    return mkYep.ofNow( mkNil.ofNow() );
                 }
             } );
         
@@ -1152,13 +1134,11 @@ SinkClineInt.prototype.clineRate = function ( rt, x ) {
         prepared: x.foreignVal,
         func: function ( rt, a, b ) {
             if ( a < b )
-                return macLookupRet(
-                    mkYep.ofNow( mkYep.ofNow( mkNil.ofNow() ) ) );
+                return mkYep.ofNow( mkYep.ofNow( mkNil.ofNow() ) );
             else if ( b < a )
-                return macLookupRet(
-                    mkYep.ofNow( mkNope.ofNow( mkNil.ofNow() ) ) );
+                return mkYep.ofNow( mkNope.ofNow( mkNil.ofNow() ) );
             else
-                return macLookupRet( mkYep.ofNow( mkNil.ofNow() ) );
+                return mkYep.ofNow( mkNil.ofNow() );
         }
     } );
 };
@@ -4445,9 +4425,10 @@ function usingFuncDefNs( funcDefNs ) {
                         ) !== 0 )
                         return macLookupRet( mkNil.ofNow() );
                     var func = aRating.func;
-                    return func( rt,
-                        aRating.prepared,
-                        bRating.prepared );
+                    return macLookupRet(
+                        func( rt,
+                            aRating.prepared,
+                            bRating.prepared ) );
                     
                     } );
                     
