@@ -421,6 +421,17 @@ function getFunctionImplementationCexprByFlatTag(
     return def.foreignVal.cexpr;
 }
 
+function clineRateThen( rt, clineOrDex, x, then ) {
+    return macLookupThen( clineOrDex.clineRate( rt, x ),
+        function ( maybeRating ) {
+        
+        if ( maybeRating === null )
+            return macLookupRet( null );
+        
+        return then( maybeRating );
+    } );
+}
+
 function SinkStruct( flatTag, opt_projVals ) {
     this.flatTag = flatTag;
     this.projVals = opt_projVals || [];
@@ -449,7 +460,7 @@ SinkStruct.prototype.callSink = function ( rt, arg ) {
 SinkStruct.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkStruct.prototype.callCline = function ( rt, a, b ) {
+SinkStruct.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkStruct.prototype.fuse = function ( rt, a, b ) {
@@ -478,7 +489,7 @@ SinkFn.prototype.callSink = function ( rt, arg ) {
 SinkFn.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkFn.prototype.callCline = function ( rt, a, b ) {
+SinkFn.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkFn.prototype.fuse = function ( rt, a, b ) {
@@ -501,7 +512,7 @@ SinkForeign.prototype.callSink = function ( rt, arg ) {
 SinkForeign.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkForeign.prototype.callCline = function ( rt, a, b ) {
+SinkForeign.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkForeign.prototype.fuse = function ( rt, a, b ) {
@@ -544,27 +555,27 @@ SinkClineByDex.prototype.callSink = function ( rt, arg ) {
 SinkClineByDex.prototype.dexHas = function ( rt, x ) {
     return this.dexToUse.dexHas( rt, x );
 };
-SinkClineByDex.prototype.callCline = function ( rt, a, b ) {
+SinkClineByDex.prototype.clineRate = function ( rt, x ) {
     var self = this;
     
-    return rt.dexHas( self.dexToUse, a, function ( hasA ) {
-        if ( !hasA )
-            return macLookupRet( mkNil.ofNow() );
+    return rt.dexHas( self.dexToUse, x, function ( hasX ) {
+        if ( !hasX )
+            return macLookupRet( null );
     
-    return rt.dexHas( self.dexToUse, b, function ( hasB ) {
-        if ( !hasB )
-            return macLookupRet( mkNil.ofNow() );
-    
-    var result = nameCompare( a.getName(), b.getName() );
-    if ( result < 0 )
-        return macLookupRet(
-            mkYep.ofNow( new SinkForeign( "lt", null ) ) );
-    if ( 0 < result )
-        return macLookupRet(
-            mkYep.ofNow( new SinkForeign( "gt", null ) ) );
-    
-    return macLookupRet( mkYep.ofNow( mkNil.ofNow() ) );
-    
+    return macLookupRet( {
+        compatible: [ "clineTriviallyCompatible" ],
+        prepared: x.getName(),
+        func: function ( rt, a, b ) {
+            var result = nameCompare( a, b );
+            if ( result < 0 )
+                return macLookupRet(
+                    mkYep.ofNow( new SinkForeign( "lt", null ) ) );
+            if ( 0 < result )
+                return macLookupRet(
+                    mkYep.ofNow( new SinkForeign( "gt", null ) ) );
+            
+            return macLookupRet( mkYep.ofNow( mkNil.ofNow() ) );
+        }
     } );
     
     } );
@@ -592,28 +603,78 @@ SinkClineDefault.prototype.callSink = function ( rt, arg ) {
 SinkClineDefault.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
+    // NOTE: We invoke both branches just so that if the second one
+    // diverges, then this computation also diverges. In order for us
+    // to be able to sort tables without having to compare every
+    // single combination of two elements, we want to risk divergence
+    // of `cline-by-own-method` and `cline-fix` in the individual
+    // rating step, not the comparison step.
     return macLookupThen( self.first.dexHas( rt, x ),
         function ( firstResult ) {
+    return macLookupThen( self.second.dexHas( rt, x ),
+        function ( secondResult ) {
     
-    if ( rt.toBoolean( firstResult ) )
-        return macLookupRet( firstResult );
-    
-    return self.second.dexHas( rt, x );
+    return macLookupRet(
+        rt.fromBoolean(
+            rt.toBoolean( firstResult ) ||
+                rt.toBoolean( secondResult ) ) );
     
     } );
+    } );
 };
-SinkClineDefault.prototype.callCline = function ( rt, a, b ) {
+SinkClineDefault.prototype.clineRate = function ( rt, x ) {
     var self = this;
     
-    return macLookupThen( self.first.callCline( rt, a, b ),
-        function ( firstResult ) {
+    return macLookupThen( self.first.clineRate( rt, x ),
+        function ( first ) {
+    return macLookupThen( self.second.clineRate( rt, x ),
+        function ( second ) {
     
-    if ( !mkYep.tags( firstResult )
-        || !mkNil.tags( mkYep.getProj( firstResult, "yep" ) ) )
-        return macLookupRet( firstResult );
+    if ( first === null && second === null )
+        return macLookupRet( null );
     
-    return self.second.callCline( rt, a, b );
+    return macLookupRet( {
+        compatible: [ "clineTriviallyCompatible" ],
+        prepared: { first: first, second: second },
+        func: function ( rt, a, b ) {
+            if ( a.first !== null && b.first === null )
+                return macLookupRet(
+                    mcYep.ofNow(
+                        mkYep.ofNow( mkNil.ofNow() ) ) );
+            if ( a.first === null && b.first !== null )
+                return macLookupRet(
+                    mcYep.ofNow(
+                        mkNope.ofNow( mkNil.ofNow() ) ) );
+            
+            function tryComparingBy( a, b, then ) {
+                if ( a === null || b === null
+                    || jsnCompare(
+                        a.compatible, b.compatible ) !== 0 )
+                    return then();
+                var func = a.func;
+                return macLookupThen(
+                    func( rt, a.prepared, b.prepared ),
+                    function ( result ) {
+                    
+                    if ( !mkYep.tags( result )
+                        || !mkNil.tags(
+                            mkYep.getProj( result, "yep" ) ) )
+                        return macLookupRet( result );
+                    return then();
+                } );
+            }
+            
+            return tryComparingBy( a.first, b.first, function () {
+            return tryComparingBy( a.second, b.second, function () {
+            
+            return macLookupRet( mkNil.ofNow() );
+            
+            } );
+            } );
+        }
+    } );
     
+    } );
     } );
 };
 SinkClineDefault.prototype.fuse = function ( rt, a, b ) {
@@ -637,8 +698,8 @@ SinkClineGiveUp.prototype.callSink = function ( rt, arg ) {
 SinkClineGiveUp.prototype.dexHas = function ( rt, x ) {
     return macLookupRet( mkNope.ofNow( mkNil.ofNow() ) );
 };
-SinkClineGiveUp.prototype.callCline = function ( rt, a, b ) {
-    return macLookupRet( mkNil.ofNow() );
+SinkClineGiveUp.prototype.clineRate = function ( rt, x ) {
+    return macLookupRet( null );
 };
 SinkClineGiveUp.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
@@ -661,7 +722,7 @@ SinkDexByCline.prototype.callSink = function ( rt, arg ) {
 SinkDexByCline.prototype.dexHas = function ( rt, x ) {
     return this.clineToUse.dexHas( rt, x );
 };
-SinkDexByCline.prototype.callCline = function ( rt, a, b ) {
+SinkDexByCline.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkDexByCline.prototype.fuse = function ( rt, a, b ) {
@@ -697,47 +758,75 @@ SinkClineStruct.prototype.dexHas = function ( rt, x ) {
         return macLookupRet( rt.fromBoolean( false ) );
     
     var n = self.projClines.length;
-    return loop( 0 );
-    function loop( i ) {
+    return loop( 0, true );
+    function loop( i, result ) {
         if ( n <= i )
-            return macLookupRet( rt.fromBoolean( true ) );
+            return macLookupRet( rt.fromBoolean( result ) );
         var projCline = self.projClines[ i ];
         return macLookupThen(
             projCline.val.dexHas( rt, x.projVals[ projCline.i ] ),
-            function ( result ) {
+            function ( subResult ) {
             
-            if ( !rt.toBoolean( result ) )
-                return macLookupRet( result );
-            return loop( i + 1 );
+            // NOTE: Even if `subResult` is false, we still compute
+            // the rest of the projections' results. This way, if any
+            // of them diverge, then this computation also diverges.
+            // In order for us to be able to sort tables without
+            // having to compare every single combination of two
+            // elements, we want to risk divergence of
+            // `cline-by-own-method` and `cline-fix` in the individual
+            // rating step, not the comparison step.
+            
+            return loop( i + 1, result && subResult );
         } );
     }
 };
-SinkClineStruct.prototype.callCline = function ( rt, a, b ) {
+SinkClineStruct.prototype.clineRate = function ( rt, x ) {
     var self = this;
     
-    if ( !(a instanceof SinkStruct
-        && a.flatTag === self.expectedFlatTag) )
-        return macLookupRet( mkNil.ofNow() );
-    if ( !(b instanceof SinkStruct
-        && b.flatTag === self.expectedFlatTag) )
-        return macLookupRet( mkNil.ofNow() );
+    if ( !(x instanceof SinkStruct
+        && x.flatTag === self.expectedFlatTag) )
+        return macLookupRet( null );
     
     var n = self.projClines.length;
-    return loop( 0 );
-    function loop( i ) {
+    return loop( 0, [] );
+    function loop( i, projRatings ) {
         if ( n <= i )
-            return macLookupRet( mkYep.ofNow( mkNil.ofNow() ) );
+            return macLookupRet( {
+                compatible: [ "clineStruct" ].concat(
+                    arrMap( projRatings, function ( projRating, i ) {
+                        return projRating.compatible;
+                    } ) ),
+                prepared: projRatings,
+                func: function ( rt, a, b ) {
+                    return loop( 0 );
+                    function loop( i ) {
+                        if ( n <= i )
+                            return macLookupRet(
+                                mkYep.ofNow( mkNil.ofNow() ) );
+                        
+                        var func = a[ i ].func;
+                        return macLookupThen(
+                            func( rt,
+                                a[ i ].prepared,
+                                b[ i ].prepared ),
+                            function ( result ) {
+                            
+                            if ( !mkYep.tags( result )
+                                || !mkNil.tags(
+                                    mkYep.getProj( result, "yep" ) ) )
+                                return macLookupRet( result );
+                            return loop( i + 1 );
+                        } );
+                    }
+                }
+            } );
+        
         var projCline = self.projClines[ i ];
-        return macLookupThen(
-            projCline.val.callCline( rt,
-                a.projVals[ projCline.i ],
-                b.projVals[ projCline.i ] ),
-            function ( result ) {
+        return clineRateThen( rt, projCline.val,
+            x.projVals[ projCline.i ],
+            function ( rating ) {
             
-            if ( !mkYep.tags( result )
-                || !mkNil.tags( mkYep.getProj( result, "yep" ) ) )
-                return macLookupRet( result );
-            return loop( i + 1 );
+            return loop( i + 1, projRatings.concat( [ rating ] ) );
         } );
     }
 };
@@ -769,7 +858,7 @@ SinkDexCline.prototype.dexHas = function ( rt, x ) {
     return macLookupRet(
         rt.fromBoolean( x.affiliation === "cline" ) );
 };
-SinkDexCline.prototype.callCline = function ( rt, a, b ) {
+SinkDexCline.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkDexCline.prototype.fuse = function ( rt, a, b ) {
@@ -791,7 +880,7 @@ SinkDexDex.prototype.callSink = function ( rt, arg ) {
 SinkDexDex.prototype.dexHas = function ( rt, x ) {
     return macLookupRet( rt.fromBoolean( x.affiliation === "dex" ) );
 };
-SinkDexDex.prototype.callCline = function ( rt, a, b ) {
+SinkDexDex.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkDexDex.prototype.fuse = function ( rt, a, b ) {
@@ -814,7 +903,7 @@ SinkDexMerge.prototype.dexHas = function ( rt, x ) {
     return macLookupRet(
         rt.fromBoolean( x.affiliation === "merge" ) );
 };
-SinkDexMerge.prototype.callCline = function ( rt, a, b ) {
+SinkDexMerge.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkDexMerge.prototype.fuse = function ( rt, a, b ) {
@@ -836,7 +925,7 @@ SinkDexFuse.prototype.callSink = function ( rt, arg ) {
 SinkDexFuse.prototype.dexHas = function ( rt, x ) {
     return macLookupRet( rt.fromBoolean( x.affiliation === "fuse" ) );
 };
-SinkDexFuse.prototype.callCline = function ( rt, a, b ) {
+SinkDexFuse.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkDexFuse.prototype.fuse = function ( rt, a, b ) {
@@ -860,7 +949,7 @@ SinkDexName.prototype.dexHas = function ( rt, x ) {
         rt.fromBoolean(
             x instanceof SinkForeign && x.purpose === "name" ) );
 };
-SinkDexName.prototype.callCline = function ( rt, a, b ) {
+SinkDexName.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkDexName.prototype.fuse = function ( rt, a, b ) {
@@ -884,7 +973,7 @@ SinkDexString.prototype.dexHas = function ( rt, x ) {
         rt.fromBoolean(
             x instanceof SinkForeign && x.purpose === "string" ) );
 };
-SinkDexString.prototype.callCline = function ( rt, a, b ) {
+SinkDexString.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkDexString.prototype.fuse = function ( rt, a, b ) {
@@ -922,35 +1011,31 @@ SinkClineByOwnMethod.prototype.dexHas = function ( rt, x ) {
     
     } );
 };
-SinkClineByOwnMethod.prototype.callCline = function ( rt, a, b ) {
-    var getMethod = mkDexable.getProj( this.dexableGetMethod, "val" );
+SinkClineByOwnMethod.prototype.clineRate = function ( rt, x ) {
+    return macLookupThen(
+        mkDexable.getProj( this.dexableGetMethod, "val"
+            ).callSink( rt, x ),
+        function ( maybeOwnMethod ) {
     
-    function getFrom( x, then ) {
-        return macLookupThen( getMethod.callSink( rt, x ),
-            function ( maybeOwnMethod ) {
-            
-            if ( mkNil.tags( maybeOwnMethod ) ) {
-                return macLookupRet( mkNil.ofNow() );
-            } else if ( mkYep.tags( maybeOwnMethod ) ) {
-                var method = mkYep.getProj( maybeOwnMethod, "val" );
-                if ( method.affiliation !== "cline" )
-                    throw new Error();
-                return then( method );
-            } else {
-                throw new Error();
-            }
+    if ( mkNil.tags( maybeOwnMethod ) ) {
+        return macLookupRet( null );
+    } else if ( mkYep.tags( maybeOwnMethod ) ) {
+        var method = mkYep.getProj( maybeOwnMethod, "val" );
+        if ( method.affiliation !== "cline" )
+            throw new Error();
+        return clineRateThen( rt, method, x, function ( rating ) {
+            return macLookupRet( {
+                compatible:
+                    [ "clineByOwnMethod",
+                        method.getName(), rating.compatible ],
+                prepared: rating.prepared,
+                func: rating.func
+            } );
         } );
+    } else {
+        throw new Error();
     }
     
-    return getFrom( a, function ( methodA ) {
-    return getFrom( b, function ( methodB ) {
-    
-    if ( nameCompare( methodA.getName(), methodB.getName() ) !== 0 )
-        return macLookupRet( mkNil.ofNow() );
-    
-    return methodA.callCline( rt, a, b );
-    
-    } );
     } );
 };
 SinkClineByOwnMethod.prototype.fuse = function ( rt, a, b ) {
@@ -982,7 +1067,7 @@ SinkClineFix.prototype.dexHas = function ( rt, x ) {
         return dex.dexHas( rt, x );
     } );
 };
-SinkClineFix.prototype.callCline = function ( rt, a, b ) {
+SinkClineFix.prototype.clineRate = function ( rt, x ) {
     return macLookupThen(
         mkDexable.getProj( this.dexableUnwrap, "val"
             ).callSink( rt, this ),
@@ -990,7 +1075,7 @@ SinkClineFix.prototype.callCline = function ( rt, a, b ) {
         
         if ( dex.affiliation !== "cline" )
             throw new Error();
-        return dex.callCline( rt, a, b );
+        return dex.clineRate( rt, x );
     } );
 };
 SinkClineFix.prototype.fuse = function ( rt, a, b ) {
@@ -1034,7 +1119,7 @@ SinkDexTable.prototype.dexHas = function ( rt, x ) {
         } );
     }
 };
-SinkDexTable.prototype.callCline = function ( rt, a, b ) {
+SinkDexTable.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkDexTable.prototype.fuse = function ( rt, a, b ) {
@@ -1058,20 +1143,24 @@ SinkClineInt.prototype.dexHas = function ( rt, x ) {
         rt.fromBoolean(
             x instanceof SinkForeign && x.purpose === "int" ) );
 };
-SinkClineInt.prototype.callCline = function ( rt, a, b ) {
-    if ( !(a instanceof SinkForeign && a.purpose === "int") )
-        return macLookupRet( mkNil.ofNow() );
-    if ( !(b instanceof SinkForeign && b.purpose === "int") )
-        return macLookupRet( mkNil.ofNow() );
+SinkClineInt.prototype.clineRate = function ( rt, x ) {
+    if ( !(x instanceof SinkForeign && x.purpose === "int") )
+        return macLookupRet( null );
     
-    if ( a.foreignVal < b.foreignVal )
-        return macLookupRet(
-            mkYep.ofNow( mkYep.ofNow( mkNil.ofNow() ) ) );
-    else if ( b.foreignVal < a.foreignVal )
-        return macLookupRet(
-            mkYep.ofNow( mkNope.ofNow( mkNil.ofNow() ) ) );
-    else
-        return macLookupRet( mkYep.ofNow( mkNil.ofNow() ) );
+    return macLookupRet( {
+        compatible: [ "clineTriviallyCompatible" ],
+        prepared: x.foreignVal,
+        func: function ( rt, a, b ) {
+            if ( a < b )
+                return macLookupRet(
+                    mkYep.ofNow( mkYep.ofNow( mkNil.ofNow() ) ) );
+            else if ( b < a )
+                return macLookupRet(
+                    mkYep.ofNow( mkNope.ofNow( mkNil.ofNow() ) ) );
+            else
+                return macLookupRet( mkYep.ofNow( mkNil.ofNow() ) );
+        }
+    } );
 };
 SinkClineInt.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
@@ -1094,7 +1183,7 @@ SinkMergeByDex.prototype.callSink = function ( rt, arg ) {
 SinkMergeByDex.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkMergeByDex.prototype.callCline = function ( rt, a, b ) {
+SinkMergeByDex.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkMergeByDex.prototype.fuse = function ( rt, a, b ) {
@@ -1132,7 +1221,7 @@ SinkFuseByMerge.prototype.callSink = function ( rt, arg ) {
 SinkFuseByMerge.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkFuseByMerge.prototype.callCline = function ( rt, a, b ) {
+SinkFuseByMerge.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkFuseByMerge.prototype.fuse = function ( rt, a, b ) {
@@ -1154,7 +1243,7 @@ SinkFuseEffects.prototype.callSink = function ( rt, arg ) {
 SinkFuseEffects.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkFuseEffects.prototype.callCline = function ( rt, a, b ) {
+SinkFuseEffects.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkFuseEffects.prototype.fuse = function ( rt, a, b ) {
@@ -1190,7 +1279,7 @@ SinkFuseIntByPlus.prototype.callSink = function ( rt, arg ) {
 SinkFuseIntByPlus.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkFuseIntByPlus.prototype.callCline = function ( rt, a, b ) {
+SinkFuseIntByPlus.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkFuseIntByPlus.prototype.fuse = function ( rt, a, b ) {
@@ -1218,7 +1307,7 @@ SinkFuseIntByTimes.prototype.callSink = function ( rt, arg ) {
 SinkFuseIntByTimes.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkFuseIntByTimes.prototype.callCline = function ( rt, a, b ) {
+SinkFuseIntByTimes.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkFuseIntByTimes.prototype.fuse = function ( rt, a, b ) {
@@ -1246,7 +1335,7 @@ SinkFuseNssetByUnion.prototype.callSink = function ( rt, arg ) {
 SinkFuseNssetByUnion.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkFuseNssetByUnion.prototype.callCline = function ( rt, a, b ) {
+SinkFuseNssetByUnion.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkFuseNssetByUnion.prototype.fuse = function ( rt, a, b ) {
@@ -1288,7 +1377,7 @@ SinkFuseStruct.prototype.callSink = function ( rt, arg ) {
 SinkFuseStruct.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkFuseStruct.prototype.callCline = function ( rt, a, b ) {
+SinkFuseStruct.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkFuseStruct.prototype.fuse = function ( rt, a, b ) {
@@ -1365,7 +1454,7 @@ SinkFuseDefault.prototype.callSink = function ( rt, arg ) {
 SinkFuseDefault.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkFuseDefault.prototype.callCline = function ( rt, a, b ) {
+SinkFuseDefault.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkFuseDefault.prototype.fuse = function ( rt, a, b ) {
@@ -1405,7 +1494,7 @@ SinkFuseByOwnMethod.prototype.callSink = function ( rt, arg ) {
 SinkFuseByOwnMethod.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkFuseByOwnMethod.prototype.callCline = function ( rt, a, b ) {
+SinkFuseByOwnMethod.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkFuseByOwnMethod.prototype.fuse = function ( rt, a, b ) {
@@ -1461,7 +1550,7 @@ SinkFuseFix.prototype.callSink = function ( rt, arg ) {
 SinkFuseFix.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkFuseFix.prototype.callCline = function ( rt, a, b ) {
+SinkFuseFix.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkFuseFix.prototype.fuse = function ( rt, a, b ) {
@@ -1499,7 +1588,7 @@ SinkFuseTable.prototype.callSink = function ( rt, arg ) {
 SinkFuseTable.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkFuseTable.prototype.callCline = function ( rt, a, b ) {
+SinkFuseTable.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkFuseTable.prototype.fuse = function ( rt, a, b ) {
@@ -1558,7 +1647,7 @@ SinkCexpr.prototype.callSink = function ( rt, arg ) {
 SinkCexpr.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
-SinkCexpr.prototype.callCline = function ( rt, a, b ) {
+SinkCexpr.prototype.clineRate = function ( rt, x ) {
     throw new Error();
 };
 SinkCexpr.prototype.fuse = function ( rt, a, b ) {
@@ -4338,15 +4427,27 @@ function usingFuncDefNs( funcDefNs ) {
                     if ( cline.affiliation !== "cline" )
                         throw new Error();
                     
-                    return rt.dexHas( cline, a, function ( hasA ) {
-                        if ( !hasA )
+                    return macLookupThen( cline.clineRate( rt, a ),
+                        function ( aRating ) {
+                        
+                        if ( aRating === null )
                             return macLookupRet( mkNil.ofNow() );
                     
-                    return rt.dexHas( cline, b, function ( hasB ) {
-                        if ( !hasB )
+                    return macLookupThen( cline.clineRate( rt, b ),
+                        function ( bRating ) {
+                        
+                        if ( bRating === null )
                             return macLookupRet( mkNil.ofNow() );
                     
-                    return cline.callCline( rt, a, b );
+                    if ( jsnCompare(
+                            aRating.compatible,
+                            bRating.compatible
+                        ) !== 0 )
+                        return macLookupRet( mkNil.ofNow() );
+                    var func = aRating.func;
+                    return func( rt,
+                        aRating.prepared,
+                        bRating.prepared );
                     
                     } );
                     
