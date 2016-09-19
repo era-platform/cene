@@ -84,7 +84,7 @@ cline-default
 
 Call with ``cline-for-trying-first cline-for-trying-second``
 
-.. todo:: Document this.
+Given two clines, returns a cline over the union of their domains. The resulting cline's ascending order consists of the first cline's ascending order in its domain, followed by the second cline's ascending order outside the first cline's domain.
 
 
 .. _cline-by-own-method:
