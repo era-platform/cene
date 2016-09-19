@@ -15,7 +15,6 @@ Consider renaming `test-async` to `test`.
 Consider renaming `contributing-only-to` and the `committing-...` operations to `...-later`, since they "change" the current mode.
 Consider whether we could pass any useful parameters to `trivial-stx-details` (making it less trivial). It would probably be relevant for this value to reify the identity of the macro definition, or at least contain a name or struct unique to that macro definition.
 Implement `read-all-force` instead of having it built in.
-Consider making `int-compare` a dex, which would make it the first visibly ordered dex. If we ever want a merge for dexes, a dex like this could be a problem.
 Implement the `--command` command line option.
 
 Add a way for `picky-javascript-quine` to be able to encode reified first-class values other than strings, using a user-supplied serializer. That way we have an excuse as to why some values are supported and others aren't.
@@ -33,7 +32,7 @@ For better error message behavior, be more careful about what paths in a `unique
   <unique-ns>/($$claimed-for claim:primitive err)/source-location-tag/.name
   <unique-ns>/($$claimed-for claim:primitive err)/value-of-interest/(rest/)*first/...
   
-  <unique-ns>/($$claimed-for claim:primitive dex-struct)/<constructor tag>/projection/<projection name>/...
+  <unique-ns>/($$claimed-for claim:primitive cline-struct)/<constructor tag>/projection/<projection name>/...
   <unique-ns>/($$claimed-for claim:primitive merge-struct)/<constructor tag>/projection/<projection name>/...
   <unique-ns>/($$claimed-for claim:primitive fuse-struct)/<constructor tag>/projection/<projection name>/...
   <unique-ns>/($$claimed-for claim:primitive def-struct)/<main tag name and list of projection names>/main-tag/.name

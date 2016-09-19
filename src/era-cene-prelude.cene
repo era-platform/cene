@@ -45,6 +45,21 @@
   (cast list cons first rest state
   /foldl (c combiner state first) rest combiner))
 
+(defn dex-give-up -
+  (dex-by-cline/cline-give-up/nil))
+
+(defn dex-default a b
+  (dex-by-cline/cline-default cline-by-dex.a cline-by-dex.b))
+
+(defn dex-int -
+  (dex-by-cline/cline-int/nil))
+
+(defn in-dex dex x
+  (in-cline cline-by-dex.dex x))
+
+(defn call-dex dex a b
+  (call-cline cline-by-dex.dex a b))
+
 (defn table-get-singleton table
   (tables-fuse table (table-empty/nil)
   /fuse-by-merge/merge-by-dex/dex-give-up/nil))
@@ -129,7 +144,9 @@
   /case
     (cast
       (stx-to-obtain-method scope expression /fn string
-        (name-of/dexable (dex-struct local-occurrence /dex-string/nil)
+        (name-of/dexable
+          (dex-by-cline/cline-struct local-occurrence
+          /cline-by-dex/dex-string/nil)
         /local-occurrence string))
       yep obtain-method (nil)
     /case obtain-method
@@ -151,7 +168,9 @@
           obtain-by-qualified-name, or a foreign obtain-directly])
     /cast
       (stx-to-obtain-method scope macro-name /fn string
-        (name-of/dexable (dex-struct macro-occurrence /dex-string/nil)
+        (name-of/dexable
+          (dex-by-cline/cline-struct macro-occurrence
+          /cline-by-dex/dex-string/nil)
         /macro-occurrence string))
       yep obtain-method (c obtain-method-err /nil)
     /case obtain-method
@@ -193,7 +212,9 @@
       (cast
         (procure-macro-implementation-getdef home-def-ns
         /c home-qualify
-        /name-of/dexable (dex-struct macro-occurrence /dex-string/nil)
+        /name-of/dexable
+          (dex-by-cline/cline-struct macro-occurrence
+          /cline-by-dex/dex-string/nil)
         /macro-occurrence str)
         getdef macro-get macro-definer
         err.\;qq[Internal error]
@@ -244,6 +265,16 @@
   /c mac str.cast /list subject constructor var
     (c mac str.err /list/c s /istring-nil str.\;qq[Internal error])
     var))
+
+(def-macro dex-struct home-scope caller-scope my-stx-details args then
+  (cast args cons constructor proj-dexes
+    err.\;qq[Called dex-struct with too few args]
+  /basic-pure-macro home-scope caller-scope my-stx-details then
+  /fn mode caller-scope s mac
+  /c mac str.dex-by-cline /list
+  /c mac str.cline-struct /cons constructor
+  /map proj-dexes /fn proj-dex
+    (c mac str.cline-by-dex /list proj-dex)))
 
 (defn append past rest
   (rev-append rev.past rest))

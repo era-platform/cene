@@ -5,8 +5,10 @@
 \= era-cene-prelude.cene.
 
 
-(defn dex-test-fix dex-test-fix
-  (dex-default dex-struct.nil
+(defn dex-test-fix dex-test-fix-cline
+  (let dex-test-fix dex-by-cline.dex-test-fix-cline
+  /cline-by-dex
+  /dex-default dex-struct.nil
   /dex-default (dex-struct yep dex-test-fix)
   /dex-default (dex-struct nope dex-test-fix)
   /dex-default (dex-struct cons dex-test-fix dex-test-fix)
@@ -16,7 +18,8 @@
   /dex-give-up/nil))
 
 (defn dex-test -
-  (dex-fix/dexable dex-struct.dex-test-fix /dex-test-fix))
+  (dex-by-cline/cline-fix/dexable dex-struct.dex-test-fix
+  /dex-test-fix))
 
 (defn define-into-definer val out
   (definer-define out (dex-give-up/nil) val))

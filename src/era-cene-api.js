@@ -352,7 +352,9 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
         var claimOutputDir_dexAndValue_ = {
             satisfiesDex: true,
             dexName:
-                new SinkDexStruct( mkNil.getFlatTag(), [] ).getName(),
+                new SinkDexByCline(
+                    new SinkClineStruct( mkNil.getFlatTag(), [] )
+                ).getName(),
             valueName: mkNil.ofNow().getName(),
             value: mkNil.ofNow()
         };

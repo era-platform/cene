@@ -449,6 +449,9 @@ SinkStruct.prototype.callSink = function ( rt, arg ) {
 SinkStruct.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
+SinkStruct.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
 SinkStruct.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
@@ -475,6 +478,9 @@ SinkFn.prototype.callSink = function ( rt, arg ) {
 SinkFn.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
+SinkFn.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
 SinkFn.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
@@ -493,6 +499,9 @@ SinkForeign.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
 SinkForeign.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+SinkForeign.prototype.callCline = function ( rt, a, b ) {
     throw new Error();
 };
 SinkForeign.prototype.fuse = function ( rt, a, b ) {
@@ -523,18 +532,64 @@ SinkForeign.prototype.pretty = function () {
         "(foreign " + this.purpose + " " +
             JSON.stringify( this.foreignVal ) + ")";
 };
-function SinkDexDefault( first, second ) {
-    if ( !(first.affiliation === "dex"
-        && second.affiliation === "dex") )
+function SinkClineByDex( dexToUse ) {
+    if ( dexToUse.affiliation !== "dex" )
+        throw new Error();
+    this.dexToUse = dexToUse;
+}
+SinkClineByDex.prototype.affiliation = "cline";
+SinkClineByDex.prototype.callSink = function ( rt, arg ) {
+    throw new Error();
+};
+SinkClineByDex.prototype.dexHas = function ( rt, x ) {
+    return this.dexToUse.dexHas( rt, x );
+};
+SinkClineByDex.prototype.callCline = function ( rt, a, b ) {
+    var self = this;
+    
+    return rt.dexHas( self.dexToUse, a, function ( hasA ) {
+        if ( !hasA )
+            return macLookupRet( mkNil.ofNow() );
+    
+    return rt.dexHas( self.dexToUse, b, function ( hasB ) {
+        if ( !hasB )
+            return macLookupRet( mkNil.ofNow() );
+    
+    var result = nameCompare( a.getName(), b.getName() );
+    if ( result < 0 )
+        return macLookupRet(
+            mkYep.ofNow( new SinkForeign( "lt", null ) ) );
+    if ( 0 < result )
+        return macLookupRet(
+            mkYep.ofNow( new SinkForeign( "gt", null ) ) );
+    
+    return macLookupRet( mkYep.ofNow( mkNil.ofNow() ) );
+    
+    } );
+    
+    } );
+};
+SinkClineByDex.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
+};
+SinkClineByDex.prototype.getName = function () {
+    return [ "n:cline-by-dex", this.dexToUse.getName() ];
+};
+SinkClineByDex.prototype.pretty = function () {
+    return "(cline-by-dex " + this.dexToUse.pretty() + ")";
+};
+function SinkClineDefault( first, second ) {
+    if ( !(first.affiliation === "cline"
+        && second.affiliation === "cline") )
         throw new Error();
     this.first = first;
     this.second = second;
 }
-SinkDexDefault.prototype.affiliation = "dex";
-SinkDexDefault.prototype.callSink = function ( rt, arg ) {
+SinkClineDefault.prototype.affiliation = "cline";
+SinkClineDefault.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-SinkDexDefault.prototype.dexHas = function ( rt, x ) {
+SinkClineDefault.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
     return macLookupThen( self.first.dexHas( rt, x ),
@@ -547,85 +602,184 @@ SinkDexDefault.prototype.dexHas = function ( rt, x ) {
     
     } );
 };
-SinkDexDefault.prototype.fuse = function ( rt, a, b ) {
+SinkClineDefault.prototype.callCline = function ( rt, a, b ) {
+    var self = this;
+    
+    return macLookupThen( self.first.callCline( rt, a, b ),
+        function ( firstResult ) {
+    
+    if ( !mkYep.tags( firstResult )
+        || !mkNil.tags( mkYep.getProj( firstResult, "yep" ) ) )
+        return macLookupRet( firstResult );
+    
+    return self.second.callCline( rt, a, b );
+    
+    } );
+};
+SinkClineDefault.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-SinkDexDefault.prototype.getName = function () {
-    return [ "n:dex-default",
+SinkClineDefault.prototype.getName = function () {
+    return [ "n:cline-default",
         this.first.getName(), this.second.getName() ];
 };
-SinkDexDefault.prototype.pretty = function () {
-    return "(dex-default " +
+SinkClineDefault.prototype.pretty = function () {
+    return "(cline-default " +
         this.first.pretty() + " " + this.second.pretty() + ")";
 };
-function SinkDexGiveUp() {
+function SinkClineGiveUp() {
     // We do nothing.
 }
-SinkDexGiveUp.prototype.affiliation = "dex";
-SinkDexGiveUp.prototype.callSink = function ( rt, arg ) {
+SinkClineGiveUp.prototype.affiliation = "cline";
+SinkClineGiveUp.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-SinkDexGiveUp.prototype.dexHas = function ( rt, x ) {
+SinkClineGiveUp.prototype.dexHas = function ( rt, x ) {
     return macLookupRet( mkNope.ofNow( mkNil.ofNow() ) );
 };
-SinkDexGiveUp.prototype.fuse = function ( rt, a, b ) {
+SinkClineGiveUp.prototype.callCline = function ( rt, a, b ) {
+    return macLookupRet( mkNil.ofNow() );
+};
+SinkClineGiveUp.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-SinkDexGiveUp.prototype.getName = function () {
-    return [ "n:dex-give-up" ];
+SinkClineGiveUp.prototype.getName = function () {
+    return [ "n:cline-give-up" ];
 };
-SinkDexGiveUp.prototype.pretty = function () {
-    return "(dex-give-up)";
+SinkClineGiveUp.prototype.pretty = function () {
+    return "(cline-give-up)";
 };
-function SinkDexStruct( expectedFlatTag, projDexes ) {
+function SinkDexByCline( clineToUse ) {
+    if ( clineToUse.affiliation !== "cline" )
+        throw new Error();
+    this.clineToUse = clineToUse;
+}
+SinkDexByCline.prototype.affiliation = "dex";
+SinkDexByCline.prototype.callSink = function ( rt, arg ) {
+    throw new Error();
+};
+SinkDexByCline.prototype.dexHas = function ( rt, x ) {
+    return this.clineToUse.dexHas( rt, x );
+};
+SinkDexByCline.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
+SinkDexByCline.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
+};
+SinkDexByCline.prototype.getName = function () {
+    return [ "n:dex-by-cline", this.clineToUse.getName() ];
+};
+SinkDexByCline.prototype.pretty = function () {
+    return "(dex-by-cline " + this.clineToUse.pretty() + ")";
+};
+function SinkClineStruct( expectedFlatTag, projClines ) {
     // NOTE: We originally avoided naming this field the same thing as
     // `flatTag` because we were doing some naive `x.flatTag === y`
     // checks. We might as well leave it this way to avoid confusion.
     this.expectedFlatTag = expectedFlatTag;
-    this.projDexes = projDexes;
+    this.projClines = projClines;
+    
+    arrEach( projClines, function ( projCline ) {
+        if ( projCline.val.affiliation !== "cline" )
+            throw new Error();
+    } );
 }
-SinkDexStruct.prototype.affiliation = "dex";
-SinkDexStruct.prototype.callSink = function ( rt, arg ) {
+SinkClineStruct.prototype.affiliation = "cline";
+SinkClineStruct.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-SinkDexStruct.prototype.dexHas = function ( rt, x ) {
+SinkClineStruct.prototype.dexHas = function ( rt, x ) {
     var self = this;
     
     if ( !(x instanceof SinkStruct
         && x.flatTag === self.expectedFlatTag) )
-        return macLookupRet( mkNope.ofNow( mkNil.ofNow() ) );
+        return macLookupRet( rt.fromBoolean( false ) );
     
-    var n = self.projDexes.length;
+    var n = self.projClines.length;
     return loop( 0 );
     function loop( i ) {
         if ( n <= i )
-            return macLookupRet( mkYep.ofNow( mkNil.ofNow() ) );
-        var projDex = self.projDexes[ i ];
+            return macLookupRet( rt.fromBoolean( true ) );
+        var projCline = self.projClines[ i ];
         return macLookupThen(
-            projDex.val.dexHas( rt, x.projVals[ projDex.i ] ),
-            function ( dexResult ) {
+            projCline.val.dexHas( rt, x.projVals[ projCline.i ] ),
+            function ( result ) {
             
-            if ( !rt.toBoolean( dexResult ) )
-                return macLookupRet( dexResult );
+            if ( !rt.toBoolean( result ) )
+                return macLookupRet( result );
             return loop( i + 1 );
         } );
     }
 };
-SinkDexStruct.prototype.fuse = function ( rt, a, b ) {
+SinkClineStruct.prototype.callCline = function ( rt, a, b ) {
+    var self = this;
+    
+    if ( !(a instanceof SinkStruct
+        && a.flatTag === self.expectedFlatTag) )
+        return macLookupRet( mkNil.ofNow() );
+    if ( !(b instanceof SinkStruct
+        && b.flatTag === self.expectedFlatTag) )
+        return macLookupRet( mkNil.ofNow() );
+    
+    var n = self.projClines.length;
+    return loop( 0 );
+    function loop( i ) {
+        if ( n <= i )
+            return macLookupRet( mkYep.ofNow( mkNil.ofNow() ) );
+        var projCline = self.projClines[ i ];
+        return macLookupThen(
+            projCline.val.callCline( rt,
+                a.projVals[ projCline.i ],
+                b.projVals[ projCline.i ] ),
+            function ( result ) {
+            
+            if ( !mkYep.tags( result )
+                || !mkNil.tags( mkYep.getProj( result, "yep" ) ) )
+                return macLookupRet( result );
+            return loop( i + 1 );
+        } );
+    }
+};
+SinkClineStruct.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-SinkDexStruct.prototype.getName = function () {
+SinkClineStruct.prototype.getName = function () {
     // TODO: See if we can avoid this JSON.parse().
-    return [ "n:dex-struct", JSON.parse( this.expectedFlatTag )
-        ].concat( arrMap( this.projDexes, function ( projDex ) {
-            return [ projDex.i, projDex.val.getName() ];
+    return [ "n:cline-struct", JSON.parse( this.expectedFlatTag )
+        ].concat( arrMap( this.projClines, function ( projCline ) {
+            return [ projCline.i, projCline.val.getName() ];
         } ) );
 };
-SinkDexStruct.prototype.pretty = function () {
-    return "(dex-struct " + prettifyFlatTag( this.expectedFlatTag ) +
-        arrMap( this.projDexes, function ( projDex, i ) {
-            return " " + projDex.i + ":" + projDex.val.pretty();
+SinkClineStruct.prototype.pretty = function () {
+    return "(cline-struct " +
+        prettifyFlatTag( this.expectedFlatTag ) + " " +
+        arrMap( this.projClines, function ( projCline, i ) {
+            return " " + projCline.i + ":" + projCline.val.pretty();
         } ).join( "" ) + ")";
+};
+function SinkDexCline() {
+    // We do nothing.
+}
+SinkDexCline.prototype.affiliation = "dex";
+SinkDexCline.prototype.callSink = function ( rt, arg ) {
+    throw new Error();
+};
+SinkDexCline.prototype.dexHas = function ( rt, x ) {
+    return macLookupRet(
+        rt.fromBoolean( x.affiliation === "cline" ) );
+};
+SinkDexCline.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
+SinkDexCline.prototype.fuse = function ( rt, a, b ) {
+    throw new Error();
+};
+SinkDexCline.prototype.getName = function () {
+    return [ "n:dex-cline" ];
+};
+SinkDexCline.prototype.pretty = function () {
+    return "(dex-cline)";
 };
 function SinkDexDex() {
     // We do nothing.
@@ -636,6 +790,9 @@ SinkDexDex.prototype.callSink = function ( rt, arg ) {
 };
 SinkDexDex.prototype.dexHas = function ( rt, x ) {
     return macLookupRet( rt.fromBoolean( x.affiliation === "dex" ) );
+};
+SinkDexDex.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
 };
 SinkDexDex.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
@@ -657,6 +814,9 @@ SinkDexMerge.prototype.dexHas = function ( rt, x ) {
     return macLookupRet(
         rt.fromBoolean( x.affiliation === "merge" ) );
 };
+SinkDexMerge.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
 SinkDexMerge.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
@@ -675,6 +835,9 @@ SinkDexFuse.prototype.callSink = function ( rt, arg ) {
 };
 SinkDexFuse.prototype.dexHas = function ( rt, x ) {
     return macLookupRet( rt.fromBoolean( x.affiliation === "fuse" ) );
+};
+SinkDexFuse.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
 };
 SinkDexFuse.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
@@ -697,6 +860,9 @@ SinkDexName.prototype.dexHas = function ( rt, x ) {
         rt.fromBoolean(
             x instanceof SinkForeign && x.purpose === "name" ) );
 };
+SinkDexName.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
 SinkDexName.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
@@ -718,6 +884,9 @@ SinkDexString.prototype.dexHas = function ( rt, x ) {
         rt.fromBoolean(
             x instanceof SinkForeign && x.purpose === "string" ) );
 };
+SinkDexString.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
 SinkDexString.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
@@ -727,62 +896,111 @@ SinkDexString.prototype.getName = function () {
 SinkDexString.prototype.pretty = function () {
     return "(dex-string)";
 };
-function SinkDexByOwnMethod( dexableGetMethod ) {
+function SinkClineByOwnMethod( dexableGetMethod ) {
     this.dexableGetMethod = dexableGetMethod;
 }
-SinkDexByOwnMethod.prototype.affiliation = "dex";
-SinkDexByOwnMethod.prototype.callSink = function ( rt, arg ) {
+SinkClineByOwnMethod.prototype.affiliation = "cline";
+SinkClineByOwnMethod.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-SinkDexByOwnMethod.prototype.dexHas = function ( rt, x ) {
+SinkClineByOwnMethod.prototype.dexHas = function ( rt, x ) {
     return macLookupThen(
         mkDexable.getProj( this.dexableGetMethod, "val"
             ).callSink( rt, x ),
         function ( maybeOwnMethod ) {
     
-    if ( mkNil.tags( maybeOwnMethod ) )
+    if ( mkNil.tags( maybeOwnMethod ) ) {
         return macLookupRet( rt.fromBoolean( false ) );
-    else if ( mkYep.tags( maybeOwnMethod ) )
-        return mkYep.getProj( ownMethod, "val" ).dexHas( rt, x );
-    else
+    } else if ( mkYep.tags( maybeOwnMethod ) ) {
+        var method = mkYep.getProj( maybeOwnMethod, "val" );
+        if ( method.affiliation !== "cline" )
+            throw new Error();
+        return method.dexHas( rt, x );
+    } else {
         throw new Error();
+    }
     
     } );
 };
-SinkDexByOwnMethod.prototype.fuse = function ( rt, a, b ) {
+SinkClineByOwnMethod.prototype.callCline = function ( rt, a, b ) {
+    var getMethod = mkDexable.getProj( this.dexableGetMethod, "val" );
+    
+    function getFrom( x, then ) {
+        return macLookupThen( getMethod.callSink( rt, x ),
+            function ( maybeOwnMethod ) {
+            
+            if ( mkNil.tags( maybeOwnMethod ) ) {
+                return macLookupRet( mkNil.ofNow() );
+            } else if ( mkYep.tags( maybeOwnMethod ) ) {
+                var method = mkYep.getProj( maybeOwnMethod, "val" );
+                if ( method.affiliation !== "cline" )
+                    throw new Error();
+                return then( method );
+            } else {
+                throw new Error();
+            }
+        } );
+    }
+    
+    return getFrom( a, function ( methodA ) {
+    return getFrom( b, function ( methodB ) {
+    
+    if ( nameCompare( methodA.getName(), methodB.getName() ) !== 0 )
+        return macLookupRet( mkNil.ofNow() );
+    
+    return methodA.callCline( rt, a, b );
+    
+    } );
+    } );
+};
+SinkClineByOwnMethod.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-SinkDexByOwnMethod.prototype.getName = function () {
-    return [ "n:dex-by-own-method", this.dexableGetMethod.getName() ];
+SinkClineByOwnMethod.prototype.getName = function () {
+    return [ "n:cline-by-own-method",
+        this.dexableGetMethod.getName() ];
 };
-SinkDexByOwnMethod.prototype.pretty = function () {
-    return "(dex-by-own-method " +
+SinkClineByOwnMethod.prototype.pretty = function () {
+    return "(cline-by-own-method " +
         this.dexableGetMethod.pretty() + ")";
 };
-function SinkDexFix( dexableUnwrap ) {
+function SinkClineFix( dexableUnwrap ) {
     this.dexableUnwrap = dexableUnwrap;
 }
-SinkDexFix.prototype.affiliation = "dex";
-SinkDexFix.prototype.callSink = function ( rt, arg ) {
+SinkClineFix.prototype.affiliation = "cline";
+SinkClineFix.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-SinkDexFix.prototype.dexHas = function ( rt, x ) {
+SinkClineFix.prototype.dexHas = function ( rt, x ) {
     return macLookupThen(
         mkDexable.getProj( this.dexableUnwrap, "val"
             ).callSink( rt, this ),
         function ( dex ) {
         
+        if ( dex.affiliation !== "cline" )
+            throw new Error();
         return dex.dexHas( rt, x );
     } );
 };
-SinkDexFix.prototype.fuse = function ( rt, a, b ) {
+SinkClineFix.prototype.callCline = function ( rt, a, b ) {
+    return macLookupThen(
+        mkDexable.getProj( this.dexableUnwrap, "val"
+            ).callSink( rt, this ),
+        function ( dex ) {
+        
+        if ( dex.affiliation !== "cline" )
+            throw new Error();
+        return dex.callCline( rt, a, b );
+    } );
+};
+SinkClineFix.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-SinkDexFix.prototype.getName = function () {
-    return [ "n:dex-fix", this.dexableUnwrap.getName() ];
+SinkClineFix.prototype.getName = function () {
+    return [ "n:cline-fix", this.dexableUnwrap.getName() ];
 };
-SinkDexFix.prototype.pretty = function () {
-    return "(dex-fix " + this.dexableUnwrap.pretty() + ")";
+SinkClineFix.prototype.pretty = function () {
+    return "(cline-fix " + this.dexableUnwrap.pretty() + ")";
 };
 function SinkDexTable( dexVal ) {
     this.dexVal = dexVal;
@@ -816,6 +1034,9 @@ SinkDexTable.prototype.dexHas = function ( rt, x ) {
         } );
     }
 };
+SinkDexTable.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
 SinkDexTable.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
@@ -825,26 +1046,41 @@ SinkDexTable.prototype.getName = function () {
 SinkDexTable.prototype.pretty = function () {
     return "(dex-table " + this.dexVal.pretty() + ")";
 };
-function SinkDexInt() {
+function SinkClineInt() {
     // We do nothing.
 }
-SinkDexInt.prototype.affiliation = "dex";
-SinkDexInt.prototype.callSink = function ( rt, arg ) {
+SinkClineInt.prototype.affiliation = "cline";
+SinkClineInt.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
-SinkDexInt.prototype.dexHas = function ( rt, x ) {
+SinkClineInt.prototype.dexHas = function ( rt, x ) {
     return macLookupRet(
         rt.fromBoolean(
             x instanceof SinkForeign && x.purpose === "int" ) );
 };
-SinkDexInt.prototype.fuse = function ( rt, a, b ) {
+SinkClineInt.prototype.callCline = function ( rt, a, b ) {
+    if ( !(a instanceof SinkForeign && a.purpose === "int") )
+        return macLookupRet( mkNil.ofNow() );
+    if ( !(b instanceof SinkForeign && b.purpose === "int") )
+        return macLookupRet( mkNil.ofNow() );
+    
+    if ( a.foreignVal < b.foreignVal )
+        return macLookupRet(
+            mkYep.ofNow( mkYep.ofNow( mkNil.ofNow() ) ) );
+    else if ( b.foreignVal < a.foreignVal )
+        return macLookupRet(
+            mkYep.ofNow( mkNope.ofNow( mkNil.ofNow() ) ) );
+    else
+        return macLookupRet( mkYep.ofNow( mkNil.ofNow() ) );
+};
+SinkClineInt.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
-SinkDexInt.prototype.getName = function () {
-    return [ "n:dex-int" ];
+SinkClineInt.prototype.getName = function () {
+    return [ "n:cline-int" ];
 };
-SinkDexInt.prototype.pretty = function () {
-    return "(dex-int)";
+SinkClineInt.prototype.pretty = function () {
+    return "(cline-int)";
 };
 function SinkMergeByDex( dexToUse ) {
     if ( dexToUse.affiliation !== "dex" )
@@ -856,6 +1092,9 @@ SinkMergeByDex.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
 SinkMergeByDex.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+SinkMergeByDex.prototype.callCline = function ( rt, a, b ) {
     throw new Error();
 };
 SinkMergeByDex.prototype.fuse = function ( rt, a, b ) {
@@ -893,6 +1132,9 @@ SinkFuseByMerge.prototype.callSink = function ( rt, arg ) {
 SinkFuseByMerge.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
+SinkFuseByMerge.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
 SinkFuseByMerge.prototype.fuse = function ( rt, a, b ) {
     return this.mergeToUse.fuse( rt, a, b );
 };
@@ -910,6 +1152,9 @@ SinkFuseEffects.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
 SinkFuseEffects.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+SinkFuseEffects.prototype.callCline = function ( rt, a, b ) {
     throw new Error();
 };
 SinkFuseEffects.prototype.fuse = function ( rt, a, b ) {
@@ -945,6 +1190,9 @@ SinkFuseIntByPlus.prototype.callSink = function ( rt, arg ) {
 SinkFuseIntByPlus.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
+SinkFuseIntByPlus.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
 SinkFuseIntByPlus.prototype.fuse = function ( rt, a, b ) {
     if ( !(a instanceof SinkForeign && a.purpose === "int") )
         return macLookupRet( mkNil.ofNow() );
@@ -970,6 +1218,9 @@ SinkFuseIntByTimes.prototype.callSink = function ( rt, arg ) {
 SinkFuseIntByTimes.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
+SinkFuseIntByTimes.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
 SinkFuseIntByTimes.prototype.fuse = function ( rt, a, b ) {
     if ( !(a instanceof SinkForeign && a.purpose === "int") )
         return macLookupRet( mkNil.ofNow() );
@@ -993,6 +1244,9 @@ SinkFuseNssetByUnion.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
 SinkFuseNssetByUnion.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+SinkFuseNssetByUnion.prototype.callCline = function ( rt, a, b ) {
     throw new Error();
 };
 SinkFuseNssetByUnion.prototype.fuse = function ( rt, a, b ) {
@@ -1032,6 +1286,9 @@ SinkFuseStruct.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
 SinkFuseStruct.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+SinkFuseStruct.prototype.callCline = function ( rt, a, b ) {
     throw new Error();
 };
 SinkFuseStruct.prototype.fuse = function ( rt, a, b ) {
@@ -1108,6 +1365,9 @@ SinkFuseDefault.prototype.callSink = function ( rt, arg ) {
 SinkFuseDefault.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
+SinkFuseDefault.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
 SinkFuseDefault.prototype.fuse = function ( rt, a, b ) {
     var self = this;
     
@@ -1145,7 +1405,11 @@ SinkFuseByOwnMethod.prototype.callSink = function ( rt, arg ) {
 SinkFuseByOwnMethod.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
+SinkFuseByOwnMethod.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
 SinkFuseByOwnMethod.prototype.fuse = function ( rt, a, b ) {
+    var self = this;
     var getMethod = mkDexable.getProj( this.dexableGetMethod, "val" );
     
     function getFrom( x, then ) {
@@ -1157,7 +1421,7 @@ SinkFuseByOwnMethod.prototype.fuse = function ( rt, a, b ) {
             } else if ( mkYep.tags( maybeOwnMethod ) ) {
                 var method = mkYep.getProj( maybeOwnMethod, "val" );
                 if ( method.affiliation !== self.affiliation )
-                    return macLookupRet( mkNil.ofNow() );
+                    throw new Error();
                 return then( method );
             } else {
                 throw new Error();
@@ -1197,6 +1461,9 @@ SinkFuseFix.prototype.callSink = function ( rt, arg ) {
 SinkFuseFix.prototype.dexHas = function ( rt, x ) {
     throw new Error();
 };
+SinkFuseFix.prototype.callCline = function ( rt, a, b ) {
+    throw new Error();
+};
 SinkFuseFix.prototype.fuse = function ( rt, a, b ) {
     var self = this;
     return macLookupThen(
@@ -1230,6 +1497,9 @@ SinkFuseTable.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
 SinkFuseTable.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+SinkFuseTable.prototype.callCline = function ( rt, a, b ) {
     throw new Error();
 };
 SinkFuseTable.prototype.fuse = function ( rt, a, b ) {
@@ -1286,6 +1556,9 @@ SinkCexpr.prototype.callSink = function ( rt, arg ) {
     throw new Error();
 };
 SinkCexpr.prototype.dexHas = function ( rt, x ) {
+    throw new Error();
+};
+SinkCexpr.prototype.callCline = function ( rt, a, b ) {
     throw new Error();
 };
 SinkCexpr.prototype.fuse = function ( rt, a, b ) {
@@ -1664,11 +1937,11 @@ var CexprConstruct = classCexprStructMapper( "n:cexpr-construct",
 }, function ( visitor, flatTag ) {
     visitor.addConstructor( flatTag );
 } );
-var CexprDexStruct = classCexprStructMapperOrdered(
-    "n:cexpr-dex-struct", "cexpr-dex-struct",
+var CexprClineStruct = classCexprStructMapperOrdered(
+    "n:cexpr-cline-struct", "cexpr-cline-struct",
     function ( args ) {
     
-    return jsCode( "new ", jsCodeVar( "SinkDexStruct" ), "( ",
+    return jsCode( "new ", jsCodeVar( "SinkClineStruct" ), "( ",
         args, " )" );
 } );
 var CexprMergeStruct = classCexprStructMapperOrdered(
@@ -2714,7 +2987,7 @@ function cgenExecute( rt, expr ) {
         SinkStruct: SinkStruct,
         SinkFn: SinkFn,
         SinkForeign: SinkForeign,
-        SinkDexStruct: SinkDexStruct,
+        SinkClineStruct: SinkClineStruct,
         SinkFuseStruct: SinkFuseStruct,
         sinkForeignStrFromJs: sinkForeignStrFromJs,
         sinkErr: sinkErr,
@@ -3983,18 +4256,30 @@ function usingFuncDefNs( funcDefNs ) {
             }
         }
         
-        mac( "dex-struct", function ( myStxDetails, body, then ) {
-            return structMapper( body, then, CexprDexStruct );
+        mac( "cline-struct", function ( myStxDetails, body, then ) {
+            return structMapper( body, then, CexprClineStruct );
         } );
         
-        fun( "dex-default", function ( rt, first ) {
+        fun( "cline-by-dex", function ( rt, dex ) {
+            return new SinkClineByDex( dex );
+        } );
+        
+        fun( "cline-default", function ( rt, first ) {
             return sinkFnPure( function ( rt, second ) {
-                return new SinkDexDefault( first, second );
+                return new SinkClineDefault( first, second );
             } );
         } );
         
-        fun( "dex-give-up", function ( rt, ignored ) {
-            return new SinkDexGiveUp();
+        fun( "cline-give-up", function ( rt, ignored ) {
+            return new SinkClineGiveUp();
+        } );
+        
+        fun( "dex-by-cline", function ( rt, cline ) {
+            return new SinkDexByCline( cline );
+        } );
+        
+        fun( "dex-cline", function ( rt, ignored ) {
+            return new SinkDexCline();
         } );
         
         fun( "dex-dex", function ( rt, ignored ) {
@@ -4017,23 +4302,23 @@ function usingFuncDefNs( funcDefNs ) {
             return new SinkDexString();
         } );
         
-        effectfulFun( "dex-by-own-method",
+        effectfulFun( "cline-by-own-method",
             function ( rt, dexableGetMethod ) {
             
             return assertValidDexable( rt, dexableGetMethod,
                 function ( getMethod ) {
                 
                 return macLookupRet(
-                    new SinkDexByOwnMethod( dexableGetMethod ) );
+                    new SinkClineByOwnMethod( dexableGetMethod ) );
             } );
         } );
         
-        effectfulFun( "dex-fix", function ( rt, dexableUnwrap ) {
+        effectfulFun( "cline-fix", function ( rt, dexableUnwrap ) {
             return assertValidDexable( rt, dexableUnwrap,
                 function ( unwrap ) {
                 
                 return macLookupRet(
-                    new SinkDexFix( dexableUnwrap ) );
+                    new SinkClineFix( dexableUnwrap ) );
             } );
         } );
         
@@ -4043,34 +4328,25 @@ function usingFuncDefNs( funcDefNs ) {
             return new SinkDexTable( dexVal );
         } );
         
-        fun( "dex-int", function ( rt, ignored ) {
-            return new SinkDexInt();
+        fun( "cline-int", function ( rt, ignored ) {
+            return new SinkClineInt();
         } );
         
-        fun( "call-dex", function ( rt, dex ) {
+        fun( "call-cline", function ( rt, cline ) {
             return sinkFnPure( function ( rt, a ) {
                 return new SinkFn( function ( rt, b ) {
-                    return rt.dexHas( dex, a, function ( hasA ) {
+                    if ( cline.affiliation !== "cline" )
+                        throw new Error();
+                    
+                    return rt.dexHas( cline, a, function ( hasA ) {
                         if ( !hasA )
                             return macLookupRet( mkNil.ofNow() );
                     
-                    return rt.dexHas( dex, b, function ( hasB ) {
+                    return rt.dexHas( cline, b, function ( hasB ) {
                         if ( !hasB )
                             return macLookupRet( mkNil.ofNow() );
                     
-                    var result =
-                        nameCompare( a.getName(), b.getName() );
-                    if ( result < 0 )
-                        return macLookupRet(
-                            mkYep.ofNow(
-                                new SinkForeign( "lt", null ) ) );
-                    if ( 0 < result )
-                        return macLookupRet(
-                            mkYep.ofNow(
-                                new SinkForeign( "gt", null ) ) );
-                    
-                    return macLookupRet(
-                        mkYep.ofNow( mkNil.ofNow() ) );
+                    return cline.callCline( rt, a, b );
                     
                     } );
                     
@@ -4079,9 +4355,11 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
-        fun( "in-dex", function ( rt, dex ) {
+        fun( "in-cline", function ( rt, cline ) {
             return new SinkFn( function ( rt, x ) {
-                return dex.dexHas( rt, x );
+                if ( cline.affiliation !== "cline" )
+                    throw new Error();
+                return cline.dexHas( rt, x );
             } );
         } );
         
@@ -4357,27 +4635,6 @@ function usingFuncDefNs( funcDefNs ) {
         
         fun( "int-one", function ( rt, ignored ) {
             return sinkForeignInt( 1 );
-        } );
-        
-        // TODO: See if we should make this available as a dex
-        // (becoming the first dex with a visible order to it) or as a
-        // merge (in the form of a max or min operation).
-        fun( "int-compare", function ( rt, a ) {
-            return sinkFnPure( function ( rt, b ) {
-                if ( !(a instanceof SinkForeign
-                    && a.purpose === "int") )
-                    throw new Error();
-                if ( !(b instanceof SinkForeign
-                    && b.purpose === "int") )
-                    throw new Error();
-                
-                if ( a.foreignVal < b.foreignVal )
-                    return mkYep.ofNow( mkNil.ofNow() );
-                else if ( b.foreignVal < a.foreignVal )
-                    return mkNope.ofNow( mkNil.ofNow() );
-                else
-                    return mkNil.ofNow();
-            } );
         } );
         
         fun( "int-minus", function ( rt, a ) {
@@ -5140,10 +5397,10 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
-        fun( "cexpr-dex-struct", function ( rt, mainTagName ) {
+        fun( "cexpr-cline-struct", function ( rt, mainTagName ) {
             return sinkFnPure( function ( rt, projections ) {
                 return makeCexprStructMapper(
-                    CexprDexStruct, mainTagName, projections );
+                    CexprClineStruct, mainTagName, projections );
             } );
         } );
         
