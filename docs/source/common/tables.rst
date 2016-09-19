@@ -85,6 +85,18 @@ Given two tables and a fuse, fuses all the values of both tables together into a
   If you want an orderless collection whose equality with other collections is based only on what elements are present, and not which keys they're looked up by, try using the same value as both the key and the value.
 
 
+.. _table-sort:
+
+table-sort
+----------
+
+Call with ``cline table``
+
+Given a cline and a table, returns a :ref:`cons` list of tables that partition that table's entries. The result tables are in the order determined by the cline, and no two elements of a single result table are candidly ordered with respect to each other using that cline.
+
+.. todo:: Implement this.
+
+
 .. _table-get:
 
 table-get

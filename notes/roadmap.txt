@@ -1,5 +1,6 @@
 Immediate actionable tasks:
 
+Implement `table-sort`.
 Implement and use `committing-to-define` and `committing-to-define-function-implementations`.
 
 -----
