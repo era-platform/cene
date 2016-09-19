@@ -202,7 +202,7 @@ function runCeneSync(
                 SinkStruct: "SinkStruct",
                 SinkFn: "SinkFn",
                 SinkForeign: "SinkForeign",
-                SinkDexStruct: "SinkDexStruct",
+                SinkClineStruct: "SinkClineStruct",
                 SinkFuseStruct: "SinkFuseStruct",
                 sinkForeignStrFromJs:
                     "sinkForeignStrFromJs",

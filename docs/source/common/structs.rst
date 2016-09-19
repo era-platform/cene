@@ -2,23 +2,23 @@ Structs and function calls
 ==========================
 
 
-.. _cexpr-dex-struct:
+.. _cexpr-cline-struct:
 
-cexpr-dex-struct
+cexpr-cline-struct
 ----------------
 
 Call with ``main-tag-name projections``
 
-Given a main tag name and an ordered :ref:`assoc` list from mutually unique projection names to compiled expressions, returns another compiled expression with the union of their free variables. It represents an expression that returns a dex of the specified constructor which applies a different dex to each projection.
+Given a main tag name and an ordered :ref:`assoc` list from mutually unique projection names to compiled expressions, returns another compiled expression with the union of their free variables. It represents an expression that returns a cline of the specified constructor which applies a different cline to each projection in order, short-circuiting if any is nonequal.
 
 
-.. _dex-struct:
+.. _cline-struct:
 
-dex-struct
-----------
+cline-struct
+------------
 
 Macro. Example:
-``(dex-struct cons (dex-struct nil) (dex-struct nil))``
+``(cline-struct cons (cline-struct nil) (cline-struct nil))``
 
 .. todo:: Document this.
 

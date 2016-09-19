@@ -2,27 +2,14 @@ Integers
 ========
 
 
-.. _dex-int:
+.. _cline-int:
 
-dex-int
--------
+cline-int
+---------
 
 Call with ``(ignored)``
 
-Returns a dex that applies to all integers.
-
-
-.. _int-compare:
-
-int-compare
------------
-
-Call with ``a b``
-
-Compares the given integers. Returns (:ref:`nil`) if they are equal, (:ref:`yep`/:ref:`nil`) if they were provided in ascending order, and (:ref:`nope`/:ref:`nil`) if they were not.
-
-..
-  TODO: See if we should make this available as a dex (becoming the first dex with a visible order to it) or as a merge (in the form of a max or min operation).
+Returns a cline that applies to all integers in ascending order.
 
 
 .. _int-zero:

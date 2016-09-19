@@ -1,5 +1,5 @@
-Dexes, merges, and fuses
-========================
+Clines, dexes, merges, and fuses
+================================
 
 ..
   TODO: Incorporate the following notes into the documentation.
@@ -14,17 +14,117 @@ Dexes, merges, and fuses
   
   This approach is at least as complex as certain static type systems already. In the long run, it will likely accumulate lots of ad hoc extensions. That said, before too long, there will hopefully be enough building blocks here that Cene libraries can bootstrap their own type systems.
 
-A "dex" is a binary relation that checks whether both values are in its domain and indistinguishable. There is no "custom" sense of indistinguishability allowed here. If there is any Cene code at all that can distinguish the two values, they are not indistinguishable.
+A "cline" is based on a total ordering on values in its domain, or in other words a binary relation that is reflexive, transitive, and antisymmetric. Its antisymmetry is as fine-grained as possible: If any two values in a cline's domain are related by that cline in both directions, there will be no Cene code at all that can distinguish the two values.
 
-A "merge" is a binary operation that is commutative, associative, and idempotent wherever it is defined. It returns a (:ref:`yep` ...) or (:ref:`nil`), so it doesn't have to be defined everywhere, but when it returns (:ref:`nil`) is also subject to those laws.
+However, a cline does not merely expose this total ordering. Within the cline's domain, there may be equivalence classes of values for which every two nonequal values will not have their relative order exposed to Cene code. When Cene code uses :ref:`call-quine` to compare two values by a cline, it can get several results:
+
+- (:ref:`nil`): The values are not both in the domain.
+
+- (:ref:`yep` (:ref:`yep` (:ref:`nil`))): The first value candidly precedes the second.
+
+- (:ref:`yep` <encapsulated value>): The first value secretly precedes the second.
+
+- (:ref:`yep` (:ref:`nil`)): The first value is equal to the second.
+
+- (:ref:`yep` <encapsulated value>): The first value secretly follows the second.
+
+- (:ref:`yep` (:ref:`nope` (:ref:`nil`))): The first value candidly follows the second.
+
+The "secretly precedes" and "secretly follows" cases are indistinguishable to Cene code.
+
+A "dex" is like a cline, but it never results in the "candidly precedes" and "candidly follows" cases. Thus, a dex is useful as a kind of equality test.
+
+A "merge" is a binary operation that is commutative, associative, and idempotent for values in its domain.
+
+A "fuse" is a binary operation that is commutative and associative for values in its domain.
 
 ..
   TODO: Incorporate the following note into the documentation.
   
   TODO: There's something interesting we might be able to do here. Some values may not let us compute an easy yes or no answer as to whether they're indistinguishable because the only way to distinguish them is to send them into the outside world and wait for the ripples to show up. For instance, a message that means "Please send a response eventually" and a message that means "Please don't send a response ever" might only be distinguishable if and when a response arrives. If a response doesn't arrive, we can't destinguish them yet. While we can't define a dex for these two messages (because that dex itself would be a way to distinguish them), we can define a merge that combines them into a result with maximal feedback or a result with minimal feedback. There might be something having to do with definition lookups or OWA extensibility that can make practical use of this technique.
 
-A "fuse" is a binary operation that is commutative and associative wherever it is defined. It returns a (:ref:`yep` ...) or (:ref:`nil`), so it doesn't have to be defined everywhere, but when it returns (:ref:`nil`) is also subject to those laws.
 
+
+.. _dex-cline:
+
+dex-cline
+-------
+
+Call with ``(ignored)``
+
+.. todo:: Document this.
+
+This can distinguish between values that might not have been distinguishable any other way. For instance, it can distinguish between (:ref:`cline-default` (:ref:`cline-give-up`) ``a``) and ``a``.
+
+
+.. _cline-by-dex:
+
+cline-by-dex
+------------
+
+Call with ``dex``
+
+.. todo:: Document this.
+
+
+.. _cline-give-up:
+
+cline-give-up
+-------------
+
+Call with ``(ignored)``
+
+.. todo:: Document this.
+
+
+.. _cline-default:
+
+cline-default
+-------------
+
+Call with ``cline-for-trying-first cline-for-trying-second``
+
+.. todo:: Document this.
+
+
+.. _cline-by-own-method:
+
+cline-by-own-method
+-------------------
+
+Call with ``dexable-get-method``
+
+Given a :ref:`dexable` function, returns a cline that works by invoking that function with each value to get (:ref:`yep` ``<cline>``) or (:ref:`nil`), verifying that the two ``<cline>`` values are the same, and then proceeding to invoke that value.
+
+
+.. _cline-fix:
+
+cline-fix
+---------
+
+Call with ``dexable-unwrap``
+
+Given a :ref:`dexable` function, returns a cline that works by passing itself to the function and then invoking the resulting cline.
+
+
+.. _call-cline:
+
+call-cline
+----------
+
+Call with ``cline a b``
+
+.. todo:: Document this.
+
+
+.. _in-cline:
+
+in-cline
+--------
+
+Call with ``cline x``
+
+.. todo:: Document this.
 
 
 .. _dexable:
@@ -46,79 +146,15 @@ Call with ``(ignored)``
 
 .. todo:: Document this.
 
-This can distinguish between values that might not have been distinguishable any other way. For instance, it can distinguish between (:ref:`dex-default` ``a b``) and (:ref:`dex-default` ``b a``).
+This can distinguish between values that might not have been distinguishable any other way. For instance, it can distinguish between (:ref:`dex-by-cline` (:ref:`cline-by-dex` ``a``)) and ``a``.
 
 
-.. _dex-give-up:
+.. _dex-by-cline:
 
-dex-give-up
------------
+dex-by-cline
+------------
 
-Call with ``(ignored)``
-
-.. todo:: Document this.
-
-
-.. _dex-default:
-
-dex-default
------------
-
-Call with ``dex-for-trying-first dex-for-trying-second``
-
-.. todo:: Document this.
-
-
-.. _dex-by-own-method:
-
-dex-by-own-method
------------------
-
-Call with ``dexable-get-method``
-
-Given a :ref:`dexable` function, returns a dex that works by invoking that function with each value to get (:ref:`yep` ``<dex>``) or (:ref:`nil`), verifying that the two ``<dex>`` values are the same, and then proceeding to invoke that value.
-
-
-.. _dex-fix:
-
-dex-fix
--------
-
-Call with ``dexable-unwrap``
-
-Given a :ref:`dexable` function, returns a dex that works by passing itself to the function and then invoking the resulting dex.
-
-
-.. _call-dex:
-
-call-dex
---------
-
-Call with ``dex a b``
-
-.. todo:: Document this.
-
-.. todo::
-  Document the fact that (:ref:`call-dex` ...) returns one of these results:
-  
-  - (:ref:`nil`), representing that one or both of the values are outside the domain
-  - (:ref:`yep`/:ref:`nil`), representing equality
-  - (:ref:`yep` <a foreign value representing "secretly less than">)
-  - (:ref:`yep` <a foreign value representing "secretly greater than">)
-
-..
-  TODO: See if we'll ever extend this to orderings the Cene code can observe, which would open up two more:
-  
-  - (:ref:`yep`/:ref:`yep`/:ref:`nil`)  ; representing "visibly less than"; the inner :ref:`yep` means that the arguments were provided in the right order
-  - (:ref:`yep`/:ref:`nope`/:ref:`nil`)  ; representing "visibly greater than"
-
-
-.. _in-dex:
-
-in-dex
-------
-
-Call with ``dex x``
+Call with ``cline``
 
 .. todo:: Document this.
 
