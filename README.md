@@ -42,7 +42,7 @@ Cene's **collapsed brackets** are a simple syntactic feature that allows deep co
 /do-thing-3 result-1 result-2)
 ```
 
-Since Cene makes continuation-passing style so much more palatable, Cene's **side effects** are monadic, with asynchronous callbacks if they're observable to the outside world. If they're not observable to the outside world, they use a world-passing style instead. Cene calls worlds "modes" to call to mind modal logic. (**TODO**: That's probably an incorrect usage. Just use the name "world" instead.)
+Since Cene makes continuation-passing style so much more palatable, Cene's **side effects** are monadic, with asynchronous callbacks if they're observable to the outside world. If they're not observable to the outside world, they use a world-passing style instead. Cene code calls worlds "modes" and "modalities" to call to mind modal logic; world-passing code is effectively parameterized over possible worlds, and if a static type were ascribed to world-passing code, it might show similarities to a modal operator.
 
 ```
 \= Copies one tree of UTF-8 files to another file tree recursively.
