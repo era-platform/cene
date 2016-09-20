@@ -2886,7 +2886,10 @@ function runTopLevelMacLookupsSync(
                         return then( result );
                     } ) );
             } else {
-                throw new Error();
+                throw new Error(
+                    "Internal error: Unrecognized " +
+                    "thread.monad.first: " +
+                    JSON.stringify( thread.monad.first ) );
             }
         } else if ( thread.monad.type === "ret" ) {
 //            stats.shallowRet++;
@@ -6332,6 +6335,7 @@ function usingFuncDefNs( funcDefNs ) {
         runTopLevelTryExprsSync: runTopLevelTryExprsSync,
         
         // NOTE: These are only needed for era-cene-api.js.
+        addPureMacro: addPureMacro,
         processDefStruct: processDefStruct,
         sinkConsListFromArray: sinkConsListFromArray,
         makeDummyMode: makeDummyMode,

@@ -100,7 +100,7 @@ JsCode.prototype.toExpr_ = function (
         var staticVars = [];
         arrEach( code.staticExprs_, function ( staticExpr ) {
             if ( staticExpr.type === "expr" ) {
-                var exprCode = toExpr( staticExpr );
+                var exprCode = toExpr( staticExpr.expr );
             } else if ( staticExpr.type === "reified" ) {
                 var reifiedVar = nextGensym();
                 reifiedVars.push( reifiedVar );

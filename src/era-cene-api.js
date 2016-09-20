@@ -14,6 +14,39 @@ var mkFileTypeMissing = builtInStruct( "file-type-missing" );
 
 builtInStructAccumulator.val = null;
 
+function CexprJs( code ) {
+    this.code = code;
+}
+CexprJs.prototype.getFreeVars = function () {
+    return jsnMap();
+};
+CexprJs.prototype.visitForCodePruning = function ( visitor ) {
+    // Do nothing.
+};
+CexprJs.prototype.toJsCode = function ( hasConstructor ) {
+    // #GEN
+    return jsCode(
+        jsCodeVar( "macLookupRet" ), "( " +
+            "new ", jsCodeVar( "SinkForeign" ), "( \"js-effects\", " +
+                "function () {\n" +
+        
+        "    return macLookupRet( " +
+                "new SinkForeign( \"foreign\", ",
+                    jsCode(
+                        // TODO: See if we should treat `Function` as
+                        // a free variable here.
+                        "Function( " +
+                            jsStr( this.code ) + " )"
+                    ).asStatic(), "() ) );\n" +
+        "} ) )" );
+};
+CexprJs.prototype.getName = function () {
+    return [ "n:cexpr-js", this.code ];
+};
+CexprJs.prototype.pretty = function () {
+    return "(cexpr-js " + JSON.stringify( this.code ) + ")";
+};
+
 function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
     
     var usingDefNs = usingFuncDefNs( funcDefNs );
@@ -234,6 +267,14 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
     function addCeneApi( targetDefNs, funcDefNs ) {
         var dummyMode = usingDefNs.makeDummyMode();
         
+        function mac( name, body ) {
+            var strName = sinkForeignStrFromJs( name );
+            var qualifiedName =
+                sinkNameQualify(
+                    mkMacroOccurrence.ofNow( strName ).getName() );
+            usingDefNs.addPureMacro( targetDefNs, dummyMode,
+                qualifiedName, [ "claim:primitive", name ], body );
+        }
         function effectfulFun( name, body ) {
             var strName = sinkForeignStrFromJs( name );
             var macroMainTagName =
@@ -701,6 +742,40 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                         unwrapCene( then( wrapCene( val ) ) ) );
                 } );
             } );
+        } );
+        
+        function stxToDefiniteSinkString( stx ) {
+            if ( !mkStx.tags( stx ) )
+                throw new Error();
+            var istringNil = mkStx.getProj( stx, "s-expr" );
+            if ( !mkIstringNil.tags( istringNil ) )
+                throw new Error();
+            var result = mkIstringNil.getProj( istringNil, "string" );
+            parseString( result );
+            return result;
+        }
+        function stxToDefiniteString( stx ) {
+            return parseString( stxToDefiniteSinkString( stx ) );
+        }
+        
+        fun( "cexpr-js", function ( rt, code ) {
+            var codeInternal = parseString( code ).jsStr;
+            return new SinkCexpr( new CexprJs( codeInternal ) );
+        } );
+        
+        mac( "js", function ( myStxDetails, body, then ) {
+            if ( !mkCons.tags( body ) )
+                throw new Error();
+            if ( mkCons.tags( mkCons.getProj( body, "cdr" ) ) )
+                throw new Error();
+            return function ( rawMode, nss ) {
+                return macLookupThenRunEffects( rawMode,
+                    then(
+                        new CexprJs(
+                            stxToDefiniteString(
+                                mkCons.getProj(
+                                    body, "car" ) ).jsStr ) ) );
+            };
         } );
         
         fun( "compile-function-js-effects", function ( rt, params ) {
