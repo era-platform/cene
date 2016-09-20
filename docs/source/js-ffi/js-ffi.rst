@@ -90,3 +90,23 @@ compile-function-js-effects
 Call with ``params body``
 
 Creates a JavaScript effects value that results in a new JavaScript function created out of the given cons list of parameter strings and the given body string.
+
+
+.. _cexpr-js:
+
+cexpr-js
+--------
+
+Call with ``code``
+
+Given a string containing a JavaScript function body, returns a compiled expression with no free variables. It represents an expression which creates a JavaScript effects value which calls the given JavaScript function body with no arguments and results in a JavaScript value. In a generated JavaScript program, the function body is compiled by passing it to ``Function`` early on in the loading of the program.
+
+
+.. _js:
+
+js
+--
+
+Macro. Example: ``js.\;qq[return 1 + 2;]``
+
+.. todo:: Document this.

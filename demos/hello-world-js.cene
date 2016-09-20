@@ -53,9 +53,10 @@
   /give-unwrapped-js-effects js-val body))
 
 (defn js-main client
-  (compile-give-unwrapped-js-effects str.client client str.\;qq/
+  (then-js-effects js.\;qq[console.log("Hello, `js`!");] /fn -
+  /compile-give-unwrapped-js-effects str.client client str.\;qq/
   
-  console.log( "Hello, world!" );
+  console.log( "Hello, `compile-give-unwrapped-js-effects`!" );
   
   return client.done( client.wrap( null ) );
   
