@@ -25,7 +25,7 @@
       
       err.\;qq[Internal error])
     
-    err.\;qq[Expected a combiner-result of type yep or folding]))
+    err.\;qq[Expected a combiner-result that was a yep or a folding]))
 
 (defn istring-map-any-later istring check-later then
   (istring-map-any-foldl-later (nil) istring
@@ -34,7 +34,7 @@
       /c then /case check-result
         yep - check-result
         nope val (folding (nil) val)
-        err.\;qq[Expected a check-result of type yep or nope]))
+        err.\;qq[Expected a check-result that was a yep or a nope]))
   /fn fold-result
   /c then /case fold-result
     yep - fold-result
@@ -63,13 +63,15 @@
       (string-append-later past-suffix prefix /fn appended
       /c then /istring-cons appended interpolation rest)
       
-      err.\;qq[Expected a rest of type istring-nil or istring-cons])
+      err.\;qq[
+        Expected a rest that was an istring-nil or an istring-cons])
     
     istring-cons prefix interpolation past-rest
     (istring-append-later past-rest rest /fn appended
     /c then /istring-cons prefix interpolation appended)
     
-    err.\;qq[Expected a past of type istring-nil or istring-cons]))
+    err.\;qq[
+      Expected a past that was an istring-nil or an istring-cons]))
 
 (def-struct unwrapped val rewrap)
 
@@ -123,7 +125,7 @@
   qq-env qq-stack-orig unwrap rewrap-suppressed expr then
   
   (cast qq-env qq-env-stack qq-stack
-    err.\;qq[Expected a qq-env of type qq-env-stack]
+    err.\;qq[Expected a qq-env that was a qq-env-stack]
   /cast (c unwrap expr) unwrapped unwrapped-expr rewrap-expr
     err.\;qq[
       Tried to parse a quasiquotation escape remainder that couldn't
@@ -285,7 +287,7 @@
 
 (defn parse-quasiquotation-escape-later qq-env unwrap expr then
   (cast qq-env qq-env-stack qq-stack
-    err.\;qq[Expected a qq-env of type qq-env-stack]
+    err.\;qq[Expected a qq-env that was a qq-env-stack]
   /cast (c unwrap expr) unwrapped unwrapped-expr rewrap-expr
     err.\;qq[
       Tried to parse a quasiquotation escape that couldn't be
@@ -490,8 +492,7 @@
       err.\;qq[
         Encountered more leaves in the s-expression than the list]
     /cast (or (isa yep leaf) (isa nope leaf)) yep -
-      err.\;qq[
-        Expected every leaf in the list to be of type yep or nope]
+      err.\;qq[Expected every leaf in the list to be a yep or a nope]
     /later/c then leaf leaves)
     err.\;qq[Expected an expr that was an s-expression]))
 

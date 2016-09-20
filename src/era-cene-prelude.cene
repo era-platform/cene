@@ -21,7 +21,8 @@
       folding state rest (folding state /cons first rest)
       err.\;qq[Internal error])
     
-    err.\;qq[Expected a combiner-result of type yep or folding]))
+    err.\;qq[
+      Expected a combiner-result of that was a yep or a folding]))
 
 (defn map-any list check
   (caselet fold-result
@@ -29,7 +30,7 @@
       (caselet check-result (c check elem)
         yep - check-result
         nope val (folding (nil) val)
-        err.\;qq[Expected a check-result of type yep or nope]))
+        err.\;qq[Expected a check-result that was a yep or a nope]))
     yep - fold-result
     folding - val nope.val
     err.\;qq[Internal error]))
@@ -39,7 +40,7 @@
   /caselet combiner-result (c combiner state first)
     yep result combiner-result
     nope result (any-foldl result rest combiner)
-    err.\;qq[Expected a combiner-result of type yep or nope]))
+    err.\;qq[Expected a combiner-result that was a yep or a nope]))
 
 (defn foldl state list combiner
   (cast list cons first rest state
@@ -87,7 +88,7 @@
   /caselet combiner-result (c combiner state first-a first-b)
     yep result combiner-result
     nope result (double-any-foldl result list-a list-b combiner)
-    err.\;qq[Expected a combiner-result of type yep or nope]))
+    err.\;qq[Expected a combiner-result that was a yep or a nope]))
 
 (defn rev-append rev-past rest
   (foldl rest rev-past /fn state elem /cons elem state))
@@ -105,9 +106,9 @@
 
 (defn stx-to-obtain-method scope stx string-to-unq
   (cast scope scope - -b qualify
-    err.\;qq[Expected a scope value of type scope]
+    err.\;qq[Expected a scope value that was a scope]
   /cast stx stx - sexpr
-    err.\;qq[Expected a stx value of type stx]
+    err.\;qq[Expected a stx value that was a stx]
   /case sexpr
     
     foreign val
@@ -203,7 +204,7 @@
 
 (defn basic-macro home-scope caller-scope my-stx-details then body
   (cast home-scope scope home-unique-ns home-def-ns home-qualify
-    err.\;qq[Expected a home-scope of type scope]
+    err.\;qq[Expected a home-scope that was a scope]
   /join-effects scope-claim.caller-scope
   /later/get-mode/fn mode
   /let s (fn it /stx my-stx-details it)
@@ -288,12 +289,12 @@
 (defn validate-constructor-glossary glossary
   (cast glossary constructor-glossary main-tag source-to-rep
     err.\;qq[
-      Encountered a constructor glossary that wasn't of type
+      Encountered a constructor glossary that wasn't a
       constructor-glossary]
   /cast (in-dex (dex-name/nil) main-tag) yep -
     err.\;qq[
-      Encountered a constructor glossary whose main tag name wasn't of
-      type name]
+      Encountered a constructor glossary whose main tag name wasn't a
+      name]
   /let check-list
     (fix/fn check-list sources-seen reps-seen list
       (case list
@@ -412,14 +413,14 @@
     (caselet check-result (c check elem)
       yep result check-result
       nope result (nope/nil)
-      err.\;qq[Expected a check-result of type yep or nope])))
+      err.\;qq[Expected a check-result that was a yep or a nope])))
 
 (defn double-any list-a list-b check
   (double-any-foldl (nil) list-a list-b /fn state elem-a elem-b
     (caselet check-result (c check elem-a elem-b)
       yep result check-result
       nope result (nope/nil)
-      err.\;qq[Expected a check-result of type yep or nope])))
+      err.\;qq[Expected a check-result that was a yep or a nope])))
 
 (defn foldl-later state list combiner-later then
   (cast list cons first rest
@@ -439,7 +440,7 @@
   (case yep-nope
     yep val nope.val
     nope val yep.val
-    err.\;qq[Expected a yep-nope of type yep or nope]))
+    err.\;qq[Expected a yep-nope that was a yep or a nope]))
 
 (defn or a b
   (case a yep - a
@@ -498,7 +499,7 @@
 
 (defn cdr list
   (cast list cons first rest
-    err.\;qq[Expected a list of type cons]
+    err.\;qq[Expected a list that was a cons]
     rest))
 
 (defn tails lists
@@ -521,7 +522,7 @@
   /caselet body-result (c body state /c get-first /nil)
     yep - body-result
     nope state (lazy-any-foldl state (c get-rest /nil) body)
-    err.\;qq[Expected a body-result of type yep or nope]))
+    err.\;qq[Expected a body-result that was a yep or a nope]))
 
 (defn lazy-list-compare-by a b elem-compare
   (cast a lazy-cons a-first a-rest (yep/nil)
@@ -547,55 +548,55 @@
 (defn fixops-zero fixops
   (cast fixops
     fixops zero one complement compare plus minus times div dual-div
-    err.\;qq[Expected a fixops value of type fixops]
+    err.\;qq[Expected a fixops value that was a fixops]
     zero))
 
 (defn fixops-one fixops
   (cast fixops
     fixops zero one complement compare plus minus times div dual-div
-    err.\;qq[Expected a fixops value of type fixops]
+    err.\;qq[Expected a fixops value that was a fixops]
     one))
 
 (defn fixops-complement fixops
   (cast fixops
     fixops zero one complement compare plus minus times div dual-div
-    err.\;qq[Expected a fixops value of type fixops]
+    err.\;qq[Expected a fixops value that was a fixops]
     complement))
 
 (defn fixops-compare fixops
   (cast fixops
     fixops zero one complement compare plus minus times div dual-div
-    err.\;qq[Expected a fixops value of type fixops]
+    err.\;qq[Expected a fixops value that was a fixops]
     compare))
 
 (defn fixops-plus fixops
   (cast fixops
     fixops zero one complement compare plus minus times div dual-div
-    err.\;qq[Expected a fixops value of type fixops]
+    err.\;qq[Expected a fixops value that was a fixops]
     plus))
 
 (defn fixops-minus fixops
   (cast fixops
     fixops zero one complement compare plus minus times div dual-div
-    err.\;qq[Expected a fixops value of type fixops]
+    err.\;qq[Expected a fixops value that was a fixops]
     minus))
 
 (defn fixops-times fixops
   (cast fixops
     fixops zero one complement compare plus minus times div dual-div
-    err.\;qq[Expected a fixops value of type fixops]
+    err.\;qq[Expected a fixops value that was a fixops]
     times))
 
 (defn fixops-div fixops
   (cast fixops
     fixops zero one complement compare plus minus times div dual-div
-    err.\;qq[Expected a fixops value of type fixops]
+    err.\;qq[Expected a fixops value that was a fixops]
     div))
 
 (defn fixops-dual-div fixops
   (cast fixops
     fixops zero one complement compare plus minus times div dual-div
-    err.\;qq[Expected a fixops value of type fixops]
+    err.\;qq[Expected a fixops value that was a fixops]
     dual-div))
 
 (defn fixops-is-zero fixops n
@@ -614,12 +615,12 @@
 
 (defn digpair-with-digits n bdig ldig
   (cast n digpair fixops is-zero orig-bdig orig-ldig
-    err.\;qq[Expected an n value of type digpair]
+    err.\;qq[Expected an n value that was a digpair]
   /make-digpair fixops bdig ldig))
 
 (defn digpair-promote-sub n digit
   (cast n digpair fixops is-zero bdig ldig
-    err.\;qq[Expected an n value of type digpair]
+    err.\;qq[Expected an n value that was a digpair]
   /digpair-with-digits n fixops-zero.fixops digit))
 
 (defn make-fixops-digpair digit-fixops
@@ -637,35 +638,35 @@
 
 (defn digpair-carried-promote carried
   (cast carried carried n carry
-    err.\;qq[Expected a carried value of type carried]
+    err.\;qq[Expected a carried value that was a carried]
   /cast n digpair fixops is-zero bdig ldig
-    err.\;qq[Expected an n value of type digpair]
+    err.\;qq[Expected an n value that was a digpair]
   /make-digpair make-fixops-digpair.fixops carry n))
 
 (defn digpair-is-zero n
   (cast n digpair fixops is-zero bdig ldig
-    err.\;qq[Expected an n value of type digpair]
+    err.\;qq[Expected an n value that was a digpair]
     is-zero))
 
 (defn digpair-as-zero n
   (cast n digpair fixops is-zero bdig ldig
-    err.\;qq[Expected an n value of type digpair]
+    err.\;qq[Expected an n value that was a digpair]
   /case is-zero yep - n
   /let zero-digit fixops-zero.fixops
   /digpair-with-digits n zero-digit zero-digit))
 
 (defn digpair-complement n
   (cast n digpair fixops is-zero bdig ldig
-    err.\;qq[Expected an n value of type digpair]
+    err.\;qq[Expected an n value that was a digpair]
   /digpair-with-digits n
     (fixops-complement fixops bdig)
     (fixops-complement fixops ldig)))
 
 (defn digpair-compare n m
   (cast n digpair fixops n-is-zero n-bdig n-ldig
-    err.\;qq[Expected an n value of type digpair]
+    err.\;qq[Expected an n value that was a digpair]
   /cast m digpair - m-is-zero m-bdig m-ldig
-    err.\;qq[Expected an m value of type digpair]
+    err.\;qq[Expected an m value that was a digpair]
   \= Optimization: If either thing to compare is zero, we can avoid
   \= iterating over the digits.
   /case n-is-zero yep -
@@ -680,13 +681,13 @@
 
 (defn digpair-plus n m-carried
   (cast n digpair fixops n-is-zero n-bdig n-ldig
-    err.\;qq[Expected an n value of type digpair]
+    err.\;qq[Expected an n value that was a digpair]
   /cast m-carried carried m carry
-    err.\;qq[Expected an m-carried value of type carried]
+    err.\;qq[Expected an m-carried value that was a carried]
   /cast m digpair - m-is-zero m-bdig m-ldig
-    err.\;qq[Expected an m value of type digpair]
+    err.\;qq[Expected an m value that was a digpair]
   /cast carry digpair - carry-is-zero -b cdig
-    err.\;qq[Expected a carry value of type digpair]
+    err.\;qq[Expected a carry value that was a digpair]
   
   \= Optimization: If either summand is zero and the carry is also
   \= zero, we can just use the other as the result.
@@ -704,13 +705,13 @@
 
 (defn digpair-minus n m-carried
   (cast n digpair fixops n-is-zero n-bdig n-ldig
-    err.\;qq[Expected an n value of type digpair]
+    err.\;qq[Expected an n value that was a digpair]
   /cast m-carried carried m carry
-    err.\;qq[Expected an m-carried value of type carried]
+    err.\;qq[Expected an m-carried value that was a carried]
   /cast m digpair - m-is-zero m-bdig m-ldig
-    err.\;qq[Expected an m value of type digpair]
+    err.\;qq[Expected an m value that was a digpair]
   /cast carry digpair - carry-is-zero -b cdig
-    err.\;qq[Expected a carry value of type digpair]
+    err.\;qq[Expected a carry value that was a digpair]
   
   \= Optimization: If both things to subtract from this are zero, we
   \= can just skip the subtraction.
@@ -727,9 +728,9 @@
 
 (defn digpair-times-small n m-carried
   (cast n digpair fixops n-is-zero n-bdig n-ldig
-    err.\;qq[Expected an n value of type digpair]
+    err.\;qq[Expected an n value that was a digpair]
   /cast m-carried carried m carry
-    err.\;qq[Expected an m-carried value of type carried]
+    err.\;qq[Expected an m-carried value that was a carried]
   /let carry-is-zero (fixops-is-zero fixops carry)
   
   \= Optimization: If either factor is zero and the carry is also
@@ -748,12 +749,12 @@
 
 (defn digpair-times n m-carried
   (cast n digpair fixops n-is-zero n-bdig n-ldig
-    err.\;qq[Expected an n value of type digpair]
+    err.\;qq[Expected an n value that was a digpair]
   \= TODO: See if this can be more efficient.
   /cast m-carried carried m carry
-    err.\;qq[Expected an m-carried value of type carried]
+    err.\;qq[Expected an m-carried value that was a carried]
   /cast m digpair - m-is-zero m-bdig m-ldig
-    err.\;qq[Expected an m value of type digpair]
+    err.\;qq[Expected an m value that was a digpair]
   
   \= Optimization: If either factor is zero, we can just use the
   \= carry as the result value.
@@ -808,9 +809,9 @@
 
 (defn digpair-div-small n m-carried
   (cast n digpair fixops n-is-zero n-bdig n-ldig
-    err.\;qq[Expected an n value of type digpair]
+    err.\;qq[Expected an n value that was a digpair]
   /cast m-carried carried m carry
-    err.\;qq[Expected an m-carried value of type carried]
+    err.\;qq[Expected an m-carried value that was a carried]
   /cast (fixops-is-zero fixops m) yep -
     err.\;qq[Called digpair-div-small with a zero divisor]
   /let carry-is-zero (fixops-is-zero fixops carry)
@@ -844,19 +845,19 @@
       Called digpair-dual-div-no-carry with a smaller dividend than
       divisor]
   /cast n3210 digpair - -b n32 n10
-    err.\;qq[Expected an n3210 value of type digpair]
+    err.\;qq[Expected an n3210 value that was a digpair]
   /cast m3210 digpair - -b m32 m10
-    err.\;qq[Expected an m3210 value of type digpair]
+    err.\;qq[Expected an m3210 value that was a digpair]
   /case digpair-is-zero.m32 yep -
     err.\;qq[Called digpair-dual-div-no-carry with a zero m32]
   /cast n32 digpair digit-fixops - n3 n2
-    err.\;qq[Expected an n32 value of type digpair]
+    err.\;qq[Expected an n32 value that was a digpair]
   /cast n10 digpair - -b n1 n0
-    err.\;qq[Expected an n10 value of type digpair]
+    err.\;qq[Expected an n10 value that was a digpair]
   /cast m32 digpair - -b m3 m2
-    err.\;qq[Expected an m32 value of type digpair]
+    err.\;qq[Expected an m32 value that was a digpair]
   /cast m10 digpair - -b m1 m0
-    err.\;qq[Expected an m10 value of type digpair]
+    err.\;qq[Expected an m10 value that was a digpair]
   /let zdig fixops-zero.digit-fixops
   /let ignore-carry
     (fn carried
@@ -905,15 +906,15 @@
 (defn digpair-dual-div n m-carried
   \= TODO: See if this can be more efficient.
   (cast n digpair fixops n-is-zero n-bdig n-ldig
-    err.\;qq[Expected an n value of type digpair]
+    err.\;qq[Expected an n value that was a digpair]
   /cast m-carried carried m carry
-    err.\;qq[Expected an m-carried value of type carried]
+    err.\;qq[Expected an m-carried value that was a carried]
   /cast m digpair - m-is-zero m-bdig m-ldig
-    err.\;qq[Expected an m value of type digpair]
+    err.\;qq[Expected an m value that was a digpair]
   /case m-is-zero yep -
     err.\;qq[Called digpair-dual-div with a zero divisor]
   /cast carry digpair - carry-is-zero c-bdig c-ldig
-    err.\;qq[Expected a carry value of type digpair]
+    err.\;qq[Expected a carry value that was a digpair]
   /let zdig fixops-zero.fixops
   /case carry-is-zero yep -
     
@@ -990,7 +991,7 @@
     (fn n m-carried
       \= Plus
       (cast m-carried carried m carry
-        err.\;qq[Expected an m-carried value of type carried]
+        err.\;qq[Expected an m-carried value that was a carried]
       /case (xor n m) yep -
         (carried not.carry carry)
         (carried carry n)))
@@ -998,7 +999,7 @@
     (fn n m-carried
       \= Minus
       (cast m-carried carried m carry
-        err.\;qq[Expected an m-carried value of type carried]
+        err.\;qq[Expected an m-carried value that was a carried]
       /case (xor n m) yep -
         (carried not.carry m)
         (carried carry carry)))
@@ -1006,7 +1007,7 @@
     (fn n m-carried
       \= Times
       (cast m-carried carried m carry
-        err.\;qq[Expected an m-carried value of type carried]
+        err.\;qq[Expected an m-carried value that was a carried]
       /case (and n m) yep -
         (carried not.carry carry)
         (carried carry /nope/nil)))
@@ -1014,7 +1015,7 @@
     (fn n m-carried
       \= Div
       (cast m-carried carried m carry
-        err.\;qq[Expected an m-carried value of type carried]
+        err.\;qq[Expected an m-carried value that was a carried]
       /case m nope -
         \= Divide by zero.
         err.\;qq[
@@ -1026,13 +1027,13 @@
     (fn n m-carried
       \= Dual-div
       (cast n digpair - n-is-zero n1 n0
-        err.\;qq[Expected an n value of type digpair]
+        err.\;qq[Expected an n value that was a digpair]
       /cast m-carried carried m carry
-        err.\;qq[Expected an m-carried value of type carried]
+        err.\;qq[Expected an m-carried value that was a carried]
       /cast m digpair - m-is-zero m1 m0
-        err.\;qq[Expected an m value of type digpair]
+        err.\;qq[Expected an m value that was a digpair]
       /cast carry digpair - carry-is-zero n3 n2
-        err.\;qq[Expected a carry value of type digpair]
+        err.\;qq[Expected a carry value that was a digpair]
       /case m-is-zero yep -
         \= Divide by zero.
         err.\;qq[
@@ -1068,23 +1069,23 @@
 
 (defn binat-as-zero n
   (cast n binat fixops n-internals
-    err.\;qq[Expected an n value of type binat]
+    err.\;qq[Expected an n value that was a binat]
     binat-zero-for-fixops.fixops))
 
 (defn binat-as-one n
   (cast n binat fixops n-internals
-    err.\;qq[Expected an n value of type binat]
+    err.\;qq[Expected an n value that was a binat]
   /binat fixops
   /binat-internals (binat fixops /nil) fixops-one.fixops))
 
 (defn binat-is-zero n
   (cast n binat fixops n-internals
-    err.\;qq[Expected an n value of type binat]
+    err.\;qq[Expected an n value that was a binat]
   /not/isa binat-internals n-internals))
 
 (defn improper-binat-is-zero n
   (cast n binat fixops n-internals
-    err.\;qq[Expected an n value of type binat]
+    err.\;qq[Expected an n value that was a binat]
   /case n-internals binat-internals depth fixnum
     (case binat-is-zero.depth yep -
       (fixops-is-zero fixops fixnum)
@@ -1093,9 +1094,9 @@
 
 (defn binat-compare n m
   (cast n binat fixops n-internals
-    err.\;qq[Expected an n value of type binat]
+    err.\;qq[Expected an n value that was a binat]
   /cast m binat - m-internals
-    err.\;qq[Expected an m value of type binat]
+    err.\;qq[Expected an m value that was a binat]
   /case n-internals binat-internals n-depth nfix
     (case m-internals binat-internals m-depth mfix
       (caselet depth-comparison (binat-compare n-depth m-depth)
@@ -1111,7 +1112,7 @@
 
 (defn improper-binat-reduce n
   (cast n binat fixops n-internals
-    err.\;qq[Expected an n value of type binat]
+    err.\;qq[Expected an n value that was a binat]
   /cast n-internals binat-internals depth fixnum
     n
   /case binat-is-zero.depth yep -
@@ -1119,7 +1120,7 @@
       binat-as-zero.n
       n)
   /cast fixnum digpair digit-fixops is-zero bdig ldig
-    err.\;qq[Expected a fixnum value of type digpair]
+    err.\;qq[Expected a fixnum value that was a digpair]
   /case is-zero yep -
     binat-as-zero.n
   /case (fixops-is-zero digit-fixops bdig) nope -
@@ -1135,7 +1136,7 @@
 
 (defn improper-binat-promote-carried fixops depth carried
   (cast carried carried result carry
-    err.\;qq[Expected a carried value of type carried]
+    err.\;qq[Expected a carried value that was a carried]
   /case
     (case binat-is-zero.depth yep -
       (fixops-is-zero fixops carry)
@@ -1149,7 +1150,7 @@
 
 (defn improper-binat-promote n
   (cast n binat fixops n-internals
-    err.\;qq[Expected an n value of type binat]
+    err.\;qq[Expected an n value that was a binat]
   /cast n-internals binat-internals depth fixnum
     err.\;qq[Expected an n value that wasn't zero]
   /binat fixops
@@ -1161,9 +1162,9 @@
 
 (defn improper-binat-plus n m
   (cast n binat fixops n-internals
-    err.\;qq[Expected an n value of type binat]
+    err.\;qq[Expected an n value that was a binat]
   /cast m binat - m-internals
-    err.\;qq[Expected an m value of type binat]
+    err.\;qq[Expected an m value that was a binat]
   /cast n-internals binat-internals n-depth nfix
     m
   /cast m-internals binat-internals m-depth mfix
@@ -1184,9 +1185,9 @@
     nil (nil)
     nope - (not/improper-binat-subtracted-from m n)
   /cast n binat fixops n-internals
-    err.\;qq[Expected an n value of type binat]
+    err.\;qq[Expected an n value that was a binat]
   /cast m binat - m-internals
-    err.\;qq[Expected an m value of type binat]
+    err.\;qq[Expected an m value that was a binat]
   /cast n-internals binat-internals n-depth nfix
     yep.m
   /cast m-internals binat-internals m-depth mfix
@@ -1209,9 +1210,9 @@
 
 (defn improper-binat-times n m
   (cast n binat fixops n-internals
-    err.\;qq[Expected an n value of type binat]
+    err.\;qq[Expected an n value that was a binat]
   /cast m binat - m-internals
-    err.\;qq[Expected an m value of type binat]
+    err.\;qq[Expected an m value that was a binat]
   /cast n-internals binat-internals n-depth nfix
     n
   /cast m-internals binat-internals m-depth mfix
@@ -1234,9 +1235,9 @@
   /case improper-binat-is-zero.m yep -
     err.\;qq[Called improper-binat-div with a zero divisor]
   /cast n binat fixops n-internals
-    err.\;qq[Expected an n value of type binat]
+    err.\;qq[Expected an n value that was a binat]
   /cast m binat - m-internals
-    err.\;qq[Expected an m value of type binat]
+    err.\;qq[Expected an m value that was a binat]
   /cast n-internals binat-internals n-depth nfix
     err.\;qq[Internal error]
   /cast m-internals binat-internals m-depth mfix
@@ -1272,33 +1273,33 @@
 
 (defn bigint-as-zero n
   (cast n bigint fixops n-nat
-    err.\;qq[Expected an n value of type bigint]
+    err.\;qq[Expected an n value that was a bigint]
     bigint-zero-for-fixops.fixops))
 
 (defn bigint-as-one n
   (cast n bigint fixops n-nat
-    err.\;qq[Expected an n value of type bigint]
+    err.\;qq[Expected an n value that was a bigint]
   /bigint fixops /yep/binat-as-one binat-zero-for-fixops.fixops))
 
 (defn bigint-neg n
   (cast n bigint fixops n-nat
-    err.\;qq[Expected an n value of type bigint]
+    err.\;qq[Expected an n value that was a bigint]
   /case n-nat nil
     n
   /bigint fixops not.n))
 
 (defn bigint-abs n
   (cast n bigint fixops n-nat
-    err.\;qq[Expected an n value of type bigint]
+    err.\;qq[Expected an n value that was a bigint]
   /case n-nat nope -
     bigint-neg.n
     n))
 
 (defn bigint-compare n m
   (cast n bigint - n
-    err.\;qq[Expected an n value of type bigint]
+    err.\;qq[Expected an n value that was a bigint]
   /cast m bigint - m
-    err.\;qq[Expected an m value of type bigint]
+    err.\;qq[Expected an m value that was a bigint]
   /case n
     
     yep n
@@ -1321,9 +1322,9 @@
 
 (defn bigint-plus n m
   (cast n bigint fixops n
-    err.\;qq[Expected an n value of type bigint]
+    err.\;qq[Expected an n value that was a bigint]
   /cast m bigint - m
-    err.\;qq[Expected an m value of type bigint]
+    err.\;qq[Expected an m value that was a bigint]
   /case n
     
     yep n
@@ -1345,9 +1346,9 @@
 
 (defn bigint-times n m
   (cast n bigint fixops n
-    err.\;qq[Expected an n value of type bigint]
+    err.\;qq[Expected an n value that was a bigint]
   /cast m bigint - m
-    err.\;qq[Expected an m value of type bigint]
+    err.\;qq[Expected an m value that was a bigint]
   /case n
     
     yep n
@@ -1368,9 +1369,9 @@
   (let pos (fn n yep.n)
   /let neg (fn n nope.n)
   /cast n bigint fixops n
-    err.\;qq[Expected an n value of type bigint]
+    err.\;qq[Expected an n value that was a bigint]
   /cast m bigint - m
-    err.\;qq[Expected an m value of type bigint]
+    err.\;qq[Expected an m value that was a bigint]
   /let div
     (fn n m result-sign carry-sign
       (cast (binat-div n m) carried result carry
@@ -1420,25 +1421,27 @@
 (defn avl-branches-swap polarity branches
   (case polarity yep - branches
   /cast branches avl-branches nub nbranch yub ybranch
-    err.\;qq[Expected a branches value of type avl-branches]
+    err.\;qq[Expected a branches value that was an avl-branches]
   /avl-branches yub ybranch nub nbranch))
 
 (defn avl-comparer tree
   (case tree avl-leaf fixops compare compare
   /case tree avl-branch fixops compare key val branches compare
-    err.\;qq[Expected a tree value of type avl-leaf or avl-branch]))
+    err.\;qq[
+      Expected a tree value that was an avl-leaf or an avl-branch]))
 
 (defn avl-get-maybe tree k
   (case tree avl-leaf fixops compare
     (nil)
   /case tree avl-branch fixops compare key val branches
     (cast branches avl-branches nub nbranch yub ybranch
-      err.\;qq[Expected a branches value of type avl-branches]
+      err.\;qq[Expected a branches value that was an avl-branches]
     /case (c compare key k)
       nope - (avl-get-maybe nbranch k)
       yep - (avl-get-maybe ybranch k)
       yep.val)
-    err.\;qq[Expected a tree value of type avl-leaf or avl-branch]))
+    err.\;qq[
+      Expected a tree value that was an avl-leaf or an avl-branch]))
 
 (def-struct
   depth-changed nope-depth-change yep-depth-change balanced-tree)
@@ -1447,7 +1450,7 @@
   (case polarity yep - balance-result
   /cast balance-result
     depth-changed nope-depth-change yep-depth-change balanced-tree
-    err.\;qq[Expected a balance-result value of type depth-changed]
+    err.\;qq[Expected a balance-result value that was a depth-changed]
   /depth-changed yep-depth-change nope-depth-change balanced-tree))
 
 (def-struct avl-minus-extreme-entry-succeeded
@@ -1455,9 +1458,9 @@
 
 (defn improper-avl-branch-balance tree
   (cast tree avl-branch fixops compare key val branches
-    err.\;qq[Expected a tree value of type avl-branch]
+    err.\;qq[Expected a tree value that was an avl-branch]
   /cast branches avl-branches nub nbranch yub ybranch
-    err.\;qq[Expected a branches value of type avl-branches]
+    err.\;qq[Expected a branches value that was an avl-branches]
   /let bigint-minus-one (fn n /bigint-minus n bigint-as-one.n)
   /let bigint-plus-one (fn n /bigint-plus n bigint-as-one.n)
   /let bigint-lteq-one
@@ -1522,7 +1525,7 @@
   \= fact that the branches were initially balanced before the root
   \= key/value entry was subtracted from the tree.
   (cast branches avl-branches nub nbranch yub ybranch
-    err.\;qq[Expected a branches value of type avl-branches]
+    err.\;qq[Expected a branches value that was an avl-branches]
   /let attempt-shift
     (fn polarity on-fail
       (cast (avl-branches-swap polarity branches)
@@ -1566,10 +1569,11 @@
     (lazy-nil)
   /case tree avl-branch fixops compare key val branches
     (cast branches avl-branches nub nbranch yub ybranch
-      err.\;qq[Expected a branches value of type avl-branches]
+      err.\;qq[Expected a branches value that was an avl-branches]
     /lazy-append avl-lazy-entries-asc.nbranch
     /lazy-cons (entry key val) avl-lazy-entries-asc.ybranch)
-    err.\;qq[Expected a tree value of type avl-leaf or avl-branch]))
+    err.\;qq[
+      Expected a tree value that was an avl-leaf or an avl-branch]))
 
 \= NOTE: This body takes its args as (state k v).
 (defn avl-any-fold-asc state tree body
@@ -1584,7 +1588,7 @@
     (folding state tree)
   /case tree avl-branch fixops compare key val branches
     (cast branches avl-branches nub nbranch yub ybranch
-      err.\;qq[Expected a branches value of type avl-branches]
+      err.\;qq[Expected a branches value that was an avl-branches]
     /caselet first-result (avl-any-map-fold-asc state nbranch body)
       
       yep - first-result
@@ -1608,23 +1612,26 @@
           err.\;qq[Internal error])
         
         err.\;qq[
-          Expected body to return a value of type yep or folding])
+          Expected body to return a value that was a yep or a folding
+          ])
       
       err.\;qq[Internal error])
-    err.\;qq[Expected a tree value of type avl-leaf or avl-branch]))
+    err.\;qq[
+      Expected a tree value that was an avl-leaf or an avl-branch]))
 
 (defn avl-get-max-depth tree
   (case tree avl-leaf fixops compare
     bigint-zero-for-fixops.fixops
   /case tree avl-branch fixops compare key val branches
     (cast branches avl-branches nub nbranch yub ybranch
-      err.\;qq[Expected a branches value of type avl-branches]
+      err.\;qq[Expected a branches value that was an avl-branches]
     /let zero bigint-zero-for-fixops.fixops
     /let one bigint-as-one.zero
     /bigint-plus one /avl-get-max-depth/case nub nil
       ybranch
       nbranch)
-    err.\;qq[Expected a tree value of type avl-leaf or avl-branch]))
+    err.\;qq[
+      Expected a tree value that was an avl-leaf or an avl-branch]))
 
 (def-struct avl-merge-val a b)
 
@@ -1690,9 +1697,9 @@
   /caselet b-lt-a (c a-compare b-key a-key) nil
     
     (cast a-branches avl-branches a-nub a-nbranch a-yub a-ybranch
-      err.\;qq[Expected an a-branches value of type avl-branches]
+      err.\;qq[Expected an a-branches value that was an avl-branches]
     /cast b-branches avl-branches b-nub b-nbranch b-yub b-ybranch
-      err.\;qq[Expected a b-branches value of type avl-branches]
+      err.\;qq[Expected a b-branches value that was an avl-branches]
     /cast (avl-merge a-nbranch b-nbranch maybe-process-both)
       depth-changed an-change bn-change nbranch
       err.\;qq[Internal error]
@@ -1722,10 +1729,10 @@
     \= smallest branch of the other.
     (cast (avl-branches-swap b-lt-a a-branches)
       avl-branches a-wub a-wbranch a-tub a-tbranch
-      err.\;qq[Expected an a-branches value of type avl-branches]
+      err.\;qq[Expected an a-branches value that was an avl-branches]
     /cast (avl-branches-swap b-lt-a b-branches)
       avl-branches b-wub b-wbranch b-tub b-tbranch
-      err.\;qq[Expected a b-branches value of type avl-branches]
+      err.\;qq[Expected a b-branches value that was an avl-branches]
     /cast
       (depth-changed-swap b-lt-a
       /avl-merge a b-tbranch maybe-process-both)
@@ -1754,7 +1761,7 @@
   /case tree avl-branch fixops compare key val branches
     (cast (avl-branches-swap k-polarity branches)
       avl-branches wub wbranch tub tbranch
-      err.\;qq[Expected a branches value of type avl-branches]
+      err.\;qq[Expected a branches value that was an avl-branches]
     /case (avl-minus-extreme-entry tbranch k-polarity)
       
       nope -
@@ -1800,7 +1807,8 @@
         subtracted-key subtracted-val balanced-tree)
       
       err.\;qq[Internal error])
-    err.\;qq[Expected a tree value of type avl-leaf or avl-branch]))
+    err.\;qq[
+      Expected a tree value that was an avl-leaf or an avl-branch]))
 
 (defn avl-plus-entry tree k v
   (case tree avl-leaf fixops compare
@@ -1812,7 +1820,7 @@
       (nope/avl-branch fixops compare k v branches)
     /cast (avl-branches-swap polarity branches)
       avl-branches wub wbranch tub tbranch
-      err.\;qq[Expected a branches value of type avl-branches]
+      err.\;qq[Expected a branches value that was an avl-branches]
     /cast
       (case (avl-plus-entry tbranch k v)
         nope result (pair (nope/nil) result)
@@ -1855,7 +1863,8 @@
           (not/isa yep /bigint-compare t-depth-change
             bigint-as-zero.t-depth-change)))
       yep.balanced-tree)
-    err.\;qq[Expected a tree value of type avl-leaf or avl-branch]))
+    err.\;qq[
+      Expected a tree value that was an avl-leaf or an avl-branch]))
 
 (defn avl-minus-entry tree k
   (case tree avl-leaf fixops compare
@@ -1865,7 +1874,7 @@
       (avl-branch-finish-minus fixops compare branches)
     /cast (avl-branches-swap polarity branches)
       avl-branches wub wbranch tub tbranch
-      err.\;qq[Expected a branches value of type avl-branches]
+      err.\;qq[Expected a branches value that was an avl-branches]
     /cast
       (case (avl-minus-entry tbranch k)
         nope result (pair (nope/nil) result)
@@ -1908,7 +1917,8 @@
           (isa yep /bigint-compare w-depth-change
             bigint-as-zero.w-depth-change)))
       yep.balanced-tree)
-    err.\;qq[Expected a tree value of type avl-leaf or avl-branch]))
+    err.\;qq[
+      Expected a tree value that was an avl-leaf or an avl-branch]))
 
 (defn avl-has-any tree
   (not/isa avl-leaf tree))
@@ -1998,7 +2008,7 @@
 
 (defn make-immediate-lazy lazy-ops val
   (cast lazy-ops lazy-ops done then make-lazy force
-    err.\;qq[Expected a lazy-ops value of type lazy-ops]
+    err.\;qq[Expected a lazy-ops value that was a lazy-ops]
   /c make-lazy /fn - /c done val))
 
 (defn list-order-swap polarity list
@@ -2026,25 +2036,25 @@
 (defn ftree-digits-swap polarity digits
   (case polarity yep - digits
   /cast digits ftree-digits n-digits y-digits
-    err.\;qq[Expected a digits value of type ftree-digits]
+    err.\;qq[Expected a digits value that was a ftree-digits]
   /ftree-digits y-digits n-digits))
 
 (defn ftree-push tree polarity new-element
   (case tree ftree-empty meta
     (cast meta ftree-meta lazy-ops measure plus
-      err.\;qq[Expected a meta value of type ftree-meta]
+      err.\;qq[Expected a meta value that was an ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
-      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+      err.\;qq[Expected a lazy-ops value that was a lazy-ops]
     /c done /ftree-single meta new-element)
   /case tree ftree-single meta element
     (cast meta ftree-meta lazy-ops measure plus
-      err.\;qq[Expected a meta value of type ftree-meta]
+      err.\;qq[Expected a meta value that was an ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
-      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+      err.\;qq[Expected a lazy-ops value that was a lazy-ops]
     /let sub-measure
       (fn node
         (cast node ftree-node summary elements
-          err.\;qq[Expected a node value of type ftree-node]
+          err.\;qq[Expected a node value that was an ftree-node]
           summary))
     /c then
       (make-immediate-lazy lazy-ops
@@ -2056,12 +2066,12 @@
       lazy-next)
   /case tree ftree-deep meta digits lazy-next
     (cast meta ftree-meta lazy-ops measure plus
-      err.\;qq[Expected a meta value of type ftree-meta]
+      err.\;qq[Expected a meta value that was an ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
-      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+      err.\;qq[Expected a lazy-ops value that was a lazy-ops]
     /cast (ftree-digits-swap polarity digits)
       ftree-digits w-digits t-digits
-      err.\;qq[Expected a digits value of type ftree-digits]
+      err.\;qq[Expected a digits value that was an ftree-digits]
     /let not-four-digits
       (fn -
         (ftree-deep meta
@@ -2086,16 +2096,16 @@
       /ftree-digits w-digits (list d3 new-element))
       lazy-next)
     err.\;qq[
-      Expected a tree value of type ftree-empty, ftree-single, or
-      ftree-deep]))
+      Expected a tree value that was an ftree-empty, an ftree-single,
+      or an ftree-deep]))
 
 (defn ftree-get-meta tree
   (case tree ftree-empty meta meta
   /case tree ftree-single meta element meta
   /case tree ftree-deep meta digits lazy-next meta
     err.\;qq[
-      Expected a tree value of type ftree-empty, ftree-single, or
-      ftree-deep]))
+      Expected a tree value that was an ftree-empty, an ftree-single,
+      or an ftree-deep]))
 
 \= NOTE: If the `polarity` is `(nope/nil)`, this will push the
 \= elements so they're in the opposite order as they are in the
@@ -2103,9 +2113,9 @@
 (defn ftree-push-list tree polarity list
   (let meta ftree-get-meta.tree
   /cast meta ftree-meta lazy-ops measure plus
-    err.\;qq[Expected a meta value of type ftree-meta]
+    err.\;qq[Expected a meta value that was an ftree-meta]
   /cast lazy-ops lazy-ops done then make-lazy force
-    err.\;qq[Expected a lazy-ops value of type lazy-ops]
+    err.\;qq[Expected a lazy-ops value that was a lazy-ops]
   /let done
     (foldr list done /fn elem done
       (fn tree /c then (ftree-push tree polarity elem) done))
@@ -2116,24 +2126,24 @@
 (defn ftree-pop tree polarity
   (case tree ftree-empty meta
     (cast meta ftree-meta lazy-ops measure plus
-      err.\;qq[Expected a meta value of type ftree-meta]
+      err.\;qq[Expected a meta value that was an ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
-      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+      err.\;qq[Expected a lazy-ops value that was a lazy-ops]
     /c done /ftree-pop-result (nil) tree)
   /case tree ftree-single meta element
     (cast meta ftree-meta lazy-ops measure plus
-      err.\;qq[Expected a meta value of type ftree-meta]
+      err.\;qq[Expected a meta value that was an ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
-      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+      err.\;qq[Expected a lazy-ops value that was a lazy-ops]
     /c done /ftree-pop-result yep.element ftree-empty.meta)
   /case tree ftree-deep meta digits lazy-next
     (cast meta ftree-meta lazy-ops measure plus
-      err.\;qq[Expected a meta value of type ftree-meta]
+      err.\;qq[Expected a meta value that was an ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
-      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+      err.\;qq[Expected a lazy-ops value that was a lazy-ops]
     /cast (ftree-digits-swap polarity digits)
       ftree-digits w-digits t-digits
-      err.\;qq[Expected a digits value of type ftree-digits]
+      err.\;qq[Expected a digits value that was an ftree-digits]
     /cast rev.t-digits cons last rev-past
       err.\;qq[Expected a t-digits value with at least one digit]
     /c then
@@ -2144,32 +2154,32 @@
     /fn tree
     /c done /ftree-pop-result yep.last tree)
     err.\;qq[
-      Expected a tree value of type ftree-empty, ftree-single, or
-      ftree-deep]))
+      Expected a tree value that was an ftree-empty, an ftree-single,
+      or an ftree-deep]))
 
 (defn ftree-get-summary-stack tree
   (case tree ftree-empty meta
     (cast meta ftree-meta lazy-ops measure plus
-      err.\;qq[Expected a meta value of type ftree-meta]
+      err.\;qq[Expected a meta value that was an ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
-      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+      err.\;qq[Expected a lazy-ops value that was a lazy-ops]
     /c done /list/c plus /nil)
   /case tree ftree-single meta element
     (cast meta ftree-meta lazy-ops measure plus
-      err.\;qq[Expected a meta value of type ftree-meta]
+      err.\;qq[Expected a meta value that was an ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
-      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+      err.\;qq[Expected a lazy-ops value that was a lazy-ops]
     /c done /list/c measure element)
   /case tree ftree-deep meta digits lazy-next
     (cast meta ftree-meta lazy-ops measure plus
-      err.\;qq[Expected a meta value of type ftree-meta]
+      err.\;qq[Expected a meta value that was an ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
-      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+      err.\;qq[Expected a lazy-ops value that was a lazy-ops]
     /let add-side
       (fn summary polarity
         (cast (ftree-digits-swap polarity digits)
           ftree-digits w-digits t-digits
-          err.\;qq[Expected a digits value of type ftree-digits]
+          err.\;qq[Expected a digits value that was an ftree-digits]
         /foldl summary t-digits /fn summary digit
           (c plus /list-order-swap polarity
           /list summary (c measure digit))))
@@ -2182,19 +2192,19 @@
     /let summary (c add-side summary /yep/nil)
     /c done /cons summary parent-summary-stack)
     err.\;qq[
-      Expected a tree value of type ftree-empty, ftree-single, or
-      ftree-deep]))
+      Expected a tree value that was an ftree-empty, an ftree-single,
+      or an ftree-deep]))
 
 \= This works like `(ftree-deep meta digits lazy-next)`, except that
 \= it allows one of the sides of digits to be empty.
 (defn ftree-maybe-deep polarity meta digits lazy-next
   (cast meta ftree-meta lazy-ops measure plus
-    err.\;qq[Expected a meta value of type ftree-meta]
+    err.\;qq[Expected a meta value that was an ftree-meta]
   /cast lazy-ops lazy-ops done then make-lazy force
-    err.\;qq[Expected a lazy-ops value of type lazy-ops]
+    err.\;qq[Expected a lazy-ops value that was a lazy-ops]
   /cast (ftree-digits-swap polarity digits)
     ftree-digits w-digits t-digits
-    err.\;qq[Expected a digits value of type ftree-digits]
+    err.\;qq[Expected a digits value that was an ftree-digits]
   /case t-digits cons - -b (c done /ftree-deep meta digits lazy-next)
   /c then (c force lazy-next) /fn lazy-next
   /c then (ftree-pop lazy-next polarity) /fn ftree-pop-result
@@ -2204,8 +2214,8 @@
     (ftree-push-list ftree-empty.meta not.polarity w-digits)
   /cast node ftree-node summary elements
     err.\;qq[
-      Expected the finger tree in lazy-next to contain values of type
-      ftree-node]
+      Expected the finger tree in lazy-next to contain ftree-node
+      values]
   /c then (make-immediate-lazy lazy-ops rest) /fn lazy-next
   /c done /ftree-deep meta
     (ftree-digits-swap polarity
@@ -2221,15 +2231,15 @@
   
   (case tree ftree-empty meta
     (cast meta ftree-meta lazy-ops measure plus
-      err.\;qq[Expected a meta value of type ftree-meta]
+      err.\;qq[Expected a meta value that was an ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
-      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+      err.\;qq[Expected a lazy-ops value that was a lazy-ops]
     /c done ftree-split-iter-result-fell-off.summary-so-far)
   /case tree ftree-single meta element
     (cast meta ftree-meta lazy-ops measure plus
-      err.\;qq[Expected a meta value of type ftree-meta]
+      err.\;qq[Expected a meta value that was an ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
-      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+      err.\;qq[Expected a lazy-ops value that was a lazy-ops]
     /let summary-so-far
       (c plus /list-order-swap polarity
       /list (c measure element) summary-so-far)
@@ -2238,14 +2248,14 @@
     /ftree-split-iter-result-completed ftree-empty.meta tree)
   /case tree ftree-deep meta digits lazy-next
     (cast meta ftree-meta lazy-ops measure plus
-      err.\;qq[Expected a meta value of type ftree-meta]
+      err.\;qq[Expected a meta value that was an ftree-meta]
     /cast lazy-ops lazy-ops done then make-lazy force
-      err.\;qq[Expected a lazy-ops value of type lazy-ops]
+      err.\;qq[Expected a lazy-ops value that was a lazy-ops]
     /cast summary-stack cons summary-stack-first summary-stack-rest
-      err.\;qq[Expected a summary-stack value of type cons]
+      err.\;qq[Expected a summary-stack value that was a cons]
     /cast (ftree-digits-swap polarity digits)
       ftree-digits w-digits t-digits
-      err.\;qq[Expected a digits value of type ftree-digits]
+      err.\;qq[Expected a digits value that was an ftree-digits]
     /let try-side
       (fn summary-so-far side-polarity on-failed
         (let iterating-inward (not/xor polarity side-polarity)
@@ -2333,16 +2343,16 @@
       err.\;qq[Internal error])
     
     err.\;qq[
-      Expected a tree value of type ftree-empty, ftree-single, or
-      ftree-deep]))
+      Expected a tree value that was an ftree-empty, an ftree-single,
+      or an ftree-deep]))
 
 (defn ftree-append-with-middle a middle b
   (let lazy-done
     (fn meta result
       (cast meta ftree-meta lazy-ops measure plus
-        err.\;qq[Expected a meta value of type ftree-meta]
+        err.\;qq[Expected a meta value that was an ftree-meta]
       /cast lazy-ops lazy-ops done then make-lazy force
-        err.\;qq[Expected a lazy-ops value of type lazy-ops]
+        err.\;qq[Expected a lazy-ops value that was a lazy-ops]
       /c done result))
   /case a ftree-empty meta
     (ftree-push-list b (nope/nil) rev.middle)
@@ -2354,20 +2364,20 @@
     (ftree-push-list a (yep/nil) /append middle list.element)
   /cast a ftree-deep a-meta a-digits a-lazy-next
     err.\;qq[
-      Expected an a value of type ftree-empty, ftree-single, or
-      ftree-deep]
+      Expected an a value that was an ftree-empty, an ftree-single, or
+      an ftree-deep]
   /cast a-digits ftree-digits an-digits ay-digits
-    err.\;qq[Expected an a-digits value of type ftree-digits]
+    err.\;qq[Expected an a-digits value that was an ftree-digits]
   /cast b ftree-deep b-meta b-digits b-lazy-next
     err.\;qq[
-      Expected a b value of type ftree-empty, ftree-single, or
-      ftree-deep]
+      Expected a b value that was an ftree-empty, an ftree-single, or
+      an ftree-deep]
   /cast b-digits ftree-digits bn-digits by-digits
-    err.\;qq[Expected a b-digits value of type ftree-digits]
+    err.\;qq[Expected a b-digits value that was an ftree-digits]
   /cast a-meta ftree-meta lazy-ops measure plus
-    err.\;qq[Expected an a-meta value of type ftree-meta]
+    err.\;qq[Expected an a-meta value that was an ftree-meta]
   /cast lazy-ops lazy-ops done then make-lazy force
-    err.\;qq[Expected a lazy-ops value of type lazy-ops]
+    err.\;qq[Expected a lazy-ops value that was a lazy-ops]
   \= NOTE: This `make-lazy` isn't constant-time, so it's impure. It
   \= does have the same space footprint before and after.
   /c then
@@ -2414,9 +2424,9 @@
 (defn ftree-split tree polarity test-is-early
   (let meta ftree-get-meta.tree
   /cast meta ftree-meta lazy-ops measure plus
-    err.\;qq[Expected a meta value of type ftree-meta]
+    err.\;qq[Expected a meta value that was an ftree-meta]
   /cast lazy-ops lazy-ops done then make-lazy force
-    err.\;qq[Expected a lazy-ops value of type lazy-ops]
+    err.\;qq[Expected a lazy-ops value that was a lazy-ops]
   /c then ftree-get-summary-stack.tree /fn summary-stack
   /c then
     (ftree-split-iter (c plus /nil)
@@ -2449,15 +2459,16 @@
 (defn ftree-is-too-empty-to-pop done then pop elem
   (c then (c pop elem /yep/nil) /fn ftree-pop-result
   /cast ftree-pop-result ftree-pop-result maybe-popped -
-    err.\;qq[Expected pop to return a value of type ftree-pop-result]
+    err.\;qq[
+      Expected pop to return a value that was an ftree-pop-result]
   /c done /isa nil maybe-popped))
 
 (defn bftree-push tree polarity elem
   (cast tree bftree fix-ftree-ops ftree
-    err.\;qq[Expected a tree value of type bftree]
+    err.\;qq[Expected a tree value that was a bftree]
   /cast fix-ftree-ops
     fix-ftree-ops done then push pop maybe-plus split
-    err.\;qq[Expected a fix-ftree-ops value of type fix-ftree-ops]
+    err.\;qq[Expected a fix-ftree-ops value that was a fix-ftree-ops]
   /c then (ftree-is-too-empty-to-pop elem pop) /fn too-empty
   /case too-empty yep - tree
   /c then (ftree-pop tree polarity) /fn ftree-pop-result
@@ -2479,10 +2490,10 @@
 
 (defn bftree-pop tree polarity
   (cast tree bftree fix-ftree-ops ftree
-    err.\;qq[Expected a tree value of type bftree]
+    err.\;qq[Expected a tree value that was a bftree]
   /cast fix-ftree-ops
     fix-ftree-ops done then push pop maybe-plus split
-    err.\;qq[Expected a fix-ftree-ops value of type fix-ftree-ops]
+    err.\;qq[Expected a fix-ftree-ops value that was a fix-ftree-ops]
   /c then (ftree-pop ftree polarity) /fn ftree-pop-result
   /cast ftree-pop-result ftree-pop-result maybe-popped ftree
     err.\;qq[Internal error]
@@ -2491,8 +2502,8 @@
   /c then (c pop popped polarity) /fn ftree-pop-result
   /cast ftree-pop-result ftree-pop-result maybe-popped new-leaf
     err.\;qq[
-      Expected a fix-ftree-ops's pop function to return a value of
-      type ftree-pop-result]
+      Expected a fix-ftree-ops's pop function to return a value that
+      was an ftree-pop-result]
   /cast maybe-popped yep popped
     err.\;qq[
       Expected a bftree's ftree to contain only nonempty leaves]
@@ -2501,12 +2512,12 @@
 
 (defn bftree-plus a b
   (cast a bftree fix-ftree-ops a
-    err.\;qq[Expected an a value of type bftree]
+    err.\;qq[Expected an a value that was a bftree]
   /cast b bftree - b
-    err.\;qq[Expected a b value of type bftree]
+    err.\;qq[Expected a b value that was a bftree]
   /cast fix-ftree-ops
     fix-ftree-ops done then push pop maybe-plus split
-    err.\;qq[Expected a fix-ftree-ops value of type fix-ftree-ops]
+    err.\;qq[Expected a fix-ftree-ops value that was a fix-ftree-ops]
   /c then (ftree-pop a /yep/nil) /fn ftree-pop-result
   /cast ftree-pop-result ftree-pop-result a-maybe-popped a-diminished
     err.\;qq[Internal error]
@@ -2526,10 +2537,10 @@
 
 (defn bftree-split tree polarity test-is-early
   (cast tree bftree fix-ftree-ops ftree
-    err.\;qq[Expected a tree value of type bftree]
+    err.\;qq[Expected a tree value that was a bftree]
   /cast fix-ftree-ops
     fix-ftree-ops done then push pop maybe-plus split
-    err.\;qq[Expected a fix-ftree-ops value of type fix-ftree-ops]
+    err.\;qq[Expected a fix-ftree-ops value that was a fix-ftree-ops]
   /c then (ftree-split ftree polarity test-is-early)
   /fn ftree-split-result
   /cast ftree-split-result ftree-split-result early-tree late-tree
@@ -2611,9 +2622,9 @@
 
 (defn comparable-compare a b
   (cast a comparable compare a-val
-    err.\;qq[Expected an a value of type comparable]
+    err.\;qq[Expected an a value that was a comparable]
   /cast b comparable - b-val
-    err.\;qq[Expected a b value of type comparable]
+    err.\;qq[Expected a b value that was a comparable]
   /c compare a-val b-val))
 
 \= With the following utilities `bimap` and `cmpd-compare`, we can
@@ -2633,7 +2644,7 @@
       /cmpd-succ/case it bar x
         (cmpd-cons (bigint-compare) x /cmpd-nil)
       /cmpd-succ/case it baz (cmpd-nil)
-        err.\;qq[Expected a value of type foo, bar, or baz])))
+        err.\;qq[Expected a value that was a foo, a bar, or a baz])))
 )
 \= -----
 
@@ -2665,10 +2676,12 @@
       cmpd-succ]
   /cast a cmpd-nil
     err.\;qq[
-      Expected an a value of type cmpd-succ, cmpd-cons, or cmpd-nil]
+      Expected an a value that was a cmpd-succ, a cmpd-cons, or a
+      cmpd-nil]
   /cast b cmpd-nil
     err.\;qq[
-      Expected a b value of type cmpd-succ, cmpd-cons, or cmpd-nil]
+      Expected a b value that was a cmpd-succ, a cmpd-cons, or a
+      cmpd-nil]
   /nil))
 
 
@@ -2687,7 +2700,7 @@
 
 (defn bag-all bag check
   (cast bag bag avl-tree
-    err.\;qq[Expected a bag value of type bag]
+    err.\;qq[Expected a bag value that was a bag]
   /avl-all avl-tree /fn k v
     (c check k)))
 
@@ -2696,14 +2709,14 @@
 
 (defn bag-plus a b
   (cast a bag a-avl-tree
-    err.\;qq[Expected an a value of type bag]
+    err.\;qq[Expected an a value that was a bag]
   /cast b bag b-avl-tree
-    err.\;qq[Expected a b value of type bag]
+    err.\;qq[Expected a b value that was a bag]
   /bag/avl-plus a-avl-tree b-avl-tree))
 
 (defn bag-any-fold-asc state bag body
   (cast bag bag avl-tree
-    err.\;qq[Expected a bag value of type bag]
+    err.\;qq[Expected a bag value that was a bag]
   /avl-any-fold-asc state avl-tree /fn state k v
     (c body state k)))
 
@@ -2717,9 +2730,9 @@
 
 (defn bag-minus a b
   (cast a bag a-avl-tree
-    err.\;qq[Expected an a value of type bag]
+    err.\;qq[Expected an a value that was a bag]
   /cast b bag b-avl-tree
-    err.\;qq[Expected a b value of type bag]
+    err.\;qq[Expected a b value that was a bag]
   /bag/bag-fold-asc a-avl-tree b /fn state elem
     (avl-minus-entry state elem)))
 
@@ -2734,7 +2747,7 @@
 
 (defn bag-plus-elem bag elem
   (cast bag bag avl-tree
-    err.\;qq[Expected a bag value of type bag]
+    err.\;qq[Expected a bag value that was a bag]
   /bag/avl-plus-nil avl-tree elem))
 
 (defn bag-compare a b
@@ -2760,15 +2773,15 @@
 
 (defn lens-get lens
   (cast lens lens get replace
-    err.\;qq[Expected a lens value of type lens]
+    err.\;qq[Expected a lens value that was a lens]
   /c get /nil))
 
 (defn lens-replace lens val
   (cast lens lens get replace
-    err.\;qq[Expected a lens value of type lens]
+    err.\;qq[Expected a lens value that was a lens]
   /c replace val))
 
 (defn lens-replace-by lens func
   (cast lens lens get replace
-    err.\;qq[Expected a lens value of type lens]
+    err.\;qq[Expected a lens value that was a lens]
   /c replace /c func /c get /nil))

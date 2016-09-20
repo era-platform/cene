@@ -68,7 +68,7 @@
 \= Returns an unended reader that has no input.
 (defn reader-init reader-ops
   (cast reader-ops reader-ops init feed feed-end
-    err.\;qq[Expected a reader-ops value of type reader-ops]
+    err.\;qq[Expected a reader-ops that was a reader-ops]
     init))
 
 \= Returns a read result derived from the given reader and the given
@@ -76,7 +76,7 @@
 \= and the output monoid.
 (defn reader-feed reader-ops unended-reader input-segment
   (cast reader-ops reader-ops init feed feed-end
-    err.\;qq[Expected a reader-ops value of type reader-ops]
+    err.\;qq[Expected a reader-ops that was a reader-ops]
   /c feed unended-reader input-segment))
 
 \= Returns a read result derived form the given reader and the given
@@ -85,5 +85,5 @@
 \= `read-result-block`.
 (defn reader-feed-end reader-ops unended-reader input-segment
   (cast reader-ops reader-ops init feed feed-end
-    err.\;qq[Expected a reader-ops value of type reader-ops]
+    err.\;qq[Expected a reader-ops that was a reader-ops]
   /c feed-end unended-reader input-segment))

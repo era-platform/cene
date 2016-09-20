@@ -103,9 +103,9 @@
 
 (defn spg-assert-compatible a b
   (cast a spg a-dex-node a-nodes a-edges-to-basises
-    err.\;qq[Expected an a of type spg]
+    err.\;qq[Expected an a that was an spg]
   /cast b spg b-dex-node b-nodes b-edges-to-basises
-    err.\;qq[Expected a b of type spg]
+    err.\;qq[Expected a b that was an spg]
   /cast (call-merge (merge-dex/dex-dex/nil) a-dex-node b-dex-node)
     yep dex-node
     err.\;qq[Expected an a and b with the same dex-node]
@@ -136,7 +136,7 @@
 
 (defn merge-method-spg-or spg
   (cast spg spg dex-node nodes edges-to-basises
-    err.\;qq[Expected a spg of type spg]
+    err.\;qq[Expected an spg that was an spg]
   /merge-struct spg (dex-dex/nil) dex-table.dex-node
   \= An `edges-to-basises` is a map from (edge node node) to sets of
   \= sets of nodes.
@@ -197,7 +197,7 @@
 
 (defn spg-star spg
   (cast spg spg dex-node nodes edges-to-basises
-    err.\;qq[Expected a spg of type spg]
+    err.\;qq[Expected an spg that was an spg]
   /fix-with-dex (dex-table/dex-table/dex-table dex-node)
     (spg-then-none dex-node nodes)
   /fn fixed-spg
@@ -210,7 +210,7 @@
 
 (defn rg-to-spg rg node
   (cast rg dex-node nodes edges-recommended
-    err.\;qq[Expected an rg of type rg]
+    err.\;qq[Expected an rg that was an rg]
   /spg-computed dex-node nodes /fn start stop
     (case
       (table-get
@@ -225,7 +225,7 @@
 
 (defn spg-to-rg spg
   (cast spg spg dex-node nodes edges-to-basises
-    err.\;qq[Expected a spg of type spg]
+    err.\;qq[Expected an spg that was an spg]
   /let dex-edge (dex-struct edge dex-node dex-node)
   /let dex-known-result-entry
     (dex-struct pair dex-edge
