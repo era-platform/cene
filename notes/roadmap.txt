@@ -58,6 +58,7 @@ For better error message behavior, be more careful about what paths in a `unique
   <unique-ns>/($$claimed-for claim:primitive let)/<set of variable names>/binding/<variable name>/...
   <unique-ns>/($$claimed-for claim:primitive let)/<set of variable names>/body/...
   \= NOTE: The `str` macro doesn't need to use its `unique-ns` at all.
+  \= NOTE: The `js` macro doesn't need to use its `unique-ns` at all.
 
 
 
