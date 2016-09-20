@@ -1,23 +1,17 @@
-Immediate actionable tasks:
-
-Implement and use `committing-to-define` and `committing-to-define-function-implementations`.
-
------
-
-Other low-level Cene tasks, in roughly the order of the Sphinx documentation table of contents:
+Low-level Cene tasks, in roughly the order of the Sphinx documentation table of contents:
 
 
 Update most of the various built-in macros that use `stxToMaybeName` to use `stxToObtainMethod`, so they can support `(foreign/obtain-directly <value>)`.
 
-Consider renaming "mode" to "world" throughout.
 See if there's any real point to calling things "...-later", since errors that happen in the "later" portion are escalated to invalidate the prior portion anyway. Maybe we even want the mode to remain current across these operations. That could make it confusing when some operations change the mode and others don't.
-Consider renaming `test-async` to `test`.
 Consider renaming `contributing-only-to` and the `committing-...` operations to `...-later`, since they "change" the current mode.
+For better error message behavior, implement and use `committing-to-define` and `committing-to-define-function-implementations`.
 Consider whether we could pass any useful parameters to `trivial-stx-details` (making it less trivial). It would probably be relevant for this value to reify the identity of the macro definition, or at least contain a name or struct unique to that macro definition.
 Implement `read-all-force` instead of having it built in.
+Either make `read-all-force` take a modality that must be capable of macroexpansion-time side effects, or include era-reader.js in the `picky-javascript-quine` output.
 Implement the `--command` command line option.
 
-Add a way for `picky-javascript-quine` to be able to encode reified first-class values other than strings, using a user-supplied serializer. That way we have an excuse as to why some values are supported and others aren't.
+Add a way for `picky-javascript-quine` to be able to encode reified first-class values other than strings, using a user-supplied serializer. That way we have an excuse as to why some values (particularly strings) are supported and others aren't.
 Redesign `compile-function-js-effects` to a macro `js.\;qq[return 1 + 2;]` that creates a JavaScript effects value that executes the given code. The code is put into a `Function(...)` expression that's run at the time the program's JavaScript code first runs, rather than putting off the execution of `Function(...)` to the time these JavaScript effects are run. Hmm... One problem with this is that it's not well-defined what happens if more than one of these expressions has a syntax error.
 Hmm. We probably want a way to construct JavaScript regexes at JavaScript load time too. We'll be able to do this in a sloppy way for a while, by generating compiled expressions that refer to macroexpansion-time first-class values, but maybe we should add another primitive so we don't have to mess with run time regexes until run time. Perhaps a macro `(js-early js-effects)` can cause the expression `js-effects` to be executed in an empty environment at compile time. Again, one problem with this is that it's not well-defined what happens if more than one of these expressions encounters an error.
 
@@ -77,6 +71,8 @@ High-level Cene tasks, in roughly highest-priority-first order:
 - Try to implement an example of an extensible framework (such as multimethods) in terms of the various "contribute" primitives.
 
 - Implement the live service API described in live-services.txt.
+
+- For better error messages, redesign `stx` values and the way we deal with them so that we're more careful about tracking source locations.
 
 - Let people write something like (err a b c \;qq[message]) to call `follow-heart` using a clamor consisting of (list a b c), `str.\;qq[message]`, and an empty struct tagged with a name unique to this source code location.
 
