@@ -92,9 +92,7 @@ table-sort
 
 Call with ``cline table``
 
-Given a cline and a table, returns a :ref:`cons` list of tables that partition that table's entries. The result tables are in the order determined by the cline, and no two elements of a single result table are candidly ordered with respect to each other using that cline.
-
-.. todo:: Implement this.
+Given a cline and a table, returns (:ref:`yep` ``<ranks>``) or (:ref:`nil`), where ``<ranks>`` is a :ref:`cons` list of tables that partition that table's entries. The result tables are in the order determined by the cline, and no two elements of a single result table are candidly ordered with respect to each other using that cline. The result is (:ref:`nil`) if any element of the table doesn't belong to the cline's domain.
 
 
 .. _table-get:

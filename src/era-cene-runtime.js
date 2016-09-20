@@ -4711,6 +4711,107 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
+        fun( "table-sort", function ( rt, cline ) {
+            return new SinkFn( function ( rt, table ) {
+                if ( cline.affiliation !== "cline" )
+                    throw new Error();
+                if ( !(table instanceof SinkForeign
+                    && table.purpose === "table") )
+                    throw new Error();
+                
+                var entries = [];
+                table.foreignVal.each( function ( k, v ) {
+                    entries.push( { k: k, v: v } );
+                } );
+                var n = entries.length;
+                return loop( 0, [] );
+                function loop( i, ratings ) {
+                    if ( n <= i )
+                        return next( ratings );
+                    var entry = entries[ i ];
+                    return macLookupThen(
+                        cline.clineRate( rt, entry.v ),
+                        function ( maybeRating ) {
+                        
+                        if ( maybeRating === null )
+                            return macLookupRet( mkNil.ofNow() );
+                        
+                        return loop( i + 1,
+                            ratings.concat( [ {
+                                k: entry.k,
+                                v: entry.v,
+                                rating: maybeRating
+                            } ] ) );
+                    } );
+                }
+                
+                function next( ratings ) {
+                    
+                    // TODO NOW
+                    function compareRatings( a, b ) {
+                        if ( jsnCompare(
+                                a.compatible, b.compatible ) !== 0 )
+                            return null;
+                        var func = a.func;
+                        var result =
+                            func( rt, a.prepared, b.prepared );
+                        if ( !mkYep.tags( result ) )
+                            return null;
+                        var comparison = mkYep.getProj( result, yep );
+                        if ( mkYep.tags( comparison ) )
+                            return -1;
+                        if ( mkNope.tags( comparison ) )
+                            return 1;
+                        return 0;
+                    }
+                    function compareEntries( a, b ) {
+                        return compareRatings( a.rating, b.rating );
+                    }
+                    
+                    // TODO: Currently, we do a sort using whatever
+                    // comparisons JavaScript wants to do, and then we
+                    // go through the list and compare each rating to
+                    // build our partitioned ranks. See if we want to
+                    // do this in a cheaper way.
+                    
+                    var sortedRatings = ratings.slice().sort(
+                        function ( a, b ) {
+                            return compareEntries( a, b ) || 0;
+                        } );
+                    
+                    var result = mkNil.ofNow();
+                    var currentTable = jsnMap();
+                    var currentRepresentative = null;
+                    for ( var i = n - 1; 0 <= i; i-- ) {
+                        var entry = sortedRatings[ i ];
+                        if ( currentRepresentative === null ) {
+                            currentTable.set( entry.k, entry.v );
+                            currentRepresentative = entry.rating;
+                        } else {
+                            var comparison =
+                                compareRatings( entry.rating,
+                                    currentRepresentative );
+                            if ( comparison === null )
+                                return macLookupRet( mkNil.ofNow() );
+                            if ( comparison !== 0 ) {
+                                result = mkCons.ofNow(
+                                    new SinkForeign( "table", currentTable ),
+                                    result );
+                                currentTable = jsnMap();
+                                currentRepresentative = entry.rating;
+                            }
+                            currentTable.set( entry.k, entry.v );
+                        }
+                    }
+                    if ( currentRepresentative !== null )
+                        result = mkCons.ofNow(
+                            new SinkForeign( "table", currentTable ),
+                            result );
+                    return macLookupRet( mkYep.ofNow( result ) );
+                }
+            } );
+        } );
+        
         fun( "int-zero", function ( rt, ignored ) {
             return sinkForeignInt( 0 );
         } );
