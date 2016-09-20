@@ -67,8 +67,6 @@ For better error message behavior, be more careful about what paths in a `unique
   <unique-ns>/($$claimed-for claim:primitive let)/<set of variable names>/body/...
   \= NOTE: The `str` macro doesn't need to use its `unique-ns` at all.
 
-Consider renaming "type" to "constructor", "struct", and/or "tag" throughout the error messages and variable names of era-cene-prelude.cene and other Cene code.
-
 
 
 --------
