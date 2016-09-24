@@ -128,14 +128,34 @@ Construct with ``stx-details s-expr``
 An s-expression tagged with source location information.
 
 
-.. _trivial-stx-details:
+.. _stx-details-empty:
 
-trivial-stx-details
--------------------
+stx-details-empty
+-----------------
 
 Call with ``(ignored)``
 
-Returns a syntax details object that conveys no information.
+Returns a syntax details value that conveys no information.
+
+
+.. _stx-details-join:
+
+stx-details-join
+----------------
+
+Call with ``outer inner``
+
+Given an outer syntax details value and an inner syntax details value, returns a syntax details value that conveys the same information as each of them, one wrapping the other.
+
+
+.. _stx-details-macro-call:
+
+stx-details-macro-call
+----------------------
+
+Call with ``call-stx-details macro-name-stx-details``
+
+Given a syntax details value corresponding to a macro call location and a syntax details value corresponding to the location of the macro name in that macro call, returns a syntax details value suitable for tagging syntax created by that macro call.
 
 
 .. _procure-claim:
@@ -178,6 +198,16 @@ cexpr-reified
 Call with ``val``
 
 Given any value, returns a compiled expression with no free variables. It represents an expression that returns the given value.
+
+
+.. _cexpr-located:
+
+cexpr-located
+-------------
+
+Call with ``stx-details body``
+
+Given a syntax details value and a compiled expression, returns another compiled expression that's effectively the same as the given one, but attributed to the given syntax details.
 
 
 .. _cexpr-let:

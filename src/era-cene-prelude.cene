@@ -140,7 +140,11 @@
 
 (defn compile-expression-later scope expression then
   (cast scope scope unique-ns def-ns qualify
-    err.\;qq[Internal error]
+    err.\;qq[Expected a scope that was a scope]
+  /cast expression stx expression-stx-details -
+    err.\;qq[Expected an expression that was a stx]
+  /let then
+    (fn result /c then /cexpr-located expression-stx-details result)
   /later/get-mode/fn mode
   /case
     (cast
@@ -160,6 +164,8 @@
     err.\;qq[Expected an expression that was a stx]
   /cast macro-call cons macro-name macro-body
     err.\;qq[Expected an expression that was a macro call]
+  /cast macro-name stx macro-name-stx-details -
+    err.\;qq[Expected a macro name that was a stx]
   /let macro-impl
     (let obtain-method-err
       (fn -
@@ -185,7 +191,11 @@
       /c macro-get mode)
       
     /c obtain-method-err /nil)
-  /c macro-impl scope (trivial-stx-details/nil) macro-body then))
+  /c macro-impl scope
+    (stx-details-macro-call
+      expression-stx-details macro-name-stx-details)
+    macro-body
+    then))
 
 (defn scope-get string scope
   (cast scope scope unique-ns def-ns qualify
@@ -339,6 +349,8 @@
     err.\;qq[Called isa with too few args]
   /cast args nil
     err.\;qq[Called isa with too many args]
+  /cast constructor stx constructor-stx-details -
+    err.\;qq[Expected a constructor that was a stx]
   /cast
     (stx-to-maybe-name caller-scope constructor /fn string
       (name-of/dexable
@@ -359,7 +371,9 @@
     constructor-glossary main-tag source-to-rep
     err.\;qq[Internal error]
   /c mac str.case /cons subject
-  /cons (c s /foreign/obtain-by-qualified-name constructor)
+  /cons
+    (stx (stx-details-join my-stx-details constructor-stx-details)
+    /foreign/obtain-by-qualified-name constructor)
   /append
     (map source-to-rep /fn assoc
       (cast assoc assoc source rep

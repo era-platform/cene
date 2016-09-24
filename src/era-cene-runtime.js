@@ -1634,7 +1634,10 @@ SinkCexpr.prototype.fuse = function ( rt, a, b ) {
     throw new Error();
 };
 SinkCexpr.prototype.getName = function () {
-    return this.cexpr.getName();
+    // NOTE: Even though we don't support `getName` on cexpr values,
+    // we still maintain a `getName` method for most of them.
+    throw new Error( "Tried to get the name of a cexpr" );
+//    return this.cexpr.getName();
 };
 SinkCexpr.prototype.pretty = function () {
     return this.cexpr.pretty();
@@ -1883,6 +1886,33 @@ CexprCase.prototype.pretty = function () {
         this.then.pretty() + " " +
         this.els.pretty() + ")";
 };
+function CexprLocated( stxDetails, body ) {
+    this.stxDetails = stxDetails;
+    this.body = body;
+}
+CexprLocated.prototype.getFreeVars = function () {
+    return this.body.getFreeVars();
+};
+CexprLocated.prototype.visitForCodePruning = function ( visitor ) {
+    this.body.visitForCodePruning( visitor );
+};
+CexprLocated.prototype.toJsCode = function ( hasConstructor ) {
+    // TODO: See how the `stxDetails` should affect the code output.
+    // It should probably have to do with JavaScript source maps.
+    return this.body.toJsCode( hasConstructor );
+};
+CexprLocated.prototype.getName = function () {
+    // NOTE: There's no particular way we'd like to represent
+    // `stxDetails` as a name, so we just don't implement this one.
+    // This does mean that almost every cexpr a Cene program deals
+    // with will be impossible to invoke `getName` on.
+    throw new Error( "Tried to get the name of a cexpr-located" );
+};
+CexprLocated.prototype.pretty = function () {
+    return "(cexpr-located " +
+        JSON.stringify( this.stxDetails ) + " " +
+        this.body.pretty() + ")";
+};
 function classCexprStructMapper(
     nameTag, prettyTag, genJsConstructor, visitForCodePruning ) {
     
@@ -2082,12 +2112,7 @@ CexprFn.prototype.getName = function () {
     // However, the cexpr we would otherwise use involves a function
     // definition that we don't actually define right now, so there's
     // no cexpr we can use here.
-    //
-    // The `getName` of a cexpr is never called anyway, at this point.
-    // The rest of the `getName` implementations here are just in case
-    // we need them.
-    //
-    throw new Error();
+    throw new Error( "Tried to get the name of a cexpr-fn" );
 };
 CexprFn.prototype.pretty = function () {
     return "(cexpr-fn " +
@@ -2266,10 +2291,6 @@ var mkGetdef = builtInStruct( "getdef", "get", "def" );
 
 builtInStructAccumulator.val = null;
 
-
-function sinkTrivialStxDetails() {
-    return new SinkForeign( "macro-stx-details", null );
-}
 
 function elementDefiner( name, ns ) {
     return { type: "contributedElement", namespace: ns, name: name };
@@ -3152,6 +3173,13 @@ function usingFuncDefNs( funcDefNs ) {
             && string.purpose === "string") )
             throw new Error();
         return string.foreignVal;
+    }
+    
+    function parseStxDetails( stxDetails ) {
+        if ( !(stxDetails instanceof SinkForeign
+            && stxDetails.purpose === "stx-details") )
+            throw new Error();
+        return stxDetails.foreignVal;
     }
     
     function stxToObtainMethod( rt, nss, stx, stringToUnq, then ) {
@@ -4750,7 +4778,6 @@ function usingFuncDefNs( funcDefNs ) {
                 
                 function next( ratings ) {
                     
-                    // TODO NOW
                     function compareRatings( a, b ) {
                         if ( jsnCompare(
                                 a.compatible, b.compatible ) !== 0 )
@@ -5542,6 +5569,17 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
+        fun( "cexpr-located", function ( rt, stxDetails ) {
+            return sinkFnPure( function ( rt, body ) {
+                if ( !(body instanceof SinkCexpr) )
+                    throw new Error();
+                
+                return new SinkCexpr(
+                    new CexprLocated( parseStxDetails( stxDetails ),
+                        body.cexpr ) );
+            } );
+        } );
+        
         function makeCexprStructMapper(
             CexprStructMapper, mainTagName, projections ) {
             
@@ -5641,8 +5679,29 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
-        fun( "trivial-stx-details", function ( rt, ignored ) {
-            return sinkTrivialStxDetails();
+        fun( "stx-details-empty", function ( rt, ignored ) {
+            return new SinkForeign( "stx-details", [] );
+        } );
+        
+        fun( "stx-details-join", function ( rt, outer ) {
+            return sinkFnPure( function ( rt, inner ) {
+                return new SinkForeign( "stx-details",
+                    [].concat( parseStxDetails( outer ),
+                        parseStxDetails( inner ) ) );
+            } );
+        } );
+        
+        fun( "stx-details-macro-call",
+            function ( rt, callStxDetails ) {
+            
+            return sinkFnPure( function ( rt, macroNameStxDetails ) {
+                return new SinkForeign( "stx-details", [ {
+                    type: "stx-details-macro-call",
+                    callStxDetails: parseStxDetails( callStxDetails ),
+                    macroNameStxDetails:
+                        parseStxDetails( macroNameStxDetails )
+                } ] );
+            } );
         } );
         
         fun( "nsset-empty", function ( rt, ignored ) {
@@ -6034,7 +6093,9 @@ function usingFuncDefNs( funcDefNs ) {
                     throw new Error( tryExpr.msg );
                 
                 return sinkFromReaderExpr(
-                    sinkTrivialStxDetails(), tryExpr.val );
+                    new SinkForeign( "stx-details",
+                        [ { type: "read-all-force" } ] ),
+                    tryExpr.val );
             } ) );
         } );
         
@@ -6044,22 +6105,31 @@ function usingFuncDefNs( funcDefNs ) {
     function macroexpandToDefiner(
         nss, rawMode, locatedExpr, outDefiner ) {
         
+        var expressionStxDetails =
+            mkStx.getProj( locatedExpr, "stx-details" );
+        
+        function finishWithCexpr( cexpr ) {
+            return macLookupRet( new SinkForeign( "effects",
+                function ( rawMode ) {
+                
+                if ( !(cexpr instanceof SinkCexpr) )
+                    throw new Error();
+                
+                collectPutDefinedValue( rawMode, outDefiner,
+                    new SinkCexpr(
+                        new CexprLocated(
+                            parseStxDetails( expressionStxDetails ),
+                            cexpr.cexpr ) ) );
+                return macLookupRet( mkNil.ofNow() );
+            } ) );
+        }
+        
         collectDefer( rawMode, {}, function ( rawMode ) {
             return stxToObtainMethod( rt, nss, locatedExpr,
                 function ( string ) {
                     return mkLocalOccurrence.ofNow( string );
                 },
                 function ( exprAppearance ) {
-                
-                function finishWithCexpr( cexpr ) {
-                    return macLookupRet( new SinkForeign( "effects",
-                        function ( rawMode ) {
-                        
-                        collectPutDefinedValue( rawMode, outDefiner,
-                            cexpr );
-                        return macLookupRet( mkNil.ofNow() );
-                    } ) );
-                }
                 
                 // TODO: Report better errors if an unbound local
                 // variable is used. Currently, we report errors using
@@ -6112,16 +6182,18 @@ function usingFuncDefNs( funcDefNs ) {
                     new SinkForeign( "ns", nss.uniqueNs ),
                     new SinkForeign( "ns", nss.definitionNs ),
                     nss.qualify ),
-                sinkTrivialStxDetails(),
+                new SinkForeign( "stx-details", [ {
+                    type: "stx-details-macro-call",
+                    callStxDetails:
+                        parseStxDetails( expressionStxDetails ),
+                    macroNameStxDetails:
+                        parseStxDetails(
+                            mkStx.getProj( macroNameStx,
+                                "stx-details" ) )
+                } ] ),
                 mkCons.getProj( sExpr, "cdr" ),
-                sinkFnPure( function ( rt, macroResult ) {
-                    return new SinkForeign( "effects",
-                        function ( rawMode ) {
-                        
-                        collectPutDefinedValue( rawMode, outDefiner,
-                            macroResult );
-                        return macLookupRet( mkNil.ofNow() );
-                    } );
+                new SinkFn( function ( rt, macroResult ) {
+                    return finishWithCexpr( macroResult );
                 } ) );
             
             } );
@@ -6305,7 +6377,9 @@ function usingFuncDefNs( funcDefNs ) {
                 return macroexpand( nssGet( firstNss, "unique" ),
                     rawMode,
                     sinkFromReaderExpr(
-                        sinkTrivialStxDetails(), tryExpr.val ),
+                        new SinkForeign( "stx-details",
+                            [ { type: "top-level" } ] ),
+                        tryExpr.val ),
                     nssGet( firstNss, "outbox" ).uniqueNs,
                     function ( rawMode, code ) {
                     
