@@ -141,7 +141,7 @@
 (defn compile-expression-later scope expression then
   (cast scope scope unique-ns def-ns qualify
     err.\;qq[Expected a scope that was a scope]
-  /cast expression stx expression-stx-details -
+  /cast expression stx expression-stx-details macro-call
     err.\;qq[Expected an expression that was a stx]
   /let then
     (fn result /c then /cexpr-located expression-stx-details result)
@@ -160,8 +160,6 @@
     /nil)
     yep cexpr
     (c then cexpr)
-  /cast expression stx - macro-call
-    err.\;qq[Expected an expression that was a stx]
   /cast macro-call cons macro-name macro-body
     err.\;qq[Expected an expression that was a macro call]
   /cast macro-name stx macro-name-stx-details -
