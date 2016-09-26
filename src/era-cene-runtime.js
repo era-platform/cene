@@ -171,7 +171,10 @@ function cgenStructArr( repMainTagName, projSourceToRep ) {
     };
     result.getProj = function ( x, sourceProjName ) {
         if ( !(x instanceof SinkStruct && x.flatTag === flatTag) )
-            throw new Error();
+            throw new Error(
+                "Tried to get from " + x.pretty() + " using " +
+                "projection " + sourceProjName + " of constructor " +
+                flatTag );
         var i = sourceProjNameStringsToRepSortedIndices.get(
             sourceProjName );
         if ( i === void 0 )
@@ -368,8 +371,11 @@ function prettifyFlatTag( flatTag ) {
     if ( mainTagName[ 0 ] === "n:main-core" )
         return mainTagName[ 1 ];
     else if ( mainTagName[ 0 ] === "n:main"
-        && mainTagName[ 1 ][ 0 ] === "n:$$qualified-name" )
-        return mainTagName[ 1 ][ 1 ];
+        && mainTagName[ 1 ][ 0 ] === "n:$$qualified-name"
+        && mainTagName[ 1 ][ 1 ][ 0 ] === "n:struct"
+        && mainTagName[ 1 ][ 1 ][ 1 ] ===
+            mkConstructorOccurrence.getFlatTag() )
+        return mainTagName[ 1 ][ 1 ][ 2 ];
     return flatTag;
 }
 
@@ -2629,7 +2635,8 @@ function runPuts( namespaceDefs, rt, rawMode ) {
 function runEffects( rawMode, effects ) {
     if ( !(effects instanceof SinkForeign
         && effects.purpose === "effects") )
-        throw new Error();
+        throw new Error(
+            "Tried to call `runEffects` on " + effects.pretty() );
     var effectsFunc = effects.foreignVal;
     return effectsFunc( rawMode );
 }
@@ -6099,12 +6106,23 @@ function usingFuncDefNs( funcDefNs ) {
             } ) );
         } );
         
+        // TODO: This is handy for debugging. See if we should add it,
+        // at least provisionally. Maybe its semantics could be based
+        // on `follow-heart`.
+//        fun( "log", function ( rt, val ) {
+//            console.log( val.pretty() );
+//            return val;
+//        } );
+        
         commitDummyMode( namespaceDefs, dummyMode );
     }
     
     function macroexpandToDefiner(
         nss, rawMode, locatedExpr, outDefiner ) {
         
+        if ( !mkStx.tags( locatedExpr ) )
+            throw new Error(
+                "Tried to macroexpand " + locatedExpr.pretty() );
         var expressionStxDetails =
             mkStx.getProj( locatedExpr, "stx-details" );
         
@@ -6143,8 +6161,6 @@ function usingFuncDefNs( funcDefNs ) {
                 if ( exprAppearance.type === "obtainDirectly" )
                     return finishWithCexpr( exprAppearance.val );
             
-            if ( !mkStx.tags( locatedExpr ) )
-                throw new Error();
             var sExpr = mkStx.getProj( locatedExpr, "s-expr" );
             if ( !mkCons.tags( sExpr ) )
                 throw new Error();
