@@ -121,12 +121,14 @@ function runCeneSync(
     var codeOfFiles = $cene.arrMappend( textOfFiles,
         function ( text ) {
         
-        return $cene.readAll( text );
+        return $cene.readAll( { locationHostType: "top-level" },
+            text );
     } );
     var codeOfTestFiles = $cene.arrMappend( testFiles,
         function ( file ) {
         
-        return $cene.readAll( readFile( file ) );
+        return $cene.readAll( { locationHostType: "top-level" },
+            readFile( file ) );
     } );
     var readMillis = new Date().getTime();
     

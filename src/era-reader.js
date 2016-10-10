@@ -516,8 +516,10 @@ function stringToClassifiedTokenStream( locationHost, string ) {
                     state.line + 1 :
                     state.line,
             justSawCarriageReturn: token === "\r",
+            // TODO: Instead of using the JavaScript string length,
+            // use the number of Unicode scalars.
             column: token === "\r" || token === "\n" ? 0 :
-                state.column + 1
+                state.column + token.length
         };
         return then( yoke, newState, { ok: true, val: { val: {
             tokenLocStart: state,
@@ -970,22 +972,23 @@ function readerStringListToString( stringList ) {
 }
 
 function readerStringNilToString( stringNil ) {
-    return readerStringListToString( stringNil.string );
+    return readerStringListToString( stringNil.exprLocExpr.string );
 }
 
-function readerExprPretty( expr ) {
+function readerExprPretty( locatedExpr ) {
+    var expr = locatedExpr.exprLocExpr;
     if ( expr.type === "nil" ) {
         return "()";
     } else if ( expr.type === "cons" ) {
-        if ( expr.rest.type === "nil" ) {
-            if ( expr.first.type === "nil"
-                || expr.first.type === "cons" ) {
+        if ( expr.rest.exprLocExpr.type === "nil" ) {
+            if ( expr.first.exprLocExpr.type === "nil"
+                || expr.first.exprLocExpr.type === "cons" ) {
                 return "(/" +
                     readerExprPretty( expr.first ).substr( 1 );
             } else {
                 return "(" + readerExprPretty( expr.first ) + ")";
             }
-        } else if ( expr.rest.type === "cons" ) {
+        } else if ( expr.rest.exprLocExpr.type === "cons" ) {
             return "(" + readerExprPretty( expr.first ) + " " +
                 readerExprPretty( expr.rest ).substr( 1 );
         } else {
@@ -996,6 +999,7 @@ function readerExprPretty( expr ) {
         
         var s = "";
         var terps = [];
+        var locatedE = locatedExpr;
         var e = expr;
         while ( e.type === "stringCons" ) {
             s += readerStringListToString( e.string ).
@@ -1010,12 +1014,14 @@ function readerExprPretty( expr ) {
             // interpolations.
             s += "\\'~";
             terps.push( readerExprPretty( e.interpolation ) );
-            e = e.rest;
+            locatedE = e.rest;
+            e = locatedE.exprLocExpr;
         }
         if ( e.type !== "stringNil" )
             throw new Error();
         // TODO: Remove the trailing ` when possible.
-        s += readerStringNilToString( e ).replace( /\\/g, "\\^`" );
+        s += readerStringNilToString(
+            locatedE ).replace( /\\/g, "\\^`" );
         var lastTerpAtEnd = /\\'~$/.test( s );
         
         while ( true ) {
@@ -1083,12 +1089,16 @@ function readerExprPretty( expr ) {
 }
 
 function readerJsStringPretty( jsString ) {
-    return readerExprPretty(
-        { type: "stringNil", string:
-            { first:
-                { tokenLocStart: null, tokenLocStop: null,
-                    tokenLocToken: jsString },
-                rest: null } } );
+    return readerExprPretty( {
+        exprLocStart: null,
+        exprLocStop: null,
+        exprLocExpr:
+            { type: "stringNil", string:
+                { first:
+                    { tokenLocStart: null, tokenLocStop: null,
+                        tokenLocToken: jsString },
+                    rest: null } }
+    } );
 }
 
 // NOTE: For this, `s` must be a classified token stream.
@@ -1349,9 +1359,8 @@ ReaderStrMap.prototype.has = function ( yoke, origK, then ) {
 // NOTE: For this, `s` must be a stream of readStringElement results.
 function readSexpOrInfixOp( yoke, s,
     encompassingClosingBracket, then ) {
-    // NOTE: Besides resulting in s-expressions of type "cons", "nil",
-    // "stringCons", and "stringNil", this may also result in a value
-    // of type "infixNewline" or "infixDot".
+    // NOTE: This can result in a value of type "sexp",
+    // "infixNewline", or "infixDot".
     
     return s.read( yoke, function ( yoke, s, result ) {
         if ( !result.ok )
@@ -1384,34 +1393,43 @@ function readSexpOrInfixOp( yoke, s,
                         
                         if ( !result.ok )
                             return then( yoke, s, result );
-                        var op = result.val;
+                        var locatedOp = result.val;
+                        var op = locatedOp.exprLocExpr;
                     
                     var isNameOp = function ( name ) {
                         return op.type === "stringNil" &&
-                            readerStringNilToString( op ) === name;
+                            readerStringNilToString( locatedOp ) === name;
                     };
                     var isStringOp = function ( name ) {
                         return (
                             op.type === "cons"
-                            && op.rest.type === "cons"
-                            && op.rest.rest.type === "nil"
-                            && op.first.type === "stringNil"
+                            && op.rest.exprLocExpr.type === "cons"
+                            && op.rest.exprLocExpr.rest.exprLocExpr.
+                                type === "nil"
+                            && op.first.exprLocExpr.type ===
+                                "stringNil"
                             && readerStringNilToString( op.first ) ===
                                 name
-                            && op.rest.first.type === "stringNil"
+                            && op.rest.exprLocExpr.first.type ===
+                                "stringNil"
                         );
                     };
                     var isDoubleStringOp = function ( name ) {
                         return (
                             op.type === "cons"
-                            && op.rest.type === "cons"
-                            && op.rest.rest.type === "cons"
-                            && op.rest.rest.rest.type === "nil"
-                            && op.first.type === "stringNil"
+                            && op.rest.exprLocExpr.type === "cons"
+                            && op.rest.exprLocExpr.rest.exprLocExpr.
+                                type === "cons"
+                            && op.rest.exprLocExpr.rest.exprLocExpr.
+                                rest.type === "nil"
+                            && op.first.exprLocExpr.type ===
+                                "stringNil"
                             && readerStringNilToString( op.first ) ===
                                 name
-                            && op.rest.first.type === "stringNil"
-                            && op.rest.rest.first.type === "stringNil"
+                            && op.rest.exprLocExpr.first.exprLocExpr.
+                                type === "stringNil"
+                            && op.rest.exprLocExpr.rest.exprLocExpr.
+                                first.exprLocExpr.type === "stringNil"
                         );
                     };
                     
@@ -1460,7 +1478,7 @@ function readSexpOrInfixOp( yoke, s,
                         return withQqStack( yoke,
                             qqStack.uq, esc.second );
                     } else if ( isStringOp( "wq" ) ) {
-                        var name = op.rest.first.string;
+                        var name = op.rest.exprLocExpr.first.string;
                         return qqStack.cache.get( "names" ).
                             plusTruth( yoke, name,
                                 function ( yoke, names ) {
@@ -1473,8 +1491,10 @@ function readSexpOrInfixOp( yoke, s,
                             }, esc.second );
                         } );
                     } else if ( isDoubleStringOp( "lq" ) ) {
-                        var va = op.rest.first.string;
-                        var val = op.rest.rest.first.string;
+                        var va = op.rest.exprLocExpr.first.string;
+                        var val =
+                            op.rest.exprLocExpr.rest.exprLocExpr.
+                                first.string;
                         // TODO: Implement this. We don't actually
                         // store "values" in the `names` map, but
                         // we'll have to start doing so.
@@ -1483,7 +1503,7 @@ function readSexpOrInfixOp( yoke, s,
                             "got ;(lq ...) which hasn't been " +
                             "implemented yet" } );
                     } else if ( isStringOp( "rq" ) ) {
-                        var name = op.rest.first.string;
+                        var name = op.rest.exprLocExpr.first.string;
                         var unwindingQqStack = function ( yoke,
                             qqStack ) {
                             
@@ -1529,7 +1549,8 @@ function readSexpOrInfixOp( yoke, s,
                             if ( !result.ok )
                                 return then( yoke, s, result );
                             return then( yoke, s, { ok: true, val:
-                                { val: result.val } } );
+                                { val:
+                                    { type: "sexp", sexp: result.val } } } );
                         } );
                         
                     } else if (
@@ -1550,7 +1571,8 @@ function readSexpOrInfixOp( yoke, s,
                             if ( !result.ok )
                                 return then( yoke, s, result );
                             return then( yoke, s, { ok: true, val:
-                                { val: result.val } } );
+                                { val:
+                                    { type: "sexp", sexp: result.val } } } );
                         } );
                     } else {
                         if ( isDelimited )
@@ -1681,34 +1703,34 @@ function readSexpOrInfixOp( yoke, s,
                                     
                                     if ( !result.ok )
                                         return then( yoke, result );
-                                    var op = result.val;
+                                    var locatedOp = result.val;
+                                    var op = locatedOp.exprLocExpr;
                                 
                                 var isNameOp = function ( name ) {
                                     return op.type === "stringNil" &&
-                                        readerStringNilToString( op ) === name;
+                                        readerStringNilToString( locatedOp ) === name;
                                 };
                                 var isStringOp = function ( name ) {
                                     return (
                                         op.type === "cons"
-                                        && op.rest.type === "cons"
-                                        && op.rest.rest.type === "nil"
-                                        && op.first.type === "stringNil"
-                                        && readerStringNilToString( op.first ) ===
-                                            name
-                                        && op.rest.first.type === "stringNil"
+                                        && op.rest.exprLocExpr.type === "cons"
+                                        && op.rest.exprLocExpr.rest.exprLocExpr.type === "nil"
+                                        && op.first.exprLocExpr.type === "stringNil"
+                                        && readerStringNilToString( op.first ) === name
+                                        && op.rest.exprLocExpr.first.type === "stringNil"
                                     );
                                 };
                                 var isDoubleStringOp = function ( name ) {
                                     return (
                                         op.type === "cons"
-                                        && op.rest.type === "cons"
-                                        && op.rest.rest.type === "cons"
-                                        && op.rest.rest.rest.type === "nil"
-                                        && op.first.type === "stringNil"
-                                        && readerStringNilToString( op.first ) ===
-                                            name
-                                        && op.rest.first.type === "stringNil"
-                                        && op.rest.rest.first.type === "stringNil"
+                                        && op.rest.exprLocExpr.type === "cons"
+                                        && op.rest.exprLocExpr.rest.exprLocExpr.type === "cons"
+                                        && op.rest.exprLocExpr.rest.exprLocExpr.rest.type === "nil"
+                                        && op.first.exprLocExpr.type === "stringNil"
+                                        && readerStringNilToString( op.first ) === name
+                                        && op.rest.exprLocExpr.first.exprLocExpr.type === "stringNil"
+                                        && op.rest.exprLocExpr.rest.exprLocExpr.first.exprLocExpr.type
+                                            === "stringNil"
                                     );
                                 };
                                 
@@ -1791,7 +1813,7 @@ function readSexpOrInfixOp( yoke, s,
                                     return readEscapeLurking( yoke,
                                         prefix, esc.second, qqStack.uq, then );
                                 } else if ( isStringOp( "wq" ) ) {
-                                    var name = op.rest.first.string;
+                                    var name = op.rest.exprLocExpr.first.string;
                                     return qqStack.cache.get( "names" ).plusTruth( yoke, name,
                                         function ( yoke, names ) {
                                         
@@ -1803,14 +1825,14 @@ function readSexpOrInfixOp( yoke, s,
                                         }, then );
                                     } );
                                 } else if ( isDoubleStringOp( "lq" ) ) {
-                                    var va = op.rest.first.string;
-                                    var val = op.rest.rest.first.string;
+                                    var va = op.rest.exprLocExpr.first.string;
+                                    var val = op.rest.exprLocExpr.rest.exprLocExpr.first.string;
                                     // TODO: Implement this. We don't actually store "values" in the
                                     // `names` map, but we'll have to start doing so.
                                     return unexpected( yoke,
                                         ";(lq ...) which hasn't been implemented yet" );
                                 } else if ( isStringOp( "rq" ) ) {
-                                    var name = op.rest.first.string;
+                                    var name = op.rest.exprLocExpr.first.string;
                                     var unwindingQqStack = function ( yoke, qqStack ) {
                                         return qqStack.cache.get( "names" ).has( yoke, name,
                                             function ( yoke, had ) {
@@ -1858,20 +1880,21 @@ function readSexpOrInfixOp( yoke, s,
                                         
                                         if ( !result.ok )
                                             return then( yoke, result );
-                                        var op = result.val;
+                                        var locatedOp = result.val;
+                                        var op = locatedOp.exprLocExpr;
                                     
                                     var isNameOp = function ( name ) {
                                         return op.type === "stringNil" &&
-                                            readerStringNilToString( op ) === name;
+                                            readerStringNilToString( locatedOp ) === name;
                                     };
                                     var isStringOp = function ( name ) {
                                         return (
                                             op.type === "cons"
-                                            && op.rest.type === "cons"
-                                            && op.rest.rest.type === "nil"
-                                            && op.first.type === "stringNil"
+                                            && op.rest.exprLocExpr.type === "cons"
+                                            && op.rest.exprLocExpr.rest.exprLocExpr.type === "nil"
+                                            && op.first.exprLocExpr.type === "stringNil"
                                             && readerStringNilToString( op.first ) === name
-                                            && op.rest.first.type === "stringNil"
+                                            && op.rest.exprLocExpr.first.type === "stringNil"
                                         );
                                     };
                                     
@@ -1919,7 +1942,7 @@ function readSexpOrInfixOp( yoke, s,
                                     } else if ( isNameOp( "}" ) ) {
                                         return simpleEscape( yoke, ")" );
                                     } else if ( isStringOp( "ch" ) ) {
-                                        var hex = readerStringNilToString( op.rest.first );
+                                        var hex = readerStringNilToString( op.rest.exprLocExpr.first );
                                         if ( !(hex.length <= 6 && /^[01-9A-F]+$/.test( hex )) )
                                             return then( yoke, { ok: false, msg:
                                                 "Encountered ;(ch ...) with something other than 1-6 " +
@@ -2236,6 +2259,46 @@ function readSexpOrInfixOp( yoke, s,
                         return jsListRev( yoke, result.val,
                             function ( yoke, revElements ) {
                         
+                        function addLocation( sexp ) {
+                            if ( sexp.type === "stringNil" ) {
+                                if ( sexp.string === null ) {
+                                    var loc =
+                                        qqStack.cache.get( "encompassingClosingBracket" ).tokenLocStart;
+                                    return {
+                                        exprLocStart: loc,
+                                        exprLocStop: loc,
+                                        exprLocExpr: sexp
+                                    };
+                                } else {
+                                    var locatedToken =
+                                        nonemptyReaderStringListToLocatedToken( sexp.string );
+                                    return {
+                                        exprLocStart: locatedToken.tokenLocStart,
+                                        exprLocStop: locatedToken.tokenLocStop,
+                                        exprLocExpr: sexp
+                                    };
+                                }
+                            } else if ( sexp.type === "stringCons" ) {
+                                if ( sexp.string === null ) {
+                                    return {
+                                        exprLocStart: sexp.interpolation.exprLocStart,
+                                        exprLocStop: sexp.rest.exprLocStop,
+                                        exprLocExpr: sexp
+                                    };
+                                } else {
+                                    var locatedToken =
+                                        nonemptyReaderStringListToLocatedToken( sexp.string );
+                                    return {
+                                        exprLocStart: locatedToken.tokenLocStart,
+                                        exprLocStop: sexp.rest.exprLocStop,
+                                        exprLocExpr: sexp
+                                    };
+                                }
+                            } else {
+                                throw new Error();
+                            }
+                        }
+                        
                         return jsListFoldl( yoke,
                             { type: "stringNil", string: null },
                             revElements,
@@ -2259,14 +2322,14 @@ function readSexpOrInfixOp( yoke, s,
                                     { type: "stringCons",
                                         string: null,
                                         interpolation: element.val,
-                                        rest: state } );
+                                        rest: addLocation( state ) } );
                             } else {
                                 throw new Error();
                             }
                         }, function ( yoke, result ) {
                         
                         return then( yoke, { ok: true, val:
-                            result } );
+                            addLocation( result ) } );
                         
                         } );
                         
@@ -2297,7 +2360,7 @@ function readSexpOrInfixOp( yoke, s,
                 if ( !result.ok )
                     return then( yoke, s, result );
                 return then( yoke, s, { ok: true, val:
-                    { val: result.val } } );
+                    { val: { type: "sexp", sexp: result.val } } } );
             } );
         } else if ( result.val.val.type === "scalars" ) {
             var locatedToken = result.val.val.val;
@@ -2348,9 +2411,16 @@ function readSexpOrInfixOp( yoke, s,
                         return jsListRev( yoke, revElements,
                             function ( yoke, elements ) {
                             
+                            var locatedToken =
+                                nonemptyReaderStringListToLocatedToken(
+                                    elements );
                             return then( yoke, s, { ok: true, val:
                                 { val:
-                                    { type: "stringNil", string: elements } } } );
+                                    { type: "sexp", sexp: {
+                                        exprLocStart: locatedToken.tokenLocStart,
+                                        exprLocStop: locatedToken.tokenLocStop,
+                                        exprLocExpr: { type: "stringNil", string: elements }
+                                    } } } } );
                         } );
                     }
                 } );
@@ -2377,7 +2447,8 @@ function readSexpOrInfixOp( yoke, s,
                     if ( !result.ok )
                         return then( yoke, s, result );
                     return then( yoke, s, { ok: true, val:
-                        { val: result.val } } );
+                        { val:
+                            { type: "sexp", sexp: result.val } } } );
                 } );
             } else if ( c === "." ) {
                 return then( yoke, s, { ok: true, val:
@@ -2420,17 +2491,28 @@ function readList( yoke, s, encompassingClosingBracket, then ) {
         return jsListRev( yoke, result.val,
             function ( yoke, revJsList ) {
             
-            return loop( yoke, revJsList, { type: "nil" } );
+            return loop( yoke, revJsList, {
+                exprLocStart: encompassingClosingBracket === null ?
+                    null : encompassingClosingBracket.tokenLocStart,
+                exprLocStop: encompassingClosingBracket === null ?
+                    null : encompassingClosingBracket.tokenLocStop,
+                exprLocExpr: { type: "nil" }
+            } );
             function loop( yoke, revJsList, sexpList ) {
                 return runWaitOne( yoke, function ( yoke ) {
                     if ( revJsList === null )
                         return then( yoke, s, { ok: true, val:
                             sexpList } );
                     else
-                        return loop( yoke, revJsList.rest,
-                            { type: "cons",
-                                first: revJsList.first,
-                                rest: sexpList } );
+                        return loop( yoke, revJsList.rest, {
+                            exprLocStart:
+                                revJsList.first.exprLocStart,
+                            exprLocStop: sexpList.exprLocStop,
+                            exprLocExpr:
+                                { type: "cons",
+                                    first: revJsList.first,
+                                    rest: sexpList }
+                        } );
                 } );
             }
         } )
@@ -2445,17 +2527,18 @@ function readNaiveSexp( yoke,
         
         if ( !result.ok )
             return then( yoke, result );
-        else if ( result.val.type !== "cons" )
+        else if ( result.val.exprLocExpr.type !== "cons" )
             return then( yoke, { ok: false, msg:
                 "Expected exactly one s-expression, got zero"
                 } );
-        else if ( result.val.rest.type !== "nil" )
+        else if ( result.val.exprLocExpr.rest.exprLocExpr.type !==
+            "nil" )
             return then( yoke, { ok: false, msg:
                 "Expected exactly one s-expression, got " +
                 "more than one" } );
         
         return then( yoke, { ok: true, val:
-            result.val.first } );
+            result.val.exprLocExpr.first } );
     } );
 }
 // NOTE: For this, `s` must be a stream of readSexpOrInfixOp results.
@@ -2502,7 +2585,7 @@ function readSexp( yoke, s, heedCommandEnds, then ) {
                     
                     return loop( yoke, s, maybeLhs, !!"recentDot" );
                 } );
-            } else {
+            } else if ( result.val.val.type === "sexp" ) {
                 if ( recentDot )
                     return s.read( yoke,
                         function ( yoke, s, result ) {
@@ -2510,12 +2593,22 @@ function readSexp( yoke, s, heedCommandEnds, then ) {
                         if ( !result.ok )
                             return then( yoke, s, result );
                         
+                        var left = maybeLhs.val;
+                        var right = result.val.val.sexp;
+                        
                         return loop( yoke, s,
                             { val:
-                                { type: "cons", first: maybeLhs.val,
-                                    rest: { type: "cons",
-                                        first: result.val.val,
-                                        rest: { type: "nil" } } } },
+                                {
+                                    exprLocStart: left.exprLocStart,
+                                    exprLocStop: right.exprLocStop,
+                                    exprLocExpr: { type: "cons", first: left, rest: {
+                                        exprLocStart: right.exprLocStart,
+                                        exprLocStop: right.exprLocStop,
+                                        exprLocExpr: { type: "cons", first: right, rest: {
+                                            exprLocStart: right.exprLocStop,
+                                            exprLocStop: right.exprLocStop,
+                                            exprLocExpr: { type: "nil" }
+                                        } } } } } },
                             !"recentDot" );
                     } );
                 else if ( maybeLhs !== null )
@@ -2529,24 +2622,23 @@ function readSexp( yoke, s, heedCommandEnds, then ) {
                             return then( yoke, s, result );
                         
                         return loop( yoke, s,
-                            { val: result.val.val },
+                            { val: result.val.val.sexp },
                             !"recentDot" );
                     } );
+            } else {
+                throw new Error();
             }
         } );
     }
 }
 
-function readAll( string ) {
+function readAll( locationHost, string ) {
     return runSyncYoke( null, function ( yoke, then ) {
         return exhaustStream( yoke, customStream(
             customStream(
                 customStream(
-                    // TODO: Pass in a more interesting location host,
-                    // like a filename.
-                    stringToClassifiedTokenStream( {
-                        string: string
-                    }, string ),
+                    stringToClassifiedTokenStream(
+                        locationHost, string ),
                     function ( yoke, s, then ) {
                         return readStringElement( yoke, s, then );
                     }

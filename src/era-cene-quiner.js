@@ -36,7 +36,7 @@ function quinerCallWithSyncJavaScriptMode( calculateFunc ) {
     var codeOfFiles = arrMappend( quinerTextOfFiles,
         function ( text ) {
         
-        return readAll( text );
+        return readAll( { locationHostType: "top-level" }, text );
     } );
     
     var nss = {

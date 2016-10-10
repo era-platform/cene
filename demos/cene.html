@@ -67,9 +67,11 @@ window.onload = function () {
         }
         
         var codeOfFiles = arrMappend( files, function ( file ) {
-            return readAll( readFile( file ) );
+            return readAll( { locationHostType: "top-level" },
+                readFile( file ) );
         } );
-        var testCode = readAll( readFile( testFile ) );
+        var testCode = readAll( { locationHostType: "top-level" },
+            readFile( testFile ) );
         var readMillis = new Date().getTime();
         
         var nss = {
