@@ -1410,8 +1410,8 @@ function readSexpOrInfixOp( yoke, s,
                                 "stringNil"
                             && readerStringNilToString( op.first ) ===
                                 name
-                            && op.rest.exprLocExpr.first.type ===
-                                "stringNil"
+                            && op.rest.exprLocExpr.first.exprLocExpr.
+                                type === "stringNil"
                         );
                     };
                     var isDoubleStringOp = function ( name ) {
@@ -1478,7 +1478,8 @@ function readSexpOrInfixOp( yoke, s,
                         return withQqStack( yoke,
                             qqStack.uq, esc.second );
                     } else if ( isStringOp( "wq" ) ) {
-                        var name = op.rest.exprLocExpr.first.string;
+                        var name = op.rest.exprLocExpr.first.
+                            exprLocExpr.string;
                         return qqStack.cache.get( "names" ).
                             plusTruth( yoke, name,
                                 function ( yoke, names ) {
@@ -1491,10 +1492,10 @@ function readSexpOrInfixOp( yoke, s,
                             }, esc.second );
                         } );
                     } else if ( isDoubleStringOp( "lq" ) ) {
-                        var va = op.rest.exprLocExpr.first.string;
-                        var val =
-                            op.rest.exprLocExpr.rest.exprLocExpr.
-                                first.string;
+                        var va = op.rest.exprLocExpr.first.
+                            exprLocExpr.string;
+                        var val = op.rest.exprLocExpr.rest.
+                            exprLocExpr.first.exprLocExpr.string;
                         // TODO: Implement this. We don't actually
                         // store "values" in the `names` map, but
                         // we'll have to start doing so.
@@ -1503,7 +1504,8 @@ function readSexpOrInfixOp( yoke, s,
                             "got ;(lq ...) which hasn't been " +
                             "implemented yet" } );
                     } else if ( isStringOp( "rq" ) ) {
-                        var name = op.rest.exprLocExpr.first.string;
+                        var name = op.rest.exprLocExpr.first.
+                            exprLocExpr.string;
                         var unwindingQqStack = function ( yoke,
                             qqStack ) {
                             
@@ -1717,7 +1719,7 @@ function readSexpOrInfixOp( yoke, s,
                                         && op.rest.exprLocExpr.rest.exprLocExpr.type === "nil"
                                         && op.first.exprLocExpr.type === "stringNil"
                                         && readerStringNilToString( op.first ) === name
-                                        && op.rest.exprLocExpr.first.type === "stringNil"
+                                        && op.rest.exprLocExpr.first.exprLocExpr.type === "stringNil"
                                     );
                                 };
                                 var isDoubleStringOp = function ( name ) {
@@ -1813,7 +1815,7 @@ function readSexpOrInfixOp( yoke, s,
                                     return readEscapeLurking( yoke,
                                         prefix, esc.second, qqStack.uq, then );
                                 } else if ( isStringOp( "wq" ) ) {
-                                    var name = op.rest.exprLocExpr.first.string;
+                                    var name = op.rest.exprLocExpr.first.exprLocExpr.string;
                                     return qqStack.cache.get( "names" ).plusTruth( yoke, name,
                                         function ( yoke, names ) {
                                         
@@ -1825,14 +1827,15 @@ function readSexpOrInfixOp( yoke, s,
                                         }, then );
                                     } );
                                 } else if ( isDoubleStringOp( "lq" ) ) {
-                                    var va = op.rest.exprLocExpr.first.string;
-                                    var val = op.rest.exprLocExpr.rest.exprLocExpr.first.string;
+                                    var va = op.rest.exprLocExpr.first.exprLocExpr.string;
+                                    var val = op.rest.exprLocExpr.rest.exprLocExpr.first.exprLocExpr.
+                                        string;
                                     // TODO: Implement this. We don't actually store "values" in the
                                     // `names` map, but we'll have to start doing so.
                                     return unexpected( yoke,
                                         ";(lq ...) which hasn't been implemented yet" );
                                 } else if ( isStringOp( "rq" ) ) {
-                                    var name = op.rest.exprLocExpr.first.string;
+                                    var name = op.rest.exprLocExpr.first.exprLocExpr.string;
                                     var unwindingQqStack = function ( yoke, qqStack ) {
                                         return qqStack.cache.get( "names" ).has( yoke, name,
                                             function ( yoke, had ) {
@@ -1894,7 +1897,7 @@ function readSexpOrInfixOp( yoke, s,
                                             && op.rest.exprLocExpr.rest.exprLocExpr.type === "nil"
                                             && op.first.exprLocExpr.type === "stringNil"
                                             && readerStringNilToString( op.first ) === name
-                                            && op.rest.exprLocExpr.first.type === "stringNil"
+                                            && op.rest.exprLocExpr.first.exprLocExpr.type === "stringNil"
                                         );
                                     };
                                     

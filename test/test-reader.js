@@ -17,10 +17,17 @@ function addReaderTest( code, expected ) {
             return arrMap( encounteredExpr, convertEncounteredExpr );
             
         } else if ( likeObjectLiteral( encounteredExpr )
+            && "exprLocExpr" in encounteredExpr ) {
+            
+            return convertEncounteredExpr(
+                encounteredExpr.exprLocExpr );
+            
+        } else if ( likeObjectLiteral( encounteredExpr )
             && encounteredExpr.type === "stringNil" ) {
             
             return { type: "stringNil",
-                string: readerStringNilToString( encounteredExpr ) };
+                string: readerStringListToString(
+                    encounteredExpr.string ) };
             
         } else if ( likeObjectLiteral( encounteredExpr )
             && encounteredExpr.type === "stringCons" ) {
@@ -91,7 +98,9 @@ function addReaderTest( code, expected ) {
     }
     
     addNaiveIsoUnitTest( function ( then ) {
-        return then( convertEncounteredExpr( readAll( code ) ),
+        return then(
+            convertEncounteredExpr(
+                readAll( { locationHostType: "test" }, code ) ),
             [ { ok: true, val: convertExpectedExpr( expected ) } ] );
     } );
 }
