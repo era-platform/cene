@@ -6093,16 +6093,20 @@ function usingFuncDefNs( funcDefNs ) {
         
         fun( "read-all-force", function ( rt, string ) {
             return sinkConsListFromArray( arrMap(
-                readAll( parseString( string ).jsStr ),
+                readAll( { locationHostType: "read-all-force" },
+                    parseString( string ).jsStr ),
                 function ( tryExpr ) {
                 
                 if ( !tryExpr.ok )
                     throw new Error( tryExpr.msg );
                 
-                return sinkFromReaderExpr(
-                    new SinkForeign( "stx-details",
-                        [ { type: "read-all-force" } ] ),
-                    tryExpr.val );
+                return sinkFromReaderExpr( function ( start, stop ) {
+                    return new SinkForeign( "stx-details", [ {
+                        type: "read-all-force",
+                        start: start,
+                        stop: stop
+                    } ] );
+                }, tryExpr.val );
             } ) );
         } );
         
@@ -6344,16 +6348,20 @@ function usingFuncDefNs( funcDefNs ) {
         commitDummyMode( namespaceDefs, dummyMode );
     }
     
-    function sinkFromReaderExpr( myStxDetails, readerExpr ) {
+    function sinkFromReaderExpr( getStxDetails, locatedReaderExpr ) {
+        var myStxDetails = getStxDetails(
+            locatedReaderExpr.exprLocStart,
+            locatedReaderExpr.exprLocStop );
+        var readerExpr = locatedReaderExpr.exprLocExpr;
         if ( readerExpr.type === "nil" ) {
             return mkStx.ofNow( myStxDetails, mkNil.ofNow() );
         } else if ( readerExpr.type === "cons" ) {
             return mkStx.ofNow( myStxDetails,
                 mkCons.ofNow(
-                    sinkFromReaderExpr( myStxDetails,
+                    sinkFromReaderExpr( getStxDetails,
                         readerExpr.first ),
                     mkStx.getProj(
-                        sinkFromReaderExpr( myStxDetails,
+                        sinkFromReaderExpr( getStxDetails,
                             readerExpr.rest ),
                         "s-expr" )
                 ) );
@@ -6361,17 +6369,18 @@ function usingFuncDefNs( funcDefNs ) {
             return mkStx.ofNow( myStxDetails,
                 mkIstringNil.ofNow(
                     sinkForeignStrFromJs(
-                        readerStringNilToString( readerExpr ) ) ) );
+                        readerStringNilToString(
+                            locatedReaderExpr ) ) ) );
         } else if ( readerExpr.type === "stringCons" ) {
             return mkStx.ofNow( myStxDetails,
                 mkIstringCons.ofNow(
                     sinkForeignStrFromJs(
                         readerStringListToString(
                             readerExpr.string ) ),
-                    sinkFromReaderExpr( myStxDetails,
+                    sinkFromReaderExpr( getStxDetails,
                         readerExpr.interpolation ),
                     mkStx.getProj(
-                        sinkFromReaderExpr( myStxDetails,
+                        sinkFromReaderExpr( getStxDetails,
                             readerExpr.rest ),
                         "s-expr" ) ) );
         } else {
@@ -6392,10 +6401,13 @@ function usingFuncDefNs( funcDefNs ) {
                 var firstNss = nssGet( thisRemainingNss, "first" );
                 return macroexpand( nssGet( firstNss, "unique" ),
                     rawMode,
-                    sinkFromReaderExpr(
-                        new SinkForeign( "stx-details",
-                            [ { type: "top-level" } ] ),
-                        tryExpr.val ),
+                    sinkFromReaderExpr( function ( start, stop ) {
+                        return new SinkForeign( "stx-details", [ {
+                            type: "top-level",
+                            start: start,
+                            stop: stop
+                        } ] );
+                    }, tryExpr.val ),
                     nssGet( firstNss, "outbox" ).uniqueNs,
                     function ( rawMode, code ) {
                     

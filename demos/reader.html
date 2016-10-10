@@ -58,7 +58,7 @@ a.b.c
 window.onload = function () {
     function showResults() {
         document.getElementById( "result" ).value = arrMap(
-            readAll( document.getElementById( "code" ).value ),
+            readAll( {}, document.getElementById( "code" ).value ),
             function ( result ) {
             
             if ( result.ok )
