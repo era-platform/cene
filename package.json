@@ -18,5 +18,21 @@
     "test": "node cene.js -cEC"
   },
   "main": "cene.js",
-  "bin": "./cene.js"
+  "bin": "./cene.js",
+  "files": [
+    "/buildlib/lathe.js",
+    "/buildlib/lathe-fs.js",
+    "/src/era-cene-api.js",
+    "/src/era-cene-prelude.cene",
+    "/src/era-cene-quiner.js",
+    "/src/era-cene-runtime.js",
+    "/src/era-code-gen-js.js",
+    "/src/era-misc.js",
+    "/src/era-misc-strmap-avl.js",
+    "/src/era-quasiquote.cene",
+    "/src/era-reader.js",
+    "/cene.js",
+    "/LICENSE.txt",
+    "/README.md"
+  ]
 }
