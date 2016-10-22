@@ -174,11 +174,12 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                 type: "jsEffectsThread",
                 macLookupEffectsOfJsEffects:
                     macLookupThen( body(), function ( ignored ) {
-                        return new SinkForeign( "js-effects",
-                            function () {
+                        return macLookupRet(
+                            new SinkForeign( "js-effects",
+                                function () {
                             
                             return macLookupRet( mkNil.ofNow() );
-                        } );
+                        } ) );
                     } )
             } ] );
         } );
@@ -260,7 +261,7 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
     } );
     ceneClient.defer = boringfn( function ( body ) {
         deferAndRunMacLookup( function () {
-            return runJsEffects( body() );
+            return runJsEffects( unwrapCene( body() ) );
         } );
     } );
     
