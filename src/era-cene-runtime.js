@@ -2957,6 +2957,42 @@ function runTopLevelMacLookupsSync(
         }, 0 );
     }
     
+    function raiseErrorsForCertainStalledThreads( threadFilter ) {
+        // NOTE: Some of the threads aren't in the `threads` array,
+        // but are instead scattered on individual entries in the
+        // `namespaceDefs` data. We probably pay a bit of a
+        // performance cost looking them up here, but the savings from
+        // not iterating over all those dead threads during
+        // macroexpansion more than makes up for it.
+        
+        var hadError = false;
+        arrEach( threads, function ( thread, i ) {
+            if ( !threadFilter( thread ) )
+                return;
+            
+            raiseErrorsForStalledThread( thread.monad.first.err );
+            hadError = true;
+        } );
+        namespaceDefs.each( function ( nsName, contributionTable ) {
+            contributionTable.elements.each(
+                function ( keyName, entry ) {
+                
+                if ( entry.directListeners === null )
+                    return;
+                arrEach( entry.directListeners,
+                    function ( listener, i ) {
+                    
+                    if ( listener.type !== "directListener" )
+                        throw new Error();
+                    raiseErrorsForStalledThread(
+                        listener.thread.monad.first.err );
+                    hadError = true;
+                } );
+            } );
+        } );
+        return hadError;
+    }
+    
     function arrAnyButKeepGoing( arr, func ) {
         var result = false;
         arrEach( arr, function ( item, i ) {
@@ -3017,36 +3053,9 @@ function runTopLevelMacLookupsSync(
     
     // We raise errors for any threads that have stalled due to
     // blocking on definitions that will never come.
-    //
-    // NOTE: Some of the threads aren't in the `threads` array, but
-    // are instead scattered on individual entries in the
-    // `namespaceDefs` data. We probably pay a bit of a performance
-    // cost looking them up here, but the savings from not iterating
-    // over all those dead threads during macroexpansion more than
-    // makes up for it.
-    //
-    var hadError = false;
-    arrEach( threads, function ( thread, i ) {
-        if ( thread.isJs )
-            return;
-        
-        raiseErrorsForStalledThread( thread.monad.first.err );
-        hadError = true;
-    } );
-    namespaceDefs.each( function ( nsName, contributionTable ) {
-        contributionTable.elements.each( function ( keyName, entry ) {
-            if ( entry.directListeners === null )
-                return;
-            arrEach( entry.directListeners, function ( listener, i ) {
-                if ( listener.type !== "directListener" )
-                    throw new Error();
-                raiseErrorsForStalledThread(
-                    listener.thread.monad.first.err );
-                hadError = true;
-            } );
-        } );
-    } );
-    if ( hadError ) {
+    if ( raiseErrorsForCertainStalledThreads( function ( thread ) {
+        return !thread.isJs;
+    } ) ) {
         rt.anyTestFailed = true;
         return;
     }
@@ -3066,10 +3075,12 @@ function runTopLevelMacLookupsSync(
     
     // We raise errors for any threads that have stalled due to
     // blocking on definitions that will never come.
-    arrEach( threads.slice(), function ( thread ) {
-        raiseErrorsForStalledThread( thread.monad.first.err );
+    if ( raiseErrorsForCertainStalledThreads( function ( thread ) {
+        return true;
+    } ) ) {
         rt.anyTestFailed = true;
-    } );
+        return;
+    }
     
 //    console.log( stats );
 }
