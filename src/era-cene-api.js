@@ -704,12 +704,59 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                         function ( intermediate ) {
                         
                         return macLookupThen(
-                            then.callSink( usingDefNs.rt,
-                                intermediate ),
+                            then.callSink( rt, intermediate ),
                             function ( jsEffects ) {
                             
                             return runJsEffects( jsEffects );
                         } );
+                    } );
+                } );
+            } );
+        } );
+        
+        fun( "later-js-effects",
+            function ( rt, effectsForWritingJsEffects ) {
+            
+            return new SinkForeign( "js-effects", function () {
+                var rawMode = {
+                    type: "ffiSandbox",
+                    unitTestId: null,
+                    contributingOnlyTo: sinkNameSetEmpty(),
+                    current: true,
+                    putDefined: [],
+                    putListener: []
+                };
+                
+                var definer = {
+                    type: "object",
+                    unitTestId: rawMode.unitTestId,
+                    visit: null,
+                    dexAndValue: null
+                };
+                
+                return macLookupThen(
+                    effectsForWritingJsEffects.callSink( rt,
+                        new SinkForeign( "definer", definer ) ),
+                    function ( effects ) {
+                    
+                    if ( !(effects instanceof SinkForeign
+                        && effects.purpose === "effects") )
+                        throw new Error();
+                    runTopLevelMacLookupsSync( namespaceDefs, rt, [ {
+                        type: "topLevelDefinitionThread",
+                        macLookupEffectsOfDefinitionEffects:
+                            effects.foreignVal
+                    } ] );
+                    
+                    return macLookupThen(
+                        macLookupGet( definer, function () {
+                            throw new Error(
+                                "Never fulfilled a " +
+                                "later-js-effects promise" );
+                        } ),
+                        function ( jsEffects ) {
+                        
+                        return runJsEffects( jsEffects );
                     } );
                 } );
             } );

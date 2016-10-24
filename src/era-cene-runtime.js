@@ -2361,8 +2361,12 @@ function isUnitTestRawMode( rawMode ) {
 function isMacroOrUnitTestRawMode( rawMode ) {
     return isMacroRawMode( rawMode ) || isUnitTestRawMode( rawMode );
 }
-function isMacroOrUnitTestOrJsRawMode( rawMode ) {
+function isMacroOrUnitTestOrFfiSandboxRawMode( rawMode ) {
     return isMacroOrUnitTestRawMode( rawMode ) ||
+        rawMode.type === "ffiSandbox";
+}
+function isMacroOrUnitTestOrFfiSandboxOrJsRawMode( rawMode ) {
+    return isMacroOrUnitTestOrFfiSandboxRawMode( rawMode ) ||
         rawMode.type === "js";
 }
 function isMacroOrDummyRawMode( rawMode ) {
@@ -2372,7 +2376,7 @@ function rawModeSupportsEval( rawMode ) {
     return isMacroOrUnitTestRawMode( rawMode );
 }
 function rawModeSupportsDefer( rawMode ) {
-    return isMacroOrUnitTestRawMode( rawMode );
+    return isMacroOrUnitTestOrFfiSandboxRawMode( rawMode );
 }
 function rawModeSupportsContributeDefiner( definer ) {
     return function ( rawMode ) {
@@ -2410,7 +2414,7 @@ function rawModeSupportsObserveDefiner( definer ) {
     return function ( rawMode ) {
         // NOTE: We let JS through because it looks up defined values
         // when it does function calls.
-        return isMacroOrUnitTestOrJsRawMode( rawMode );
+        return isMacroOrUnitTestOrFfiSandboxOrJsRawMode( rawMode );
     };
 }
 function rawModeSupportsObserveContributedElements( ns ) {
