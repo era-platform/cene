@@ -62,6 +62,16 @@ Call with ``js-effects (fn intermediate)``
 Creates a JavaScript effects value that executes the given ``js-effects`` value, calls the given callback with the intermediate result, and proceeds by running the JavaScript effects value it returns.
 
 
+.. _later-js-effects:
+
+later-js-effects
+----------------
+
+Call with ``(fn js-effects-definer)``
+
+Given a function that takes a definer and monadically installs a ``js-effects`` value into that definer, creates a JavaScript effects value that executes those monadic effects and then proceeds by running the JavaScript effects value that has been installed into the definer.
+
+
 .. _give-unwrapped-js-effects:
 
 give-unwrapped-js-effects
