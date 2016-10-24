@@ -718,18 +718,14 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
             function ( rt, effectsForWritingJsEffects ) {
             
             return new SinkForeign( "js-effects", function () {
-                var rawMode = {
-                    type: "ffiSandbox",
-                    unitTestId: null,
-                    contributingOnlyTo: sinkNameSetEmpty(),
-                    current: true,
-                    putDefined: [],
-                    putListener: []
-                };
+                
+                // NOTE: This relies on object identity.
+                var ffiSandboxId = {};
                 
                 var definer = {
                     type: "object",
-                    unitTestId: rawMode.unitTestId,
+                    ffiSandboxId: ffiSandboxId,
+                    unitTestId: null,
                     visit: null,
                     dexAndValue: null
                 };
@@ -742,10 +738,20 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                     if ( !(effects instanceof SinkForeign
                         && effects.purpose === "effects") )
                         throw new Error();
+                    
                     runTopLevelMacLookupsSync( namespaceDefs, rt, [ {
                         type: "topLevelDefinitionThread",
+                        attenuation: {
+                            type: "ffi-sandbox",
+                            ffiSandboxId: ffiSandboxId,
+                            unitTestId: null,
+                            contributingOnlyTo: sinkNameSetEmpty()
+                        },
                         macLookupEffectsOfDefinitionEffects:
-                            effects.foreignVal
+                            function ( rawMode ) {
+                            
+                            return runEffects( rawMode, effects );
+                        }
                     } ] );
                     
                     return macLookupThen(
