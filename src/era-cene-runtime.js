@@ -2358,12 +2358,15 @@ function isMacroRawMode( rawMode ) {
 function isUnitTestRawMode( rawMode ) {
     return rawMode.type === "unit-test";
 }
+function isFfiSandboxRawMode( rawMode ) {
+    return rawMode.type === "ffi-sandbox";
+}
 function isMacroOrUnitTestRawMode( rawMode ) {
     return isMacroRawMode( rawMode ) || isUnitTestRawMode( rawMode );
 }
 function isMacroOrUnitTestOrFfiSandboxRawMode( rawMode ) {
     return isMacroOrUnitTestRawMode( rawMode ) ||
-        rawMode.type === "ffiSandbox";
+        isFfiSandboxRawMode( rawMode );
 }
 function isMacroOrUnitTestOrFfiSandboxOrJsRawMode( rawMode ) {
     return isMacroOrUnitTestOrFfiSandboxRawMode( rawMode ) ||
@@ -2389,11 +2392,18 @@ function rawModeSupportsContributeDefiner( definer ) {
         if ( isMacroOrDummyRawMode( rawMode ) )
             return true;
         
-        if ( isUnitTestRawMode( rawMode ) )
-            return (definer.type === "object"
-                && definer.unitTestId !== null
-                && nameCompare(
-                    definer.unitTestId, rawMode.unitTestId ) === 0);
+        if ( isUnitTestRawMode( rawMode )
+            && definer.type === "object"
+            && definer.unitTestId !== null
+            && nameCompare(
+                definer.unitTestId, rawMode.unitTestId ) === 0 )
+            return true;
+        
+        if ( isFfiSandboxRawMode( rawMode )
+            && definer.type === "object"
+            && definer.ffiSandboxId !== null
+            && definer.ffiSandboxId === rawMode.ffiSandboxId )
+            return true;
         
         return false;
     };
@@ -2453,6 +2463,9 @@ function collectDefer( rawMode, partialAttenuation, body ) {
             type: partialAttenuation.type !== void 0 ?
                 partialAttenuation.type :
                 rawMode.type,
+            ffiSandboxId: partialAttenuation.ffiSandboxId !== void 0 ?
+                partialAttenuation.ffiSandboxId :
+                rawMode.ffiSandboxId,
             unitTestId: partialAttenuation.unitTestId !== void 0 ?
                 partialAttenuation.unitTestId :
                 rawMode.unitTestId,
@@ -2616,6 +2629,7 @@ function runPuts( namespaceDefs, rt, rawMode ) {
             throw new Error();
         var attenuation = {
             type: rawMode.type,
+            ffiSandboxId: rawMode.ffiSandboxId,
             unitTestId: rawMode.unitTestId,
             contributingOnlyTo: rawMode.contributingOnlyTo
         };
@@ -2668,6 +2682,7 @@ function runTopLevelMacLookupsSync(
     function addMacroThread( attenuation, thread ) {
         var rawMode = {
             type: attenuation.type,
+            ffiSandboxId: attenuation.ffiSandboxId,
             unitTestId: attenuation.unitTestId,
             contributingOnlyTo: attenuation.contributingOnlyTo,
             current: false,
@@ -2739,11 +2754,8 @@ function runTopLevelMacLookupsSync(
     
     arrEach( originalThreads, function ( thread ) {
         if ( thread.type === "topLevelDefinitionThread" ) {
-            addMacroThread( {
-                type: "macro",
-                unitTestId: null,
-                contributingOnlyTo: sinkNameSetAll()
-            }, thread.macLookupEffectsOfDefinitionEffects );
+            addMacroThread( thread.attenuation,
+                thread.macLookupEffectsOfDefinitionEffects );
         } else if ( thread.type === "jsEffectsThread" ) {
             var monad = macLookupThen(
                 thread.macLookupEffectsOfJsEffects,
@@ -2761,6 +2773,7 @@ function runTopLevelMacLookupsSync(
                 failedAdvances: 0,
                 rawMode: {
                     type: "js",
+                    ffiSandboxId: null,
                     unitTestId: null,
                     contributingOnlyTo: sinkNameSetEmpty(),
                     current: true,
@@ -3713,6 +3726,7 @@ function usingFuncDefNs( funcDefNs ) {
     function makeDummyMode() {
         return {
             type: "dummy-mode",
+            ffiSandboxId: null,
             unitTestId: null,
             contributingOnlyTo: sinkNameSetAll(),
             current: true,
@@ -3985,6 +3999,7 @@ function usingFuncDefNs( funcDefNs ) {
                     
                     var definer = {
                         type: "object",
+                        ffiSandboxId: rawMode.ffiSandboxId,
                         unitTestId: rawMode.unitTestId,
                         visit: null,
                         dexAndValue: null
@@ -4031,6 +4046,7 @@ function usingFuncDefNs( funcDefNs ) {
                 
                 collectDefer( rawMode, {
                     type: "unit-test",
+                    ffiSandboxId: null,
                     unitTestId: nssGet( nss, "dex" ).uniqueNs.name,
                     contributingOnlyTo: sinkNameSetEmpty()
                 }, function ( rawMode ) {
@@ -6047,6 +6063,7 @@ function usingFuncDefNs( funcDefNs ) {
                     callSinkLater( rt, then,
                         getdef( {
                             type: "object",
+                            ffiSandboxId: rawMode.ffiSandboxId,
                             unitTestId: rawMode.unitTestId,
                             visit: null,
                             dexAndValue: null
@@ -6434,6 +6451,12 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         return arrMap( macLookupEffectsArr, function ( effects ) {
             return { type: "topLevelDefinitionThread",
+                attenuation: {
+                    type: "macro",
+                    ffiSandboxId: null,
+                    unitTestId: null,
+                    contributingOnlyTo: sinkNameSetAll()
+                },
                 macLookupEffectsOfDefinitionEffects: effects };
         } );
     }
