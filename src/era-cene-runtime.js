@@ -4686,94 +4686,48 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
-        fun( "table-zip", function ( rt, a ) {
-            return sinkFnPure( function ( rt, b ) {
-                return new SinkFn( function ( rt, combiner ) {
-                    if ( !(a instanceof SinkForeign
-                        && a.purpose === "table") )
-                        throw new Error();
-                    if ( !(b instanceof SinkForeign
-                        && b.purpose === "table") )
-                        throw new Error();
-                    
-                    var entries = [];
-                    a.foreignVal.plus( b.foreignVal ).each(
-                        function ( k, v ) {
-                        
-                        function get( table ) {
-                            var v = table.get( k );
-                            return v === void 0 ?
-                                mkNil.ofNow() :
-                                mkYep.ofNow( v );
-                        }
-                        entries.push(
-                            { k: k, a: get( a ), b: get( b ) } );
-                    } );
-                    var n = entries.length;
-                    return loop( 0, jsnMap() );
-                    function loop( i, table ) {
-                        if ( n <= i )
-                            return macLookupRet(
-                                new SinkForeign( "table", table ) );
-                        var entry = entries[ i ];
-                        return macLookupThen(
-                            callSinkMulti( rt, combiner,
-                                new SinkForeign( "table",
-                                    jsnMap().plusEntry(
-                                        entry.k, mkNil.ofNow() ) ),
-                                entry.a,
-                                entry.b ),
-                            function ( v ) {
-                            
-                            if ( mkNil.tags( v ) )
-                                return loop( i + 1, table );
-                            else if ( mkYep.tags( v ) )
-                                return loop( i + 1,
-                                    table.plusEntry( entry.k, mkYep.getProj( v, "val" ) ) );
-                            else
-                                throw new Error();
-                        } );
-                    }
-                } );
-            } );
-        } );
-        
-        fun( "tables-fuse", function ( rt, a ) {
-            return sinkFnPure( function ( rt, b ) {
-                return new SinkFn( function ( rt, fuse ) {
-                    if ( !(a instanceof SinkForeign
-                        && a.purpose === "table") )
-                        throw new Error();
-                    if ( !(b instanceof SinkForeign
-                        && b.purpose === "table") )
-                        throw new Error();
+        fun( "table-map-fuse", function ( rt, table ) {
+            return sinkFnPure( function ( rt, fuse ) {
+                return new SinkFn( function ( rt, func ) {
                     if ( fuse.affiliation !== "fuse" )
                         throw new Error();
+                    if ( !(table instanceof SinkForeign
+                        && table.purpose === "table") )
+                        throw new Error();
                     
-                    var vals = [];
-                    a.foreignVal.each( function ( k, v ) {
-                        vals.push( v );
+                    var keys = [];
+                    table.foreignVal.each( function ( k, v ) {
+                        // TODO: See if we can avoid this
+                        // JSON.parse(). Why do we even need it in the
+                        // first place?
+                        keys.push(
+                            new SinkForeign( "name",
+                                JSON.parse( k ) ) );
                     } );
-                    b.foreignVal.each( function ( k, v ) {
-                        vals.push( v );
-                    } );
-                    var n = vals.length;
-                    if ( n === 0 )
-                        return macLookupret( mkNil.ofNow() );
-                    return loop( 1, vals[ 0 ] );
-                    function loop( i, state ) {
+                    var n = keys.length;
+                    return loop( 0, null );
+                    function loop( i, maybeFused ) {
                         if ( n <= i )
                             return macLookupRet(
-                                mkYep.ofNow( state ) );
+                                maybeFused === null ?
+                                    mkNil.ofNow() :
+                                    mkYep.ofNow( maybeFused.val ) );
                         return macLookupThen(
-                            fuse.fuse( rt, state, vals[ i ] ),
-                            function ( state ) {
+                            func.callSink( rt, keys[ i ] ),
+                            function ( v ) {
                             
-                            if ( !mkYep.tags( state ) )
-                                return macLookupRet( mkNil.ofNow() );
+                            if ( maybeFused === null )
+                                return loop( i + 1, { val: v } );
                             
-                            return loop( i + 1,
-                                mkYep.getProj( state, "val" ) );
+                            return macLookupThen(
+                                fuse.fuse( rt, maybeFused.val, v ),
+                                function ( v ) {
+                                
+                                if ( !mkYep.tags( state ) )
+                                    return macLookupRet( mkNil.ofNow() );
+                                
+                                return loop( i + 1, { val: v } );
+                            } );
                         } );
                     }
                 } );

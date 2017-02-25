@@ -9,6 +9,8 @@ procure-sub-ns-table
 
 Call with ``table ns``
 
+.. todo:: Now that tables expose their keys well enough to implement this in terms of a single-key lookup, consider replacing this with a single-key lookup again.
+
 Makes a table with entries corresponding to the given table, except each value is replaced with a sub-namespace, which is to say a namespace uniquely determined by the given namespace and the entry's key. The entry's value is ignored.
 
 Distinct keys yield distinct sub-namespaces.

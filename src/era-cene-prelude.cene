@@ -62,8 +62,12 @@
   (call-cline cline-by-dex.dex a b))
 
 (defn table-get-singleton table
-  (tables-fuse table (table-empty/nil)
-  /fuse-by-merge/merge-by-dex/dex-give-up/nil))
+  (cast
+    (table-map-fuse table (fuse-by-merge/merge-by-dex/dex-name/nil)
+    /fn key key)
+    yep key
+    (nil)
+  /table-get key table))
 
 (defn ns-get key ns
   (cast

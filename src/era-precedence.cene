@@ -33,25 +33,31 @@
   (table-shadow (name-of/dexable dex-val val) yep.val table))
 
 (defn table-map table func
-  (table-zip table table /fn - maybe-val -
-    (cast maybe-val yep val
-      err.\;qq[Internal error]
-    /yep/c func val)))
+  (case
+    (table-map-fuse table
+      (fuse-table/fuse-by-merge/merge-by-dex/dex-give-up/nil)
+    /fn key
+      (cast (table-get key table) yep val
+        err.\;qq[Internal error]
+      /table-shadow key (yep/c func val) /table-empty))
+    yep fused fused
+  /table-empty))
 
-(defn table-fuse table init fuse
-  (tables-fuse table
-    (table-shadow (name-of/dexable dex-struct.nil /nil) yep.init
-    /table-empty/nil)
-    fuse))
+(defn table-init-fuse table init fuse
+  (case (table-map-fuse table fuse-struct.nil /fn key /nil) nil
+    yep.init
+  /case (table-map-fuse table fuse /fn key /table-get key table)
+    yep val (call-fuse init val)
+  /nil))
 
-(defn table-map-fuse table init fuse func
-  (table-fuse (table-map table func) init fuse))
+(defn table-map-init-fuse table init fuse func
+  (table-init-fuse (table-map table func) init fuse))
 
 (defn table-any table func
   \= NOTE: The key can be anything.
   (let key (name-of/dexable (dex-dex) /dex-dex)
   /isa yep /table-get key
-    (proj1 yep /table-map-fuse table (table-empty/nil)
+    (proj1 yep /table-map-init-fuse table (table-empty/nil)
       (fuse-by-merge/merge-table/merge-dex dex-struct.nil)
     /fn val
       (case (c func val) yep -
@@ -117,11 +123,11 @@
 
 (defn spg-computed dex-node nodes func
   (spg dex-node nodes
-  /proj1 yep /table-map-fuse nodes (table-empty/nil)
+  /proj1 yep /table-map-init-fuse nodes (table-empty/nil)
     (fuse-by-merge/merge-table/merge-table/merge-dex/dex-table
       dex-node)
   /fn start
-    (proj1 yep /table-map-fuse nodes (table-empty/nil)
+    (proj1 yep /table-map-init-fuse nodes (table-empty/nil)
       (fuse-by-merge/merge-table/merge-table/merge-dex/dex-table
         dex-node)
     /fn stop
@@ -162,7 +168,7 @@
     dex-node nodes a-edges-to-basises b-edges-to-basises
     err.\;qq[Internal error]
   /spg-computed dex-node nodes /fn a-node b-node
-    (proj1 yep /table-map-fuse nodes (table-empty/nil)
+    (proj1 yep /table-map-init-fuse nodes (table-empty/nil)
       (fuse-by-merge/merge-table/merge-dex/dex-table dex-node)
     /fn mid-node
       (let a-edge (edge a-node mid-node)
@@ -179,10 +185,10 @@
           b-edges-to-basises)
         yep b-basises
         err.\;qq[Expected every edge in b to have a set of basises]
-      /proj1 yep /table-map-fuse a-basises (table-empty/nil)
+      /proj1 yep /table-map-init-fuse a-basises (table-empty/nil)
         (fuse-by-merge/merge-table/merge-dex/dex-table dex-node)
       /fn a-basis
-        (proj1 yep /table-map-fuse b-basises (table-empty/nil)
+        (proj1 yep /table-map-init-fuse b-basises (table-empty/nil)
           (fuse-by-merge/merge-table/merge-dex/dex-table dex-node)
         /fn b-basis
           (cast
@@ -239,10 +245,10 @@
         (dex-struct nope dex-struct.nil)))
   /let known-results
     (fix-with-dex dex-table.dex-known-result-entry
-      (proj1 yep /table-map-fuse nodes (table-empty/nil)
+      (proj1 yep /table-map-init-fuse nodes (table-empty/nil)
         (fuse-table fuse-dex.dex-known-result-entry)
       /fn start
-        (proj1 yep /table-map-fuse nodes (table-empty/nil)
+        (proj1 yep /table-map-init-fuse nodes (table-empty/nil)
           (fuse-table fuse-dex.dex-known-result-entry)
         /fn stop
           (let edge (edge start stop)
@@ -296,7 +302,7 @@
           (yep/nope/nil)
           (nil))))
   /rg dex-node nodes
-  /proj1 yep /table-map-fuse known-results (table-entry/nil)
+  /proj1 yep /table-map-init-fuse known-results (table-entry/nil)
     (fuse-table/fuse-dex dex-edge)
   /fn known-result-entry
     (cast known-result-entry pair edge known-result
@@ -310,7 +316,7 @@
       (table-empty/nil))))
 
 (defn self-organize dex-node nodes self-organize
-  (spg-to-rg/spg-star/proj1 yep /table-map-fuse nodes
+  (spg-to-rg/spg-star/proj1 yep /table-map-init-fuse nodes
     (spg-or-none dex-node nodes)
     (merge-spg-or/nil)
   /fn node
