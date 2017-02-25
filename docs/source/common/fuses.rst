@@ -6,7 +6,7 @@ Clines, dexes, merges, and fuses
   
   Cene keeps track of stateful external resources using hierarchical paths. Thus, for a framework or interpreter to *pretend* to offer an external resource, it needs to be able to offer a path data structure that it can use to look up and track state. This is a use case for efficient key-value tables.
   
-  For writing extensible frameworks, it's useful to be able to process collections of extensions without unnecessarily depending on their order, and it's useful to be able to take a definition-time state resource (a namespace, in Cene) and divide it up across the elements of a collection of extensions in a deterministic way. This is a use case for encapsulated key-value tables where the keys are hidden but the entries remain coordinated across keyed collections. That is, their coordination allows these tables to be zipped with namespaces and other tables.
+  For writing extensible frameworks, it's useful to be able to process collections of extensions without unnecessarily depending on their order.
   
   Tables rely on the ability to compare the keys for equality. We usually don't want external resource paths to be compared in a *visibly ordered* way because that would make it possible to observe when one external resource identification scheme has been globally replaced by another (e.g. if the program has been serialized, transported, and resuscitated on another machine). In a sense, this would be a violation of alpha-equivalence.
   
