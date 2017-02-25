@@ -107,7 +107,7 @@ function quinerCallWithSyncJavaScriptMode( calculateFunc ) {
             pickyJavaScriptQuine: function ( cexpr, topLevelVars ) {
                 return null;
             },
-            onDependenciesComplete: function ( listener ) {
+            onceDependenciesComplete: function ( listener ) {
                 // Do nothing.
             },
             getTopLevelVar: function ( varName ) {
