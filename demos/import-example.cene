@@ -19,7 +19,9 @@
 \= read from demos/import-example-src/import-example-src.cene.
 
 
-(def-macro import home-scope caller-scope my-stx-details args then
+(def-macro import-the-import-example-src-file
+  home-scope caller-scope my-stx-details args then
+  
   (basic-nil-macro home-scope caller-scope my-stx-details then
   /fn caller-scope s mac
   /get-mode/fn mode
@@ -41,7 +43,7 @@
     
     launch-rest))
 
-(import)
+(import-the-import-example-src-file)
 
 \= Now that we've imported that file, the (hello-world -) function is
 \= available for use.
