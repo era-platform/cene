@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // cene.js
-// Copyright 2013-2016 Ross Angle. Released under the MIT License.
+// Copyright 2013-2017 Ross Angle. Released under the MIT License.
 "use strict";
 
 var fs = require( "fs" );
