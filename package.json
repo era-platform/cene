@@ -2,10 +2,10 @@
   "name": "cene",
   "version": "0.0.31",
   "description": "A programming language for metacircular compilers on the JavaScript platform.",
-  "homepage": "https://github.com/rocketnia/era-cene",
+  "homepage": "https://github.com/era-platform/cene",
   "author": {
-    "name": "Ross Angle",
-    "url": "https://www.rocketnia.com/"
+    "name": "Era organization",
+    "url": "https://github.com/era-platform"
   },
   "engines": {
     "node": ">= 0.6.0",

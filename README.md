@@ -1,14 +1,14 @@
 # Cene
 
-<img title="Cene logo" width="166" height="166" src="https://rocketnia.github.io/era-cene/notes/logo/cene-logo-rough-small.png" align="right">
+<img title="Cene logo" width="166" height="166" src="https://era-platform.github.io/cene/notes/logo/cene-logo-rough-small.png" align="right">
 
-[![Travis build](https://travis-ci.org/rocketnia/era-cene.svg?branch=master)](https://travis-ci.org/rocketnia/era-cene)
+[![Travis build](https://travis-ci.org/era-platform/cene.svg?branch=master)](https://travis-ci.org/era-platform/cene)
 
-[Run some Cene code in your browser, logging to the console.](https://rocketnia.github.io/era-cene/demos/cene.html)
+[Run some Cene code in your browser, logging to the console.](https://era-platform.github.io/era-cene/demos/cene.html)
 
-[Run some reader unit tests in your browser, logging to the console.](https://rocketnia.github.io/era-cene/demos/unit-tests.html)
+[Run some reader unit tests in your browser, logging to the console.](https://era-platform.github.io/cene/demos/unit-tests.html)
 
-[Run the reader in your browser. This page is interactive!](https://rocketnia.github.io/era-cene/demos/reader.html)
+[Run the reader in your browser. This page is interactive!](https://era-platform.github.io/cene/demos/reader.html)
 
 [See documentation of the built-in operations](https://cene.readthedocs.io/en/latest/)
 
@@ -109,7 +109,7 @@ Cene's approach to errors may be more flexible in the future. There's a plan for
 
 ## Concessions
 
-As [the overall Era project](https://github.com/rocketnia/era) goes along, textual syntaxes like Cene's will eventually be regarded as a relic, replaced by monotonic code databases and hypertext syntaxes. Cene makes particular concessions for modern-day tools, namely text editors, command lines, and JavaScript runtimes.
+As [the overall Era project](https://github.com/era-platform/era) goes along, textual syntaxes like Cene's will eventually be regarded as a relic, replaced by monotonic code databases and hypertext syntaxes. Cene makes particular concessions for modern-day tools, namely text editors, command lines, and JavaScript runtimes.
 
 ## Installation and usage
 
@@ -128,7 +128,7 @@ A global installation lets you easily invoke cene at the command line:
 cene my-build.cene --in my-src-dir/ --out my-output-dir/ arg1 arg2
 ```
 
-For a complete example project written in Cene, check out [Cene Scaffold](https://github.com/rocketnia/cene-scaffold) and follow the installation instructions in its readme.
+For a complete example project written in Cene, check out [Cene Scaffold](https://github.com/era-platform/cene-scaffold) and follow the installation instructions in its readme.
 
 Cene also supports being loaded as a Node.js library. It has only two exports:
 
@@ -145,7 +145,7 @@ If you use this technique to run Cene, it's a little bit more flexible than the 
 
 ## Branding
 
-Cene is named for _-cene_, a suffix that refers to eras, since Cene is part of [the Era project](https://github.com/rocketnia/era). The resemblance to "Scheme" and the potential for wordplay with "seen," "scene," "sing," "sink," "obscene," and "zine" are just side benefits. Yes, I just spoiled all those puns for you. Go on and use the puns anyway, now fully equipped with the awareness of how stale they're going to get. A stale pun is still a good pun in the right context.
+Cene is named for _-cene_, a suffix that refers to eras, since Cene is part of [the Era project](https://github.com/era-platform/era). The resemblance to "Scheme" and the potential for wordplay with "seen," "scene," "sing," "sink," "obscene," and "zine" are just side benefits. Yes, I just spoiled all those puns for you. Go on and use the puns anyway, now fully equipped with the awareness of how stale they're going to get. A stale pun is still a good pun in the right context.
 
 The brand image I imagine for Cene will have layers: In the meta layer, cartoon characters weild a mallet and a marker over a holographic void of pinks, yellows, and greens. In the marker-drawn layer, deep dark gray and pure white are punctuated by stamp symbols, gears, and dotted lines in luminescent red. When the gears hatch, cartoon vines grow out of them in a calm, neutral green. These cartoon vines are the brand image I have in mind for the Era project's eventual OS/IDE/visual programming language, so they should appear only for Cene projects that implement modular, reactive, or UI functionality as building blocks for Era.
 
