@@ -523,6 +523,37 @@
     (tails/map lists /cdr)
     lists))
 
+\= NOTE: This utility isn't so much for modularity as it is a
+\= convenient way to load another file in the project's input
+\= directory as though its contents appeared inside the current file.
+\=
+(def-macro import home-scope caller-scope my-stx-details args then
+  (basic-nil-macro home-scope caller-scope my-stx-details then
+  /fn caller-scope s mac
+  /get-mode/fn mode
+  /let path
+    (foldl cli-input-directory.mode args /fn dirname basename
+      (cast basename stx - basename
+        err.\;qq[Called import with non-syntax]
+      /cast basename istring-nil basename
+        err.\;qq[
+          Called import with something other than a string literal]
+      /input-path-get dirname basename))
+  /cast
+    (foldr (read-all-force/input-path-blob-utf-8 mode path)
+      (folding caller-scope /no-effects/nil)
+    /fn expr state
+      (cast state folding scope launch-rest
+        err.\;qq[Internal error]
+      /folding (scope-get str.rest scope)
+      /join-effects launch-rest
+      /compile-expression-later (scope-get str.first scope) expr /fn -
+      /no-effects/nil))
+    folding scope launch-rest
+    err.\;qq[Internal error]
+    
+    launch-rest))
+
 
 \= ===== Lazy lists ==================================================
 
