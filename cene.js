@@ -662,9 +662,10 @@ if ( args.demo_cene ) tasks.push( function ( then ) {
                     "fin/" + file.name + ".js" ),
                 "utf-8",
                 "\"use strict\";\n" +
-                "var rocketnia = rocketnia || {};\n" +
-                "rocketnia.eraFiles = rocketnia.eraFiles || {};\n" +
-                "rocketnia.eraFiles[ " +
+                "var eraPlatform = eraPlatform || {};\n" +
+                "eraPlatform.ceneFiles = " +
+                    "eraPlatform.ceneFiles || {};\n" +
+                "eraPlatform.ceneFiles[ " +
                     _.jsStr( file.name ) + " ] =\n" +
                 _.jsStr( text ) + ";\n",
                 then );

@@ -23,18 +23,18 @@ message="$(git log -1 --pretty=%B HEAD)"
 # Without changing the state of the working copy, we reset to the
 # `gh-pages` branch on GitHub. If the branch doesn't exist, we proceed
 # anyway (`|| true`); we'll end up creating the branch ourselves.
-git remote add rocketnia-upstream \
-  "https://$ROCKETNIA_GH_TOKEN@github.com/rocketnia/era-cene.git"
-git fetch -q rocketnia-upstream
-git reset rocketnia-upstream/gh-pages || true
+git remote add era-platform-upstream \
+  "https://$ROCKETNIA_GH_TOKEN@github.com/era-platform/cene.git"
+git fetch -q era-platform-upstream
+git reset era-platform-upstream/gh-pages || true
 
-# We build the dependencies of the Era demos. We replace the
+# We build the dependencies of the Cene demos. We replace the
 # `.gitignore` file with a version where these dependencies are not
 # ignored.
-echo Building dependencies of the Era demos...
+echo Building dependencies of the Cene demos...
 node cene.js --demo-cene
 cp gh-pages.gitignore .gitignore
-echo Finished building dependencies of the Era demos.
+echo Finished building dependencies of the Cene demos.
 
 # TODO: The original does this "so that `git` considers all of our
 # local copies fresh." See if we need to do this.
@@ -45,4 +45,4 @@ echo Finished building dependencies of the Era demos.
 # that this creates the branch if it doesn't exist yet.
 git add -A .
 git commit -m "$message"
-git push -q rocketnia-upstream HEAD:refs/heads/gh-pages
+git push -q era-platform-upstream HEAD:refs/heads/gh-pages
