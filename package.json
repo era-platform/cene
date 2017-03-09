@@ -22,6 +22,8 @@
   "files": [
     "/buildlib/lathe.js",
     "/buildlib/lathe-fs.js",
+    "/lib-cene/era-precedence.cene",
+    "/lib-cene/era-reader.cene",
     "/src/era-cene-api.js",
     "/src/era-cene-prelude.cene",
     "/src/era-cene-quiner.js",
