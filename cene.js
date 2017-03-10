@@ -578,11 +578,11 @@ var argParser = new argparse.ArgumentParser( {
 // Primary interface
 argParser.addArgument( [ "-i", "--in" ], {
     action: "store",
-    help: "Cene: The file path to use as input, if any."
+    help: "The file path to use as input, if any."
 } );
 argParser.addArgument( [ "-o", "--out" ], {
     action: "store",
-    help: "Cene: The file path to use as output, if any."
+    help: "The file path to use as output, if any."
 } );
 argParser.addArgument( [ "file" ], {
     nargs: "?",
@@ -596,7 +596,7 @@ argParser.addArgument( [ "args" ], {
 // Development interface
 argParser.addArgument( [ "-c", "--demo-cene" ], {
     action: "storeTrue",
-    help: "Cene: Compile dependencies of demos/cene.html."
+    help: "Compile dependencies of demos/cene.html."
 } );
 argParser.addArgument( [ "-E", "--test-era" ], {
     action: "storeTrue",
@@ -604,7 +604,7 @@ argParser.addArgument( [ "-E", "--test-era" ], {
 } );
 argParser.addArgument( [ "-C", "--test-cene" ], {
     action: "storeTrue",
-    help: "Cene: Run a demo as a batch process."
+    help: "Run a demo as a batch process."
 } );
 
 var args = argParser.parseArgs();
