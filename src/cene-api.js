@@ -1,5 +1,5 @@
-// era-cene-api.js
-// Copyright 2015, 2016 Ross Angle. Released under the MIT License.
+// cene-api.js
+// Copyright 2015-2017 Ross Angle. Released under the MIT License.
 
 
 var builtInApiStructsToAdd = [];

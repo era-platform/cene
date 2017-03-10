@@ -1,5 +1,5 @@
-// era-cene-quiner.js
-// Copyright 2016 Ross Angle. Released under the MIT License.
+// cene-quiner.js
+// Copyright 2016, 2017 Ross Angle. Released under the MIT License.
 "use strict";
 
 var quinerCliArguments = [];
