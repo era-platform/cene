@@ -36,7 +36,7 @@ CexprJs.prototype.toJsCode = function ( options ) {
                         // TODO: See if we should treat `Function` as
                         // a free variable here.
                         "Function( " +
-                            jsStr( options.minify( this.code ) ) +
+                            jsStr( options.minifyJs( this.code ) ) +
                             " )"
                     ).asStatic(), "() ) );\n" +
         "} ) )" );

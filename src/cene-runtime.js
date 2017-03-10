@@ -3127,7 +3127,7 @@ function cexprToSloppyJsCode( cexpr ) {
         getConstructor: function ( constructor ) {
             return constructor;
         },
-        minify: function ( code ) {
+        minifyJs: function ( code ) {
             return code;
         }
     } );
