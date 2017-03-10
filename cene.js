@@ -528,8 +528,7 @@ function runCeneSync(
 }
 
 var preludeFilenamesShort = [
-    "prelude-util.cene",
-    "prelude-quasiquote.cene"
+    "prelude-util.cene"
 ];
 
 var preludeFiles = _.arrMap( preludeFilenamesShort,
@@ -648,6 +647,7 @@ if ( args.demo_cene ) tasks.push( function ( then ) {
             return { dir: "src/", name: name };
         } ),
     [
+        { dir: "lib-cene/", name: "quasiquote.cene" },
         { dir: "test/", name: "test.cene" }
     ] ), function ( i, file, then ) {
         ltf.readTextFile(
@@ -681,7 +681,8 @@ if ( args.demo_cene ) tasks.push( function ( then ) {
 
 if ( args.test_cene ) tasks.push( function ( then ) {
     var anyTestFailed =
-        runCeneSync( preludeFiles, [ "test/test.cene" ],
+        runCeneSync( preludeFiles,
+            [ "lib-cene/quasiquote.cene", "test/test.cene" ],
             !!"displayTimeInfo", [], null, null );
     
     if ( anyTestFailed )
