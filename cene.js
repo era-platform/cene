@@ -252,17 +252,29 @@ function runCeneSync(
         return stream.toString();
     }
     
-    var runDesiredMinifier = shouldMinify ? runUglifyMinifier :
-        function ( code ) {
-            return code;
-        };
+    function runNoopMinifier( code ) {
+        return code;
+    }
+    
+    var runDesiredMinifier =
+        shouldMinify ? runUglifyMinifier : runNoopMinifier;
     
     
     function cexprToCode( cexpr, getConstructor ) {
         return "function ( rt ) {\n" +
             "return " + cexpr.toJsCode( {
                 getConstructor: getConstructor,
-                minify: runDesiredMinifier
+                
+                // TODO: Figure out a good way to let the user specify
+                // a minifier to use for their own JS code (when
+                // they're using the JavaScript FFI). We could still
+                // use Uglify here for the most part, but we have some
+                // unsafe Uglify features enabled, and they might mess
+                // up the user's JavaScript code.
+                //
+//                minifyJs: runDesiredMinifier
+                minifyJs: runNoopMinifier
+                
             } ).toInstantiateExpr( {
                 rt: "rt",
                 SinkStruct: "SinkStruct",
