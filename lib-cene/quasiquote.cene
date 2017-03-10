@@ -5,6 +5,8 @@
 \= kind of quasiquotation we're implementing here.
 
 
+\= ===== S-expression quasiquotation syntax ==========================
+
 (defn istring-map-any-foldl-later state istring combiner-later then
   (cast istring istring-cons prefix interpolation rest
     (c-later then /folding state istring)

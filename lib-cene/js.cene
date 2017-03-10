@@ -1,5 +1,9 @@
-\= util-js.cene (part of Cene Scaffold)
-\= Copyright 2016 Ross Angle. Released under the MIT License.
+\= js.cene
+\= Copyright 2016, 2017 Ross Angle. Released under the MIT License.
+
+
+\= ===== Utilities for interacting with JavaScript and the HTML ======
+\= ===== DOM =========================================================
 
 (defn run-give-js-effects val body-effects
   (then-js-effects body-effects /fn body

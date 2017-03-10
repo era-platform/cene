@@ -1,12 +1,12 @@
-\= chops.cene (part of Cene Scaffold)
-\= Copyright 2016 Ross Angle. Released under the MIT License.
-
-\= TODO: See if we should factor this file out into a separate
-\= codebase.
+\= chops.cene
+\= Copyright 2016, 2017 Ross Angle. Released under the MIT License.
 
 
 
-\= General-purpose utilities =========================================
+\= ===== General-purpose utilities ===================================
+
+\= TODO: See if we should factor out these general-purpose utilities
+\= into a different file.
 
 
 (defn pass-to arg func
@@ -210,7 +210,7 @@
 
 
 
-\= The Chops markup macro system =====================================
+\= ===== The Chops markup macro system ===============================
 
 
 \= TODO: Avoid using `to-located` and `from-located` whenever
@@ -747,7 +747,7 @@
 
 
 
-\= Text variations ===================================================
+\= ===== Text variations =============================================
 
 
 (def-struct tvaryrun run)

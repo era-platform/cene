@@ -79,7 +79,7 @@
   /fix-with-dex dex next func))
 
 
-\= Self-precedence graphs ============================================
+\= ===== Self-precedence graphs ======================================
 
 \= Internally to the self-organizing precedence system, we model a
 \= data structure we call "spg" for "self-precedence graph." A
@@ -210,7 +210,7 @@
     (spg-or fixed-spg /spg-then spg fixed-spg)))
 
 
-\= Recommendation graphs =============================================
+\= ===== Recommendation graphs =======================================
 
 (def-struct rg dex-node nodes edges-recommended)
 
