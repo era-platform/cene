@@ -285,7 +285,7 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                 sinkNameQualify(
                     mkConstructorOccurrence.ofNow(
                         strName ).getName() );
-            var repMainTagName = [ "n:main-core", sourceMainTagName ];
+            var repMainTagName = [ "n:main-core", name ];
             var constructorTagName =
                 sinkNameConstructorTagAlreadySorted(
                     repMainTagName, [] );
