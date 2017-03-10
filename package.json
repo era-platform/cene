@@ -12,7 +12,7 @@
     "npm": ">= 1.0.0"
   },
   "dependencies": {
-    "argparse": "*",
+    "argparse": "^1.0.9",
     "uglify-js": "^2.8.10"
   },
   "scripts": {
