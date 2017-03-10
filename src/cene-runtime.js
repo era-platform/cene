@@ -5022,7 +5022,7 @@ function usingFuncDefNs( funcDefNs ) {
             return jsStr.replace( /[\\^$.|?*+()[\]{}]/g, "\\$&" );
         }
         function escRegexSet( jsStr ) {
-            return jsStr.replace( /[\\^-[\]]/g, "\\$&" );
+            return jsStr.replace( /[\\^\-[\]]/g, "\\$&" );
         }
         
         fun( "regex-from-string", function ( rt, string ) {
