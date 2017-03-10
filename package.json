@@ -23,6 +23,8 @@
     "/buildlib/lathe.js",
     "/buildlib/lathe-fs.js",
     "/lib-cene/big.cene",
+    "/lib-cene/chops.cene",
+    "/lib-cene/js.cene",
     "/lib-cene/lens.cene",
     "/lib-cene/precedence.cene",
     "/lib-cene/quasiquote.cene",
