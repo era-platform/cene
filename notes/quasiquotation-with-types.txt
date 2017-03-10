@@ -139,7 +139,7 @@ Er, let's try that again with a more pseudocodey syntax:
 
   lq inner-n outer-n = Start letting ($label inner-n) be ($label outer-n).
 
-Cene's prelude-quasiquote.cene currently uses a much more complicated semantics. Instead of `wq` labeling the place it's used, it labels the current quasiquotation level itself (established at the most recent `qq`), and an `rq` only unwinds just far enough to get to that quasiquotation level (usually unwinding to a point just before the next `qq`). Maybe we could actually model this using an expressive type theory on top of this system, but it was probably a mistake.
+Cene's quasiquote.cene currently uses a much more complicated semantics. Instead of `wq` labeling the place it's used, it labels the current quasiquotation level itself (established at the most recent `qq`), and an `rq` only unwinds just far enough to get to that quasiquotation level (usually unwinding to a point just before the next `qq`). Maybe we could actually model this using an expressive type theory on top of this system, but it was probably a mistake.
 
 -----
 

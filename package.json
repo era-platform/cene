@@ -1,6 +1,6 @@
 {
   "name": "cene",
-  "version": "0.0.34",
+  "version": "0.0.35",
   "description": "A programming language for metacircular compilers on the JavaScript platform.",
   "homepage": "https://github.com/era-platform/cene",
   "author": {
@@ -22,7 +22,10 @@
   "files": [
     "/buildlib/lathe.js",
     "/buildlib/lathe-fs.js",
+    "/lib-cene/big.cene",
+    "/lib-cene/lens.cene",
     "/lib-cene/precedence.cene",
+    "/lib-cene/quasiquote.cene",
     "/lib-cene/reader.cene",
     "/src/cene-api.js",
     "/src/cene-quiner.js",
@@ -31,7 +34,6 @@
     "/src/era-misc.js",
     "/src/era-misc-strmap-avl.js",
     "/src/era-reader.js",
-    "/src/prelude-quasiquote.cene",
     "/src/prelude-util.cene",
     "/cene.js",
     "/LICENSE.txt",
