@@ -15,6 +15,7 @@ Options:
   -i, --in dir           A directory to use as input.
   -b, --build dir        A directory to hold internal results.
   -o, --out dir          A directory where files will be overwritten.
+  -m, --minify           Minify any generated JavaScript files.
   -c, --command command  A command run whenever the build is complete.
   -w, --watch            Keep running builds whenever inputs change.
 

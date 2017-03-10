@@ -7,6 +7,7 @@ var fs = require( "fs" );
 var $path = require( "path" );
 
 var argparse = require( "argparse" );
+var uglify = require( "uglify-js" );
 
 var _ = require( "./buildlib/lathe" );
 var ltf = require( "./buildlib/lathe-fs" );
@@ -59,7 +60,8 @@ function jsJsn( x ) {
 
 
 function runCeneSync(
-    files, testFiles, displayTimeInfo, cliArgs, inRoot, outRoot ) {
+    files, testFiles, displayTimeInfo, cliArgs, inRoot, outRoot,
+    shouldMinify ) {
     
     if ( inRoot !== null && outRoot !== null ) (function () {
         function check( lineage, other ) {
@@ -106,7 +108,6 @@ function runCeneSync(
         "    sinkNsRoot: sinkNsRoot,\n" +
         "    getFunctionImplementationCexprByFlatTag:\n" +
         "        getFunctionImplementationCexprByFlatTag,\n" +
-        "    cexprToSloppyJsCode: cexprToSloppyJsCode,\n" +
         "    rootQualify: rootQualify,\n" +
         "    usingFuncDefNs: usingFuncDefNs,\n" +
         "    ceneApiUsingFuncDefNs: ceneApiUsingFuncDefNs\n" +
@@ -196,10 +197,70 @@ function runCeneSync(
     
     var namespaceDefs = $cene.jsnMap();
     
-    function cexprToCode( cexpr, hasConstructor ) {
+    
+    function runUglifyMinifier( code ) {
+        var ast = uglify.parse( code, {
+            bare_returns: true
+        } );
+        ast.figure_out_scope();
+        ast.compute_char_frequency();
+        ast.mangle_names();
+        ast = ast.transform( uglify.Compressor( {
+            warnings: false
+            
+            // TODO: See if we can add some of these other options.
+            // These were the settings for Penknife compilation in the
+            // main Era project (except for `pure_funcs`, which had
+            // some entries there), but they seem to break things
+            // here.
+/*
+            sequences: true,
+            properties: true,
+            dead_code: true,
+            drop_debugger: false,
+            
+            unsafe: true,
+            
+            conditionals: true,
+            comparisons: true,
+            evaluate: true,
+            booleans: true,
+            loops: true,
+            unused: true,
+            hoist_funs: false,
+            hoist_vars: false,
+            if_return: true,
+            join_vars: true,
+            cascade: true,
+            warnings: false,
+            negate_iife: true,
+            pure_getters: true,
+            
+            // TODO: See if we have anything to add here.
+            pure_funcs: [],
+            
+            drop_console: false
+*/
+        } ) );
+        var stream = uglify.OutputStream( {
+            max_line_len: 1 / 0
+        } );
+        ast.print( stream );
+        return stream.toString();
+    }
+    
+    var runDesiredMinifier = shouldMinify ? runUglifyMinifier :
+        function ( code ) {
+            return code;
+        };
+    
+    
+    function cexprToCode( cexpr, getConstructor ) {
         return "function ( rt ) {\n" +
-            "return " + cexpr.toJsCode( hasConstructor
-            ).toInstantiateExpr( {
+            "return " + cexpr.toJsCode( {
+                getConstructor: getConstructor,
+                minify: runDesiredMinifier
+            } ).toInstantiateExpr( {
                 rt: "rt",
                 SinkStruct: "SinkStruct",
                 SinkFn: "SinkFn",
@@ -211,18 +272,25 @@ function runCeneSync(
                 sinkErr: "sinkErr",
                 macLookupRet: "macLookupRet",
                 macLookupThen: "macLookupThen"
-            } ) + ";\n" +
+            }, runDesiredMinifier ) + ";\n" +
         "}";
     }
     
     function makeQuine( topLevelVars, quine ) {
-        return (
-            "\"strict mode\";\n" +
+        return runDesiredMinifier(
+            "\"use strict\";\n" +
             "(function ( topLevelVars ) {\n" +
             "\n" +
-            "var quine = " + _.jsStr( quine ) + ";\n" +
-            "Function( \"quine\", \"topLevelVars\", " +
-                "quine )( quine, topLevelVars );\n" +
+            "var quine = " +
+                _.jsStr(
+                    runDesiredMinifier(
+                        "\"use strict\";\n" +
+                        "return function ( " +
+                            "quine, topLevelVars ) {\n" +
+                        quine + "\n" +
+                        "};\n"
+                    ) ) + ";\n" +
+            "Function( quine )()( quine, topLevelVars );\n" +
             "\n" +
             "})( {\n" +
             $cene.arrMap( topLevelVars, function ( va ) {
@@ -387,7 +455,7 @@ function runCeneSync(
                     "\n" +
                     "quinerCallWithSyncJavaScriptMode( " +
                         cexprToCode( cexpr, function ( constructor ) {
-                            return true;
+                            return constructor;
                         } ) + " );\n";
                 
                 return makeQuine( topLevelVars, quine );
@@ -399,12 +467,29 @@ function runCeneSync(
                 var constructorsToVisit = [];
                 var constructorImpls = $cene.strMap();
                 var casesToVisit = [];
+                var nextMinifiedMainTagNameNumber = 0;
                 
                 var visitor = {};
                 visitor.addConstructor = function ( flatTag ) {
                     if ( constructorsSeen.has( flatTag ) )
                         return;
-                    constructorsSeen.add( flatTag );
+                    
+                    constructorsSeen.set( flatTag, flatTag );
+                    if ( shouldMinify ) {
+                        var parsed = JSON.parse( flatTag );
+                        var mainTagName = parsed[ 0 ];
+                        if ( mainTagName[ 0 ] !== "n:main-core" ) {
+                            constructorsSeen.set( flatTag,
+                                JSON.stringify( [
+                                    "" + nextMinifiedMainTagNameNumber,
+                                    _.arrMap( parsed[ 1 ], function ( ignored, i ) {
+                                        return "" + i;
+                                    } )
+                                ] ) );
+                            nextMinifiedMainTagNameNumber++;
+                        }
+                    }
+                    
                     constructorsToVisit.push( flatTag );
                     casesToVisit = $cene.arrKeep( casesToVisit,
                         function ( caseToVisit ) {
@@ -431,7 +516,6 @@ function runCeneSync(
                     if ( constructorsToVisit.length === 0 )
                         break;
                     var flatTag = constructorsToVisit.shift();
-                    var parsedTag = JSON.parse( flatTag );
                     var implCexpr =
                         $cene.getFunctionImplementationCexprByFlatTag(
                             namespaceDefs, funcDefNs, flatTag );
@@ -465,11 +549,13 @@ function runCeneSync(
                     
                     quine +=
                         "quinerAddFuncDef( " +
-                            _.jsStr( flatTag ) + ", " +
+                            _.jsStr(
+                                constructorsSeen.get( flatTag ) ) +
+                            ", " +
                             cexprToCode( cexpr,
                                 function ( constructor ) {
                                 
-                                return constructorsSeen.has(
+                                return constructorsSeen.get(
                                     constructor );
                             } ) + " );\n";
                 } );
@@ -481,7 +567,7 @@ function runCeneSync(
                     "\n" +
                     "quinerCallWithSyncJavaScriptMode( " +
                         cexprToCode( cexpr, function ( constructor ) {
-                            return constructorsSeen.has(
+                            return constructorsSeen.get(
                                 constructor );
                         } ) + " );\n";
                 
@@ -543,7 +629,8 @@ exports.runCeneSync = function ( files, opt_opts ) {
     var opts = _.opt( opt_opts ).or( {
         args: [],
         in: null,
-        out: null
+        out: null,
+        minify: false
     } ).bam();
     
     if ( !(_.likeArray( files )
@@ -560,9 +647,11 @@ exports.runCeneSync = function ( files, opt_opts ) {
         throw new Error();
     if ( !(opts.out === null || typeof opts.out === "string") )
         throw new Error();
+    if ( typeof opts.minify !== "boolean" )
+        throw new Error();
     
     runCeneSync( files, [], !"displayTimeInfo",
-        opts.args, opts.in, opts.out );
+        opts.args, opts.in, opts.out, opts.minify );
 };
 
 
@@ -583,6 +672,10 @@ argParser.addArgument( [ "-i", "--in" ], {
 argParser.addArgument( [ "-o", "--out" ], {
     action: "store",
     help: "The file path to use as output, if any."
+} );
+argParser.addArgument( [ "-m", "--minify" ], {
+    action: "storeTrue",
+    help: "Minify any generated JavaScript files."
 } );
 argParser.addArgument( [ "file" ], {
     nargs: "?",
@@ -683,7 +776,7 @@ if ( args.test_cene ) tasks.push( function ( then ) {
     var anyTestFailed =
         runCeneSync( preludeFiles,
             [ "lib-cene/quasiquote.cene", "test/test.cene" ],
-            !!"displayTimeInfo", [], null, null );
+            !!"displayTimeInfo", [], null, null, !"shouldMinify" );
     
     if ( anyTestFailed )
         shouldExitWithErrorCode = true;
@@ -696,7 +789,8 @@ if ( args.test_cene ) tasks.push( function ( then ) {
 if ( args.file !== null ) tasks.push( function ( then ) {
     var anyTestFailed =
         runCeneSync( preludeFiles.concat( [ args.file ] ), [],
-            !!"displayTimeInfo", args.args, args.in, args.out );
+            !!"displayTimeInfo", args.args, args.in, args.out,
+            args.minify );
     
     if ( anyTestFailed )
         shouldExitWithErrorCode = true;
