@@ -4,7 +4,7 @@
 
 [![Travis build](https://travis-ci.org/era-platform/cene.svg?branch=master)](https://travis-ci.org/era-platform/cene)
 
-[Run some Cene code in your browser, logging to the console.](https://era-platform.github.io/era-cene/demos/cene.html)
+[Run some Cene code in your browser, logging to the console.](https://era-platform.github.io/cene/demos/cene.html)
 
 [Run some reader unit tests in your browser, logging to the console.](https://era-platform.github.io/cene/demos/unit-tests.html)
 
