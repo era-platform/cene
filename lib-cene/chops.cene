@@ -1,0 +1,889 @@
+\= chops.cene
+\= Copyright 2016, 2017 Ross Angle. Released under the MIT License.
+
+
+
+\= ===== General-purpose utilities ===================================
+
+\= TODO: See if we should factor out these general-purpose utilities
+\= into a different file.
+
+
+(defn pass-to arg func
+  (c func arg))
+
+(def-macro uniq-dexable
+  home-scope caller-scope my-stx-details args then
+  (cast args nil
+    err.\;qq[Called uniq-dexable with more than zero arguments]
+  /basic-pure-macro home-scope caller-scope my-stx-details then
+  /fn mode caller-scope s mac
+  /cast caller-scope
+    scope caller-unique-ns caller-def-ns caller-qualify
+    err.\;qq[Internal error]
+  /let main-tag-name
+    (procure-name mode /ns-get str.main-tag-name caller-unique-ns)
+  /c mac str.dexable /list
+    (c mac str.dex-by-cline /list
+    /c s /foreign/obtain-directly/cexpr-cline-struct main-tag-name
+    /list)
+    (c s /foreign/obtain-directly/cexpr-construct main-tag-name
+    /list)))
+
+(def-macro uniq-name home-scope caller-scope my-stx-details args then
+  (cast args nil
+    err.\;qq[Called uniq-name with more than zero arguments]
+  /basic-pure-macro home-scope caller-scope my-stx-details then
+  /fn mode caller-scope s mac
+  /c mac str.name-of /list/c mac str.uniq-dexable /list))
+
+(defn augment-stx-details stx-details orig
+  (cast orig stx orig-stx-details orig-expr
+    err.\;qq[Expected an orig that was a stx]
+  /stx (stx-details-join stx-details orig-stx-details) orig-expr))
+
+(defn is-proper-list list
+  (case list
+    nil (yep/nil)
+    cons - rest is-proper-list.rest
+  /nope/nil))
+
+(defn int-compare a b
+  (cast (call-cline (cline-int/nil) a b) yep result
+    err.\;qq[Expected two integers]
+    result))
+
+
+\= TODO: See if we'll use this.
+(defn regex-or a b
+  (regex-if a (regex-empty/nil) b))
+
+\= TODO: See if we'll use this.
+(defn regex-seq a b
+  (regex-if a b /regex-give-up/nil))
+
+(defn regex-not regex
+  (regex-if regex (regex-give-up/nil) (regex-empty/nil)))
+
+(defn regex-lookahead regex
+  (regex-not/regex-not regex))
+
+\= TODO: See if we'll use this.
+(defn unicode-scalar string
+  (string-get-unicode-scalar string /int-zero/nil))
+
+\= TODO: See if we'll use this.
+(defn regex-range a b
+  (regex-one-in-range unicode-scalar.a unicode-scalar.b))
+
+(defn regex-match-later regex string start then
+  (optimize-regex-later regex /fn optimized-regex
+  /optimized-regex-match-later
+    optimized-regex string start string-length.string then))
+
+
+(defn string-cut-both-later string i then
+  (string-cut-later string (int-zero/nil) i /fn before
+  /string-cut-later string i string-length.string /fn after
+  /c then before after))
+
+
+(defn istring-first-string istring
+  (case istring
+    istring-nil string string
+    istring-cons prefix interpolation rest prefix
+    err.\;qq[
+      Expected an istring that was an istring-nil or an
+      istring-cons]))
+
+(defn istring-replace-first-string istring new-string
+  (case istring
+    
+    istring-nil string istring-nil.new-string
+    
+    istring-cons prefix interpolation rest
+    (istring-cons new-string interpolation rest)
+    
+    err.\;qq[
+      Expected an istring that was an istring-nil or an
+      istring-cons]))
+
+
+\= TODO: See if we'll use this.
+(defn int-plus a b
+  (call-fuse (fuse-int-by-plus/nil) a b))
+
+
+(defn procure-sub-ns name ns
+  (proj1 yep /table-get name
+  /procure-sub-ns-table (table-shadow name (yep/nil) /table-empty/nil)
+    ns))
+
+(defn getdef-get mode getdef
+  (cast getdef getdef get def
+    err.\;qq[Expected a getdef that was a getdef]
+  /c get mode))
+
+(defn getdef-def-val getdef val
+  (cast getdef getdef get def
+    err.\;qq[Expected a getdef that was a getdef]
+  /definer-define def (dex-give-up/nil) val))
+
+
+\= TODO: See if we'll use this.
+(defn str-^-qq-- s contents
+  (c s /list (c s /istring-nil str.^)
+  /c s /list (c s /istring-nil str.qq)
+  /c s /list (c s /istring-nil str.-) contents))
+
+\= TODO: See if we'll use this.
+(defn str-^-uq-- s contents
+  (c s /list (c s /istring-nil str.^)
+  /c s /list (c s /istring-nil str.uq)
+  /c s /list (c s /istring-nil str.-) contents))
+
+(defn scope-spread-later scope list combine-later then
+  (case list
+    
+    nil (c-later then /nil)
+    
+    cons first rest
+    (c combine-later (scope-get str.first scope) first /fn first
+    /scope-spread-later (scope-get str.rest scope) rest
+      combine-later
+    /fn rest
+    /c then /cons first rest)
+    
+    err.\;qq[Expected a list that was a nil or a cons]))
+
+(defn istring-scope-spread-later scope istring combine-later then
+  (case istring
+    
+    istring-nil - (c-later then istring)
+    
+    istring-cons prefix interpolation rest
+    (c combine-later (scope-get str.first scope) interpolation
+    /fn interpolation
+    /istring-scope-spread-later (scope-get str.rest scope) rest
+      combine-later
+    /fn rest
+    /c then /istring-cons prefix interpolation rest)
+    
+    err.\;qq[
+      Expected an istring that was an istring-nil or an
+      istring-cons]))
+
+(defn istring-map istring func
+  (case istring
+    
+    istring-nil - istring
+    
+    istring-cons prefix interpolation rest
+    (istring-cons prefix (c func interpolation)
+    /istring-map rest func)
+    
+    err.\;qq[
+      Expected an istring that was an istring-nil or an
+      istring-cons]))
+
+\= TODO: See if we'll use these free monad operations.
+(def-struct free-monad-computation func)
+(def-struct monad-ops done seq)
+
+(defn free-monad-done result
+  (free-monad-computation/fn monad-ops
+  /cast monad-ops monad-ops done seq
+    err.\;qq[Expected a monad-ops that was a monad-ops]
+  /c done result))
+
+(defn free-monad-seq first second
+  (cast first free-monad-computation first
+    err.\;qq[Expected a first that was a free-monad-computation]
+  /free-monad-computation/fn monad-ops
+  /cast monad-ops monad-ops done seq
+    err.\;qq[Expected a monad-ops that was a monad-ops]
+  /c seq (c first monad-ops) /fn first-result
+  /cast first-result free-monad-computation first-result
+    err.\;qq[
+      Expected a first-result that was a free-monad-computation]
+  /c first-result monad-ops))
+
+
+
+\= ===== The Chops markup macro system ===============================
+
+
+\= TODO: Avoid using `to-located` and `from-located` whenever
+\= possible. They almost always indicate sloppiness in the tracking of
+\= source locations.
+
+(defn to-located expr
+  (stx (stx-details-empty/nil) /pass-to expr /fix/fn process-rest expr
+    (case expr
+      
+      foreign - expr
+      
+      nil expr
+      
+      cons first rest (cons to-located.first /c process-rest rest)
+      
+      istring-nil - expr
+      
+      istring-cons prefix interpolation rest
+      (istring-cons prefix to-located.interpolation
+      /c process-rest rest)
+      
+      err.\;qq[Expected an expr that was an s-expression])))
+
+(defn from-located expr
+  (cast expr stx - expr
+    err.\;qq[Expected an expr that was a stx]
+  /pass-to expr /fix/fn process-rest expr
+    (case expr
+      
+      foreign - expr
+      
+      nil expr
+      
+      cons first rest (cons from-located.first /c process-rest rest)
+      
+      istring-nil - expr
+      
+      istring-cons prefix interpolation rest
+      (istring-cons prefix from-located.interpolation
+      /c process-rest rest)
+      
+      err.\;qq[Expected an expr that was an s-expression])))
+
+
+(def-struct parse-chops-result closed-stack chops opened-stack)
+
+\= This parses an istring to match its `[` and `]` brackets. It
+\= asynchronously results in a list (from left to right) of nested
+\= interpolated strings that have been closed by unmatched `]`,
+\= another nested interpolated string, and a list (from left to right)
+\= of nested interpolated strings that have been opened by unmatched
+\= `[`. Interpolations in the original string are wrapped in
+\= `(foreign ...)` so that they're distinguishable from bracket
+\= nesting.
+\=
+(defn parse-chops-later istring then
+  (let string istring-first-string.istring
+  /regex-match-later
+    (regex-until (regex-one/nil)
+    /regex-lookahead/regex-one-in-string str.\;qq[\<`\>])
+    string
+    (int-zero/nil)
+  /fn regex-result
+  /case regex-result
+    
+    regex-result-passed-end
+    (cast istring istring-cons prefix interpolation rest
+      (c then /parse-chops-result (list) istring (list))
+    /parse-chops-later rest /fn parse-chops-result
+    /c then
+    /cast parse-chops-result
+      parse-chops-result closed-stack chops opened-stack
+      err.\;qq[Internal error]
+    /cast closed-stack cons leftmost-closed rest-closed
+      (parse-chops-result
+        (list)
+        (istring-cons prefix foreign.interpolation chops)
+        opened-stack)
+    /parse-chops-result
+      (cons
+        (istring-cons prefix foreign.interpolation leftmost-closed)
+        rest-closed)
+      chops
+      opened-stack)
+    
+    regex-result-matched stop
+    (string-cut-both-later string stop /fn before after
+    /string-cut-both-later after (int-one/nil) /fn during after
+    /parse-chops-later (istring-replace-first-string istring after)
+    /fn parse-chops-result
+    /c then
+    /cast parse-chops-result
+      parse-chops-result closed-stack chops opened-stack
+      err.\;qq[Internal error]
+    /case (string-metacompare during str.\;qq[\>]) nil
+      (parse-chops-result
+        (cons istring-nil.before closed-stack)
+        chops
+        opened-stack)
+    /cast closed-stack cons leftmost-closed rest-closed
+      (parse-chops-result
+        (list)
+        istring-nil.before
+        (cons chops opened-stack))
+    /cast rest-closed cons leftmost-closed-2 rest-closed
+      (parse-chops-result
+        (list)
+        (istring-cons before leftmost-closed chops)
+        opened-stack)
+    /parse-chops-result
+      (cons (istring-cons before leftmost-closed leftmost-closed-2)
+        rest-closed)
+      chops
+      opened-stack)
+    
+    regex-result-failed
+    err.\;qq[Internal error]
+    
+    err.\;qq[Internal error]))
+
+(def-struct chops-macro-call macro-name-string body-istring)
+
+\= This parses an interpolated string to produce a macro call
+\= consisting of a string as the macro name and an interpolated string
+\= as the macro body. The macro name is obtained by finding zero or
+\= more characters at the start of the string other than space, tab,
+\= carriage return, and newline. The macro body is obtained by
+\= removing the macro name and left-trimming the remainder of its
+\= space, tab, carriage return, and newline characters.
+\=
+(defn parse-chops-macro-call-later istring then
+  (let string istring-first-string.istring
+  /let regex-whitespace (regex-one-in-string str.\;qq[\s`\t`\r`\n])
+  /regex-match-later
+    (regex-until (regex-one/nil) /regex-lookahead regex-whitespace)
+    string
+    (int-zero/nil)
+  /fn regex-result
+  /case regex-result
+    
+    regex-result-passed-end
+    (case istring
+      
+      istring-nil string
+      (c then /chops-macro-call string /istring-nil str.\;qq[])
+      
+      istring-cons prefix interpolation rest
+      (c then /chops-macro-call prefix
+      /istring-cons str.\;qq[] interpolation rest)
+      
+      err.\;qq[Internal error])
+    
+    regex-result-matched stop
+    (string-cut-both-later string stop /fn before after
+    /regex-match-later
+      (regex-until (regex-one/nil) /regex-not regex-whitespace)
+      after
+      (int-zero/nil)
+    /fn regex-result
+    /cast regex-result regex-result-matched next-stop
+      err.\;qq[Internal error]
+    /string-cut-later after next-stop string-length.after /fn after
+    /c then /chops-macro-call before
+    /istring-replace-first-string istring after)
+    
+    regex-result-failed
+    err.\;qq[Internal error]
+    
+    err.\;qq[Internal error]))
+
+(defn string-ltrim-later string regex then
+  (regex-match-later (regex-while regex /regex-empty/nil) string
+    (int-zero/nil)
+  /fn regex-result
+  /case regex-result
+    
+    regex-result-matched stop
+    (string-cut-later string stop string-length.string then)
+    
+    regex-result-passed-end
+    (c-later then str.\;qq[])
+    
+    regex-result-failed
+    err.\;qq[Internal error]
+    
+    err.\;qq[Internal error]))
+
+(defn istring-ltrim-later istring regex then
+  (string-ltrim-later istring-first-string.istring regex /fn string
+  /c then /istring-replace-first-string istring string))
+
+(defn string-rtrim-later string regex then
+  (let get-next-stop-later
+    (fn i regex then
+      (regex-match-later regex string i /fn regex-result
+      /case regex-result
+        
+        regex-result-matched stop
+        (c then stop)
+        
+        regex-result-passed-end
+        (c then /string-length string)
+        
+        regex-result-failed
+        err.\;qq[Internal error]
+        
+        err.\;qq[Internal error]))
+  /let loop
+    (fix/fn loop i
+      (c get-next-stop-later i
+        (regex-until (regex-one/nil) /regex-lookahead regex)
+      /fn i2
+      /c get-next-stop-later i2 (regex-while regex /regex-empty/nil)
+      /fn i3
+      /case (int-compare i3 /string-length string) nil
+        (string-cut-later string (int-zero/nil) i2 then)
+      /c loop i3))
+  /c loop /int-zero/nil))
+
+(defn istring-rtrim-later istring regex then
+  (case istring
+    
+    istring-nil string
+    (string-rtrim-later string regex /fn string
+    /c then /istring-nil string)
+    
+    istring-cons prefix interpolation rest
+    (istring-rtrim-later rest regex /fn rest
+    /c then /istring-cons prefix interpolation rest)
+    
+    err.\;qq[
+      Expected an istring that was an istring-nil or an
+      istring-cons]))
+
+(defn istring-trim-later istring regex then
+  (istring-ltrim-later istring regex /fn istring
+  /istring-rtrim-later istring regex then))
+
+(defn string-split-later string regex then
+  (let loop
+    (fix/fn loop rev-results i
+      (regex-match-later
+        (regex-until (regex-one/nil) /regex-lookahead regex)
+        string
+        i
+      /fn regex-result
+      /case regex-result
+        
+        regex-result-matched stop
+        (string-cut-later string i stop /fn result
+        /regex-match-later regex string stop /fn regex-result
+        /cast regex-result regex-result-matched stop
+          err.\;qq[Internal error]
+        /c loop (cons result rev-results) stop)
+        
+        regex-result-passed-end
+        (string-cut-later string i string-length.string /fn result
+        /c then /rev/cons result rev-results)
+        
+        regex-result-failed
+        err.\;qq[Internal error]
+        
+        err.\;qq[Internal error]))
+  /c loop (list) /int-zero/nil))
+
+(defn istring-split-later istring regex then
+  (case istring
+    
+    istring-nil string
+    (string-split-later string regex /fn strings
+    /c then /map strings /fn string istring-nil.string)
+    
+    istring-cons prefix interpolation rest
+    (string-split-later prefix regex /fn prefix-strings
+    /istring-split-later rest regex /fn rest-istrings
+    /cast rev.prefix-strings
+      cons last-prefix-string rev-prefix-strings
+      err.\;qq[Internal error]
+    /cast rest-istrings cons first-rest-istring rest-istrings
+      err.\;qq[Internal error]
+    /c then /rev-append
+      (map rev-prefix-strings /fn string istring-nil.string)
+    /cons
+      (istring-cons
+        last-prefix-string interpolation first-rest-istring)
+      rest-istrings)
+    
+    err.\;qq[
+      Expected an istring that was an istring-nil or an
+      istring-cons]))
+
+(defn chops-trim-later istring then
+  (istring-trim-later istring
+    (regex-one-in-string str.\;qq[\s`\t`\r`\n])
+    then))
+
+(defn chops-split-and-trim-later istring then
+  (istring-split-later istring (regex-from-string str.\;qq[|])
+  /fn istrings
+  /map-later istrings (chops-trim-later) then))
+
+(def-struct chops-macro-occurrence string)
+
+(def-struct chops-macro-ns)
+
+(defn chops-macro-getdef macro-name scope
+  (cast scope scope unique-ns def-ns qualify
+    err.\;qq[Expected a scope that was a scope]
+  /procure-contributed-element-getdef
+    (procure-sub-ns macro-name
+    /procure-sub-ns
+      (name-of/dexable dex-struct.chops-macro-ns /chops-macro-ns)
+      def-ns)
+    (name-of/dexable (dex-string/nil) str.\;qq[val])))
+
+(defn located-chops-macroexpand-later scope istring then
+  (cast scope scope unique-ns def-ns qualify
+    err.\;qq[Expected a scope that was a scope]
+  /parse-chops-macro-call-later from-located.istring /fn call
+  /cast call chops-macro-call macro body
+    err.\;qq[Internal error]
+  /get-mode/fn mode
+  /c
+    (getdef-get mode /chops-macro-getdef
+      (c qualify /name-of/dexable
+        (dex-struct chops-macro-occurrence /dex-string/nil)
+      /chops-macro-occurrence macro)
+      scope)
+    \= TODO: Instead of using `stx-details-empty`, use a custom syntax
+    \= details value based on the interpolated string's syntax details
+    \= and the macro name's syntax details. This will mean the
+    \= interpolated string has to be a located s-expression.
+    scope (stx-details-empty/nil) to-located.body then))
+
+(def-macro def-chops-macro
+  home-scope caller-scope my-stx-details args then
+  
+  (cast args cons macro-name fn-body
+    err.\;qq[Called def-chops-macro with fewer than one argument]
+  /cast
+    (stx-to-maybe-name caller-scope macro-name /fn string
+      (name-of/dexable
+        (dex-struct chops-macro-occurrence /dex-string/nil)
+      /chops-macro-occurrence string))
+    yep macro-name
+    err.\;qq[
+      Called def-chops-macro with a macro name that wasn't a syntactic
+      name]
+  /basic-nil-macro home-scope caller-scope my-stx-details then
+  /fn caller-scope s mac
+  /get-mode/fn mode /let mac (c mac mode)
+  /compile-expression-later (scope-get str.compile-fn caller-scope)
+    (c mac str.fn fn-body)
+  /fn func
+  /get-mode/fn mode
+  /getdef-def-val (chops-macro-getdef macro-name caller-scope)
+  /c (eval-cexpr mode func) /scope-get str.home caller-scope))
+
+
+(def-struct free-chopsrun func)
+(def-struct chopsrun-ops from-string from-interpolation join)
+
+(defn chopsrun-from-string string
+  (free-chopsrun/fn chopsrun-ops
+  /cast chopsrun-ops chopsrun-ops from-string from-interpolation join
+    err.\;qq[Expected a chopsrun-ops that was a chopsrun-ops]
+  /c from-string string))
+
+(defn chopsrun-from-interpolation interpolation
+  (free-chopsrun/fn chopsrun-ops
+  /cast chopsrun-ops chopsrun-ops from-string from-interpolation join
+    err.\;qq[Expected a chopsrun-ops that was a chopsrun-ops]
+  /c from-interpolation interpolation))
+
+(defn chopsrun-join a b
+  (cast a free-chopsrun a
+    err.\;qq[Expected an a that was a free-chopsrun]
+  /cast b free-chopsrun b
+    err.\;qq[Expected a b that was a free-chopsrun]
+  /free-chopsrun/fn chopsrun-ops
+  /cast chopsrun-ops chopsrun-ops from-string from-interpolation join
+    err.\;qq[Expected a chopsrun-ops that was a chopsrun-ops]
+  /c join (c a chopsrun-ops) (c b chopsrun-ops)))
+
+(defn chopsrun-from-nonfree nonfree
+  (free-chopsrun/fn - nonfree))
+
+(defn compile-chops-to-expr-later s mac scope chops then
+  (cast chops stx chops-stx-details chops
+    err.\;qq[Expected a chops that was a located s-expression]
+  /istring-scope-spread-later scope chops
+    (fn scope located-interpolation then
+      (cast located-interpolation
+        stx interpolation-stx-details interpolation
+        err.\;qq[Expected a chops that was a located s-expression]
+      /case interpolation foreign expr
+        (get-mode/fn mode /let mac (c mac mode)
+        /compile-expression-later scope
+          (c mac str.chopsrun-from-interpolation /list expr)
+        /fn cexpr
+        /c then /cexpr-located interpolation-stx-details cexpr)
+        (located-chops-macroexpand-later scope located-interpolation
+          then)))
+  /fn chops
+  /get-mode/fn mode /c then /let mac (c mac mode)
+  /augment-stx-details chops-stx-details
+  /pass-to chops /fix/fn loop chops
+    (case chops
+      
+      istring-nil string
+      (c mac str.chopsrun-from-string /list
+      /c mac str.str /list/c s /istring-nil string)
+      
+      istring-cons prefix interpolation rest
+      (c mac str.chopsrun-join /list
+        (c mac str.chopsrun-from-string /list
+        /c mac str.str /list/c s /istring-nil prefix)
+      /c mac str.chopsrun-join /list
+        (c s /foreign/obtain-directly interpolation)
+      /c loop rest)
+      
+      err.\;qq[
+        Expected an istring that was an istring-nil or an
+        istring-cons])))
+
+(defn parse-located-chops-force-later istring then
+  (cast istring stx stx-details istring
+    err.\;qq[Expected an istring that was a stx]
+  /parse-chops-later istring /fn parse-chops-result
+  /cast parse-chops-result
+    parse-chops-result closed-stack chops opened-stack
+    err.\;qq[Internal error]
+  /cast closed-stack nil
+    err.\;qq[Unmatched \>]
+  /cast opened-stack nil
+    err.\;qq[Unmatched \<]
+  /c then /augment-stx-details stx-details /to-located chops))
+
+(def-macro chops home-scope caller-scope my-stx-details args then
+  (cast args cons istring args
+    err.\;qq[Called chops with fewer than one argument]
+  /cast args nil
+    err.\;qq[Called chops with more than one argument]
+  /parse-located-chops-force-later istring /fn chops
+  /basic-macro home-scope caller-scope my-stx-details then
+  /fn caller-scope s mac then
+  /compile-chops-to-expr-later s mac caller-scope chops then))
+
+
+(defn compile-chops-constant-later
+  home-scope caller-scope my-stx-details chops err-fn constant then
+  
+  (chops-trim-later from-located.chops /fn trimmed
+  /cast trimmed istring-nil trimmed (c err-fn /nil)
+  /cast (string-metacompare trimmed str.\;qq[]) nil (c err-fn /nil)
+  /basic-pure-macro home-scope caller-scope my-stx-details then
+  /fn mode caller-scope s mac
+  /c mac str.chopsrun-from-string /list
+  /c mac str.str /list/c s /istring-nil constant))
+
+\= The Chops macro call `[']` becomes a `chopsrun-from-string` of the
+\= single-character string "|". The point is to allow "|" to be part
+\= of the text instead of being treated as a divider.
+(def-chops-macro \;qq[']
+  home-scope caller-scope my-stx-details chops then
+  
+  (compile-chops-constant-later home-scope caller-scope my-stx-details
+    chops
+    (fn -
+      err.\;qq[Called the | Chops macro without an empty body])
+    str.\;qq[|]
+    then))
+
+\= The Chops macro call `[:]` becomes a `chopsrun-from-string` of the
+\= empty string. The point is to act as a buffer so that the nearby
+\= whitespace on one side doesn't get trimmed.
+(def-chops-macro \;qq[:]
+  home-scope caller-scope my-stx-details chops then
+  
+  (compile-chops-constant-later home-scope caller-scope my-stx-details
+    chops
+    (fn -
+      err.\;qq[Called the : Chops macro without an empty body])
+    str.\;qq[]
+    then))
+
+\= The Chops macro call `[<]` becomes a `chopsrun-from-string` of the
+\= single-character string "[". Likewise, `[>]` corresponds to "]".
+(def-chops-macro \;qq[<]
+  home-scope caller-scope my-stx-details chops then
+  
+  (compile-chops-constant-later home-scope caller-scope my-stx-details
+    chops
+    (fn -
+      err.\;qq[Called the < Chops macro without an empty body])
+    str.\;qq[\<]
+    then))
+(def-chops-macro \;qq[>]
+  home-scope caller-scope my-stx-details chops then
+  
+  (compile-chops-constant-later home-scope caller-scope my-stx-details
+    chops
+    (fn -
+      err.\;qq[Called the < Chops macro without an empty body])
+    str.\;qq[\>]
+    then))
+
+\= The Chops macro that's an empty string is equivalent to a
+\= `chopsrun-from-string` of the single-character string "[", followed
+\= by the contents, followed by a `chopsrun-from-string` of the
+\= single-character string "]". This means it's usually convenient to
+\= write `[ ...]` or `[[:]...]` to mean the literal text `[...]`.
+(def-chops-macro \;qq[]
+  home-scope caller-scope my-stx-details chops then
+  
+  (basic-macro home-scope caller-scope my-stx-details then
+  /fn caller-scope s mac then
+  /compile-chops-to-expr-later s mac caller-scope chops /fn chops
+  /get-mode/fn mode /c then /let mac (c mac mode)
+  /c mac str.chopsrun-join /list
+    (c mac str.chopsrun-from-string /list
+    /c mac str.str /list/c s /istring-nil str.\;qq[\<])
+  /c mac str.chopsrun-join /list
+    chops
+    (c mac str.chopsrun-from-string /list
+    /c mac str.str /list/c s /istring-nil str.\;qq[\>])))
+
+\= The Chops macro call `[in ...]` is equivalent to its contents.
+(def-chops-macro in home-scope caller-scope my-stx-details chops then
+  (basic-macro home-scope caller-scope my-stx-details then
+  /fn caller-scope s mac then
+  /compile-chops-to-expr-later s mac caller-scope chops then))
+
+
+
+\= ===== Text variations =============================================
+
+
+(def-struct tvaryrun run)
+
+(defn tvary-proceeding name list
+  (cast is-proper-list.list yep -
+    err.\;qq[Expected a list that was a proper list]
+  /case list nil
+    err.\;qq[Expected a list that was a nonempty list]
+  /tvaryrun/fn state then
+    (later
+    /let old-list (case (table-get name state) yep list list list)
+    /cast old-list cons chosen-tvary rest
+      err.\;qq[
+        In the state of tvary-proceeding, expected a list that was a
+        nonempty proper list]
+    /let new-list
+      (case rest
+        nil old-list
+        cons - -b rest
+        err.\;qq[
+          In the state of tvary-proceeding, expected a list that was a
+          proper list])
+    /c (proj1 tvaryrun chosen-tvary)
+      (table-shadow name yep.new-list state)
+      then)))
+
+(defn tvary-cycling name list
+  (cast is-proper-list.list yep -
+    err.\;qq[Expected a list that was a proper list]
+  /case list nil
+    err.\;qq[Expected a list that was a nonempty list]
+  /tvaryrun/fn state then
+    (later
+    /let old-list (case (table-get name state) yep list list list)
+    /cast old-list cons chosen-tvary rest
+      err.\;qq[
+        In the state of tvary-cycling, expected a list that was a
+        nonempty proper list]
+    /let new-list
+      (case rest
+        nil list
+        cons - -b rest
+        err.\;qq[
+          In the state of tvary-cycling, expected a list that was a
+          proper list])
+    /c (proj1 tvaryrun chosen-tvary)
+      (table-shadow name yep.new-list state)
+      then)))
+
+(defn tvary-then tvary next
+  (tvaryrun/fn state then
+    (cast tvary tvaryrun tvary
+      err.\;qq[Expected a tvary that was a tvaryrun]
+    /c tvary state /fn result
+    /cast result folding state result
+      err.\;qq[Expected a tvary result that was a folding]
+    /cast (c next result) tvaryrun tvary
+      err.\;qq[Expected a next result that was a tvaryrun]
+    /c tvary state then)))
+
+(defn tvary-done result
+  (tvaryrun/fn state then
+    (c-later then /folding state result)))
+
+(defn tvary-later-done result-later
+  (tvaryrun/fn state then
+    (c result-later /fn result /c then /folding state result)))
+
+
+(defn run-chopsrun-tvary chopsrun
+  (cast chopsrun free-chopsrun chopsrun
+    err.\;qq[Expected a chopsrun that was a free-chopsrun]
+  /c chopsrun /chopsrun-ops
+    
+    \= from-string
+    (tvary-done)
+    
+    \= from-interpolation
+    (fn interpolation interpolation)
+    
+    \= join
+    (fn a b
+      (tvaryrun/fn state then
+        (cast a tvaryrun a
+          err.\;qq[Expected an a that was a tvaryrun]
+        /c a state /fn a-result
+        /cast a-result folding state a-result
+          err.\;qq[Expected an a-result that was a folding]
+        /cast b tvaryrun b
+          err.\;qq[Expected a b that was a tvaryrun]
+        /c b state /fn b-result
+        /cast b-result folding state b-result
+          err.\;qq[Expected a b-result that was a folding]
+        /string-append-later a-result b-result /fn result
+        /c then /folding state result)))))
+
+(defn compile-tvary-chops-to-expr-later s mac scope chops then
+  (compile-chops-to-expr-later s mac scope chops /fn chops
+  /get-mode/fn mode /c then /let mac (c mac mode)
+  /c mac str.run-chopsrun-tvary /list chops))
+
+(def-macro tvary home-scope caller-scope my-stx-details args then
+  (cast args cons istring args
+    err.\;qq[Called tvary with fewer than one argument]
+  /cast args nil
+    err.\;qq[Called tvary with more than one argument]
+  /parse-located-chops-force-later istring /fn chops
+  /basic-macro home-scope caller-scope my-stx-details then
+  /fn caller-scope s mac then
+  /compile-tvary-chops-to-expr-later s mac caller-scope chops then))
+
+(defn compile-tvary-cycler-later
+  home-scope caller-scope my-stx-details chops cycler-name then
+  
+  (chops-split-and-trim-later from-located.chops /fn chops-list
+  /basic-macro home-scope caller-scope my-stx-details then
+  /fn caller-scope s mac then
+  /scope-spread-later caller-scope chops-list
+    (fn scope chops then
+      (compile-tvary-chops-to-expr-later s mac scope to-located.chops
+        then))
+  /fn chops-list
+  /get-mode/fn mode /c then /let mac (c mac mode)
+  /c mac str.chopsrun-from-nonfree /list
+  /c mac cycler-name /list (c mac str.uniq-name /list)
+  /c mac str.list chops-list))
+
+(def-chops-macro cycle
+  home-scope caller-scope my-stx-details chops then
+  
+  (compile-tvary-cycler-later home-scope caller-scope my-stx-details
+    chops str.tvary-cycling then))
+
+(def-chops-macro proceed
+  home-scope caller-scope my-stx-details chops then
+  
+  (compile-tvary-cycler-later home-scope caller-scope my-stx-details
+    chops str.tvary-proceeding then))

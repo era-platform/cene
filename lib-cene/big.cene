@@ -31,7 +31,8 @@
     comparison))
 
 
-\= ===== "Fixnum operations," a generic interface for bigint digits ==
+\= ===== "Fixnum operations," a generic interface for bigint =========
+\= ===== digits ======================================================
 
 \= NOTE: Although they're separated into different sections, fixops
 \= and digpairs are actually interdependent.
