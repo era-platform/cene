@@ -1,5 +1,5 @@
-\= era-cene-prelude.cene
-\= Copyright 2015, 2016 Ross Angle. Released under the MIT License.
+\= prelude-util.cene
+\= Copyright 2015-2017 Ross Angle. Released under the MIT License.
 
 
 \= ===== Lists, boolean tags, and macro utilities ====================

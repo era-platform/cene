@@ -10,7 +10,7 @@
 ```
 (defn name-metacompare a b ...)
 ```
-(**TODO**: Figure out where to put this extensive documentation now that `name-metacompare` is implemented in era-cene-prelude.cene. It's not a built-in definition anymore.)
+(**TODO**: Figure out where to put this extensive documentation now that `name-metacompare` is implemented in prelude-util.cene. It's not a built-in definition anymore.)
 
 Compares two names. For inequal names, the result will be in a format user-level code does not know how to deconstruct. For equal names, the result will be (nil).
 

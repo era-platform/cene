@@ -1,5 +1,5 @@
-// era-cene-runtime.js
-// Copyright 2015, 2016 Ross Angle. Released under the MIT License.
+// cene-runtime.js
+// Copyright 2015-2017 Ross Angle. Released under the MIT License.
 //
 // This file implements the main Cene runtime and built-in operators.
 
@@ -6428,7 +6428,7 @@ function usingFuncDefNs( funcDefNs ) {
             topLevelTryExprsToMacLookupThreads,
         runTopLevelTryExprsSync: runTopLevelTryExprsSync,
         
-        // NOTE: These are only needed for era-cene-api.js.
+        // NOTE: These are only needed for cene-api.js.
         addPureMacro: addPureMacro,
         processDefStruct: processDefStruct,
         sinkConsListFromArray: sinkConsListFromArray,

@@ -88,8 +88,8 @@ function runCeneSync(
             "src/era-misc.js",
             "src/era-reader.js",
             "src/era-code-gen-js.js",
-            "src/era-cene-runtime.js",
-            "src/era-cene-api.js"
+            "src/cene-runtime.js",
+            "src/cene-api.js"
         ] ) + "\n" +
         "\n" +
         "\n" +
@@ -355,9 +355,9 @@ function runCeneSync(
                         "src/era-misc.js",
                         "src/era-reader.js",
                         "src/era-code-gen-js.js",
-                        "src/era-cene-runtime.js",
-                        "src/era-cene-api.js",
-                        "src/era-cene-quiner.js"
+                        "src/cene-runtime.js",
+                        "src/cene-api.js",
+                        "src/cene-quiner.js"
                     ] ) + "\n" +
                     "\n";
                 
@@ -454,9 +454,9 @@ function runCeneSync(
 //                        "src/era-reader.js",
 //                        "src/era-code-gen-js.js",
                         
-                        "src/era-cene-runtime.js",
-                        "src/era-cene-api.js",
-                        "src/era-cene-quiner.js"
+                        "src/cene-runtime.js",
+                        "src/cene-api.js",
+                        "src/cene-quiner.js"
                     ] ) + "\n" +
                     "\n";
                 
@@ -528,8 +528,8 @@ function runCeneSync(
 }
 
 var preludeFilenamesShort = [
-    "era-cene-prelude.cene",
-    "era-quasiquote.cene"
+    "prelude-util.cene",
+    "prelude-quasiquote.cene"
 ];
 
 var preludeFiles = _.arrMap( preludeFilenamesShort,
