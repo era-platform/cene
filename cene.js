@@ -206,32 +206,30 @@ function runCeneSync(
         ast.compute_char_frequency();
         ast.mangle_names();
         ast = ast.transform( uglify.Compressor( {
-            warnings: false
-            
-            // TODO: See if we can add some of these other options.
-            // These were the settings for Penknife compilation in the
-            // main Era project (except for `pure_funcs`, which had
-            // some entries there), but they seem to break things
-            // here.
-/*
             sequences: true,
             properties: true,
             dead_code: true,
             drop_debugger: false,
+            unsafe: false,
             
-            unsafe: true,
+            unsafe_comps: true,
             
+            unsafe_math: false,
+            unsafe_proto: false,
             conditionals: true,
             comparisons: true,
             evaluate: true,
             booleans: true,
             loops: true,
             unused: true,
+            top_retain: [],
             hoist_funs: false,
             hoist_vars: false,
             if_return: true,
             join_vars: true,
             cascade: true,
+            collapse_vars: true,
+            reduce_vars: true,
             warnings: false,
             negate_iife: true,
             pure_getters: true,
@@ -239,8 +237,13 @@ function runCeneSync(
             // TODO: See if we have anything to add here.
             pure_funcs: [],
             
-            drop_console: false
-*/
+            drop_console: false,
+            expression: false,
+            keep_fargs: false,
+            keep_fnames: false,
+            passes: 1,
+            side_effects: true,
+            global_defs: {}
         } ) );
         var stream = uglify.OutputStream( {
             max_line_len: 1 / 0
