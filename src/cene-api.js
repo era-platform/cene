@@ -23,7 +23,7 @@ CexprJs.prototype.getFreeVars = function () {
 CexprJs.prototype.visitForCodePruning = function ( visitor ) {
     // Do nothing.
 };
-CexprJs.prototype.toJsCode = function ( hasConstructor ) {
+CexprJs.prototype.toJsCode = function ( options ) {
     // #GEN
     return jsCode(
         jsCodeVar( "macLookupRet" ), "( " +
@@ -36,7 +36,8 @@ CexprJs.prototype.toJsCode = function ( hasConstructor ) {
                         // TODO: See if we should treat `Function` as
                         // a free variable here.
                         "Function( " +
-                            jsStr( this.code ) + " )"
+                            jsStr( options.minify( this.code ) ) +
+                            " )"
                     ).asStatic(), "() ) );\n" +
         "} ) )" );
 };
@@ -285,7 +286,7 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
                 sinkNameQualify(
                     mkConstructorOccurrence.ofNow(
                         strName ).getName() );
-            var repMainTagName = [ "n:main-core", sourceMainTagName ];
+            var repMainTagName = [ "n:main-core", name ];
             var constructorTagName =
                 sinkNameConstructorTagAlreadySorted(
                     repMainTagName, [] );

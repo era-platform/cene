@@ -163,7 +163,7 @@ JsCode.prototype.instantiate = function ( envObj ) {
     } );
     return this.toFunction( vars ).apply( null, vals );
 };
-JsCode.prototype.toFunctionExpr = function ( paramVarsArr ) {
+JsCode.prototype.toFunctionExpr_ = function ( paramVarsArr, minify ) {
     if ( !isArray( paramVarsArr ) )
         throw new Error();
     this.minusFreeVars( paramVarsArr ).assertNoFreeVars();
@@ -174,20 +174,20 @@ JsCode.prototype.toFunctionExpr = function ( paramVarsArr ) {
     if ( reifiedVars.length !== 0 )
         throw new Error();
     
-    return "Function( " + arrMap( paramVarsArr.concat( [
-        "return " + expr + ";"
-    ] ), function ( str ) {
-        return jsStr( str );
-    } ).join( ", " ) + " )";
+    return "Function( " + jsStr( minify(
+        "return function ( " + paramVarsArr.join( ", " ) + " ) {\n" +
+        "return " + expr + ";\n" +
+        "};\n"
+    ) ) + " )()";
 };
-JsCode.prototype.toInstantiateExpr = function ( envObj ) {
+JsCode.prototype.toInstantiateExpr = function ( envObj, minify ) {
     var vars = [];
     var vals = [];
     objOwnEach( envObj, function ( va, val ) {
         vars.push( va );
         vals.push( val );
     } );
-    return this.toFunctionExpr( vars ) + "( " +
+    return this.toFunctionExpr_( vars, minify ) + "( " +
         vals.join( ", " ) + " )";
 };
 JsCode.prototype.toString = function () {
