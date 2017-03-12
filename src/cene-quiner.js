@@ -2,20 +2,8 @@
 // Copyright 2016, 2017 Ross Angle. Released under the MIT License.
 "use strict";
 
-var quinerCliArguments = [];
-var quinerTextOfFiles = [];
-var quinerInputPathType = jsnMap();
-var quinerInputPathDirectoryList = jsnMap();
-var quinerInputPathBlobUtf8 = jsnMap();
-// TODO: See if we actually need to do quines at JavaScript run time.
-// It's at least nice to have `quinerQuine` around just in case.
-var quinerQuine = null;
-var quinerTopLevelVars = null;
-
-var quinerFuncDefs = [];
-
-function quinerAddFuncDef( flatTag, calculateFuncImpl ) {
-    quinerFuncDefs.push( function ( rawMode, funcDefNs ) {
+function funcDefForEntrypoint( flatTag, calculateFuncImpl ) {
+    return function ( rawMode, funcDefNs ) {
         collectPutDefinedValue( rawMode,
             getFunctionImplementationEntryDefinerByFlatTag(
                 funcDefNs, flatTag ),
@@ -29,13 +17,15 @@ function quinerAddFuncDef( flatTag, calculateFuncImpl ) {
                     } );
                 }
             } ) );
-    } );
+    };
 }
 
-function quinerCallWithSyncJavaScriptMode( calculateFunc ) {
-    var codeOfFiles = arrMappend( quinerTextOfFiles,
-        function ( text ) {
-        
+function entrypointCallWithSyncJavaScriptMode(
+    cliArguments, topLevelVars, textOfFiles, inputPathType,
+    inputPathDirectoryList, inputPathBlobUtf8, funcDefs,
+    calculateFunc ) {
+    
+    var codeOfFiles = arrMappend( textOfFiles, function ( text ) {
         return readAll( { locationHostType: "top-level" }, text );
     } );
     
@@ -64,7 +54,7 @@ function quinerCallWithSyncJavaScriptMode( calculateFunc ) {
                 defer( body );
             },
             cliArguments: function () {
-                return quinerCliArguments;
+                return cliArguments;
             },
             cliInputDirectory: function () {
                 return [ "in-root" ];
@@ -76,19 +66,19 @@ function quinerCallWithSyncJavaScriptMode( calculateFunc ) {
                 return [ "get", name, inputPath ];
             },
             inputPathType: function ( inputPath ) {
-                if ( !quinerInputPathType.has( inputPath ) )
+                if ( !inputPathType.has( inputPath ) )
                     throw new Error();
-                return quinerInputPathType.get( inputPath );
+                return inputPathType.get( inputPath );
             },
             inputPathDirectoryList: function ( inputPath ) {
-                if ( !quinerInputPathDirectoryList.has( inputPath ) )
+                if ( !inputPathDirectoryList.has( inputPath ) )
                     throw new Error();
-                return quinerInputPathDirectoryList.get( inputPath );
+                return inputPathDirectoryList.get( inputPath );
             },
             inputPathBlobUtf8: function ( inputPath ) {
-                if ( !quinerInputPathBlobUtf8.has( inputPath ) )
+                if ( !inputPathBlobUtf8.has( inputPath ) )
                     throw new Error();
-                return quinerInputPathBlobUtf8.get( inputPath );
+                return inputPathBlobUtf8.get( inputPath );
             },
             outputPathGet: function ( outputPath, name ) {
                 return [ "get", name, outputPath ];
@@ -112,15 +102,15 @@ function quinerCallWithSyncJavaScriptMode( calculateFunc ) {
             },
             getTopLevelVar: function ( varName ) {
                 var k = "|" + varName;
-                if ( !hasOwn( quinerTopLevelVars, k ) )
+                if ( !hasOwn( topLevelVars, k ) )
                     throw new Error();
-                return quinerTopLevelVars[ k ].get();
+                return topLevelVars[ k ].get();
             },
             setTopLevelVar: function ( varName, val ) {
                 var k = "|" + varName;
-                if ( !hasOwn( quinerTopLevelVars, k ) )
+                if ( !hasOwn( topLevelVars, k ) )
                     throw new Error();
-                return quinerTopLevelVars[ k ].set( val );
+                return topLevelVars[ k ].set( val );
             }
         } );
     
@@ -130,7 +120,7 @@ function quinerCallWithSyncJavaScriptMode( calculateFunc ) {
     ceneApiUsingDefNs.addCeneApi( nss.definitionNs, funcDefNs );
     
     var dummyMode = usingDefNs.makeDummyMode();
-    arrEach( quinerFuncDefs, function ( funcDef, i ) {
+    arrEach( funcDefs, function ( funcDef, i ) {
         funcDef( dummyMode, funcDefNs );
     } );
     usingDefNs.commitDummyMode( namespaceDefs, dummyMode );
