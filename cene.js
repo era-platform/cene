@@ -439,8 +439,7 @@ function runCeneSync(
                         "src/era-reader.js",
                         "src/era-code-gen-js.js",
                         "src/cene-runtime.js",
-                        "src/cene-api.js",
-                        "src/cene-quiner.js"
+                        "src/cene-api.js"
                     ] ) + "\n" +
                     "\n" +
                     "entrypointCallWithSyncJavaScriptMode( " +
@@ -558,8 +557,7 @@ function runCeneSync(
 //                        "src/era-code-gen-js.js",
                         
                         "src/cene-runtime.js",
-                        "src/cene-api.js",
-                        "src/cene-quiner.js"
+                        "src/cene-api.js"
                     ] ) + "\n" +
                     "\n" +
                     "entrypointCallWithSyncJavaScriptMode( " +
