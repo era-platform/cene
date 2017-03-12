@@ -275,37 +275,27 @@ function runCeneSync(
 //                minifyJs: runDesiredMinifier
                 minifyJs: runNoopMinifier
                 
-            } ).toInstantiateExpr( {
-                rt: "rt",
-                SinkStruct: "SinkStruct",
-                SinkFn: "SinkFn",
-                SinkForeign: "SinkForeign",
-                SinkClineStruct: "SinkClineStruct",
-                SinkFuseStruct: "SinkFuseStruct",
-                sinkForeignStrFromJs:
-                    "sinkForeignStrFromJs",
-                sinkErr: "sinkErr",
-                macLookupRet: "macLookupRet",
-                macLookupThen: "macLookupThen"
-            }, runDesiredMinifier ) + ";\n" +
+            } ).minusFreeVars( [
+                "rt",
+                "SinkStruct",
+                "SinkFn",
+                "SinkForeign",
+                "SinkClineStruct",
+                "SinkFuseStruct",
+                "sinkForeignStrFromJs",
+                "sinkErr",
+                "macLookupRet",
+                "macLookupThen"
+            ] ).assertNoFreeVars().toExpr() + ";\n" +
         "}";
     }
     
-    function makeQuine( topLevelVars, quine ) {
+    function addTopLevelVars( topLevelVars, code ) {
         return runDesiredMinifier(
             "\"use strict\";\n" +
             "(function ( topLevelVars ) {\n" +
             "\n" +
-            "var quine = " +
-                _.jsStr(
-                    runDesiredMinifier(
-                        "\"use strict\";\n" +
-                        "return function ( " +
-                            "quine, topLevelVars ) {\n" +
-                        quine + "\n" +
-                        "};\n"
-                    ) ) + ";\n" +
-            "Function( quine )()( quine, topLevelVars );\n" +
+            code + "\n" +
             "\n" +
             "})( {\n" +
             $cene.arrMap( topLevelVars, function ( va ) {
@@ -432,7 +422,17 @@ function runCeneSync(
             },
             sloppyJavaScriptQuine: function ( cexpr, topLevelVars ) {
                 
-                var quine =
+                function renderMap( map ) {
+                    var result = "jsnMap()\n"
+                    map.each( function ( k, v ) {
+                        result += ".plusEntry( " +
+                            $cene.jsJson( k ) + ", " +
+                            $cene.jsJson( v ) + " )\n"
+                    } );
+                    return result;
+                }
+                
+                return addTopLevelVars( topLevelVars,
                     readInternalFiles( [
                         "src/era-misc-strmap-avl.js",
                         "src/era-misc.js",
@@ -442,38 +442,31 @@ function runCeneSync(
                         "src/cene-api.js",
                         "src/cene-quiner.js"
                     ] ) + "\n" +
-                    "\n";
-                
-                function addMap( map, mapName ) {
-                    map.each( function ( k, v ) {
-                        quine += "" + mapName + ".set( " +
-                            $cene.jsJson( k ) + ", " +
-                            $cene.jsJson( v ) + " );\n"
-                    } );
-                }
-                addMap( memoInputPathType, "quinerInputPathType" );
-                addMap( memoInputPathDirectoryList,
-                    "quinerInputPathDirectoryList" );
-                addMap( memoInputPathBlobUtf8,
-                    "quinerInputPathBlobUtf8" );
-                
-                $cene.arrEach( textOfFiles, function ( text ) {
-                    quine += "quinerTextOfFiles.push( " +
-                        _.jsStr( text ) + " );\n";
-                } );
-                
-                quine +=
-                    "quinerCliArguments = " +
-                        jsJsn( cliArgs ) + ";\n" +
-                    "quinerQuine = quine;\n" +
-                    "quinerTopLevelVars = topLevelVars;\n" +
                     "\n" +
-                    "quinerCallWithSyncJavaScriptMode( " +
+                    "entrypointCallWithSyncJavaScriptMode( " +
+                        jsJsn( cliArgs ) + ",\n" +
+                        "topLevelVars,\n" +
+                        
+                        "[ " +
+                        $cene.arrMap( textOfFiles, function ( text ) {
+                            return _.jsStr( text );
+                        } ).join( ", " ) +
+                        " ],\n" +
+                        "\n" +
+                        renderMap( memoInputPathType ) + ",\n" +
+                        renderMap( memoInputPathDirectoryList
+                            ) + ",\n" +
+                        renderMap( memoInputPathBlobUtf8 ) + ",\n" +
+                        "\n" +
+                        
+                        // funcDefs
+                        "[],\n" +
+                        
+                        "\n" +
                         cexprToCode( cexpr, function ( constructor ) {
                             return constructor;
-                        } ) + " );\n";
-                
-                return makeQuine( topLevelVars, quine );
+                        } ) + "\n" +
+                    ");\n" );
             },
             pickyJavaScriptQuine: function ( cexpr, topLevelVars ) {
                 
@@ -540,7 +533,18 @@ function runCeneSync(
                     }
                 }
                 
-                var quine =
+                var funcDefs = [];
+                constructorImpls.each( function ( flatTag, cexpr ) {
+                    funcDefs.push( "funcDefForEntrypoint( " +
+                        _.jsStr( constructorsSeen.get( flatTag ) ) +
+                        ", " +
+                        cexprToCode( cexpr, function ( constructor ) {
+                            return constructorsSeen.get(
+                                constructor );
+                        } ) + " )" );
+                } );
+                
+                return addTopLevelVars( topLevelVars,
                     readInternalFiles( [
                         "src/era-misc-strmap-avl.js",
                         "src/era-misc.js",
@@ -557,36 +561,34 @@ function runCeneSync(
                         "src/cene-api.js",
                         "src/cene-quiner.js"
                     ] ) + "\n" +
-                    "\n";
-                
-                constructorImpls.each(
-                    function ( flatTag, cexpr ) {
-                    
-                    quine +=
-                        "quinerAddFuncDef( " +
-                            _.jsStr(
-                                constructorsSeen.get( flatTag ) ) +
-                            ", " +
-                            cexprToCode( cexpr,
-                                function ( constructor ) {
-                                
-                                return constructorsSeen.get(
-                                    constructor );
-                            } ) + " );\n";
-                } );
-                
-                quine +=
                     "\n" +
-                    "quinerQuine = quine;\n" +
-                    "quinerTopLevelVars = topLevelVars;\n" +
-                    "\n" +
-                    "quinerCallWithSyncJavaScriptMode( " +
+                    "entrypointCallWithSyncJavaScriptMode( " +
+                        
+                        // cliArguments
+                        "[], " +
+                        
+                        "topLevelVars, " +
+                        
+                        // textOfFiles
+                        "[], " +
+                        
+                        // inputPathType
+                        "jsnMap(), " +
+                        
+                        // inputPathDirectoryList
+                        "jsnMap(), " +
+                        
+                        // inputPathBlobUtf8
+                        "jsnMap(),\n" +
+                        
+                        "[\n" +
+                        funcDefs.join( ",\n" ) + "\n" +
+                        "],\n" +
+                        
                         cexprToCode( cexpr, function ( constructor ) {
                             return constructorsSeen.get(
                                 constructor );
-                        } ) + " );\n";
-                
-                return makeQuine( topLevelVars, quine );
+                        } ) + " );\n" );
             },
             onceDependenciesComplete: function ( listener ) {
                 onceDependenciesCompleteListeners.push( listener );
