@@ -180,6 +180,7 @@ JsCode.prototype.toFunctionExpr_ = function ( paramVarsArr, minify ) {
         "};\n"
     ) ) + " )()";
 };
+// TODO: See if we'll ever use this.
 JsCode.prototype.toInstantiateExpr = function ( envObj, minify ) {
     var vars = [];
     var vals = [];

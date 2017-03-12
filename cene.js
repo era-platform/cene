@@ -275,19 +275,18 @@ function runCeneSync(
 //                minifyJs: runDesiredMinifier
                 minifyJs: runNoopMinifier
                 
-            } ).toInstantiateExpr( {
-                rt: "rt",
-                SinkStruct: "SinkStruct",
-                SinkFn: "SinkFn",
-                SinkForeign: "SinkForeign",
-                SinkClineStruct: "SinkClineStruct",
-                SinkFuseStruct: "SinkFuseStruct",
-                sinkForeignStrFromJs:
-                    "sinkForeignStrFromJs",
-                sinkErr: "sinkErr",
-                macLookupRet: "macLookupRet",
-                macLookupThen: "macLookupThen"
-            }, runDesiredMinifier ) + ";\n" +
+            } ).minusFreeVars( [
+                "rt",
+                "SinkStruct",
+                "SinkFn",
+                "SinkForeign",
+                "SinkClineStruct",
+                "SinkFuseStruct",
+                "sinkForeignStrFromJs",
+                "sinkErr",
+                "macLookupRet",
+                "macLookupThen"
+            ] ).assertNoFreeVars().toExpr() + ";\n" +
         "}";
     }
     
