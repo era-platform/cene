@@ -16,7 +16,7 @@ Clines, dexes, merges, and fuses
 
 A "cline" is based on a total ordering on values in its domain, or in other words a binary relation that is reflexive, transitive, and antisymmetric. Its antisymmetry is as fine-grained as possible: If any two values in a cline's domain are related by that cline in both directions, there will be no Cene code at all that can distinguish the two values.
 
-However, a cline does not merely expose this total ordering. Within the cline's domain, there may be equivalence classes of values for which every two nonequal values will not have their relative order exposed to Cene code. When Cene code uses :ref:`call-quine` to compare two values by a cline, it can get several results:
+However, a cline does not merely expose this total ordering. Within the cline's domain, there may be equivalence classes of values for which every two nonequal values will not have their relative order exposed to Cene code. When Cene code uses :ref:`call-cline` to compare two values by a cline, it can get several results:
 
 - (:ref:`nil`): The values are not both in the domain.
 
