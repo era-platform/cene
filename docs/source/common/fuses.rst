@@ -48,7 +48,7 @@ A "fuse" is a binary operation that is commutative and associative for values in
 .. _dex-cline:
 
 dex-cline
--------
+---------
 
 Call with ``(ignored)``
 
