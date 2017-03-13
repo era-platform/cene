@@ -37,11 +37,11 @@
   /join-effects
     (output-path-blob-utf-8
       (output-path-get outdir str.\;qq[hello-world-sloppy.js])
-    /sloppy-javascript-quine mode cexpr /list)
+    /sloppy-javascript-program mode cexpr /list)
   /join-effects
     (output-path-blob-utf-8
       (output-path-get outdir str.\;qq[hello-world-picky.js])
-    /picky-javascript-quine mode cexpr /list)
+    /picky-javascript-program mode cexpr /list)
   /no-effects/nil))
 
 (go)

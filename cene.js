@@ -420,7 +420,8 @@ function runCeneSync(
                 fs.writeFileSync(
                     resolvedPath, outputString, "utf-8" );
             },
-            sloppyJavaScriptQuine: function ( cexpr, topLevelVars ) {
+            sloppyJavaScriptProgram:
+                function ( cexpr, topLevelVars ) {
                 
                 function renderMap( map ) {
                     var result = "jsnMap()\n"
@@ -467,7 +468,7 @@ function runCeneSync(
                         } ) + "\n" +
                     ");\n" );
             },
-            pickyJavaScriptQuine: function ( cexpr, topLevelVars ) {
+            pickyJavaScriptProgram: function ( cexpr, topLevelVars ) {
                 
                 var cexprsToVisit = [ cexpr ];
                 var constructorsSeen = $cene.strMap();

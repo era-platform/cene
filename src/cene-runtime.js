@@ -3274,10 +3274,12 @@ function entrypointCallWithSyncJavaScriptMode(
                 
                 // Do nothing.
             },
-            sloppyJavaScriptQuine: function ( cexpr, topLevelVars ) {
+            sloppyJavaScriptProgram:
+                function ( cexpr, topLevelVars ) {
+                
                 return null;
             },
-            pickyJavaScriptQuine: function ( cexpr, topLevelVars ) {
+            pickyJavaScriptProgram: function ( cexpr, topLevelVars ) {
                 return null;
             },
             onceDependenciesComplete: function ( listener ) {
