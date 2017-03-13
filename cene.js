@@ -420,7 +420,8 @@ function runCeneSync(
                 fs.writeFileSync(
                     resolvedPath, outputString, "utf-8" );
             },
-            sloppyJavaScriptQuine: function ( cexpr, topLevelVars ) {
+            sloppyJavaScriptProgram:
+                function ( cexpr, topLevelVars ) {
                 
                 function renderMap( map ) {
                     var result = "jsnMap()\n"
@@ -439,8 +440,7 @@ function runCeneSync(
                         "src/era-reader.js",
                         "src/era-code-gen-js.js",
                         "src/cene-runtime.js",
-                        "src/cene-api.js",
-                        "src/cene-quiner.js"
+                        "src/cene-api.js"
                     ] ) + "\n" +
                     "\n" +
                     "entrypointCallWithSyncJavaScriptMode( " +
@@ -468,7 +468,7 @@ function runCeneSync(
                         } ) + "\n" +
                     ");\n" );
             },
-            pickyJavaScriptQuine: function ( cexpr, topLevelVars ) {
+            pickyJavaScriptProgram: function ( cexpr, topLevelVars ) {
                 
                 var cexprsToVisit = [ cexpr ];
                 var constructorsSeen = $cene.strMap();
@@ -558,8 +558,7 @@ function runCeneSync(
 //                        "src/era-code-gen-js.js",
                         
                         "src/cene-runtime.js",
-                        "src/cene-api.js",
-                        "src/cene-quiner.js"
+                        "src/cene-api.js"
                     ] ) + "\n" +
                     "\n" +
                     "entrypointCallWithSyncJavaScriptMode( " +

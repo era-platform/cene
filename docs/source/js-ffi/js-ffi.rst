@@ -2,20 +2,20 @@ JavaScript interaction
 ======================
 
 
-.. _sloppy-javascript-quine:
+.. _sloppy-javascript-program:
 
-sloppy-javascript-quine
------------------------
+sloppy-javascript-program
+-------------------------
 
 Call with ``mode cexpr top-level-vars``
 
-Creates an (:ref:`encapsulated-string` ...) with self-contained JavaScript that captures the given cons list of variable name strings and synchronously executes the given compiled expression, using the definitions currently existing in this runtime, passing the result :doc:`a Cene client object <js-client>` with access to the captured variables. This will make no attempt to serialize first-class values; it will only put all Cene code and dependency data into a single massive JavaScript file together with a Cene interpreter that can re-run the build (including re-running the (:ref:`sloppy-javascript-quine` ...) operation itself!). The given mode must be a current one, and it must permit CLI-time operations.
+Creates an (:ref:`encapsulated-string` ...) with self-contained JavaScript that captures the given cons list of variable name strings and synchronously executes the given compiled expression, using the definitions currently existing in this runtime, passing the result :doc:`a Cene client object <js-client>` with access to the captured variables. This will make no attempt to serialize first-class values; it will only put all Cene code and dependency data into a single massive JavaScript file together with a Cene interpreter that can re-run the build (including re-running the (:ref:`sloppy-javascript-program` ...) operation itself!). The given mode must be a current one, and it must permit CLI-time operations.
 
 
-.. _picky-javascript-quine:
+.. _picky-javascript-program:
 
-picky-javascript-quine
-----------------------
+picky-javascript-program
+------------------------
 
 Call with ``mode cexpr top-level-vars``
 

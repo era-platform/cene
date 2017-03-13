@@ -31,7 +31,6 @@
     "/lib-cene/quasiquote.cene",
     "/lib-cene/reader.cene",
     "/src/cene-api.js",
-    "/src/cene-quiner.js",
     "/src/cene-runtime.js",
     "/src/era-code-gen-js.js",
     "/src/era-misc.js",
