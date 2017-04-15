@@ -1,0 +1,41 @@
+\= build-util.cene (part of Cene)
+\= Copyright 2016, 2017 Ross Angle. Released under the MIT License.
+
+
+\= ===== Utilities useful when building Cene programs ================
+
+(defn copy-paths mode in out
+  (case (input-path-type mode in)
+    
+    file-type-directory
+    (foldr (input-path-directory-list mode in) (no-effects/nil)
+    /fn item then
+      (join-effects
+        (copy-paths mode
+          (input-path-get in item)
+          (output-path-get out item))
+        then))
+    
+    file-type-blob
+    (output-path-blob-utf-8 out /input-path-blob-utf-8 mode in)
+    
+  /no-effects/nil))
+
+(defn make-js-program mode scope out string-name top-level-vars
+  (cast scope scope - def-ns qualify
+    err.\;qq[Expected a scope value that was a scope]
+  /output-path-blob-utf-8 out
+  /picky-javascript-program mode
+    (cast
+      (procure-constructor-glossary-getdef def-ns
+      /c qualify
+      /name-of/dexable
+        (dex-struct constructor-occurrence /dex-string/nil)
+      /constructor-occurrence string-name)
+      getdef get def
+      err.\;qq[Internal error]
+    /cast (c get mode)
+      constructor-glossary main-tag proj-source-to-rep
+      err.\;qq[Internal error]
+    /cexpr-construct main-tag /list)
+    top-level-vars))
