@@ -1,0 +1,42 @@
+\= string.cene (part of Cene)
+\= Copyright 2016, 2017 Ross Angle. Released under the MIT License.
+
+
+\= ===== Strings =====================================================
+
+(defn strings-append-later strings then
+  (foldl-later str.\;qq[] strings
+    (fn state elem then /string-append-later state elem then)
+    then))
+
+(def-macro istr home-scope caller-scope my-stx-details args then
+  (basic-pure-macro home-scope caller-scope my-stx-details then
+  /fn mode caller-scope s mac
+  /cast args cons istr args
+    err.\;qq[Called istr without enough arguments]
+  /cast args nil
+    err.\;qq[Called istr with too many arguments]
+  /cast istr stx istr-stx-details istr
+    err.\;qq[Called istr with an argument that wasn't a stx]
+  /let augment-stx
+    (fn stx-details orig
+      (cast orig stx orig-stx-details expr
+        err.\;qq[Expected an orig that was a stx]
+      /stx (stx-details-join stx-details orig-stx-details) expr))
+  /let loop
+    (fix/fn loop istr
+      (case istr
+        
+        istring-cons prefix interpolation rest
+        (cons (c mac str.str /list/c s istring-nil.prefix)
+        /cons interpolation
+        /c loop rest)
+        
+        istring-nil suffix
+        (list/c mac str.str /list/c s istring-nil.suffix)
+        
+        err.\;qq[
+          Called istr with a value that wasn't an interpolated
+          string]))
+  /c mac str.strings-append-later /list
+  /c augment-stx istr-stx-details /c mac str.list /c loop istr))

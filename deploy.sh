@@ -9,7 +9,7 @@
 # unset environment variable is used, exit the script.
 set -o errexit -o nounset
 
-# We only proceed this deployment was triggered by a commit to
+# We only proceed if this deployment was triggered by a commit to
 # `master`.
 test "$TRAVIS_PULL_REQUEST" == "false" || exit 0
 test "$TRAVIS_BRANCH" == "master" || exit 0
