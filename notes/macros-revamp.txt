@@ -1,0 +1,63 @@
+A macro's implementation is a program that can do the following for each macro call:
+
+- Incrementally read from the syntax surrounding the macro call. This typically means reading the macro body to obtain layers of symbolic expressions and reading the surrounding code to obtain the meanings of symbols.
+
+- Perform concurrent computation, by way of the side effects of allocating and writing to promises.
+
+- Allocate names and monotonic state resources, such as publish-subscribe hubs. For Cene we have so far done this by passing in one jack-of-all-trades resource at the beginning and using it to derive mutually exclusive jack-of-all-trades resources for subcomputations. The fact that a macro call has access to this kind of exclusive state corresponds to the idea that a macro call has its own identity distinct from other similarly looking macro calls.
+
+- Write to monotonic state resources.
+
+- Write global function, macro, and type definitions (TODO: by reading the surrounding syntax to get the global scope, and then writing to there? Should we even be able to read that kind of unserializable value from the surrounding syntax?).
+
+- Instruct the macroexpander to macroexpand generated syntaxes, usually ones that are almost completely derived from the macro body and caller scope.
+
+
+We can implement a monotonic function as a monadic program that receives a state resource (its input) and another state resource (its output) and writes to no state resources except its output. We could treat output state resources as second-class citizens in a writer monad to enforce this, but that doesn't allow using state resources for synchronization across threads. So we'll enforce this by associating each output resource with the mode it's valid to write to in.
+
+(no-effects/nil)
+(fuse-effects/nil)
+(make-monotonic-state-resource-effects/fn $outresource $inresource
+  effects)
+  \= where $outresource is a newly allocated state resource that can
+  \= only be used during the current mode
+(monoeffect-contributing-only-to outresource-nonlocal
+/fn $outresource-local
+  monoeffect)
+  \= where the body is executed under a new mode where only
+  \= `$outresource-local` can be written to, and the effect of writing
+  \= there is to write to `outresource-nonlocal`
+
+(monoeffect-put outresource inresource)
+
+(monoeffect-construct outresource
+  cons $outresource-car $outresource-cdr
+  monoeffect)
+(monoeffect-case inresource cons $inresource-car $inresource-cdr
+  monoeffect-then
+  monoeffect-else)
+
+(monoeffect-contribute outresource key /nil)
+(monoeffect-contribute outresource key /yep/fn $outresource-val
+  monoeffect)
+(monoeffect-if-table inresource
+  monoeffect-then
+  monoeffect-else)
+(monoeffect-contribution-at inresource key /fn $maybe-inresource
+  monoeffect)
+(monoeffect-listen inresource /fn $key $inresource
+  monoeffect)
+(monoeffect-contributions inresource /fn $table-of-inresources
+  monoeffect)
+
+(monoeffect-dexable-write outresource dex value)
+(monoeffect-dexable-read inresource dex $value
+  monoeffect-then
+  monoeffect-else)
+
+\= TODO: Figure out if it makes sense for just any resource to be a
+\= namer. What if we allocate a new resource using
+\= `make-monotonic-state-resource-effects` and then get its name this
+\= way?
+(monoeffect-namer-write outresource /fn $name
+  monoeffect)
