@@ -109,4 +109,4 @@ contributing-only-to
 
 Call with ``nsset effects``
 
-Monadically, schedules the effects to occur in a future tick where contributing to multimethods outside the given set of namespaces is not allowed, but reading closed-world-assumption collections of contributions outside the given set of namespace is allowed.
+Monadically, schedules the effects to occur in a future tick where the allowable actions outside the given set of namespaces are different: Contributing there is not allowed, but reading closed-world-assumption collections of contributions there is allowed.

@@ -148,7 +148,7 @@ constructor-glossary
 
 Construct with ``main-tag source-to-rep``
 
-Indicates a constructor's main tag name and an :ref:`assoc` list mapping mutually unique source-level names to the constructor's mutually unique projection names. This is a data structure :ref:`def-struct` puts in the definition namespace usin :ref:`procure-constructor-glossary-getdef` so macros like :ref:`case` can determine details of a constructor based on a source-level name. The names used in the representation of the constructor may be different from the names used in the source code.
+Indicates a constructor's main tag name and an :ref:`assoc` list mapping mutually unique source-level names to the constructor's mutually unique projection names. This is a data structure :ref:`def-struct` puts in the definition namespace using :ref:`procure-constructor-glossary-getdef` so macros like :ref:`case` can determine details of a constructor based on a source-level name. The names used in the representation of the constructor may be different from the names used in the source code.
 
 
 .. _procure-constructor-glossary-getdef:
