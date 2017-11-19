@@ -1,7 +1,7 @@
 \= NOTE: The abbreviation "sbound" stands for "syntax bound."
 
 func (sbound-read unique-ns-to-spend sbound-to-spend (fn operator table-from-sbound-keys-to-unspent-sbounds))
-\= When the sbound is a branch of an s-expression, reading from it gives an operator that's a list of sbound keys or an istring of sbound keys. This operation spends the `sbound` and the `unique-ns`.
+\= When the sbound is a branch of an s-expression, reading from it gives an operator that's a list of sbound keys or an istring of sbound keys. This operation spends the `unique-ns-to-spend` and the `sbound-to-spend`.
 
 func (sbound-build operator table-from-sbound-keys-to-sbounds-to-spend (fn unspent-sbound))
 \=
@@ -9,9 +9,9 @@ func (sbound-build operator table-from-sbound-keys-to-sbounds-to-spend (fn unspe
 \=
 \= As long as we have to enforce that anyway, the macro system has enough power to keep track of certain source location information behind the scenes; the user's macro code doesn't have to be careful about extracting and recombining source location markers from the syntax.
 \=
-\= One possible exception is when the user creates a custom macro system. In that case, they may want custom source-location-based behavior for error conditions (but then again, they may just as easilyo want a custom treatment of errors all around). Still, instead of messing with source locations, they might achieve good attribution by translating code to the host macro system's macro call format and delegating to that host's behavior, rather than invoking the macro itself. (This would be even closer to the syntax representation in qusiquotation-with-types.txt.)
+\= One possible exception is when the user creates a custom macro system. In that case, they may want custom source-location-based behavior for error conditions (but then again, they may just as easily want a custom treatment of errors all around). Still, instead of messing with source locations, they might achieve good attribution by translating code to the host macro system's macro call format and delegating to that host's behavior, rather than invoking the macro itself. (This would be even closer to the syntax representation in qusiquotation-with-types.txt.)
 \=
-\= TODO: Determine what actual data structure a macro returns. It must have a pretty detailed structure if it contains commands to macroexpand subexpressions.
+\= TODO: Determine what actual data structure a macro returns. It must have a pretty detailed structure if it contains commands to macroexpand subexpressions. If the result of the macro is to be cacheable for reuse across edits to the code, then we'll want macros to stop directly manipulating the caller scope as well, and instead either specify scope-transformers for the subexpressions (i.e. (compile-expression-command scope-transformer unspent-sbound)) or write pieces of a cexpr to a root in a way that yields new roots such that the scope is automatically managed.
 
 (def-macro <macro-name> home-scope caller-scope operator table-from-sbound-keys-to-unspent-sbounds then
   ...)
