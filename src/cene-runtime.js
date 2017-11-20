@@ -4108,10 +4108,7 @@ function usingFuncDefNs( funcDefNs ) {
             return function ( rawMode, nss ) {
                 
                 function makeEvalExpr( nss, rawMode, expr, then ) {
-                    
-                    // NOTE: This is the only place we ignore
-                    // `macroexpand`'s return value.
-                    macroexpand(
+                    return macroexpand(
                         nssGet( nss, "unique" ),
                         rawMode,
                         expr,
@@ -4130,8 +4127,6 @@ function usingFuncDefNs( funcDefNs ) {
                             } );
                         } );
                     } );
-                    
-                    return macLookupRet( mkNil.ofNow() );
                 }
                 
                 function makeEvalExprAndRun(
