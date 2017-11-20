@@ -3601,7 +3601,6 @@ function usingFuncDefNs( funcDefNs ) {
         } );
     }
     
-    // TODO: Make this expand multiple expressions concurrently.
     function cgenCaseletForRunner(
         nss, rawMode, maybeVa, matchSubject, body, then ) {
         
@@ -3613,10 +3612,9 @@ function usingFuncDefNs( funcDefNs ) {
                 throw new Error();
             var body1 = mkCons.getProj( body, "cdr" );
             if ( !mkCons.tags( body1 ) )
-                return macroexpand( nssGet( nss, "unique" ), rawMode,
-                    mkCons.getProj( body, "car" ),
-                    nssGet( nss, "outbox" ).uniqueNs,
-                    then );
+                return then( rawMode,
+                    macroexpandLazy( nss, rawMode,
+                        mkCons.getProj( body, "car" ) ) );
             
             return macLookupThen( extractPattern( nss, body ),
                 function ( pattern ) {
@@ -3624,25 +3622,30 @@ function usingFuncDefNs( funcDefNs ) {
             if ( !mkCons.tags( pattern.remainingBody ) )
                 throw new Error();
             
-            var thenNss = nssGet( nss, "then" );
-            return macroexpand( nssGet( thenNss, "unique" ),
-                rawMode,
-                mkCons.getProj( pattern.remainingBody, "car" ),
-                nssGet( thenNss, "outbox" ).uniqueNs,
-                function ( rawMode, thenBranch ) {
+            var forceThenBranch =
+                macroexpandLazy( nssGet( nss, "then" ), rawMode,
+                    mkCons.getProj( pattern.remainingBody, "car" ) );
             
             var els = mkCons.getProj( pattern.remainingBody, "cdr" );
             return processTail( nssGet( nss, "tail" ), rawMode, els,
-                function ( rawMode, processedTail ) {
+                function ( rawMode, forceProcessedTail ) {
             
-            return then( rawMode,
-                new CexprCase(
-                    new CexprVar( subjectVar ),
-                    pattern.struct.repMainTagName,
-                    pattern.bindingsMap,
-                    thenBranch,
-                    processedTail ) );
-            
+            return then( rawMode, function ( rawMode, then ) {
+                return forceThenBranch( rawMode,
+                    function ( rawMode, thenBranch ) {
+                return forceProcessedTail( rawMode,
+                    function ( rawMode, processedTail ) {
+                
+                return then( rawMode,
+                    new CexprCase(
+                        new CexprVar( subjectVar ),
+                        pattern.struct.repMainTagName,
+                        pattern.bindingsMap,
+                        thenBranch,
+                        processedTail ) );
+                
+                } );
+                } );
             } );
             
             } );
@@ -3650,12 +3653,15 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         }
         
-        var subjectNss = nssGet( nss, "subject" );
-        return macroexpand( nssGet( subjectNss, "unique" ), rawMode,
-            matchSubject,
-            nssGet( subjectNss, "outbox" ).uniqueNs,
-            function ( rawMode, expandedSubject ) {
+        var forceSubject =
+            macroexpandLazy( nssGet( nss, "subject" ), rawMode,
+                matchSubject );
+        
         return processTail( nssGet( nss, "tail" ), rawMode, body,
+            function ( rawMode, forceProcessedTail ) {
+        return forceSubject( rawMode,
+            function ( rawMode, expandedSubject ) {
+        return forceProcessedTail( rawMode,
             function ( rawMode, processedTail ) {
         
         return macLookupThenRunEffects( rawMode,
@@ -3664,6 +3670,7 @@ function usingFuncDefNs( funcDefNs ) {
                     [ { k: subjectVar, v: expandedSubject } ],
                     processedTail ) ) );
         
+        } );
         } );
         } );
     }
