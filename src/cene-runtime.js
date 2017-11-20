@@ -4445,8 +4445,6 @@ function usingFuncDefNs( funcDefNs ) {
             }
         } );
         
-        // TODO: Make this expand multiple subexpressions
-        // concurrently.
         function structMapper( body, then, CexprConstructor ) {
             
             if ( !mkCons.tags( body ) )
@@ -4465,55 +4463,54 @@ function usingFuncDefNs( funcDefNs ) {
                         sourceMainTagNameRep ),
                     function ( struct ) {
                 
-                return loop( nss, rawMode, struct, 0, null,
-                    mkCons.getProj( body, "cdr" ) );
+                
+                var force = [];
+                var currentNss = nss;
+                var remainingBody = mkCons.getProj( body, "cdr" );
+                arrEach( struct.unsortedProjNames, function ( name ) {
+                    if ( !mkCons.tags( remainingBody ) )
+                        throw new Error(
+                            "Expected more arguments to " +
+                            JSON.stringify( sourceMainTagNameRep ) );
+                    
+                    force.push(
+                        macroexpandLazy(
+                            nssGet( currentNss, "first" ),
+                            rawMode,
+                            mkCons.getProj(
+                                remainingBody, "car" ) ) );
+                    currentNss = nssGet( currentNss, "rest" );
+                    remainingBody =
+                        mkCons.getProj( remainingBody, "cdr" );
+                } );
+                if ( mkCons.tags( remainingBody ) )
+                    throw new Error();
+                
+                return loop( rawMode, struct, 0, force, null );
                 
                 } );
                 } );
             };
             
-            function loop( nss, rawMode, struct, i, revProjVals,
-                remainingBody ) {
+            function loop( rawMode, struct, i, force, revProjVals ) {
                 
                 var n = struct.unsortedProjNames.length;
                 if ( n <= i )
-                    return next( rawMode, struct,
-                        revProjVals, remainingBody );
+                    return macLookupThenRunEffects( rawMode,
+                        then(
+                            new CexprConstructor(
+                                struct.repMainTagName,
+                                revJsListToArr( revProjVals ) ) ) );
                 
-                if ( !mkCons.tags( remainingBody ) )
-                    throw new Error(
-                        "Expected more arguments to " +
-                        JSON.stringify( sourceMainTagNameRep ) );
-                
-                var firstNss = nssGet( nss, "first" );
-                
-                return macroexpand( nssGet( firstNss, "unique" ),
-                    rawMode,
-                    mkCons.getProj( remainingBody, "car" ),
-                    nssGet( firstNss, "outbox" ).uniqueNs,
+                return force[ i ]( rawMode,
                     function ( rawMode, projVal ) {
                     
-                    return loop( nssGet( nss, "rest" ), rawMode,
-                        struct,
-                        i + 1,
+                    return loop( rawMode, struct, i + 1, force,
                         { first:
                             { name: struct.unsortedProjNames[ i ].rep,
                                 expr: projVal },
-                            rest: revProjVals },
-                        mkCons.getProj( remainingBody, "cdr" ) );
+                            rest: revProjVals } );
                 } );
-            }
-            
-            function next(
-                rawMode, struct, revProjVals, remainingBody ) {
-                
-                if ( mkCons.tags( remainingBody ) )
-                    throw new Error();
-                
-                return macLookupThenRunEffects( rawMode,
-                    then(
-                        new CexprConstructor( struct.repMainTagName,
-                            revJsListToArr( revProjVals ) ) ) );
             }
         }
         
