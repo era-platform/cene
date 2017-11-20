@@ -3715,9 +3715,8 @@ function usingFuncDefNs( funcDefNs ) {
             throw new Error();
         var body1 = mkCons.getProj( body, "cdr" );
         if ( !mkCons.tags( body1 ) )
-            return macroexpand( nssGet( nss, "unique" ), rawMode,
+            return macroexpand( nss, rawMode,
                 mkCons.getProj( body, "car" ),
-                nssGet( nss, "outbox" ).uniqueNs,
                 then );
         
         var param = mkCons.getProj( body, "car" );
@@ -4396,60 +4395,94 @@ function usingFuncDefNs( funcDefNs ) {
         
         mac( "let", function ( myStxDetails, body, then ) {
             return function ( rawMode, nss ) {
-                return loop( rawMode, nss, 0,
-                    body, nssGet( nss, "bindings" ), [],
-                    function ( rawMode, code ) {
-                    
-                    return macLookupThenRunEffects( rawMode,
-                        then( code ) );
-                } );
-            };
-            
-            function loop( rawMode, nss, i,
-                remainingBody, bindingsNss, bindings,
-                then ) {
                 
-                if ( !mkCons.tags( remainingBody ) )
-                    throw new Error();
-                var remainingBody1 =
-                    mkCons.getProj( remainingBody, "cdr" );
-                if ( !mkCons.tags( remainingBody1 ) ) {
-                    var bodyNss = nssGet( nss, "body" );
-                    return macroexpand( nssGet( bodyNss, "unique" ),
-                        rawMode,
-                        mkCons.getProj( remainingBody, "car" ),
-                        nssGet( bodyNss, "outbox" ).uniqueNs,
-                        function ( rawMode, body ) {
+                var unforcedBindings = [];
+                var bindingsNss = nss;
+                var remainingBody = body;
+                while ( true ) {
+                    if ( !mkCons.tags( remainingBody ) )
+                        throw new Error();
+                    var remainingBody1 =
+                        mkCons.getProj( remainingBody, "cdr" );
+                    if ( !mkCons.tags( remainingBody1 ) )
+                        break;
+                    
+                    unforcedBindings.push( {
+                        k: mkCons.getProj( remainingBody, "car" ),
+                        v: macroexpandLazy(
+                            nssGet( bindingsNss, "first" ), rawMode,
+                            mkCons.getProj( remainingBody1, "car" ) )
+                    } );
+                    bindingsNss = nssGet( bindingsNss, "rest" );
+                    remainingBody =
+                        mkCons.getProj( remainingBody1, "cdr" );
+                }
+                
+                var forceBody =
+                    macroexpandLazy( nssGet( nss, "body" ), rawMode,
+                        mkCons.getProj( remainingBody, "car" ) );
+                
+                var n = unforcedBindings.length;
+                
+                return resolveNames( nss, 0, null,
+                    function ( revBindings ) {
+                return forceBindings( rawMode, revBindings, null,
+                    function ( rawMode, bindings ) {
+                return forceBody( rawMode,
+                    function ( rawMode, body ) {
+                
+                return macLookupThenRunEffects( rawMode,
+                    then(
+                        new CexprLet(
+                            revJsListToArr( bindings ).reverse(),
+                            body ) ) );
+                
+                } );
+                } );
+                } );
+                
+                function resolveNames( nss, i, revBindings, then ) {
+                    
+                    if ( n <= i )
+                        return then( revBindings );
+                    
+                    return stxToName( rt, nss,
+                        unforcedBindings[ i ].k,
+                        function ( string ) {
+                            return mkLocalOccurrence.ofNow( string );
+                        },
+                        function ( va ) {
                         
-                        return then( rawMode,
-                            new CexprLet( bindings, body ) );
+                        return resolveNames( nss, i + 1, {
+                            first:
+                                { k: va, v: unforcedBindings[ i ].v },
+                            rest: revBindings
+                        }, then );
                     } );
                 }
                 
-                return stxToName( rt, nss,
-                    mkCons.getProj( remainingBody, "car" ),
-                    function ( string ) {
-                        return mkLocalOccurrence.ofNow( string );
-                    },
-                    function ( va ) {
-                
-                var firstNss = nssGet( bindingsNss, "first" );
-                return macroexpand( nssGet( firstNss, "unique" ),
-                    rawMode,
-                    mkCons.getProj( remainingBody1, "car" ),
-                    nssGet( firstNss, "outbox" ).uniqueNs,
-                    function ( rawMode, bindingVal ) {
+                function forceBindings( rawMode, revUnforcedBindings,
+                    forcedBindings, then ) {
                     
-                    return loop( rawMode, nss, i + 1,
-                        mkCons.getProj( remainingBody1, "cdr" ),
-                        nssGet( bindingsNss, "rest" ),
-                        bindings.concat(
-                            [ { k: va, v: bindingVal } ] ),
-                        then );
-                } );
-                
-                } );
-            }
+                    if ( revUnforcedBindings === null )
+                        return then( rawMode, forcedBindings );
+                    
+                    return revUnforcedBindings.first.v( rawMode,
+                        function ( rawMode, forcedBinding ) {
+                        
+                        return forceBindings( rawMode,
+                            revUnforcedBindings.rest,
+                            {
+                                first: {
+                                  k: revUnforcedBindings.first.k,
+                                  v: forcedBinding
+                                },
+                                rest: forcedBindings
+                            },
+                            then );
+                    } );
+                }
+            };
         } );
         
         function structMapper( body, then, CexprConstructor ) {
@@ -6339,43 +6372,6 @@ function usingFuncDefNs( funcDefNs ) {
         return macLookupRet( mkNil.ofNow() );
     }
     
-    // TODO: Gradually replace just about every use of this with
-    // `macroexpandLazy` or `macroexpandMulti`. If we still need this,
-    // implement it in terms of `macroexpandLazy`.
-    function macroexpand( nss, rawMode, locatedExpr, outNs, then ) {
-        var definer = elementDefiner( "val", outNs );
-        
-        collectDefer( rawMode, {}, function ( rawMode ) {
-            return macLookupThen(
-                macLookupGet( definer, function () {
-                    if ( !mkStx.tags( locatedExpr ) )
-                        throw new Error();
-                    var sExpr =
-                        mkStx.getProj( locatedExpr, "s-expr" );
-                    if ( !mkCons.tags( sExpr ) )
-                        throw new Error();
-                    var macroNameStx =
-                        mkCons.getProj( sExpr, "car" );
-                    throw new Error(
-                        "Macro never completed: " +
-                        macroNameStx.pretty() );
-                } ),
-                function ( macroResult ) {
-                
-                if ( !(macroResult instanceof SinkCexpr) )
-                    throw new Error();
-                return macLookupRet( new SinkForeign( "effects",
-                    function ( rawMode ) {
-                    
-                    return then( rawMode, macroResult.cexpr );
-                } ) );
-            } );
-        } );
-        
-        return macroexpandToDefiner( nss, rawMode, locatedExpr,
-            definer );
-    }
-    
     function macroexpandLazy( nss, rawMode, locatedExpr ) {
         var definer =
             elementDefiner( "val", nssGet( nss, "outbox" ).uniqueNs );
@@ -6476,6 +6472,11 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         return macLookupRet( mkNil.ofNow() );
+    }
+    
+    function macroexpand( nss, rawMode, locatedExpr, then ) {
+        var force = macroexpandLazy( nss, rawMode, locatedExpr );
+        return force( rawMode, then );
     }
     
     function processDefStruct( definitionNs, rawMode,
@@ -6614,8 +6615,8 @@ function usingFuncDefNs( funcDefNs ) {
             var thisRemainingNss = remainingNss;
             
             macLookupEffectsArr.push( function ( rawMode ) {
-                var firstNss = nssGet( thisRemainingNss, "first" );
-                return macroexpand( nssGet( firstNss, "unique" ),
+                return macroexpand(
+                    nssGet( thisRemainingNss, "first" ),
                     rawMode,
                     sinkFromReaderExpr( function ( start, stop ) {
                         return new SinkForeign( "stx-details", [ {
@@ -6624,7 +6625,6 @@ function usingFuncDefNs( funcDefNs ) {
                             stop: stop
                         } ] );
                     }, tryExpr.val ),
-                    nssGet( firstNss, "outbox" ).uniqueNs,
                     function ( rawMode, code ) {
                     
                     return macLookupRet( null );
