@@ -609,6 +609,10 @@
         err.\;qq[Expected a chops that was a located s-expression]
       /case interpolation foreign expr
         (get-mode/fn mode /let mac (c mac mode)
+        ; TODO: Figure out of this use of `compile-expression-later`
+        ; has less concurrency than it could have. Cene macros
+        ; consistently expand their subexpressions concurrently now,
+        ; and if this doesn't, we should make it consistent.
         /compile-expression-later scope
           (c mac str.chopsrun-from-interpolation /list expr)
         /fn cexpr
@@ -868,6 +872,11 @@
   /fn caller-scope s mac then
   /scope-spread-later caller-scope chops-list
     (fn scope chops then
+      ; TODO: Figure out of this use of
+      ; `compile-tvary-chops-to-expr-later` has less concurrency than
+      ; it could have. Cene macros consistently expand their
+      ; subexpressions concurrently now, and if this doesn't, we
+      ; should make it consistent.
       (compile-tvary-chops-to-expr-later s mac scope to-located.chops
         then))
   /fn chops-list
