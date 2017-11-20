@@ -4089,9 +4089,6 @@ function usingFuncDefNs( funcDefNs ) {
         // tests. Perhaps the results should be installed as
         // definitions somewhere. Perhaps we should be able to control
         // the order.
-        //
-        // TODO: Make this expand multiple expressions concurrently.
-        //
         mac( "test-async", function ( myStxDetails, body, then ) {
             if ( !mkCons.tags( body ) )
                 throw new Error();
@@ -4107,16 +4104,11 @@ function usingFuncDefNs( funcDefNs ) {
             
             return function ( rawMode, nss ) {
                 
-                function makeEvalExpr( nss, rawMode, expr, then ) {
-                    return macroexpand(
-                        nssGet( nss, "unique" ),
-                        rawMode,
-                        expr,
-                        nssGet( nss, "outbox" ).uniqueNs,
-                        function ( rawMode, expanded ) {
-                        
-                        return then( rawMode,
-                            function ( rawMode, then ) {
+                function makeEvalExpr( nss, rawMode, expr ) {
+                    var force = macroexpandLazy( nss, rawMode, expr );
+                    return function ( rawMode, then ) {
+                        return force( rawMode,
+                            function ( rawMode, expanded ) {
                             
                             return macLookupThen(
                                 cgenExecute( rt,
@@ -4126,64 +4118,60 @@ function usingFuncDefNs( funcDefNs ) {
                                 return then( rawMode, evaluated );
                             } );
                         } );
-                    } );
-                }
-                
-                function makeEvalExprAndRun(
-                    nss, rawMode, expr, then ) {
-                    
-                    return makeEvalExpr( nss, rawMode, expr,
-                        function ( rawMode, evalExpr ) {
-                    return then( rawMode, function ( rawMode, then ) {
-                    return evalExpr( rawMode,
-                        function ( rawMode, evaluated ) {
-                    
-                    var definer = {
-                        type: "object",
-                        ffiSandboxId: rawMode.ffiSandboxId,
-                        unitTestId: rawMode.unitTestId,
-                        visit: null,
-                        dexAndValue: null
                     };
-                    
-                    collectDefer( rawMode, {}, function ( rawMode ) {
-                        return macLookupThen(
-                            macLookupGet( definer, function () {
-                                throw new Error(
-                                    "Never completed a side of a test-async" );
-                            } ),
-                            function ( defined ) {
-                            
-                            return macLookupRet(
-                                new SinkForeign( "effects",
-                                    function ( rawMode ) {
-                                
-                                return then( rawMode, defined );
-                            } ) );
-                            
-                        } );
-                    } );
-                    
-                    return macLookupThenRunEffects( rawMode,
-                        evaluated.callSink( rt,
-                            new SinkForeign( "definer", definer ) ) );
-                    
-                    } );
-                    } );
-                    } );
                 }
                 
-                makeEvalExpr( nssGet( nss, "dex" ), rawMode,
-                    mkCons.getProj( body, "car" ),
-                    function ( rawMode, evalDex ) {
-                return makeEvalExprAndRun( nssGet( nss, "a" ),
-                    rawMode,
-                    mkCons.getProj( body1, "car" ),
-                    function ( rawMode, evalA ) {
-                return makeEvalExprAndRun( nssGet( nss, "b" ),
-                    rawMode,
-                    mkCons.getProj( body2, "car" ),
-                    function ( rawMode, evalB ) {
+                function makeEvalExprAndRun( nss, rawMode, expr ) {
+                    var evalExpr = makeEvalExpr( nss, rawMode, expr );
+                    
+                    return function ( rawMode, then ) {
+                        return evalExpr( rawMode,
+                            function ( rawMode, evaluated ) {
+                        
+                        var definer = {
+                            type: "object",
+                            ffiSandboxId: rawMode.ffiSandboxId,
+                            unitTestId: rawMode.unitTestId,
+                            visit: null,
+                            dexAndValue: null
+                        };
+                        
+                        collectDefer( rawMode, {},
+                            function ( rawMode ) {
+                            
+                            return macLookupThen(
+                                macLookupGet( definer, function () {
+                                    throw new Error( "Never completed a side of a test-async" );
+                                } ),
+                                function ( defined ) {
+                                
+                                return macLookupRet(
+                                    new SinkForeign( "effects", function ( rawMode ) {
+                                    
+                                    return then( rawMode, defined );
+                                } ) );
+                                
+                            } );
+                        } );
+                        
+                        return macLookupThenRunEffects( rawMode,
+                            evaluated.callSink( rt,
+                                new SinkForeign( "definer",
+                                    definer ) ) );
+                        
+                        } );
+                    };
+                }
+                
+                var evalDex =
+                    makeEvalExpr( nssGet( nss, "dex" ), rawMode,
+                        mkCons.getProj( body, "car" ) );
+                var evalA =
+                    makeEvalExprAndRun( nssGet( nss, "a" ), rawMode,
+                        mkCons.getProj( body1, "car" ) );
+                var evalB =
+                    makeEvalExprAndRun( nssGet( nss, "b" ), rawMode,
+                        mkCons.getProj( body2, "car" ) );
                 
                 collectDefer( rawMode, {
                     type: "unit-test",
@@ -4224,12 +4212,6 @@ function usingFuncDefNs( funcDefNs ) {
                 } );
                 } );
                 } ) );
-                } );
-                
-                return macLookupRet( mkNil.ofNow() );
-                
-                } );
-                } );
                 } );
                 
                 return macLookupThenRunEffects( rawMode,
