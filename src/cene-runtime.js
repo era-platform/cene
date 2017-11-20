@@ -351,6 +351,10 @@ function macLookupProcureContributedElements( namespace, err ) {
         namespace: namespace, err: err };
 }
 function macLookupThen( macLookupEffects, then ) {
+    if ( macLookupEffects === void 0 )
+        throw new Error(
+            "Cene language internal error: Forgot to return an " +
+            "\"effects\" monadic computation value somewhere" );
     return { type: "then", first: macLookupEffects, then: then };
 }
 
@@ -539,7 +543,7 @@ SinkForeign.prototype.getName = function () {
         return [ "n:int", this.foreignVal ];
     } else {
         throw new Error(
-            "Cene internal language error: Tried to call getName " +
+            "Cene language internal error: Tried to call getName " +
             "on a SinkForeign that didn't support it" );
     }
 };
@@ -3597,7 +3601,6 @@ function usingFuncDefNs( funcDefNs ) {
         } );
     }
     
-    // TODO: Make this expand multiple expressions concurrently.
     function cgenCaseletForRunner(
         nss, rawMode, maybeVa, matchSubject, body, then ) {
         
@@ -3609,10 +3612,9 @@ function usingFuncDefNs( funcDefNs ) {
                 throw new Error();
             var body1 = mkCons.getProj( body, "cdr" );
             if ( !mkCons.tags( body1 ) )
-                return macroexpand( nssGet( nss, "unique" ), rawMode,
-                    mkCons.getProj( body, "car" ),
-                    nssGet( nss, "outbox" ).uniqueNs,
-                    then );
+                return then( rawMode,
+                    macroexpandLazy( nss, rawMode,
+                        mkCons.getProj( body, "car" ) ) );
             
             return macLookupThen( extractPattern( nss, body ),
                 function ( pattern ) {
@@ -3620,25 +3622,30 @@ function usingFuncDefNs( funcDefNs ) {
             if ( !mkCons.tags( pattern.remainingBody ) )
                 throw new Error();
             
-            var thenNss = nssGet( nss, "then" );
-            return macroexpand( nssGet( thenNss, "unique" ),
-                rawMode,
-                mkCons.getProj( pattern.remainingBody, "car" ),
-                nssGet( thenNss, "outbox" ).uniqueNs,
-                function ( rawMode, thenBranch ) {
+            var forceThenBranch =
+                macroexpandLazy( nssGet( nss, "then" ), rawMode,
+                    mkCons.getProj( pattern.remainingBody, "car" ) );
             
             var els = mkCons.getProj( pattern.remainingBody, "cdr" );
             return processTail( nssGet( nss, "tail" ), rawMode, els,
-                function ( rawMode, processedTail ) {
+                function ( rawMode, forceProcessedTail ) {
             
-            return then( rawMode,
-                new CexprCase(
-                    new CexprVar( subjectVar ),
-                    pattern.struct.repMainTagName,
-                    pattern.bindingsMap,
-                    thenBranch,
-                    processedTail ) );
-            
+            return then( rawMode, function ( rawMode, then ) {
+                return forceThenBranch( rawMode,
+                    function ( rawMode, thenBranch ) {
+                return forceProcessedTail( rawMode,
+                    function ( rawMode, processedTail ) {
+                
+                return then( rawMode,
+                    new CexprCase(
+                        new CexprVar( subjectVar ),
+                        pattern.struct.repMainTagName,
+                        pattern.bindingsMap,
+                        thenBranch,
+                        processedTail ) );
+                
+                } );
+                } );
             } );
             
             } );
@@ -3646,12 +3653,15 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         }
         
-        var subjectNss = nssGet( nss, "subject" );
-        return macroexpand( nssGet( subjectNss, "unique" ), rawMode,
-            matchSubject,
-            nssGet( subjectNss, "outbox" ).uniqueNs,
-            function ( rawMode, expandedSubject ) {
+        var forceSubject =
+            macroexpandLazy( nssGet( nss, "subject" ), rawMode,
+                matchSubject );
+        
         return processTail( nssGet( nss, "tail" ), rawMode, body,
+            function ( rawMode, forceProcessedTail ) {
+        return forceSubject( rawMode,
+            function ( rawMode, expandedSubject ) {
+        return forceProcessedTail( rawMode,
             function ( rawMode, processedTail ) {
         
         return macLookupThenRunEffects( rawMode,
@@ -3662,9 +3672,9 @@ function usingFuncDefNs( funcDefNs ) {
         
         } );
         } );
+        } );
     }
     
-    // TODO: Make this expand multiple expressions concurrently.
     function cgenCast( nss, rawMode, matchSubject, body, then ) {
         return macLookupThen( extractPattern( nss, body ),
             function ( pattern ) {
@@ -3679,33 +3689,22 @@ function usingFuncDefNs( funcDefNs ) {
         if ( mkCons.tags( remainingBody2 ) )
             throw new Error();
         
-        var onCastErrNss = nssGet( nss, "on-cast-err" );
-        return macroexpand( nssGet( onCastErrNss, "unique" ), rawMode,
-            mkCons.getProj( pattern.remainingBody, "car" ),
-            nssGet( onCastErrNss, "outbox" ).uniqueNs,
-            function ( rawMode, onCastErr ) {
-        var bodyNss = nssGet( nss, "body" );
-        return macroexpand( nssGet( bodyNss, "unique" ), rawMode,
-            mkCons.getProj( remainingBody1, "car" ),
-            nssGet( bodyNss, "outbox" ).uniqueNs,
-            function ( rawMode, body ) {
-        var subjectNss = nssGet( nss, "subject" );
-        return macroexpand( nssGet( subjectNss, "unique" ), rawMode,
-            matchSubject,
-            nssGet( subjectNss, "outbox" ).uniqueNs,
-            function ( rawMode, expandedSubject ) {
+        return macroexpandMulti( nss, rawMode, {
+            "on-cast-expr":
+                mkCons.getProj( pattern.remainingBody, "car" ),
+            body: mkCons.getProj( remainingBody1, "car" ),
+            subject: matchSubject
+        }, function ( rawMode, expanded ) {
         
         return macLookupThenRunEffects( rawMode,
             then(
                 new CexprCase(
-                    expandedSubject,
+                    expanded.subject,
                     pattern.struct.repMainTagName,
                     pattern.bindingsMap,
-                    body,
-                    onCastErr ) ) );
+                    expanded.body,
+                    expanded[ "on-cast-expr" ] ) ) );
         
-        } );
-        } );
         } );
         
         } );
@@ -3767,29 +3766,39 @@ function usingFuncDefNs( funcDefNs ) {
         return result;
     }
     
-    // TODO: Make this expand multiple expressions concurrently.
-    function macroexpandConsListToArr( nss, rawMode, list, then ) {
-        return go( nss, rawMode, list, null );
-        function go( currentNss, rawMode, e, revResult ) {
-            if ( !mkCons.tags( e ) ) {
-                if ( !mkNil.tags( e ) )
-                    throw new Error();
-                
-                return then( rawMode, revJsListToArr( revResult ) );
-            }
-            
-            var firstNss = nssGet( currentNss, "first" );
-            return macroexpand( nssGet( firstNss, "unique" ),
-                rawMode,
-                mkCons.getProj( e, "car" ),
-                nssGet( firstNss, "outbox" ).uniqueNs,
-                function ( rawMode, elemResult ) {
-                
-                return go( nssGet( currentNss, "rest" ), rawMode,
-                    mkCons.getProj( e, "cdr" ),
-                    { first: elemResult, rest: revResult } );
-            } );
+    function macroexpandConsListToArrLazy( nss, rawMode, list ) {
+        
+        var force = [];
+        var currentNss = nss;
+        var e = list;
+        while ( mkCons.tags( e ) ) {
+            force.push(
+                macroexpandLazy( nssGet( currentNss, "first" ),
+                    rawMode,
+                    mkCons.getProj( e, "car" ) ) );
+            currentNss = nssGet( currentNss, "rest" );
+            e = mkCons.getProj( e, "cdr" );
         }
+        if ( !mkNil.tags( e ) )
+            throw new Error();
+        
+        var n = force.length;
+        
+        return function ( rawMode, then ) {
+            return go( rawMode, 0, null );
+            function go( rawMode, i, revResult ) {
+                if ( n <= i )
+                    return then( rawMode,
+                        revJsListToArr( revResult ) );
+                
+                return force[ i ]( rawMode,
+                    function ( rawMode, elemResult ) {
+                    
+                    return go( rawMode, i + 1,
+                        { first: elemResult, rest: revResult } );
+                } );
+            }
+        };
     }
     
     function sinkFnPure( func ) {
@@ -4087,9 +4096,6 @@ function usingFuncDefNs( funcDefNs ) {
         // tests. Perhaps the results should be installed as
         // definitions somewhere. Perhaps we should be able to control
         // the order.
-        //
-        // TODO: Make this expand multiple expressions concurrently.
-        //
         mac( "test-async", function ( myStxDetails, body, then ) {
             if ( !mkCons.tags( body ) )
                 throw new Error();
@@ -4105,19 +4111,11 @@ function usingFuncDefNs( funcDefNs ) {
             
             return function ( rawMode, nss ) {
                 
-                function makeEvalExpr( nss, rawMode, expr, then ) {
-                    
-                    // NOTE: This is the only place we ignore
-                    // `macroexpand`'s return value.
-                    macroexpand(
-                        nssGet( nss, "unique" ),
-                        rawMode,
-                        expr,
-                        nssGet( nss, "outbox" ).uniqueNs,
-                        function ( rawMode, expanded ) {
-                        
-                        return then( rawMode,
-                            function ( rawMode, then ) {
+                function makeEvalExpr( nss, rawMode, expr ) {
+                    var force = macroexpandLazy( nss, rawMode, expr );
+                    return function ( rawMode, then ) {
+                        return force( rawMode,
+                            function ( rawMode, expanded ) {
                             
                             return macLookupThen(
                                 cgenExecute( rt,
@@ -4127,66 +4125,60 @@ function usingFuncDefNs( funcDefNs ) {
                                 return then( rawMode, evaluated );
                             } );
                         } );
-                    } );
-                    
-                    return macLookupRet( mkNil.ofNow() );
-                }
-                
-                function makeEvalExprAndRun(
-                    nss, rawMode, expr, then ) {
-                    
-                    return makeEvalExpr( nss, rawMode, expr,
-                        function ( rawMode, evalExpr ) {
-                    return then( rawMode, function ( rawMode, then ) {
-                    return evalExpr( rawMode,
-                        function ( rawMode, evaluated ) {
-                    
-                    var definer = {
-                        type: "object",
-                        ffiSandboxId: rawMode.ffiSandboxId,
-                        unitTestId: rawMode.unitTestId,
-                        visit: null,
-                        dexAndValue: null
                     };
-                    
-                    collectDefer( rawMode, {}, function ( rawMode ) {
-                        return macLookupThen(
-                            macLookupGet( definer, function () {
-                                throw new Error(
-                                    "Never completed a side of a test-async" );
-                            } ),
-                            function ( defined ) {
-                            
-                            return macLookupRet(
-                                new SinkForeign( "effects",
-                                    function ( rawMode ) {
-                                
-                                return then( rawMode, defined );
-                            } ) );
-                            
-                        } );
-                    } );
-                    
-                    return macLookupThenRunEffects( rawMode,
-                        evaluated.callSink( rt,
-                            new SinkForeign( "definer", definer ) ) );
-                    
-                    } );
-                    } );
-                    } );
                 }
                 
-                makeEvalExpr( nssGet( nss, "dex" ), rawMode,
-                    mkCons.getProj( body, "car" ),
-                    function ( rawMode, evalDex ) {
-                return makeEvalExprAndRun( nssGet( nss, "a" ),
-                    rawMode,
-                    mkCons.getProj( body1, "car" ),
-                    function ( rawMode, evalA ) {
-                return makeEvalExprAndRun( nssGet( nss, "b" ),
-                    rawMode,
-                    mkCons.getProj( body2, "car" ),
-                    function ( rawMode, evalB ) {
+                function makeEvalExprAndRun( nss, rawMode, expr ) {
+                    var evalExpr = makeEvalExpr( nss, rawMode, expr );
+                    
+                    return function ( rawMode, then ) {
+                        return evalExpr( rawMode,
+                            function ( rawMode, evaluated ) {
+                        
+                        var definer = {
+                            type: "object",
+                            ffiSandboxId: rawMode.ffiSandboxId,
+                            unitTestId: rawMode.unitTestId,
+                            visit: null,
+                            dexAndValue: null
+                        };
+                        
+                        collectDefer( rawMode, {},
+                            function ( rawMode ) {
+                            
+                            return macLookupThen(
+                                macLookupGet( definer, function () {
+                                    throw new Error( "Never completed a side of a test-async" );
+                                } ),
+                                function ( defined ) {
+                                
+                                return macLookupRet(
+                                    new SinkForeign( "effects", function ( rawMode ) {
+                                    
+                                    return then( rawMode, defined );
+                                } ) );
+                                
+                            } );
+                        } );
+                        
+                        return macLookupThenRunEffects( rawMode,
+                            evaluated.callSink( rt,
+                                new SinkForeign( "definer",
+                                    definer ) ) );
+                        
+                        } );
+                    };
+                }
+                
+                var evalDex =
+                    makeEvalExpr( nssGet( nss, "dex" ), rawMode,
+                        mkCons.getProj( body, "car" ) );
+                var evalA =
+                    makeEvalExprAndRun( nssGet( nss, "a" ), rawMode,
+                        mkCons.getProj( body1, "car" ) );
+                var evalB =
+                    makeEvalExprAndRun( nssGet( nss, "b" ), rawMode,
+                        mkCons.getProj( body2, "car" ) );
                 
                 collectDefer( rawMode, {
                     type: "unit-test",
@@ -4227,12 +4219,6 @@ function usingFuncDefNs( funcDefNs ) {
                 } );
                 } );
                 } ) );
-                } );
-                
-                return macLookupRet( mkNil.ofNow() );
-                
-                } );
-                } );
                 } );
                 
                 return macLookupThenRunEffects( rawMode,
@@ -4291,18 +4277,18 @@ function usingFuncDefNs( funcDefNs ) {
                 throw new Error();
             
             return function ( rawMode, nss ) {
-                var funcNss = nssGet( nss, "func" );
-                // TODO: Make this expand multiple subexpressions
-                // concurrently.
-                return macroexpand( nssGet( funcNss, "unique" ),
-                    rawMode,
-                    mkCons.getProj( body, "car" ),
-                    nssGet( funcNss, "outbox" ).uniqueNs,
+                var forceFunc =
+                    macroexpandLazy( nssGet( nss, "func" ), rawMode,
+                        mkCons.getProj( body, "car" ) );
+                var forceArgs =
+                    macroexpandConsListToArrLazy(
+                        nssGet( nss, "args" ),
+                        rawMode,
+                        mkCons.getProj( body, "cdr" ) );
+                
+                return forceFunc( rawMode,
                     function ( rawMode, expandedFunc ) {
-                return macroexpandConsListToArr(
-                    nssGet( nss, "args" ),
-                    rawMode,
-                    mkCons.getProj( body, "cdr" ),
+                return forceArgs( rawMode,
                     function ( rawMode, expandedArgs ) {
                 
                 return macLookupThenRunEffects( rawMode,
@@ -4466,8 +4452,6 @@ function usingFuncDefNs( funcDefNs ) {
             }
         } );
         
-        // TODO: Make this expand multiple subexpressions
-        // concurrently.
         function structMapper( body, then, CexprConstructor ) {
             
             if ( !mkCons.tags( body ) )
@@ -4486,55 +4470,54 @@ function usingFuncDefNs( funcDefNs ) {
                         sourceMainTagNameRep ),
                     function ( struct ) {
                 
-                return loop( nss, rawMode, struct, 0, null,
-                    mkCons.getProj( body, "cdr" ) );
+                
+                var force = [];
+                var currentNss = nss;
+                var remainingBody = mkCons.getProj( body, "cdr" );
+                arrEach( struct.unsortedProjNames, function ( name ) {
+                    if ( !mkCons.tags( remainingBody ) )
+                        throw new Error(
+                            "Expected more arguments to " +
+                            JSON.stringify( sourceMainTagNameRep ) );
+                    
+                    force.push(
+                        macroexpandLazy(
+                            nssGet( currentNss, "first" ),
+                            rawMode,
+                            mkCons.getProj(
+                                remainingBody, "car" ) ) );
+                    currentNss = nssGet( currentNss, "rest" );
+                    remainingBody =
+                        mkCons.getProj( remainingBody, "cdr" );
+                } );
+                if ( mkCons.tags( remainingBody ) )
+                    throw new Error();
+                
+                return loop( rawMode, struct, 0, force, null );
                 
                 } );
                 } );
             };
             
-            function loop( nss, rawMode, struct, i, revProjVals,
-                remainingBody ) {
+            function loop( rawMode, struct, i, force, revProjVals ) {
                 
                 var n = struct.unsortedProjNames.length;
                 if ( n <= i )
-                    return next( rawMode, struct,
-                        revProjVals, remainingBody );
+                    return macLookupThenRunEffects( rawMode,
+                        then(
+                            new CexprConstructor(
+                                struct.repMainTagName,
+                                revJsListToArr( revProjVals ) ) ) );
                 
-                if ( !mkCons.tags( remainingBody ) )
-                    throw new Error(
-                        "Expected more arguments to " +
-                        JSON.stringify( sourceMainTagNameRep ) );
-                
-                var firstNss = nssGet( nss, "first" );
-                
-                return macroexpand( nssGet( firstNss, "unique" ),
-                    rawMode,
-                    mkCons.getProj( remainingBody, "car" ),
-                    nssGet( firstNss, "outbox" ).uniqueNs,
+                return force[ i ]( rawMode,
                     function ( rawMode, projVal ) {
                     
-                    return loop( nssGet( nss, "rest" ), rawMode,
-                        struct,
-                        i + 1,
+                    return loop( rawMode, struct, i + 1, force,
                         { first:
                             { name: struct.unsortedProjNames[ i ].rep,
                                 expr: projVal },
-                            rest: revProjVals },
-                        mkCons.getProj( remainingBody, "cdr" ) );
+                            rest: revProjVals } );
                 } );
-            }
-            
-            function next(
-                rawMode, struct, revProjVals, remainingBody ) {
-                
-                if ( mkCons.tags( remainingBody ) )
-                    throw new Error();
-                
-                return macLookupThenRunEffects( rawMode,
-                    then(
-                        new CexprConstructor( struct.repMainTagName,
-                            revJsListToArr( revProjVals ) ) ) );
             }
         }
         
@@ -6356,6 +6339,9 @@ function usingFuncDefNs( funcDefNs ) {
         return macLookupRet( mkNil.ofNow() );
     }
     
+    // TODO: Gradually replace just about every use of this with
+    // `macroexpandLazy` or `macroexpandMulti`. If we still need this,
+    // implement it in terms of `macroexpandLazy`.
     function macroexpand( nss, rawMode, locatedExpr, outNs, then ) {
         var definer = elementDefiner( "val", outNs );
         
@@ -6390,6 +6376,108 @@ function usingFuncDefNs( funcDefNs ) {
             definer );
     }
     
+    function macroexpandLazy( nss, rawMode, locatedExpr ) {
+        var definer =
+            elementDefiner( "val", nssGet( nss, "outbox" ).uniqueNs );
+        
+        // We spawn a thread just to report errors if the macro call
+        // doesn't complete.
+        collectDefer( rawMode, {}, function ( rawMode ) {
+            return macLookupThen(
+                macLookupGet( definer, function () {
+                    if ( !mkStx.tags( locatedExpr ) )
+                        throw new Error();
+                    var sExpr =
+                        mkStx.getProj( locatedExpr, "s-expr" );
+                    if ( !mkCons.tags( sExpr ) )
+                        throw new Error();
+                    var macroNameStx =
+                        mkCons.getProj( sExpr, "car" );
+                    throw new Error(
+                        "Macro never completed: " +
+                        macroNameStx.pretty() );
+                } ),
+                function ( macroResult ) {
+                
+                if ( !(macroResult instanceof SinkCexpr) )
+                    throw new Error();
+                return macLookupRet( sinkForeignEffectsNil );
+            } );
+        } );
+        
+        macroexpandToDefiner( nssGet( nss, "uniique" ), rawMode,
+            locatedExpr, definer );
+        
+        return function ( rawMode, then ) {
+            collectDefer( rawMode, {}, function ( rawMode ) {
+                return macLookupThen(
+                    macLookupGet( definer, function () {
+                        // We're already reporting an error in the
+                        // thread above, so we do nothing here.
+                    } ),
+                    function ( macroResult ) {
+                    
+                    if ( !(macroResult instanceof SinkCexpr) )
+                        throw new Error();
+                    return macLookupRet( new SinkForeign( "effects",
+                        function ( rawMode ) {
+                        
+                        return then( rawMode, macroResult.cexpr );
+                    } ) );
+                } );
+            } );
+            
+            return macLookupRet( mkNil.ofNow() );
+        };
+    }
+    
+    function macroexpandMulti( nss, rawMode, locatedExprs, then ) {
+        
+        var locatedExprsArr = [];
+        objOwnEach( locatedExprs, function ( k, locatedExpr ) {
+            locatedExprsArr.push( {
+                k: k,
+                force:
+                    macroexpandLazy( nssGet( nss, k ), rawMode,
+                        locatedExpr )
+            } );
+        } );
+        var n = locatedExprsArr.length;
+        
+        collectDefer( rawMode, {}, function ( rawMode ) {
+            return macLookupRet( new SinkForeign( "effects",
+                function ( rawMode ) {
+                
+                return loop( rawMode, 0, null );
+            } ) );
+            function loop( rawMode, i, revResults ) {
+                if ( n <= i ) {
+                    var result = {};
+                    arrEach( revJsListToArr( revResults ),
+                        function ( entry ) {
+                        
+                        result[ entry.k ] = entry.v;
+                    } );
+                    return then( rawMode, result );
+                }
+                
+                var entry = locatedExprsArr[ i ];
+                var force = entry.force;
+                
+                return force( rawMode,
+                    function ( rawMode, cexpr ) {
+                    
+                    return loop( rawMode, i + 1, {
+                        first: { k: entry.k, v: cexpr },
+                        rest: revResults
+                    } );
+                } );
+            }
+        } );
+        
+        return macLookupRet( mkNil.ofNow() );
+    }
+    
     function processDefStruct( definitionNs, rawMode,
         macroMainTagName, sourceMainTagName, repMainTagName,
         projSourceToRep ) {
@@ -6409,61 +6497,59 @@ function usingFuncDefNs( funcDefNs ) {
                         new SinkForeign( "name", entry.source ),
                         new SinkForeign( "name", entry.rep ) );
                 } ) ) ) );
-        // TODO: Make this expand multiple subexpressions
-        // concurrently.
         addPureMacro( definitionNs, rawMode, macroMainTagName,
             [ "claim:struct" ],
             function ( myStxDetails, body, then ) {
             
             return function ( rawMode, nss ) {
-                return loop( rawMode, nss, 0, null,
-                    body, nssGet( nss, "projections" ) );
+                
+                var forceProj = [];
+                var remainingBody = body;
+                var projectionsNss = nssGet( nss, "projections" );
+                for ( var i = 0; i < n; i++ ) {
+                    if ( !mkCons.tags( remainingBody ) )
+                        throw new Error(
+                            "Expected more arguments to " +
+                            JSON.stringify( macroMainTagName ) );
+                    
+                    forceProj.push(
+                        macroexpandLazy(
+                            nssGet( projectionsNss, "first" ),
+                            rawMode,
+                            mkCons.getProj(
+                                remainingBody, "car" ) ) );
+                    remainingBody =
+                        mkCons.getProj( remainingBody, "cdr" );
+                    projectionsNss = nssGet( projectionsNss, "rest" );
+                }
+                
+                var forceArgs =
+                    macroexpandConsListToArrLazy(
+                        nssGet( nss, "args" ),
+                        rawMode,
+                        remainingBody );
+                
+                return loop( rawMode, 0, null );
+                function loop( rawMode, i, revProjVals ) {
+                    
+                    if ( n <= i )
+                        return forceArgs( rawMode,
+                            function ( rawMode, expandedArgs ) {
+                            
+                            return macLookupThenRunEffects( rawMode,
+                                then(
+                                    cgenCallArr( struct.ofArr( revJsListToArr( revProjVals ) ),
+                                        expandedArgs ) ) );
+                        } );
+                    
+                    return forceProj[ i ]( rawMode,
+                        function ( rawMode, projVal ) {
+                        
+                        return loop( rawMode, i + 1,
+                            { first: projVal, rest: revProjVals } );
+                    } );
+                }
             };
-            
-            function loop( rawMode, nss, i, revProjVals,
-                remainingBody, projectionsNss ) {
-                
-                if ( n <= i )
-                    return next( rawMode, nss,
-                        revProjVals, remainingBody );
-                
-                if ( !mkCons.tags( remainingBody ) )
-                    throw new Error(
-                        "Expected more arguments to " +
-                        JSON.stringify( macroMainTagName ) );
-                
-                var firstNss = nssGet( projectionsNss, "first" );
-                
-                return macroexpand( nssGet( firstNss, "unique" ),
-                    rawMode,
-                    mkCons.getProj( remainingBody, "car" ),
-                    nssGet( firstNss, "outbox" ).uniqueNs,
-                    function ( rawMode, projVal ) {
-                    
-                    return loop( rawMode, nss, i + 1,
-                        { first: projVal, rest: revProjVals },
-                        mkCons.getProj( remainingBody, "cdr" ),
-                        nssGet( projectionsNss, "rest" ) );
-                } );
-            }
-            
-            function next( rawMode, nss,
-                revProjVals, remainingBody ) {
-                
-                return macroexpandConsListToArr(
-                    nssGet( nss, "args" ),
-                    rawMode,
-                    remainingBody,
-                    function ( rawMode, expandedArgs ) {
-                    
-                    return macLookupThenRunEffects( rawMode,
-                        then(
-                            cgenCallArr(
-                                struct.ofArr(
-                                    revJsListToArr( revProjVals ) ),
-                                expandedArgs ) ) );
-                } );
-            }
         } );
     }
     
