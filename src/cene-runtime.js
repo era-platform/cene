@@ -3668,7 +3668,6 @@ function usingFuncDefNs( funcDefNs ) {
         } );
     }
     
-    // TODO: Make this expand multiple expressions concurrently.
     function cgenCast( nss, rawMode, matchSubject, body, then ) {
         return macLookupThen( extractPattern( nss, body ),
             function ( pattern ) {
@@ -3683,33 +3682,22 @@ function usingFuncDefNs( funcDefNs ) {
         if ( mkCons.tags( remainingBody2 ) )
             throw new Error();
         
-        var onCastErrNss = nssGet( nss, "on-cast-err" );
-        return macroexpand( nssGet( onCastErrNss, "unique" ), rawMode,
-            mkCons.getProj( pattern.remainingBody, "car" ),
-            nssGet( onCastErrNss, "outbox" ).uniqueNs,
-            function ( rawMode, onCastErr ) {
-        var bodyNss = nssGet( nss, "body" );
-        return macroexpand( nssGet( bodyNss, "unique" ), rawMode,
-            mkCons.getProj( remainingBody1, "car" ),
-            nssGet( bodyNss, "outbox" ).uniqueNs,
-            function ( rawMode, body ) {
-        var subjectNss = nssGet( nss, "subject" );
-        return macroexpand( nssGet( subjectNss, "unique" ), rawMode,
-            matchSubject,
-            nssGet( subjectNss, "outbox" ).uniqueNs,
-            function ( rawMode, expandedSubject ) {
+        return macroexpandMulti( nss, rawMode, {
+            "on-cast-expr":
+                mkCons.getProj( pattern.remainingBody, "car" ),
+            body: mkCons.getProj( remainingBody1, "car" ),
+            subject: matchSubject
+        }, function ( rawMode, expanded ) {
         
         return macLookupThenRunEffects( rawMode,
             then(
                 new CexprCase(
-                    expandedSubject,
+                    expanded.subject,
                     pattern.struct.repMainTagName,
                     pattern.bindingsMap,
-                    body,
-                    onCastErr ) ) );
+                    expanded.body,
+                    expanded[ "on-cast-expr" ] ) ) );
         
-        } );
-        } );
         } );
         
         } );
@@ -6476,8 +6464,12 @@ function usingFuncDefNs( funcDefNs ) {
         var n = locatedExprsArr.length;
         
         collectDefer( rawMode, {}, function ( rawMode ) {
-            return loop( 0, null );
-            function loop( i, revResults ) {
+            return macLookupRet( new SinkForeign( "effects",
+                function ( rawMode ) {
+                
+                return loop( rawMode, 0, null );
+            } ) );
+            function loop( rawMode, i, revResults ) {
                 if ( n <= i ) {
                     var result = {};
                     arrEach( revJsListToArr( revResults ),
@@ -6485,18 +6477,16 @@ function usingFuncDefNs( funcDefNs ) {
                         
                         result[ entry.k ] = entry.v;
                     } );
-                    return macLookupRet( new SinkForeign( "effects",
-                        function ( rawMode ) {
-                        
-                        return then( rawMode, result );
-                    } ) );
+                    return then( rawMode, result );
                 }
                 
                 var entry = locatedExprsArr[ i ];
                 var force = entry.force;
                 
-                return force( rawMode, function ( rawMode, cexpr ) {
-                    return loop( i + 1, {
+                return force( rawMode,
+                    function ( rawMode, cexpr ) {
+                    
+                    return loop( rawMode, i + 1, {
                         first: { k: entry.k, v: cexpr },
                         rest: revResults
                     } );
