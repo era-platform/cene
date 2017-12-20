@@ -76,6 +76,6 @@ The use of quasiquotation for macroexpansion results is a more idiosyncratic top
 
 We embed the definition namespaces as foreign values in the s-expressions.
 
-Note that (qstx ...) is just a function this time. It takes an located s-expression and produces another located s-expression. This way, we can embed code directly into the quoted part of the generated quasiquote so that it will be left alone (good for non-expressions and for breaking hygiene), or we can embed it into an unquoted part so it will be put under a (using-foreign ...) call.
+Note that (qstx ...) is just a function call. It takes a `stx-details` value, a located s-expression that evaluates to a `stx-details` value, and a located s-expression representing the main content of the result, and it produces another located s-expression. This way, we can embed code directly into the quoted part of the generated quasiquote so that it will be left alone (good for non-expressions and for breaking hygiene), or we can embed it into an unquoted part so it will be put under a (using-foreign ...) call.
 
 The (q-using-foreign ...) macro is itself a sort of quasiquotation, but not one that the user will write much by hand since it involves a foreign value.
