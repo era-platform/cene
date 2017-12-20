@@ -550,6 +550,9 @@ SinkForeign.prototype.getName = function () {
 SinkForeign.prototype.pretty = function () {
     return this.purpose === "string" ?
         JSON.stringify( this.foreignVal.jsStr ) :
+        this.purpose === "stx" ?
+        "(stx " + this.foreignVal.stxDetails.pretty() + " " +
+            this.foreignVal.sExprLayer.pretty() + ")" :
         "(foreign " + this.purpose + " " +
             JSON.stringify( this.foreignVal ) + ")";
 };
@@ -2289,10 +2292,6 @@ var mkObtainByQualifiedName =
     builtInStruct( "obtain-by-qualified-name", "name" );
 var mkObtainDirectly = builtInStruct( "obtain-directly", "val" );
 
-// This constructor is needed so that macros can parse their located
-// syntax arguments.
-var mkStx = builtInStruct( "stx", "stx-details", "s-expr" );
-
 // This constructor is needed to deconstruct the result of certain
 // operations.
 var mkGetdef = builtInStruct( "getdef", "get", "def" );
@@ -2955,6 +2954,9 @@ function runTopLevelMacLookupsSync(
     }
     
     function raiseErrorsForStalledThread( err ) {
+        if ( err === null )
+            return;
+        
         // TODO: Stop using `setTimeout` here. We don't typically use
         // `setTimeout` directly if we can use a user-supplied defer
         // procedure instead.
@@ -3366,9 +3368,9 @@ function usingFuncDefNs( funcDefNs ) {
     }
     
     function stxToObtainMethod( rt, nss, stx, stringToUnq, then ) {
-        if ( !mkStx.tags( stx ) )
+        if ( !(stx instanceof SinkForeign && stx.purpose === "stx") )
             return then( { type: "obtainInvalid" } );
-        var sExpr = mkStx.getProj( stx, "s-expr" );
+        var sExpr = stx.foreignVal.sExprLayer;
         
         function qualify( unqualifiedName ) {
             if ( !(unqualifiedName instanceof SinkForeign
@@ -4300,9 +4302,10 @@ function usingFuncDefNs( funcDefNs ) {
         } );
         
         function stxToDefiniteSinkString( stx ) {
-            if ( !mkStx.tags( stx ) )
+            if ( !(stx instanceof SinkForeign
+                && stx.purpose === "stx") )
                 throw new Error();
-            var istringNil = mkStx.getProj( stx, "s-expr" );
+            var istringNil = stx.foreignVal.sExprLayer;
             if ( !mkIstringNil.tags( istringNil ) )
                 throw new Error();
             var result = mkIstringNil.getProj( istringNil, "string" );
@@ -5831,6 +5834,34 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
+        fun( "isa-stx", function ( rt, val ) {
+            return rt.fromBoolean(
+                val instanceof SinkForeign && val.purpose === "stx" );
+        } );
+        
+        fun( "stx-details-from-stx", function ( rt, stx ) {
+            if ( !(stx instanceof SinkForeign
+                && stx.purpose === "stx") )
+                throw new Error();
+            return stx.foreignVal.stxDetails;
+        } );
+        
+        fun( "s-expr-layer-from-stx", function ( rt, stx ) {
+            if ( !(stx instanceof SinkForeign
+                && stx.purpose === "stx") )
+                throw new Error();
+            return stx.foreignVal.sExprLayer;
+        } );
+        
+        fun( "stx-from-details-and-layer", function ( rt, details ) {
+            return sinkFnPure( function ( rt, layer ) {
+                return new SinkForeign( "stx", {
+                    stxDetails: details,
+                    sExprLayer: layer
+                } );
+            } );
+        } );
+        
         fun( "stx-details-empty", function ( rt, ignored ) {
             return new SinkForeign( "stx-details", [] );
         } );
@@ -6270,11 +6301,11 @@ function usingFuncDefNs( funcDefNs ) {
     function macroexpandToDefiner(
         nss, rawMode, locatedExpr, outDefiner ) {
         
-        if ( !mkStx.tags( locatedExpr ) )
+        if ( !(locatedExpr instanceof SinkForeign
+            && locatedExpr.purpose === "stx") )
             throw new Error(
                 "Tried to macroexpand " + locatedExpr.pretty() );
-        var expressionStxDetails =
-            mkStx.getProj( locatedExpr, "stx-details" );
+        var expressionStxDetails = locatedExpr.foreignVal.stxDetails;
         
         function finishWithCexpr( cexpr ) {
             return macLookupRet( new SinkForeign( "effects",
@@ -6311,7 +6342,7 @@ function usingFuncDefNs( funcDefNs ) {
                 if ( exprAppearance.type === "obtainDirectly" )
                     return finishWithCexpr( exprAppearance.val );
             
-            var sExpr = mkStx.getProj( locatedExpr, "s-expr" );
+            var sExpr = locatedExpr.foreignVal.sExprLayer;
             if ( !mkCons.tags( sExpr ) )
                 throw new Error();
             var macroNameStx = mkCons.getProj( sExpr, "car" );
@@ -6354,8 +6385,7 @@ function usingFuncDefNs( funcDefNs ) {
                         parseStxDetails( expressionStxDetails ),
                     macroNameStxDetails:
                         parseStxDetails(
-                            mkStx.getProj( macroNameStx,
-                                "stx-details" ) )
+                            macroNameStx.foreignVal.stxDetails )
                 } ] ),
                 mkCons.getProj( sExpr, "cdr" ),
                 new SinkFn( function ( rt, macroResult ) {
@@ -6381,10 +6411,10 @@ function usingFuncDefNs( funcDefNs ) {
         collectDefer( rawMode, {}, function ( rawMode ) {
             return macLookupThen(
                 macLookupGet( definer, function () {
-                    if ( !mkStx.tags( locatedExpr ) )
+                    if ( !(locatedExpr instanceof SinkForeign
+                        && locatedExpr.purpose === "stx") )
                         throw new Error();
-                    var sExpr =
-                        mkStx.getProj( locatedExpr, "s-expr" );
+                    var sExpr = locatedExpr.foreignVal.sExprLayer;
                     if ( !mkCons.tags( sExpr ) )
                         throw new Error();
                     var macroNameStx =
@@ -6407,10 +6437,10 @@ function usingFuncDefNs( funcDefNs ) {
         return function ( rawMode, then ) {
             collectDefer( rawMode, {}, function ( rawMode ) {
                 return macLookupThen(
-                    macLookupGet( definer, function () {
-                        // We're already reporting an error in the
-                        // thread above, so we do nothing here.
-                    } ),
+                    // We're already reporting an error in the thread
+                    // above if this get doesn't work, so we pass in
+                    // `null` as the error-throwing function here.
+                    macLookupGet( definer, null ),
                     function ( macroResult ) {
                     
                     if ( !(macroResult instanceof SinkCexpr) )
@@ -6571,35 +6601,42 @@ function usingFuncDefNs( funcDefNs ) {
             locatedReaderExpr.exprLocStop );
         var readerExpr = locatedReaderExpr.exprLocExpr;
         if ( readerExpr.type === "nil" ) {
-            return mkStx.ofNow( myStxDetails, mkNil.ofNow() );
+            return new SinkForeign( "stx", {
+                stxDetails: myStxDetails,
+                sExprLayer: mkNil.ofNow()
+            } );
         } else if ( readerExpr.type === "cons" ) {
-            return mkStx.ofNow( myStxDetails,
-                mkCons.ofNow(
-                    sinkFromReaderExpr( getStxDetails,
-                        readerExpr.first ),
-                    mkStx.getProj(
+            return new SinkForeign( "stx", {
+                stxDetails: myStxDetails,
+                sExprLayer:
+                    mkCons.ofNow(
                         sinkFromReaderExpr( getStxDetails,
-                            readerExpr.rest ),
-                        "s-expr" )
-                ) );
+                            readerExpr.first ),
+                        sinkFromReaderExpr( getStxDetails,
+                            readerExpr.rest ).foreignVal.sExprLayer )
+            } );
         } else if ( readerExpr.type === "stringNil" ) {
-            return mkStx.ofNow( myStxDetails,
-                mkIstringNil.ofNow(
-                    sinkForeignStrFromJs(
-                        readerStringNilToString(
-                            locatedReaderExpr ) ) ) );
+            return new SinkForeign( "stx", {
+                stxDetails: myStxDetails,
+                sExprLayer:
+                    mkIstringNil.ofNow(
+                        sinkForeignStrFromJs(
+                            readerStringNilToString(
+                                locatedReaderExpr ) ) )
+            } );
         } else if ( readerExpr.type === "stringCons" ) {
-            return mkStx.ofNow( myStxDetails,
-                mkIstringCons.ofNow(
-                    sinkForeignStrFromJs(
-                        readerStringListToString(
-                            readerExpr.string ) ),
-                    sinkFromReaderExpr( getStxDetails,
-                        readerExpr.interpolation ),
-                    mkStx.getProj(
+            return new SinkForeign( "stx", {
+                stxDetails: myStxDetails,
+                sExprLayer:
+                    mkIstringCons.ofNow(
+                        sinkForeignStrFromJs(
+                            readerStringListToString(
+                                readerExpr.string ) ),
                         sinkFromReaderExpr( getStxDetails,
-                            readerExpr.rest ),
-                        "s-expr" ) ) );
+                            readerExpr.interpolation ),
+                        sinkFromReaderExpr( getStxDetails,
+                            readerExpr.rest ).foreignVal.sExprLayer )
+            } );
         } else {
             throw new Error();
         }

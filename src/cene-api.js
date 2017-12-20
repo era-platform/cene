@@ -803,9 +803,10 @@ function ceneApiUsingFuncDefNs( namespaceDefs, funcDefNs, apiOps ) {
         } );
         
         function stxToDefiniteSinkString( stx ) {
-            if ( !mkStx.tags( stx ) )
+            if ( !(stx instanceof SinkForeign
+                && stx.purpose === "stx") )
                 throw new Error();
-            var istringNil = mkStx.getProj( stx, "s-expr" );
+            var istringNil = stx.foreignVal.sExprLayer;
             if ( !mkIstringNil.tags( istringNil ) )
                 throw new Error();
             var result = mkIstringNil.getProj( istringNil, "string" );

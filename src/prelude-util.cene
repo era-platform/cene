@@ -111,9 +111,9 @@
 (defn stx-to-obtain-method scope stx string-to-unq
   (cast scope scope - -b qualify
     err.\;qq[Expected a scope value that was a scope]
-  /cast stx stx - sexpr
-    err.\;qq[Expected a stx value that was a stx]
-  /case sexpr
+  /cast isa-stx.stx yep -
+    err.\;qq[Expected a stx value that was a located s-expression]
+  /case s-expr-layer-from-stx.stx
     
     foreign val
     (yep/case val
@@ -145,8 +145,10 @@
 (defn compile-expression-later scope expression then
   (cast scope scope unique-ns def-ns qualify
     err.\;qq[Expected a scope that was a scope]
-  /cast expression stx expression-stx-details macro-call
-    err.\;qq[Expected an expression that was a stx]
+  /cast isa-stx.expression yep -
+    err.\;qq[Expected an expression that was a located s-expression]
+  /let macro-call s-expr-layer-from-stx.expression
+  /let expression-stx-details stx-details-from-stx.expression
   /let then
     (fn result /c then /cexpr-located expression-stx-details result)
   /later/get-mode/fn mode
@@ -166,8 +168,9 @@
     (c then cexpr)
   /cast macro-call cons macro-name macro-body
     err.\;qq[Expected an expression that was a macro call]
-  /cast macro-name stx macro-name-stx-details -
-    err.\;qq[Expected a macro name that was a stx]
+  /cast isa-stx.macro-name yep -
+    err.\;qq[Expected a macro name that was a located s-expression]
+  /let macro-name-stx-details stx-details-from-stx.macro-name
   /let macro-impl
     (let obtain-method-err
       (fn -
@@ -219,7 +222,7 @@
     err.\;qq[Expected a home-scope that was a scope]
   /join-effects scope-claim.caller-scope
   /later/get-mode/fn mode
-  /let s (fn it /stx my-stx-details it)
+  /let s (fn it /stx-from-details-and-layer my-stx-details it)
   /let mac
     (fn mode str rest
       (cast
@@ -351,8 +354,9 @@
     err.\;qq[Called isa with too few args]
   /cast args nil
     err.\;qq[Called isa with too many args]
-  /cast constructor stx constructor-stx-details -
-    err.\;qq[Expected a constructor that was a stx]
+  /cast isa-stx.constructor yep -
+    err.\;qq[Expected a constructor that was a located s-expression]
+  /let constructor-stx-details stx-details-from-stx.constructor
   /cast
     (stx-to-maybe-name caller-scope constructor /fn string
       (name-of/dexable
@@ -374,7 +378,8 @@
     err.\;qq[Internal error]
   /c mac str.case /cons subject
   /cons
-    (stx (stx-details-join my-stx-details constructor-stx-details)
+    (stx-from-details-and-layer
+      (stx-details-join my-stx-details constructor-stx-details)
     /foreign/obtain-by-qualified-name constructor)
   /append
     (map source-to-rep /fn assoc
@@ -533,9 +538,9 @@
   /get-mode/fn mode
   /let path
     (foldl cli-input-directory.mode args /fn dirname basename
-      (cast basename stx - basename
+      (cast isa-stx.basename yep -
         err.\;qq[Called import with non-syntax]
-      /cast basename istring-nil basename
+      /cast s-expr-layer-from-stx.basename istring-nil basename
         err.\;qq[
           Called import with something other than a string literal]
       /input-path-get dirname basename))
