@@ -616,10 +616,10 @@
       /let interpolation s-expr-layer-from-stx.located-interpolation
       /case interpolation foreign expr
         (get-mode/fn mode /let mac (c mac mode)
-        ; TODO: Figure out of this use of `compile-expression-later`
-        ; has less concurrency than it could have. Cene macros
-        ; consistently expand their subexpressions concurrently now,
-        ; and if this doesn't, we should make it consistent.
+        \= TODO: Figure out of this use of `compile-expression-later`
+        \= has less concurrency than it could have. Cene macros
+        \= consistently expand their subexpressions concurrently now,
+        \= and if this doesn't, we should make it consistent.
         /compile-expression-later scope
           (c mac str.chopsrun-from-interpolation /list expr)
         /fn cexpr
@@ -651,7 +651,7 @@
 (defn parse-located-chops-force-later istring then
   (cast isa-stx.istring yep -
     err.\;qq[Expected an istring that was a located s-expression]
-  /let istring-stx-details stx-details-from-stx.istring
+  /let stx-details stx-details-from-stx.istring
   /let istring s-expr-layer-from-stx.istring
   /parse-chops-later istring /fn parse-chops-result
   /cast parse-chops-result
@@ -881,11 +881,11 @@
   /fn caller-scope s mac then
   /scope-spread-later caller-scope chops-list
     (fn scope chops then
-      ; TODO: Figure out of this use of
-      ; `compile-tvary-chops-to-expr-later` has less concurrency than
-      ; it could have. Cene macros consistently expand their
-      ; subexpressions concurrently now, and if this doesn't, we
-      ; should make it consistent.
+      \= TODO: Figure out of this use of
+      \= `compile-tvary-chops-to-expr-later` has less concurrency than
+      \= it could have. Cene macros consistently expand their
+      \= subexpressions concurrently now, and if this doesn't, we
+      \= should make it consistent.
       (compile-tvary-chops-to-expr-later s mac scope to-located.chops
         then))
   /fn chops-list
