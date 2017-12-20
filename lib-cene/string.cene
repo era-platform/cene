@@ -16,13 +16,18 @@
     err.\;qq[Called istr without enough arguments]
   /cast args nil
     err.\;qq[Called istr with too many arguments]
-  /cast istr stx istr-stx-details istr
-    err.\;qq[Called istr with an argument that wasn't a stx]
+  /cast isa-stx.istr yep -
+    err.\;qq[
+      Called istr with an argument that wasn't a located s-expression]
+  /let istr-stx-details stx-details-from-stx.istr
+  /let istr s-expr-layer-from-stx.istr
   /let augment-stx
     (fn stx-details orig
-      (cast orig stx orig-stx-details expr
-        err.\;qq[Expected an orig that was a stx]
-      /stx (stx-details-join stx-details orig-stx-details) expr))
+      (cast isa-stx.orig yep -
+        err.\;qq[Expected an orig that was a located s-expression]
+      /stx-from-details-and-layer
+        (stx-details-join stx-details /stx-details-from-stx orig)
+      /s-expr-layer-from-stx orig))
   /let loop
     (fix/fn loop istr
       (case istr

@@ -118,14 +118,44 @@ Construct with ``val``
 A foreign occurrence in a Cene code s-expression that indicates something should be looked up by just using the indicated value, instead of by the name of a literal string.
 
 
-.. _stx:
+.. _isa-stx:
 
-stx
----
+isa-stx
+-------
 
-Construct with ``stx-details s-expr``
+Call with ``val``
 
-An s-expression tagged with source location information.
+Returns (:ref:`yep` (:ref:`nil`)) if the given value is a located s-expression (a value containing an s-expression and associated source location information) and (:ref:`nope` (:ref:`nil`)) otherwise.
+
+
+.. _s-expr-layer-from-stx:
+
+s-expr-layer-from-stx
+--------------------
+
+Call with ``stx``
+
+Given a located s-expression, returns either a :ref:`foreign`, a :ref:`cons` and :ref:`nil` list of located s-expressions, or a :ref:`istring-cons` and :ref:`istring-nil` string interpolated with located s-expressions. This operation can be repeated recursively to obtain an s-expression value with no source location information at all.
+
+
+.. _stx-details-from-stx:
+
+stx-details-from-stx
+--------------------
+
+Call with ``stx``
+
+Given a located s-expression, returns a syntax details value (a value designating the source location information).
+
+
+.. _stx-from-details-and-layer:
+
+stx-from-details-and-layer
+--------------------------
+
+Call with ``stx-details s-expr-layer``
+
+Given a syntax details value and an s-expression layer (a :ref:`foreign`, a :ref:`cons` and :ref:`nil` list of located s-expressions, or a :ref:`istring-cons` and :ref:`istring-nil` string interpolated with located s-expressions), returns a located s-expression which returns that s-expression layer when :ref:`stx-details-from-stx` is called. The syntax details are used to enrich the resulting located s-expression's source location information.
 
 
 .. _stx-details-empty:
@@ -294,12 +324,12 @@ The ``caller-scope``'s ``def-ns``: A namespace that is supposedly shared across 
 
 The ``caller-scope``'s ``qualify``: A function that takes an unqualified name and returns a qualified name. This is useful for establishing local definition scopes that work by translating the local names to obscure global names.
 
-``my-stx-details``: A collection of source location information. This is a value user-level code doesn't know how to deconstruct, but it conveys information about this macro invocation, so the macro can attach it to the :ref:`stx` values it creates in order to receive proper attribution for them.
+``my-stx-details``: A collection of source location information. This is a value user-level code doesn't know how to deconstruct, but it conveys information about this macro invocation, so the macro can attach it to the located s-expressions it creates in order to receive proper attribution for them; see :ref:`stx-from-details-and-layer`.
 
 ..
   TODO: Figure out what the format of source location information actually is. For now, this is sort of just an unspecified area, but at least a language implementation can use this to hold filenames and line numbers in practice. An implementation should be able to treat this as a completely empty data structure; it's not needed for any variable scoping purposes.
 
-``args``: The cons list of (:ref:`stx` ``stx-details s-expr``) values that correspond to the subexpressions at the macro call site.
+``args``: The cons list of located s-expressions that correspond to the subexpressions at the macro call site.
 
 ``then``: A callable value that takes a compiled expression and returns a monadic effect. Invoking this effect causes the compiled expression to be used as the macro result. A macro should invoke this effect exactly once. The effect doesn't necessarily need to be invoked right away; the macro can use :ref:`later` to invoke more effects in a future tick.
 

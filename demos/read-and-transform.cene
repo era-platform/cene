@@ -29,13 +29,14 @@
     /input-path-get (cli-input-directory mode)
       str.\;qq[read-and-transform-src.cene])
     (fn state expr then
-      (cast expr stx - list
+      (cast isa-stx.expr yep -
         err.\;qq[Internal error]
+      /let list s-expr-layer-from-stx.expr
       /foldl-later state list
         (fn state elem then
-          (cast elem stx - string
+          (cast isa-stx.elem yep -
             err.\;qq[Internal error]
-          /cast string istring-nil string
+          /cast s-expr-layer-from-stx.elem istring-nil string
             err.\;qq[Encountered a list element that wasn't a string]
           /string-append-later state str.\;qq[\s] /fn state
           /string-append-later state string then))

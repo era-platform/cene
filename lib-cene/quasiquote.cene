@@ -405,8 +405,11 @@
       Tried to parse a quasiquotation that wasn't an s-expression]))
 
 (defn unwrap-for-macro expr
-  (cast expr stx stx-details expr (nil)
-  /unwrapped expr /fn new-expr /stx stx-details new-expr))
+  (cast isa-stx.expr yep - (nil)
+  /let stx-details stx-details-from-stx.expr
+  /let expr s-expr-layer-from-stx.expr
+  /unwrapped expr /fn new-expr
+    (stx-from-details-and-layer stx-details new-expr)))
 
 (defn parse-quasiquotation-for-macro-later expr then
   (parse-quasiquotation-escape-later (qq-env-stack/nil)
