@@ -4651,6 +4651,13 @@ function usingFuncDefNs( funcDefNs ) {
                         if ( bRating === null )
                             return macLookupRet( mkNil.ofNow() );
                     
+                    // TODO: This currently allows a
+                    // `cline-by-own-method` to compare A and B and to
+                    // compare C and D, but to reject comparing A and
+                    // C. Make this an error instead. We might as well
+                    // switch to a system where clines compare using a
+                    // method call rather than doing `clineRate` first
+                    // while we're at it.
                     if ( jsnCompare(
                             aRating.compatible,
                             bRating.compatible
