@@ -1,6 +1,8 @@
 Low-level Cene tasks, in roughly the order of the Sphinx documentation table of contents:
 
 
+We currently allow `cline-by-own-method` to compare A and B and to compare C and D, but to reject comparing A and C as though one of them was not in its domain. Make it cause an error rather than rejecting, so that it's consistent about what its domain is.
+
 Update most of the various built-in macros that use `stxToMaybeName` to use `stxToObtainMethod`, so they can support `(foreign/obtain-directly <value>)`.
 
 Consider whether `contributing-only-to` and the `committing-...` operations should perform their body a later tick. If so, name them `...-later`. Note that the current purpose of using multiple ticks is not because of error-handling behavior -- the later tick's errors must invalidate side effects of the current tick too -- but because each tick represents a moment that can block on concurrent definitions happening in another tick.
