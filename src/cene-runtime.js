@@ -1427,6 +1427,9 @@ SinkFuseStruct.prototype.pretty = function () {
             return " " + projDex.i + ":" + projDex.val.pretty();
         } ).join( "" ) + ")";
 };
+// TODO: Hmm, `merge-default` and `fuse-default` don't actually
+// operate on everything in their domains. Let's remove these or
+// redesign them.
 function SinkFuseDefault(
     nameTag, prettyTag, affiliation, first, second ) {
     
