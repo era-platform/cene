@@ -27,7 +27,7 @@ A value that signifies a successful result, an optional value that is present, o
 nope
 ----
 
-Construct with ``nope``
+Construct with ``val``
 
 A value that signifies an unsuccessful result or an ordered comparison that determines the inputs were not successfully in ascending order already.
 
