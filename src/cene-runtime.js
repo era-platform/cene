@@ -2084,7 +2084,7 @@ CexprErr.prototype.visitForCodePruning = function ( visitor ) {
         makeFlatTag( [ "n:main-core", "follow-heart" ], [] ) );
 };
 CexprErr.prototype.toJsCode = function ( options ) {
-    return jsCode( jsCodeVar( "sinkErr" ), "( " +
+    return jsCode( jsCodeVar( "ceneErr" ), "( " +
         jsStr( this.msg ) + " )" );
 };
 CexprErr.prototype.getName = function () {
@@ -3125,7 +3125,7 @@ function cgenExecute( rt, expr ) {
         SinkClineStruct: SinkClineStruct,
         SinkFuseStruct: SinkFuseStruct,
         sinkForeignStrFromJs: sinkForeignStrFromJs,
-        sinkErr: sinkErr,
+        ceneErr: ceneErr,
         macLookupRet: macLookupRet,
         macLookupThen: macLookupThen
     } );
@@ -3189,7 +3189,7 @@ function addDefun( rt, funcDefNs, rawMode, name, argName, body ) {
 // Some indicate bugs in the language implementation, and it might
 // make sense to handle those differently.
 //
-function sinkErr( msg ) {
+function ceneErr( msg ) {
     return macLookupFollowHeart(
         mkClamorErr.ofNow( sinkForeignStrFromJs( msg ) ) );
 }
@@ -5180,14 +5180,20 @@ function usingFuncDefNs( funcDefNs ) {
         }
         
         fun( "regex-give-up", function ( rt, ignored ) {
-            return new SinkForeign( "regex", function () {
-                return regexTrivial( "\\d^" );
+            return new SinkForeign( "regex", {
+                hasEmpty: false,
+                getData: function () {
+                    return regexTrivial( "\\d^" );
+                }
             } );
         } );
         
         fun( "regex-empty", function ( rt, ignored ) {
-            return new SinkForeign( "regex", function () {
-                return regexTrivial( "" );
+            return new SinkForeign( "regex", {
+                hasEmpty: true,
+                getData: function () {
+                    return regexTrivial( "" );
+                }
             } );
         } );
         
@@ -5201,31 +5207,38 @@ function usingFuncDefNs( funcDefNs ) {
         fun( "regex-from-string", function ( rt, string ) {
             var stringRep = parseString( string ).paddedStr;
             
-            return new SinkForeign( "regex", function () {
-                return {
-                    optional: function ( next ) {
-                        return stringRep.replace( /[\d\D]{2}/g,
-                            function ( scalarStr, i, stringRep ) {
-                                return "(?:" +
-                                    escapeRegex( scalarStr );
-                            } ) +
-                            next +
-                            stringRep.replace( /[\d\D]{2}/g, "|$$)" );
-                    },
-                    necessary: escapeRegex( stringRep )
-                };
+            return new SinkForeign( "regex", {
+                hasEmpty: stringRep.length === 0,
+                getData: function () {
+                    return {
+                        optional: function ( next ) {
+                            return stringRep.replace( /[\d\D]{2}/g,
+                                function ( scalarStr, i, stringRep ) {
+                                    return "(?:" +
+                                        escapeRegex( scalarStr );
+                                } ) +
+                                next +
+                                stringRep.replace( /[\d\D]{2}/g,
+                                    "|$$)" );
+                        },
+                        necessary: escapeRegex( stringRep )
+                    };
+                }
             } );
         } );
         
         fun( "regex-one-in-string", function ( rt, string ) {
             var stringRep = parseString( string ).paddedStr;
             
-            return new SinkForeign( "regex", function () {
-                return regexOptionalTrivial( "(?:\\d^" +
-                    stringRep.replace( /[\d\D]{2}/g,
-                        function ( scalarStr, i, stringRep ) {
-                            return "|" + escapeRegex( scalarStr );
-                        } ) + ")" );
+            return new SinkForeign( "regex", {
+                hasEmpty: false,
+                getData: function () {
+                    return regexOptionalTrivial( "(?:\\d^" +
+                        stringRep.replace( /[\d\D]{2}/g,
+                            function ( scalarStr, i, stringRep ) {
+                                return "|" + escapeRegex( scalarStr );
+                            } ) + ")" );
+                }
             } );
         } );
         
@@ -5244,37 +5257,38 @@ function usingFuncDefNs( funcDefNs ) {
                 var b0 = bParsed.charAt( 0 );
                 var b1 = bParsed.charAt( 1 );
                 
-                return new SinkForeign( "regex", function () {
-                    return regexOptionalTrivial( a0 === b0 ?
-                        escapeRegex( a0 ) +
-                            (a1 === b1 ?
-                                escapeRegex( a1 ) :
-                                "[" + escRegexSet( a1 ) + "-" +
-                                    escRegexSet( b1 ) + "]") :
-                        "(?:" + escapeRegex( a0 ) +
-                            "[" + escRegexSet( a1 ) + "-\\uFFFF]|" +
-                            (a0 + 1 === b0 ? "" :
-                                "[" + escRegexSet( a0 + 1 ) + "-" +
-                                    escRegexSet( b0 - 1 ) + "][\\d\\D]|") +
-                            escapeRegex( a1 ) +
-                            "[\\x00-" + escRegexSet( b1 ) + "])" );
+                return new SinkForeign( "regex", {
+                    hasEmpty: false,
+                    getData: function () {
+                        return regexOptionalTrivial( a0 === b0 ?
+                            escapeRegex( a0 ) +
+                                (a1 === b1 ?
+                                    escapeRegex( a1 ) :
+                                    "[" + escRegexSet( a1 ) + "-" + escRegexSet( b1 ) + "]") :
+                            "(?:" + escapeRegex( a0 ) +
+                                "[" + escRegexSet( a1 ) + "-\\uFFFF" +
+                                    "]|" +
+                                (a0 + 1 === b0 ? "" :
+                                    "[" + escRegexSet( a0 + 1 ) + "-" + escRegexSet( b0 - 1 ) +
+                                        "][\\d\\D]|") +
+                                escapeRegex( a1 ) +
+                                "[\\x00-" + escRegexSet( b1 ) + "])"
+                            );
+                    }
                 } );
             } );
         } );
         
         fun( "regex-one", function ( rt, ignored ) {
-            return new SinkForeign( "regex", function () {
-                return regexOptionalTrivial( "[\\d\\D]{2}" );
+            return new SinkForeign( "regex", {
+                hasEmpty: false,
+                getData: function () {
+                    return regexOptionalTrivial( "[\\d\\D]{2}" );
+                }
             } );
         } );
         
-        function compileRegex( regex ) {
-            if ( !(regex instanceof SinkForeign
-                && regex.purpose === "regex") )
-                throw new Error();
-            var regexFunc = regex.foreignVal;
-            var regexData = regexFunc();
-            
+        function compileRegexData( regexData ) {
             var optional = regexData.optional;
             if ( optional === void 0 )
                 optional = null;
@@ -5332,239 +5346,276 @@ function usingFuncDefNs( funcDefNs ) {
         fun( "regex-if", function ( rt, conditionRegex ) {
             return sinkFnPure( function ( rt, thenRegex ) {
                 return sinkFnPure( function ( rt, elseRegex ) {
+                    
                     if ( !(conditionRegex instanceof SinkForeign
                         && conditionRegex.purpose === "regex") )
                         throw new Error();
+                    var conditionRegexFunc =
+                        conditionRegex.foreignVal.getData;
+                    
                     if ( !(thenRegex instanceof SinkForeign
                         && thenRegex.purpose === "regex") )
                         throw new Error();
+                    var thenRegexFunc = thenRegex.foreignVal.getData;
+                    
                     if ( !(elseRegex instanceof SinkForeign
                         && elseRegex.purpose === "regex") )
                         throw new Error();
+                    var elseRegexFunc = elseRegex.foreignVal.getData;
                     
-                    return new SinkForeign( "regex", function () {
-                        var cCompiled =
-                            compileRegex( conditionRegex );
-                        var tCompiled = compileRegex( thenRegex );
-                        var eCompiled = compileRegex( elseRegex );
-                        var cOpt = cCompiled.optional;
-                        var tOpt = tCompiled.optional;
-                        var eOpt = eCompiled.optional;
-                        var cNec = cCompiled.necessary;
-                        var tNec = tCompiled.necessary;
-                        var eNec = eCompiled.necessary;
-                        
-                        return {
-                            optional:
-                                cNec === null ? null :
-                                cOpt === null ? null :
-                                tOpt === null ? null :
-                                eOpt === null ? null :
-                                function ( next ) {
-                                    return "(?:" +
-                                        "(?!" + cNec + ")(?:" +
+                    return new SinkForeign( "regex", {
+                        hasEmpty:
+                          (conditionRegex.foreignVal.hasEmpty
+                            && thenRegex.foreignVal.hasEmpty
+                          ) || elseRegex.foreignVal.hasEmpty,
+                        getData: function () {
+                            var cCompiled =
+                                compileRegexData(
+                                    conditionRegexFunc() );
+                            var tCompiled =
+                                compileRegexData( thenRegexFunc() );
+                            var eCompiled =
+                                compileRegexData( elseRegexFunc() );
+                            var cOpt = cCompiled.optional;
+                            var tOpt = tCompiled.optional;
+                            var eOpt = eCompiled.optional;
+                            var cNec = cCompiled.necessary;
+                            var tNec = tCompiled.necessary;
+                            var eNec = eCompiled.necessary;
+                            
+                            return {
+                                optional:
+                                    cNec === null ? null :
+                                    cOpt === null ? null :
+                                    tOpt === null ? null :
+                                    eOpt === null ? null :
+                                    function ( next ) {
+                                        return "(?:" +
+                                            "(?!" + cNec + ")(?:" +
+                                                
+                                                // We may run out of room matching the condition.
+                                                cOpt( "" ) + "|" +
+                                                
+                                                // We may match the else clause.
+                                                eOpt( next ) +
+                                            ")|" +
                                             
-                                            // We may run out of room matching the condition.
-                                            cOpt( "" ) + "|" +
-                                            
-                                            // We may match the else clause.
-                                            eOpt( next ) +
-                                        ")|" +
+                                            // We may match the then clause.
+                                            cNec + tOpt( next ) +
+                                        ")";
+                                    },
+                                necessary:
+                                    cNec === null ? null :
+                                    tNec === null ? null :
+                                    eNec === null ? null :
+                                    "(?:" +
                                         
                                         // We may match the then clause.
-                                        cNec + tOpt( next ) +
-                                    ")";
-                                },
-                            necessary:
-                                cNec === null ? null :
-                                tNec === null ? null :
-                                eNec === null ? null :
-                                "(?:" +
+                                        cNec + tNec + "|" +
+                                        
+                                        // We may match the else clause.
+                                        "(?!" + cNec + ")" + eNec +
+                                    ")",
+                                makeFunc: function () {
+                                    var cFunc = cCompiled.makeFunc();
+                                    var tFunc = tCompiled.makeFunc();
+                                    var eFunc = eCompiled.makeFunc();
                                     
-                                    // We may match the then clause.
-                                    cNec + tNec + "|" +
-                                    
-                                    // We may match the else clause.
-                                    "(?!" + cNec + ")" + eNec +
-                                ")",
-                            makeFunc: function () {
-                                var cFunc = cCompiled.makeFunc();
-                                var tFunc = tCompiled.makeFunc();
-                                var eFunc = eCompiled.makeFunc();
-                                
-                                return function ( string, start, stop ) {
-                                    var cResult = cFunc( string, start, stop );
-                                    
-                                    if ( cResult.type === "matched" )
-                                        return tFunc( string, cResult.stop, stop );
-                                    else if ( cResult.type === "failed" )
-                                        return eFunc( string, start, stop );
-                                    else
-                                        return cResult;
-                                };
-                            }
-                        };
+                                    return function ( string, start, stop ) {
+                                        var cResult = cFunc( string, start, stop );
+                                        
+                                        if ( cResult.type === "matched" )
+                                            return tFunc( string, cResult.stop, stop );
+                                        else if ( cResult.type === "failed" )
+                                            return eFunc( string, start, stop );
+                                        else
+                                            return cResult;
+                                    };
+                                }
+                            };
+                        }
                     } );
                 } );
             } );
         } );
         
-        // TODO: When the concatenation of `conditionRegex` and
-        // `bodyRegex` can match the empty string, cause an error.
         fun( "regex-while", function ( rt, conditionRegex ) {
             return sinkFnPure( function ( rt, bodyRegex ) {
+                
                 if ( !(conditionRegex instanceof SinkForeign
                     && conditionRegex.purpose === "regex") )
                     throw new Error();
+                var conditionRegexFunc =
+                    conditionRegex.foreignVal.getData;
+                
                 if ( !(bodyRegex instanceof SinkForeign
                     && bodyRegex.purpose === "regex") )
                     throw new Error();
+                var bodyRegexFunc = bodyRegex.foreignVal.getData;
                 
-                return new SinkForeign( "regex", function () {
-                    var cCompiled = compileRegex( conditionRegex );
-                    var bCompiled = compileRegex( bodyRegex );
-                    var cOpt = cCompiled.optional;
-                    var bOpt = bCompiled.optional;
-                    var cNec = cCompiled.necessary;
-                    var bNec = bCompiled.necessary;
-                    
-                    return {
-                        optional:
-                            cNec === null ? null :
-                            cOpt === null ? null :
-                            bNec === null ? null :
-                            bOpt === null ? null :
-                            function ( next ) {
-                                return "(?:" + cNec + bNec + ")*(?:" +
-                                    "(?!" + cNec + ")(?:" +
+                if ( conditionRegex.foreignVal.hasEmpty
+                    && bodyRegex.foreignVal.hasEmpty )
+                    return ceneErr(
+                        "Did not expect both condition and body to " +
+                        "match the empty string" );
+                
+                return new SinkForeign( "regex", {
+                    hasEmpty: true,
+                    getData: function () {
+                        var cCompiled =
+                            compileRegexData(
+                                conditionRegexFunc() );
+                        var bCompiled =
+                            compileRegexData( bodyRegexFunc() );
+                        var cOpt = cCompiled.optional;
+                        var bOpt = bCompiled.optional;
+                        var cNec = cCompiled.necessary;
+                        var bNec = bCompiled.necessary;
+                        
+                        return {
+                            optional:
+                                cNec === null ? null :
+                                cOpt === null ? null :
+                                bNec === null ? null :
+                                bOpt === null ? null :
+                                function ( next ) {
+                                    return "(?:" + cNec + bNec + ")*(?:" +
+                                        "(?!" + cNec + ")(?:" +
+                                            
+                                            // We may run out of room matching the condition.
+                                            cOpt( "" ) + "|" +
+                                            
+                                            // We may have a complete match.
+                                            next +
+                                        ")|" +
                                         
-                                        // We may run out of room matching the condition.
-                                        cOpt( "" ) + "|" +
+                                        // We may run out of room matching the body.
+                                        cNec + "(?!" + bNec + ")" + bOpt( "" ) +
+                                    ")";
+                                },
+                            necessary:
+                                cNec === null ? null :
+                                bNec === null ? null :
+                                "(?:" + cNec + bNec + ")*" +
+                                "(?!" + cNec + ")",
+                            makeFunc: function () {
+                                var cFunc = cCompiled.makeFunc();
+                                var bFunc = bCompiled.makeFunc();
+                                
+                                return function ( string, start, stop ) {
+                                    var thisStart = start;
+                                    while ( true ) {
+                                        var cResult = cFunc( string, thisStart, stop );
+                                        if ( cResult.type === "failed" )
+                                            return { type: "matched", stop: thisStart };
+                                        else if ( cResult.type === "passedEnd" )
+                                            return cResult;
                                         
-                                        // We may have a complete match.
-                                        next +
-                                    ")|" +
-                                    
-                                    // We may run out of room matching the body.
-                                    cNec + "(?!" + bNec + ")" + bOpt( "" ) +
-                                ")";
-                            },
-                        necessary:
-                            cNec === null ? null :
-                            bNec === null ? null :
-                            "(?:" + cNec + bNec + ")*" +
-                            "(?!" + cNec + ")",
-                        makeFunc: function () {
-                            var cFunc = cCompiled.makeFunc();
-                            var bFunc = bCompiled.makeFunc();
-                            
-                            return function ( string, start, stop ) {
-                                var thisStart = start;
-                                var encounteredEmpty = false;
-                                while ( true ) {
-                                    var cResult = cFunc( string, thisStart, stop );
-                                    if ( cResult.type === "failed" )
-                                        return { type: "matched", stop: thisStart };
-                                    else if ( cResult.type === "passedEnd" )
-                                        return cResult;
-                                    
-                                    if ( encounteredEmpty )
-                                        return { type: "failed" };
-                                    
-                                    var bResult = bFunc( string, cResult.stop, stop );
-                                    if ( bResult.type !== "matched" )
-                                        return bResult;
-                                    
-                                    // TODO: Stop maintaining an `encounteredEmpty` variable, and just
-                                    // cause an error if this is true.
-                                    if ( thisStart === bResult.stop )
-                                        encounteredEmpty = true;
-                                    
-                                    thisStart = bResult.stop;
-                                }
-                            };
-                        }
-                    };
+                                        var bResult = bFunc( string, cResult.stop, stop );
+                                        if ( bResult.type !== "matched" )
+                                            return bResult;
+                                        
+                                        if ( thisStart === bResult.stop )
+                                            throw new Error(
+                                                "Internal error: It turns out condition and body can " +
+                                                "both match the empty string after all" );
+                                        
+                                        thisStart = bResult.stop;
+                                    }
+                                };
+                            }
+                        };
+                    }
                 } );
             } );
         } );
         
-        // TODO: When `bodyRegex` can match the empty string, cause an
-        // error.
         fun( "regex-until", function ( rt, bodyRegex ) {
             return sinkFnPure( function ( rt, conditionRegex ) {
+                
                 if ( !(bodyRegex instanceof SinkForeign
                     && bodyRegex.purpose === "regex") )
                     throw new Error();
+                var bodyRegexFunc = bodyRegex.foreignVal.getData;
+                
                 if ( !(conditionRegex instanceof SinkForeign
                     && conditionRegex.purpose === "regex") )
                     throw new Error();
+                var conditionRegexFunc =
+                    conditionRegex.foreignVal.getData;
                 
-                return new SinkForeign( "regex", function () {
-                    var bCompiled = compileRegex( bodyRegex );
-                    var cCompiled = compileRegex( conditionRegex );
-                    var bOpt = bCompiled.optional;
-                    var cOpt = cCompiled.optional;
-                    var bNec = bCompiled.necessary;
-                    var cNec = cCompiled.necessary;
-                    
-                    return {
-                        optional:
-                            bNec === null ? null :
-                            bOpt === null ? null :
-                            cNec === null ? null :
-                            cOpt === null ? null :
-                            function ( next ) {
-                                return "(?:" +
-                                    "(?!" + cOpt( "" ) + ")" + bNec +
-                                ")*(?:" +
-                                    "(?!" + cNec + ")(?:" +
+                if ( bodyRegex.foreignVal.hasEmpty )
+                    return ceneErr(
+                        "Did not expect body to match the empty " +
+                        "string" );
+                
+                return new SinkForeign( "regex", {
+                    hasEmpty: conditionRegex.foreignVal.hasEmpty,
+                    getData: function () {
+                        var bCompiled =
+                            compileRegexData( bodyRegexFunc() );
+                        var cCompiled =
+                            compileRegexData(
+                                conditionRegexFunc() );
+                        var bOpt = bCompiled.optional;
+                        var cOpt = cCompiled.optional;
+                        var bNec = bCompiled.necessary;
+                        var cNec = cCompiled.necessary;
+                        
+                        return {
+                            optional:
+                                bNec === null ? null :
+                                bOpt === null ? null :
+                                cNec === null ? null :
+                                cOpt === null ? null :
+                                function ( next ) {
+                                    return "(?:" +
+                                        "(?!" + cOpt( "" ) + ")" + bNec +
+                                    ")*(?:" +
+                                        "(?!" + cNec + ")(?:" +
+                                            
+                                            // We may run out of room matching the condition.
+                                            cOpt( "" ) + "|" +
+                                            
+                                            // We may run out of room matching the body.
+                                            "(?!" + bNec + ")" + bOpt( "" ) +
+                                        ")|" +
                                         
-                                        // We may run out of room matching the condition.
-                                        cOpt( "" ) + "|" +
+                                        // We may have a complete match.
+                                        cNec + next +
+                                    ")";
+                                },
+                            necessary:
+                                bNec === null ? null :
+                                cNec === null ? null :
+                                "(?:(?!" + cNec + ")" + bNec + ")*" +
+                                cNec,
+                            makeFunc: function () {
+                                var bFunc = bCompiled.makeFunc();
+                                var cFunc = cCompiled.makeFunc();
+                                
+                                return function ( string, start, stop ) {
+                                    var thisStart = start;
+                                    while ( true ) {
+                                        var cResult = cFunc( string, thisStart, stop );
+                                        if ( cResult.type !== "failed" )
+                                            return cResult;
                                         
-                                        // We may run out of room matching the body.
-                                        "(?!" + bNec + ")" + bOpt( "" ) +
-                                    ")|" +
-                                    
-                                    // We may have a complete match.
-                                    cNec + next +
-                                ")";
-                            },
-                        necessary:
-                            bNec === null ? null :
-                            cNec === null ? null :
-                            "(?:(?!" + cNec + ")" + bNec + ")*" +
-                            cNec,
-                        makeFunc: function () {
-                            var bFunc = bCompiled.makeFunc();
-                            var cFunc = cCompiled.makeFunc();
-                            
-                            return function ( string, start, stop ) {
-                                var thisStart = start;
-                                var encounteredEmpty = false;
-                                while ( true ) {
-                                    var cResult = cFunc( string, thisStart, stop );
-                                    if ( cResult.type !== "failed" )
-                                        return cResult;
-                                    
-                                    if ( encounteredEmpty )
-                                        return { type: "failed" };
-                                    
-                                    var bResult = bFunc( string, thisStart, stop );
-                                    if ( bResult.type !== "matched" )
-                                        return bResult;
-                                    
-                                    // TODO: Stop maintaining an `encounteredEmpty` variable, and just
-                                    // cause an error if this is true.
-                                    if ( thisStart === bResult.stop )
-                                        encounteredEmpty = true;
-                                    
-                                    thisStart = bResult.stop;
-                                }
-                            };
-                        }
-                    };
+                                        var bResult = bFunc( string, thisStart, stop );
+                                        if ( bResult.type !== "matched" )
+                                            return bResult;
+                                        
+                                        if ( thisStart === bResult.stop )
+                                            throw new Error(
+                                                "Internal error: It turns out body can match the " +
+                                                "empty string after all" );
+                                        
+                                        thisStart = bResult.stop;
+                                    }
+                                };
+                            }
+                        };
+                    }
                 } );
             } );
         } );
@@ -5574,7 +5625,9 @@ function usingFuncDefNs( funcDefNs ) {
                 if ( !(regex instanceof SinkForeign
                     && regex.purpose === "regex") )
                     throw new Error();
-                var compiled = compileRegex( regex ).makeFunc();
+                var regexFunc = regex.foreignVal.getData;
+                var compiled =
+                    compileRegexData( regexFunc() ).makeFunc();
                 
                 return callSinkLater( rt, then,
                     new SinkForeign( "optimized-regex", compiled ) );
