@@ -5409,6 +5409,8 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
+        // TODO: When the concatenation of `conditionRegex` and
+        // `bodyRegex` can match the empty string, cause an error.
         fun( "regex-while", function ( rt, conditionRegex ) {
             return sinkFnPure( function ( rt, bodyRegex ) {
                 if ( !(conditionRegex instanceof SinkForeign
@@ -5473,6 +5475,8 @@ function usingFuncDefNs( funcDefNs ) {
                                     if ( bResult.type !== "matched" )
                                         return bResult;
                                     
+                                    // TODO: Stop maintaining an `encounteredEmpty` variable, and just
+                                    // cause an error if this is true.
                                     if ( thisStart === bResult.stop )
                                         encounteredEmpty = true;
                                     
@@ -5485,6 +5489,8 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
+        // TODO: When `bodyRegex` can match the empty string, cause an
+        // error.
         fun( "regex-until", function ( rt, bodyRegex ) {
             return sinkFnPure( function ( rt, conditionRegex ) {
                 if ( !(bodyRegex instanceof SinkForeign
@@ -5545,10 +5551,12 @@ function usingFuncDefNs( funcDefNs ) {
                                     if ( encounteredEmpty )
                                         return { type: "failed" };
                                     
-                                    var bResult = bFunc( string, cResult.stop, stop );
+                                    var bResult = bFunc( string, thisStart, stop );
                                     if ( bResult.type !== "matched" )
                                         return bResult;
                                     
+                                    // TODO: Stop maintaining an `encounteredEmpty` variable, and just
+                                    // cause an error if this is true.
                                     if ( thisStart === bResult.stop )
                                         encounteredEmpty = true;
                                     
