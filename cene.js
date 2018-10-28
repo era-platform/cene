@@ -283,7 +283,7 @@ function runCeneSync(
                 "SinkClineStruct",
                 "SinkFuseStruct",
                 "sinkForeignStrFromJs",
-                "sinkErr",
+                "ceneErr",
                 "macLookupRet",
                 "macLookupThen"
             ] ).assertNoFreeVars().toExpr() + ";\n" +
