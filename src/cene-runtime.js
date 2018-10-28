@@ -5315,7 +5315,7 @@ function usingFuncDefNs( funcDefNs ) {
                     };
                 }
                 
-                var makeFunc = regexDta.makeFunc;
+                var makeFunc = regexData.makeFunc;
                 if ( makeFunc !== void 0 )
                     return makeFunc();
                 
