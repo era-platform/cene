@@ -106,6 +106,16 @@ Creates a regex that matches one Unicode scalar if it appears in the given strin
   NOTE: Due to :ref:`regex-one-in-range` and :ref:`regex-if`, this is redundant, but we keep it for efficiency.
 
 
+.. _regex-has-empty:
+
+regex-has-empty
+---------------
+
+Call with ``regex``
+
+Returns (:ref:`yep` (:ref:`nil`)) if the given regex can match the empty string and (:ref:`nope` (:ref:`nil`)) otherwise.
+
+
 .. _optimize-regex-later:
 
 optimize-regex-later
