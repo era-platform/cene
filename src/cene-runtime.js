@@ -5620,6 +5620,13 @@ function usingFuncDefNs( funcDefNs ) {
             } );
         } );
         
+        fun( "regex-has-empty", function ( rt, regex ) {
+            if ( !(regex instanceof SinkForeign
+                && regex.purpose === "regex") )
+                throw new Error();
+            return rt.fromBoolean( regex.foreignVal.hasEmpty );
+        } );
+        
         fun( "optimize-regex-later", function ( rt, regex ) {
             return sinkFnPure( function ( rt, then ) {
                 if ( !(regex instanceof SinkForeign
