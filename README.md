@@ -2,7 +2,7 @@
 
 <img title="Cene logo" width="166" height="166" src="https://era-platform.github.io/cene/notes/logo/cene-logo-rough-small.png" align="right">
 
-[![Travis build](https://travis-ci.org/era-platform/cene.svg?branch=master)](https://travis-ci.org/era-platform/cene)
+[![Travis build](https://travis-ci.org/era-platform/cene.svg?branch=main)](https://travis-ci.org/era-platform/cene)
 
 [Run some Cene code in your browser, logging to the console.](https://era-platform.github.io/cene/demos/cene.html)
 
