@@ -66,8 +66,7 @@ jobs:
       - name: Build dependencies of the Cene demos
         run: |
           cd build-gh-pages/repo
-          git rm -rf .
-          git reset main
+          git restore --source=main .
           node cene.js --demo-cene
           cp gh-pages.gitignore .gitignore
 
