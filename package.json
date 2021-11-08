@@ -3,13 +3,14 @@
   "version": "0.0.42",
   "description": "A programming language for metacircular compilers on the JavaScript platform.",
   "homepage": "https://github.com/era-platform/cene",
+  "license": "MIT",
   "author": {
     "name": "Era organization",
     "url": "https://github.com/era-platform"
   },
-  "engines": {
-    "node": ">= 0.6.0",
-    "npm": ">= 1.0.0"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/era-platform/cene.git"
   },
   "dependencies": {
     "argparse": "^2.0.1",
