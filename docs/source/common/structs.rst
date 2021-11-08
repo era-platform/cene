@@ -5,7 +5,7 @@ Structs and function calls
 .. _cexpr-cline-struct:
 
 cexpr-cline-struct
-----------------
+------------------
 
 Call with ``main-tag-name projections``
 
