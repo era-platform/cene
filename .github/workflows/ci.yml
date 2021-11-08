@@ -11,22 +11,33 @@ jobs:
         # the latest LTS release anyway just so we can notice if it breaks.
         #
         #
-        # Version 0.6.0 is the one we declare as the minimum in package.json.
-        # This one may not work because it precedes what `uglify-js` declares
-        # support for.
+        # Version 0.6.0 is the one we used to declare as the minimum in the
+        # package.json "engines" field. This one may still work, but it's not
+        # one of the versions `actions/setup-node` assists us in testing, and it
+        # precedes what `uglify-js` declares support for.
         #
         # Version 0.8.0 is the one the `uglify-js` package declares as the
-        # minimum in its package.json. This is likely the earliest one we have
-        # confidence in supporting, though we probably won't support it for long
-        # if any issues come up.
+        # minimum in its package.json. This one may still work, but it's not
+        # one of the versions `actions/setup-node` assists us in testing.
         #
-        # Version 16 is a recent version, and we intend to fully support it.
+        # Version 6.17.1 is the earliest version `actions/setup-node` assists us
+        # in testing. This is likely the earliest one we have confidence in
+        # supporting, though if any issues come up, we might consider dropping
+        # support for it rather than fixing them.
+        #
+        # Versions 14.18.1 and 16.13.0 are the two most recent LTS versions at
+        # the time of writing, and we intend to support them both. Some Webpack
+        # users may be using 14.18.1 because of (questionable?) advice to
+        # downgrade past Node.js version 16 to work around a hashing algorithm
+        # deprecation:
+        #
+        #   https://stackoverflow.com/questions/69394632/webpack-build-failing-with-err-ossl-evp-unsupported
         #
         # Version 17 is the latest major version as of this writing. We intend
-        # to support it, but we may not reasonably be able to if it introduces
-        # regressions.
+        # to support it, but it has no LTS releases yet, and we may not
+        # reasonably be able to support it if it introduces major regressions.
         #
-        node-version: ["0.6.0", "0.8.0", "16", "17", "lts/*"]
+        node-version: ["6.17.1", "14.18.1", "16.13.0", "17", "lts/*"]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
