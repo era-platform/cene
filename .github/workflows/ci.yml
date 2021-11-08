@@ -1,0 +1,21 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # There is no "allow failures" option for GitHub Actions, but we test on
+        # the latest LTS release anyway just so we can notice if it breaks.
+        node-version: ["0.6.0", "0.8.0", "12", "13", "14", "15", "16", "17", "lts/*"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+      - name: Install npm dependencies
+        run: npm install
+      - name: Run unit tests
+        run: npm test
