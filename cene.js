@@ -11,6 +11,7 @@ var uglify = require( "uglify-js" );
 
 var _ = require( "./buildlib/lathe" );
 var ltf = require( "./buildlib/lathe-fs" );
+var pkg = require( "./package.json" );
 
 
 function readFile( filename ) {
@@ -675,48 +676,51 @@ if ( require.main === module ) {
 
 
 var argParser = new argparse.ArgumentParser( {
-    version: "0.0.1",
-    addHelp: true,
+    add_help: true,
     description: "The Cene programming language."
+} );
+argParser.add_argument( "-v", "--version", {
+    action: "version",
+    version: pkg.version
 } );
 
 // Primary interface
-argParser.addArgument( [ "-i", "--in" ], {
+argParser.add_argument( "-i", "--in", {
     action: "store",
     help: "The file path to use as input, if any."
 } );
-argParser.addArgument( [ "-o", "--out" ], {
+argParser.add_argument( "-o", "--out", {
     action: "store",
     help: "The file path to use as output, if any."
 } );
-argParser.addArgument( [ "-m", "--minify" ], {
-    action: "storeTrue",
+argParser.add_argument( "-m", "--minify", {
+    action: "store_true",
     help: "Minify any generated JavaScript files."
 } );
-argParser.addArgument( [ "file" ], {
+argParser.add_argument( "file", {
     nargs: "?",
     help: "The path to a Cene file to execute."
 } );
-argParser.addArgument( [ "args" ], {
+argParser.add_argument( "args", {
     nargs: "*",
     help: "Additional arguments to pass to the Cene program."
 } );
 
 // Development interface
-argParser.addArgument( [ "-c", "--demo-cene" ], {
-    action: "storeTrue",
+argParser.add_argument( "-c", "--demo-cene", {
+    action: "store_true",
     help: "Compile dependencies of demos/cene.html."
 } );
-argParser.addArgument( [ "-E", "--test-era" ], {
-    action: "storeTrue",
+argParser.add_argument( "-E", "--test-era", {
+    action: "store_true",
     help: "Era reader: Run unit tests."
 } );
-argParser.addArgument( [ "-C", "--test-cene" ], {
-    action: "storeTrue",
+argParser.add_argument( "-C", "--test-cene", {
+    action: "store_true",
     help: "Run a demo as a batch process."
 } );
 
-var args = argParser.parseArgs();
+var args = argParser.parse_args();
 
 var shouldExitWithErrorCode = false;
 var tasks = [];
@@ -802,10 +806,12 @@ if ( args.test_cene ) tasks.push( function ( then ) {
     } );
 } );
 
-if ( args.file !== null ) tasks.push( function ( then ) {
+if ( args.file !== void 0 ) tasks.push( function ( then ) {
+    var inRoot = args.in === void 0 ? null : args.in;
+    var outRoot = args.out === void 0 ? null : args.out;
     var anyTestFailed =
         runCeneSync( preludeFiles.concat( [ args.file ] ), [],
-            !!"displayTimeInfo", args.args, args.in, args.out,
+            !!"displayTimeInfo", args.args, inRoot, outRoot,
             args.minify );
     
     if ( anyTestFailed )
