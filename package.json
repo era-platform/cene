@@ -12,8 +12,8 @@
     "npm": ">= 1.0.0"
   },
   "dependencies": {
-    "argparse": "^1.0.9",
-    "uglify-js": "^2.8.10"
+    "argparse": "^2.0.1",
+    "uglify-js": "^3.14.3"
   },
   "scripts": {
     "test": "node cene.js -cEC"
