@@ -11,19 +11,17 @@ jobs:
         # the latest LTS release anyway just so we can notice if it breaks.
         #
         #
-        # Version 0.6.0 is the one we used to declare as the minimum in the
-        # package.json "engines" field. This one may still work, but it's not
-        # one of the versions `actions/setup-node` assists us in testing, and it
-        # precedes what `uglify-js` declares support for.
+        # Version 8.17.0 is likely the last version supported by
+        # `actions/setup-node` that `argparse` does not support. Internally,
+        # `argparse` uses a `try { ... } catch {}` block without a variable
+        # binding for the caught exception, and according to
+        # https://node.green/, this feature wasn't supported on 9.11.2 but was
+        # supported on 10.0.0.
         #
-        # Version 0.8.0 is the one the `uglify-js` package declares as the
-        # minimum in its package.json. This one may still work, but it's not
-        # one of the versions `actions/setup-node` assists us in testing.
-        #
-        # Version 6.17.1 is the earliest version `actions/setup-node` assists us
-        # in testing. This is likely the earliest one we have confidence in
-        # supporting, though if any issues come up, we might consider dropping
-        # support for it rather than fixing them.
+        # Version 10.0.0 is likely the earliest version supported by
+        # `actions/setup-node` that we have confidence in supporting. Still, if
+        # any issues come up, we might consider dropping support for it rather
+        # than fixing them.
         #
         # Versions 14.18.1 and 16.13.0 are the two most recent LTS versions at
         # the time of writing, and we intend to support them both. Some Webpack
@@ -37,7 +35,7 @@ jobs:
         # to support it, but it has no LTS releases yet, and we may not
         # reasonably be able to support it if it introduces major regressions.
         #
-        node-version: ["6.17.1", "14.18.1", "16.13.0", "17", "lts/*"]
+        node-version: ["8.17.0", "10.0.0", "14.18.1", "16.13.0", "17", "lts/*"]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
