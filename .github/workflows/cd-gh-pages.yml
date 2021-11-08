@@ -45,21 +45,20 @@ jobs:
       # This is adapted from
       # <https://github.com/steveklabnik/automatically_update_github_pages_with_travis_example>.
 
-      # We clone the repo and reset to the `gh-pages` branch. If that branch
-      # doesn't exist yet, we proceed anyway (`|| true`); we'll end up creating
-      # the branch ourselves.
-      #
-      # Note that we authenticate using the `GITHUB_TOKEN` secret. This token is
-      # provided by GitHub to GitHub Actions workflows.
-      #
+      # We clone the `gh-pages` branch. If it doesn't exist yet, we create a new
+      # branch with an empty history. Note that we authenticate using the
+      # `GITHUB_TOKEN` secret; this token is provided by GitHub to
+      # GitHub Actions workflows.
       - name: Clone the `gh-pages` branch, or create it with an empty history
         run: |
           git clone "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/era-platform/cene.git" build-gh-pages/repo
           cd build-gh-pages/repo
-          git reset gh-pages || true
+          git checkout gh-pages || git checkout --orphan gh-pages
 
-      # We build the dependencies of the Cene demos. We replace the `.gitignore`
-      # file with a version where these dependencies are not ignored.
+      # We replace the contents of the working directory with those of the
+      # `main` branch, and we build the dependencies of the Cene demos. We
+      # replace the `.gitignore` file with a version where these dependencies
+      # are not ignored.
       #
       # (GitHub Actions workflows reset the working directory between steps, so
       # we `cd` again.)
@@ -67,6 +66,8 @@ jobs:
       - name: Build dependencies of the Cene demos
         run: |
           cd build-gh-pages/repo
+          git rm -rf .
+          git reset main
           node cene.js --demo-cene
           cp gh-pages.gitignore .gitignore
 
