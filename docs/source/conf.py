@@ -63,7 +63,7 @@ class _CeneLexer(RegexLexer):
 extensions = ['sphinx.ext.todo']
 
 source_parsers = {'.md': CommonMarkParser}
-source_suffix = ['.rst'] + source_parsers.keys()
+source_suffix = ['.rst', *source_parsers.keys()]
 master_doc = 'index'
 
 project = u'Cene'
@@ -77,7 +77,7 @@ highlight_language = 'cene'
 todo_include_todos = True
 
 def setup(sphinx):
-    sphinx.add_lexer('cene', _CeneLexer())
+    sphinx.add_lexer('cene', _CeneLexer)
 
 
 # Configuration for Sphinx HTML builds

@@ -131,7 +131,7 @@ Returns (:ref:`yep` (:ref:`nil`)) if the given value is a located s-expression (
 .. _s-expr-layer-from-stx:
 
 s-expr-layer-from-stx
---------------------
+---------------------
 
 Call with ``stx``
 
