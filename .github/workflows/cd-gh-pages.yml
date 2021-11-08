@@ -1,0 +1,89 @@
+name: Continuous Delivery for GitHub Pages
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+
+jobs:
+  cd-gh-pages:
+    runs-on: ubuntu-latest
+    # We only update the GitHub Pages branch if this is the main repo (not a
+    # fork), only if the CI tests were caused by a push (not a pull request),
+    # and only if they succeeded.
+    if: |
+      ${{
+        github.repository == 'era-platform/cene'
+        && github.event.workflow_run.event == 'push'
+        && github.event.workflow_run.conclusion == 'success'
+      }}
+    strategy:
+      matrix:
+        include:
+          # This is the only entry of the matrix for this action.
+          - node-version: "16.13.0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          cache: npm
+          node-version: ${{ matrix.node-version }}
+      - name: Check the Node.js version
+        run: node --version
+      - name: Install npm dependencies
+        run: npm install
+      - name: Run unit tests
+        run: npm test
+
+
+      # We take the built `build-gh-pages` content from the `main` branch and
+      # deploy it as a commit to the `gh-pages` branch.
+
+      # This is adapted from
+      # <https://github.com/steveklabnik/automatically_update_github_pages_with_travis_example>.
+
+      # We clone the repo and reset to the `gh-pages` branch. If that branch
+      # doesn't exist yet, we proceed anyway (`|| true`); we'll end up creating
+      # the branch ourselves.
+      #
+      # Note that we authenticate using the `GITHUB_TOKEN` secret. This token is
+      # provided by GitHub to GitHub Actions workflows.
+      #
+      - name: Clone the `gh-pages` branch, or create it with an empty history
+        run: |
+          git clone "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/era-platform/cene.git" build-gh-pages/repo
+          cd build-gh-pages/repo
+          git reset gh-pages || true
+
+      # We build the dependencies of the Cene demos. We replace the `.gitignore`
+      # file with a version where these dependencies are not ignored.
+      #
+      # (GitHub Actions workflows reset the working directory between steps, so
+      # we `cd` again.)
+      #
+      - name: Build dependencies of the Cene demos
+        run: |
+          cd build-gh-pages/repo
+          node cene.js --demo-cene
+          cp gh-pages.gitignore .gitignore
+
+      # We stage all the files, including untracked ones, and make a commit to
+      # the `gh-pages` branch that looks a lot like the latest commit to `main`.
+      - name: Commit to `gh-pages`
+        run: |
+          cd build-gh-pages/repo
+          git add -A .
+          git config user.name "$(git log -1 --pretty=%an main)"
+          git config user.email "$(git log -1 --pretty=%ae main)"
+          git commit -m "$(git log -1 --pretty=%B main)"
+
+      # We push this new commit to the `gh-pages` branch. We specify the remote
+      # branch as `refs/heads/gh-pages` so that we create the branch if it
+      # doesn't exist yet.
+      - name: Push to `gh-pages`
+        run: |
+          cd build-gh-pages/repo
+          git push -q origin HEAD:refs/heads/gh-pages
