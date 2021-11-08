@@ -204,57 +204,10 @@ function runCeneSync(
     
     
     function runUglifyMinifier( code ) {
-        var ast = uglify.parse( code, {
-            bare_returns: true
-        } );
-        ast.figure_out_scope();
-        ast.compute_char_frequency();
-        ast.mangle_names();
-        ast = ast.transform( uglify.Compressor( {
-            sequences: true,
-            properties: true,
-            dead_code: true,
-            drop_debugger: false,
-            unsafe: false,
-            
-            unsafe_comps: true,
-            
-            unsafe_math: false,
-            unsafe_proto: false,
-            conditionals: true,
-            comparisons: true,
-            evaluate: true,
-            booleans: true,
-            loops: true,
-            unused: true,
-            top_retain: [],
-            hoist_funs: false,
-            hoist_vars: false,
-            if_return: true,
-            join_vars: true,
-            cascade: true,
-            collapse_vars: true,
-            reduce_vars: true,
-            warnings: false,
-            negate_iife: true,
-            pure_getters: true,
-            
-            // TODO: See if we have anything to add here.
-            pure_funcs: [],
-            
-            drop_console: false,
-            expression: false,
-            keep_fargs: false,
-            keep_fnames: false,
-            passes: 1,
-            side_effects: true,
-            global_defs: {}
-        } ) );
-        var stream = uglify.OutputStream( {
-            max_line_len: 1 / 0
-        } );
-        ast.print( stream );
-        return stream.toString();
+        return uglify.minify( code, {
+            parse: { bare_returns: true },
+            compress: { drop_debugger: false }
+        } ).code;
     }
     
     function runNoopMinifier( code ) {
