@@ -781,7 +781,7 @@ if ( args.file !== void 0 ) tasks.push( function ( then ) {
 
 
 if ( tasks.length === 0 ) {
-    argParser.printHelp();
+    argParser.print_help();
 } else {
     arrEachAsyncNodeExn( tasks, function ( i, task, then ) {
         task( then );
