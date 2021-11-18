@@ -51,7 +51,7 @@ jobs:
       # GitHub Actions workflows.
       - name: Clone the `gh-pages` branch, or create it with an empty history
         run: |
-          git clone "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/era-platform/cene.git" build-gh-pages/repo
+          git clone "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" build-gh-pages/repo
           cd build-gh-pages/repo
           git checkout gh-pages || git checkout --orphan gh-pages
 
