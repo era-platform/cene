@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<!--
+index.html (part of Era Cene)
+Copyright 2016, 2017, 2021 Ross Angle. Released under the MIT License.
+-->
+<title>Cene</title>
+<style type="text/css">
+
+/*
+NOTE: Throughout this style, we only use two hues, namely the hues of
+the colors #ff004b and #00ff4b. This color scheme is prone to
+red-green color blindness if we use it poorly, so we will be sure to
+achieve contrast with value differences, not hue differences.
+*/
+
+html {
+    font-size: 17px;
+    font-family: sans-serif;
+}
+
+#nav {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 0 20px;
+    line-height: 38px;
+    background: #872d48;
+    box-shadow: 0 0 2px #000000;
+    font-weight: bold;
+}
+
+#nav > li {
+    display: inline-block;
+    margin: 0 10px;
+}
+
+#nav > li > a {
+    color: #ffffff;
+    text-decoration: none;
+}
+
+#nav > li > a:visited {
+    color: #f2d2db;
+}
+
+h1 {
+    width: 474px;
+    margin: 0 auto;
+    margin-top: 38px;
+    padding-right: 208px;
+    font-size: 80px;
+    line-height: 200px;
+    text-align: right;
+    background: url('assets/cene-logo-rough-small.png') right center no-repeat;
+}
+
+.content {
+    width: 780px;
+    margin: 0 auto;
+    border: 5px solid #5a2031;
+    padding: 20px 0;
+    border-radius: 5px;
+    box-shadow: 0 20px 50px #cccccc;
+}
+
+.content > * {
+    padding: 0 20px;
+}
+
+.content > .isnt-enough {
+    min-height: 131px;
+    margin: 20px 0;
+    padding: 20px 20px;
+    background: #d7fde2;
+}
+.content > .isnt-enough.n2 {
+    background: #ffffff;
+}
+
+.content > .isnt-enough > .isnt-enough {
+    font-size: 19px;
+    margin: 5px 0;
+}
+
+.content > .isnt-enough > .why-not-enough {
+    margin: 5px 0 5px 20px;
+    width: 50%;
+}
+
+.content > .isnt-enough.n2 > .isnt-enough {
+    margin-left: 280px;
+}
+
+.content > .isnt-enough.n2 > .why-not-enough {
+    margin-left: 300px;
+}
+
+.content > .dropping-the-beat {
+    text-align: center;
+    margin: 20px;
+}
+
+.content > .dropping-the-beat.n3 {
+    margin-top: 42px;
+}
+
+.content > .tour {
+    border-bottom: 1px dotted #5a2031;
+    padding: 20px 90px;
+}
+.content > .tour.first {
+    border-top: 1px dotted #5a2031;
+}
+
+.content > .where-to-go {
+    margin-top: 40px;
+}
+
+.content > .thanks {
+    margin-bottom: 18px;
+    padding-bottom: 192px;
+    text-align: center;
+    background: url('assets/cene-logo-rough-small.png') center bottom no-repeat;
+}
+
+</style>
+</head>
+<body>
+
+
+<ul id="nav">
+    <li><a href="https://github.com/era-platform/cene">Cene on GitHub</a></li>
+    <li><a href="https://github.com/era-platform/cene-scaffold">Sample project</a></li>
+    <li><a href="https://cene.readthedocs.io/en/latest/">Language reference</a></li>
+</ul>
+
+
+<h1>Cene</h1>
+
+<div class="content">
+    <div class="start">Cene is a programming language dedicated to simplifying the experience of programming on all fronts.</div>
+    
+    <div class="isnt-enough n1">
+        <div class="isnt-enough">It isn't enough for Cene to be a language that's easy to use.</div>
+        <div class="why-not-enough">Some of the most arcane techniques in programming have come about because it's been even harder to go without them.</div>
+    </div>
+    
+    <div class="isnt-enough n2">
+        <div class="isnt-enough">It isn't enough for Cene to be simple within a well-defined problem domain.</div>
+        <div class="why-not-enough">Much of the complexity of programming comes about when a project crosses domains and has to make various tools work together.</div>
+    </div>
+    
+    <div class="isnt-enough n3">
+        <div class="isnt-enough">It isn't enough for Cene to be a good tool for practitioners.</div>
+        <div class="why-not-enough">It must also be simple for bystanders and future generations who may have trouble dealing with Cene's technicalities or social assumptions.</div>
+    </div>
+    
+    <div class="dropping-the-beat n1">Cene isn't enough.</div>
+    <div class="dropping-the-beat n2">Cene can <i>never</i> be enough.</div>
+    <div class="dropping-the-beat n3">And Cene has been designed with that in mind.</div>
+    
+    <div class="tour first">Thanks to Cene's <b>macros and namespaces</b>, tools that appear to be built into the language can turn out to be libraries, so Cene is not anchored to its old design decisions.</div>
+    
+    <div class="tour">Thanks to Cene's <b>quasiquotation and string quasiquotation</b>, it's easy to write Cene code that generates code that a fork of Cene can load.</div>
+    
+    <div class="tour">Thanks to Cene's <b>"<code>follow-heart</code>" approach to error handling</b>, some of a program's decisions are left up to the user and the Cene implementation they choose to use, so a program doesn't have to be set in its ways. The rest of the language semantics is simple and deterministic, and it should be about as easy to standardize as Scheme or SML.</div>
+    
+    <div class="where-to-go">
+        <p>Interested in using Cene? The readme at <a href="https://github.com/era-platform/cene">the GitHub repo</a> has a somewhat more in-depth introduction with instructions, and there's <a href="https://github.com/era-platform/cene-scaffold">a sample project</a> you can take a look at to get started. Cene isn't exactly stable yet, and error messages are dismal, but it can be useful with enough patience. If you run into errors, try debugging the language implementation in the Node.js inspector, or open an issue on GitHub.</p>
+        
+        <p>Interested in contributing to Cene? That's tricky! There isn't a code of conduct or a contributor's copyright agreement laid out yet; there aren't enough people on the project to be able to set a clear direction for the group's governance. So let's get to know each other first, and make your own fork in the meantime if you need to.</p>
+    </div>
+    
+    <div class="thanks">Thanks for stopping by! Cene ya later.</div>
+</div>
+
+
+</body>
+</html>
