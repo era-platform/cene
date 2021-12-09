@@ -17,14 +17,15 @@ Check the console to see if there are errors. If there aren't, great!
 Nothing to see here.</p>
 
 <p>This page loads the Cene source code from files called
-"fin/prelude-util.cene.js", "fin/quasiquote.cene.js", and
-"fin/test.cene.js" in the repo directory. To use this page, you must
-obtain these files in one of two ways:</p>
+"prelude-util.cene.js", "quasiquote.cene.js", and "test.cene.js". To
+use this page, you must obtain these files in one of two ways:</p>
 
 <ul>
     <li>Install Node.js. From the repo directory, run the command
     "<kbd>npm install</kbd>" followed by the command
-    "<kbd>node cene.js --demo-cene</kbd>".</li>
+    "<kbd>node cene.js --demo-cene</kbd>". This will create the files
+    under the "dist/demos/" directory. Open the version of this file
+    that was copied in there.</li>
     <li>Check out the <code>gh-pages</code> branch, which contains the
     files automatically built by GitHub Actions.</li>
 </ul>
@@ -33,20 +34,16 @@ obtain these files in one of two ways:</p>
 <a href="https://era-platform.github.io/cene/demos/cene.html"
 >online</a>.</p>
 
-<script type="text/javascript" src="../buildlib/lathe.js"></script>
-<script type="text/javascript" src="../fin/prelude-util.cene.js">
-    </script>
-<script type="text/javascript" src="../fin/quasiquote.cene.js">
-    </script>
-<script type="text/javascript" src="../fin/test.cene.js"></script>
-<script type="text/javascript" src="../src/era-misc-strmap-avl.js">
-    </script>
-<script type="text/javascript" src="../src/era-misc.js"></script>
-<script type="text/javascript" src="../src/era-reader.js"></script>
-<script type="text/javascript" src="../src/era-code-gen-js.js">
-    </script>
-<script type="text/javascript" src="../src/cene-runtime.js"></script>
-<script type="text/javascript" src="../src/cene-api.js"></script>
+<script type="text/javascript" src="lathe.js"></script>
+<script type="text/javascript" src="prelude-util.cene.js"></script>
+<script type="text/javascript" src="quasiquote.cene.js"></script>
+<script type="text/javascript" src="test.cene.js"></script>
+<script type="text/javascript" src="era-misc-strmap-avl.js"></script>
+<script type="text/javascript" src="era-misc.js"></script>
+<script type="text/javascript" src="era-reader.js"></script>
+<script type="text/javascript" src="era-code-gen-js.js"></script>
+<script type="text/javascript" src="cene-runtime.js"></script>
+<script type="text/javascript" src="cene-api.js"></script>
 <script type="text/javascript">"use strict";
 
 window.onload = function () {
