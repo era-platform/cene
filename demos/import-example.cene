@@ -1,11 +1,11 @@
 \= import-example.cene
-\= Copyright 2016 Ross Angle. Released under the MIT License.
+\= Copyright 2016, 2021 Ross Angle. Released under the MIT License.
 
 \= You can execute this file like so at the command line:
 \=
 \=   $ cene demos/import-example.cene \
 \=       --in demos/import-example-src \
-\=       --out fin/import-example
+\=       --out dist/demos/import-example
 \=
 \= This Cene program creates its output path as a directory, creates
 \= the file hello-world.txt under that directory, and writes text to
@@ -13,8 +13,8 @@
 \= in the file import-example-src.cene under its input path.
 \=
 \= That example command line specifies the output directory as
-\= fin/import-example, so the file will be located at
-\= fin/import-example/hello-world.txt. It specifies the input
+\= dist/demos/import-example, so the file will be located at
+\= dist/demos/import-example/hello-world.txt. It specifies the input
 \= directory as demos/import-example-src, so the original file will be
 \= read from demos/import-example-src/import-example-src.cene.
 

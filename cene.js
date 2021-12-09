@@ -729,7 +729,7 @@ if ( args.demo_cene ) tasks.push( function ( then ) {
             
             ltf.writeTextFile(
                 $path.resolve( __dirname,
-                    "fin/" + file.name + ".js" ),
+                    "dist/demos/" + file.name + ".js" ),
                 "utf-8",
                 "\"use strict\";\n" +
                 "var eraPlatform = eraPlatform || {};\n" +
@@ -744,7 +744,7 @@ if ( args.demo_cene ) tasks.push( function ( then ) {
         if ( e ) return void then( e );
         
         console.log(
-            "Copied Cene files to fin/ as JavaScript files." );
+            "Copied Cene files to dist/demos/ as JavaScript files." );
         then();
     } );
 } );

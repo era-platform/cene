@@ -17,6 +17,10 @@
     "uglify-js": "^3.14.3"
   },
   "scripts": {
+    "all": "npm run clean && npm run test",
+    "clean": "rm -rf build dist",
+    "build": "./build-demos.sh",
+    "build-gh-pages": "npm run build",
     "test": "node cene.js -cEC"
   },
   "main": "cene.js",

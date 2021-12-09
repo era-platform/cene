@@ -1,17 +1,17 @@
 \= hello-world-js.cene
-\= Copyright 2016 Ross Angle. Released under the MIT License.
+\= Copyright 2016, 2021 Ross Angle. Released under the MIT License.
 
 \= You can execute this file like so at the command line:
 \=
-\=   $ cene demos/hello-world-js.cene --out fin/hello-world-js
+\=   $ cene demos/hello-world-js.cene --out dist/demos/hello-world-js
 \=
 \= This Cene program creates its output path as a directory, creates
 \= the file hello-world.js under that directory, and writes to that
 \= file so it contains JavaScript code that logs "Hello, world!".
 \=
 \= That example command line specifies the output directory as
-\= fin/hello-world-js, so the file will be located at
-\= fin/hello-world-js/hello-world.js.
+\= dist/demos/hello-world-js, so the file will be located at
+\= dist/demos/hello-world-js/hello-world.js.
 
 
 (def-macro go home-scope caller-scope my-stx-details args then

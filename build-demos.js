@@ -1,32 +1,37 @@
 #!/bin/env node
 // build-demos.js
-// Copyright 2016, 2017 Ross Angle. Released under the MIT License.
+// Copyright 2016, 2017, 2021 Ross Angle.
+// Released under the MIT License.
 "use strict";
 
 var cene = require( "./cene" );
+
+// TODO: At the moment, this only does a fraction of what
+// build-demos.sh does. We were keeping them in parity before, and we
+// should probably do that again.
 
 cene.runCeneSync( [
     "src/prelude-util.cene",
     "demos/hello-world.cene"
 ], {
-    out: "fin/hello-world"
+    out: "dist/demos/hello-world"
 } );
 
 cene.runCeneSync( [
     "src/prelude-util.cene",
     "demos/hello-world-js.cene"
 ], {
-    out: "fin/hello-world-js"
+    out: "dist/demos/hello-world-js"
 } );
-require( "./fin/hello-world-js/hello-world-sloppy" );
-require( "./fin/hello-world-js/hello-world-picky" );
+require( "./dist/demos/hello-world-js/hello-world-sloppy" );
+require( "./dist/demos/hello-world-js/hello-world-picky" );
 
 cene.runCeneSync( [
     "src/prelude-util.cene",
     "demos/read-and-transform.cene"
 ], {
     in: "demos/read-and-transform-src",
-    out: "fin/read-and-transform"
+    out: "dist/demos/read-and-transform"
 } );
 
 cene.runCeneSync( [
@@ -34,5 +39,5 @@ cene.runCeneSync( [
     "demos/import-example.cene"
 ], {
     in: "demos/import-example-src",
-    out: "fin/import-example"
+    out: "dist/demos/import-example"
 } );
