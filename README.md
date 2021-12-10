@@ -1,6 +1,6 @@
 # Cene
 
-<img title="Cene logo" width="166" height="166" src="https://era-platform.github.io/cene/notes/logo/cene-logo-rough-small.png" align="right">
+<img title="Cene logo" width="166" height="166" src="https://era-platform.github.io/cene/assets/cene-logo-rough-small.png" align="right">
 
 [![CI](https://github.com/era-platform/cene/actions/workflows/ci.yml/badge.svg)](https://github.com/era-platform/cene/actions/workflows/ci.yml)
 
