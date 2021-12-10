@@ -17,7 +17,7 @@
     "uglify-js": "^3.14.3"
   },
   "scripts": {
-    "all": "npm run clean && npm test",
+    "all": "npm run clean && npm run build && npm test",
     "clean": "rm -rf build dist",
     "build": "./build-demos.sh",
     "build-gh-pages": "npm run build",
