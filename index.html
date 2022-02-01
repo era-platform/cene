@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <link rel="shorcut icon" type="image/png"
-  href="assets/logo/cene-5-compact-favicon.png">
+    href="assets/logo/cene-5-compact-favicon.png">
 <!--
 index.html (part of Era Cene)
 Copyright 2016-2017, 2021-2022 Rocketnia.
@@ -24,11 +24,11 @@ html {
     font-family: sans-serif;
 }
 
+body {
+    margin: 0 0 20px 0;
+}
+
 #nav {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
     margin: 0;
     padding: 0 20px;
     line-height: 38px;
@@ -53,13 +53,12 @@ html {
 
 h1 {
     width: 474px;
-    margin: 0 auto;
-    margin-top: 38px;
-    padding-right: 208px;
-    font-size: 80px;
-    line-height: 200px;
-    text-align: right;
-    background: url('assets/logo/cene-5-compact-cropped-398x398.png') right center / 166px 166px no-repeat;
+    margin: 20px auto;
+    text-align: center;
+}
+
+h1 > img {
+    display: inline-block;
 }
 
 .content {
@@ -91,16 +90,8 @@ h1 {
 }
 
 .content > .isnt-enough > .why-not-enough {
-    margin: 5px 0 5px 20px;
-    width: 50%;
-}
-
-.content > .isnt-enough.n2 > .isnt-enough {
-    margin-left: 280px;
-}
-
-.content > .isnt-enough.n2 > .why-not-enough {
-    margin-left: 300px;
+    margin: 15px 0 5px 20px;
+    width: 70%;
 }
 
 .content > .dropping-the-beat {
@@ -143,7 +134,12 @@ h1 {
 </ul>
 
 
-<h1>Cene</h1>
+<h1>
+    <img width="312" height="166"
+        src="assets/logo/cene-5-cropped-164.png"
+        alt="Cene"
+        title="Cene">
+</h1>
 
 <div class="content">
     <div class="start">Cene is a programming language dedicated to simplifying the experience of programming on all fronts.</div>

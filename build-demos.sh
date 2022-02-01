@@ -37,5 +37,6 @@ mkdir -p dist/gh-pages/
 cp -r dist/demos dist/gh-pages/
 cp index.html dist/gh-pages/
 mkdir -p dist/gh-pages/assets/logo/
+cp assets/logo/cene-5-cropped-164.png dist/gh-pages/assets/logo/
 cp assets/logo/cene-5-compact-cropped-398x398.png dist/gh-pages/assets/logo/
 cp assets/logo/cene-5-compact-favicon.png dist/gh-pages/assets/logo/
