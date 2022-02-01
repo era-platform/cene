@@ -36,5 +36,6 @@ node cene.js --demo-cene
 mkdir -p dist/gh-pages/
 cp -r dist/demos dist/gh-pages/
 cp index.html dist/gh-pages/
-mkdir -p dist/gh-pages/assets/
-cp notes/logo/cene-logo-rough-small.png dist/gh-pages/assets/
+mkdir -p dist/gh-pages/assets/logo/
+cp assets/logo/cene-5-compact-cropped-398x398.png dist/gh-pages/assets/logo/
+cp assets/logo/cene-5-compact-favicon.png dist/gh-pages/assets/logo/
