@@ -8,6 +8,8 @@
 
 [![CI](https://github.com/era-platform/cene/actions/workflows/ci.yml/badge.svg)](https://github.com/era-platform/cene/actions/workflows/ci.yml)
 
+[Visit the Cene website.](https://era-platform.github.io/cene/)
+
 [Run some Cene code in your browser, logging to the console.](https://era-platform.github.io/cene/demos/cene.html)
 
 [Run some reader unit tests in your browser, logging to the console.](https://era-platform.github.io/cene/demos/unit-tests.html)
@@ -16,11 +18,19 @@
 
 [See documentation of the built-in operations](https://cene.readthedocs.io/en/latest/)
 
-Programming is an activity of last resort; as soon as we're programming, we're not directly in the field, in the moment, acting and responding as our needs arise. Yet we find ourselves in a new kind of field, a new kind of moment, where it starts to look valuable to solve the problem that is now at hand -- programming itself. Thus we eventually build things that are sophisticated enough to be programming languages of their own, but sadly they're incompatible with all the languages that came before. Cene fixes that. Cene is a programming language that's designed so that if you find yourself implementing a programming language, you can make a slight detour and implement Cene all over again instead.
+Cene is a programming language dedicated to simplifying the experience of programming on all fronts. This makes it a lot like the other language experiments in the [Era project](https://github.com/era-platform/era), but Cene is the furthest along and the most practical. Unlike the Era projects that came before it, Cene is designed to be useful as part of a command-line build system.
 
-Cene offers simple approaches to several problems that programming languages often fail to solve.
+In fact, Cene basically is a build language, although instead of coordinating the invocation of external compilers, a Cene program generates target-language programs by crawling the code of its own function definitions. This way, a library can be written once in Cene and compiled to multiple target languages (although for now, we only support JavaScript).
 
-Cene's **collapsed brackets** are a simple syntactic feature that allows deep conditionals and continuation-passing code to be written as linear code blocks:
+
+## Various specific features
+
+Cene offers simple approaches to several problems that few other programming languages attempt to solve.
+
+
+### Weak opening parens
+
+Cene's weak opening parens are a simple syntactic feature that allows deep conditionals and continuation-passing code to be written as linear code blocks:
 
 ```
 (if condition-1
@@ -46,7 +56,14 @@ Cene's **collapsed brackets** are a simple syntactic feature that allows deep co
 /do-thing-3 result-1 result-2)
 ```
 
-Since Cene makes continuation-passing style so much more palatable, Cene's **side effects** are monadic, with asynchronous callbacks if they're observable to the outside world. If they're not observable to the outside world, they use a world-passing style instead. Cene code calls worlds "modes" and "modalities" to call to mind modal logic; world-passing code is effectively parameterized over possible worlds, and if a static type were ascribed to world-passing code, it might show similarities to a modal operator.
+For more information, see [Parendown](https://github.com/lathe/parendown-for-racket), a library we've made to bring this functionality to Racket.
+
+
+### Purity and controlled side effects
+
+Since Cene makes continuation-passing style so much more palatable, Cene's side effects take advantage of this. If a side effect needs to be observable by later computations, it uses continuation-passing style (or more specifically, monadic style).
+
+Side effects that only read from the outside world rather than writing to it use a world-passing style instead.
 
 ```
 \= Copies one tree of UTF-8 files to another file tree recursively.
@@ -70,52 +87,68 @@ Since Cene makes continuation-passing style so much more palatable, Cene's **sid
     \= the output path.
     file-type-blob
     (output-path-blob-utf-8 out /input-path-blob-utf-8 mode in)
-    
+  
   \= If we don't recognize the type of file, we just do nothing with
   \= it.
   /no-effects/nil))
 ```
 
-Cene's **homoiconic syntax** and **macro support** mean the built-in operators of the language don't look particularly better than the user-defined ones. This means you can focus on the operations you actually use rather than the ones the language anticipated that you'd use.
+This approach allows everything else in Cene to be pure functional programming. Pure Cene functions are allowed to diverge, run out of memory, or otherwise exhaust the program's resources, but that's the extent of the side effects they can perform on their own. (We consider run time errors to be a kind of resource exhaustion.)
 
-Cene supports sophisticated **quasiquotation for strings**. Cene code be moved into and out of Cene string literals without having to escape special characters, because the Cene string literal syntax is `\;qq[...]`, and the same syntax doubles as an escape sequence dedicated to the purpose of generating Cene code strings. Together with string interpolations, **quasiquotation variables**, and collapsed brackets, we can write in a code-generating continuation-passing style if we ever really need to for some reason:
+We take advantage of this purity in some places in Cene's design to avoid exposing unstable implementation details to Cene programs. For instance, Cene has a table data structure similar to hash tables, but unlike other languages whose hash tables expose an arbitrary iteration order that's subject to change, Cene ensures its hash tables' iteration order can't be observed at all by a terminating Cene program.
+
+Cene is an untyped language and can cause errors at run time. We consider a run time error to be a kind of resource exhaustion.
+
+
+### Macros
+
+Cene has Lisp-like syntax and support for macros. Cene's approach to hygiene involves explictly passing around namespaces and resolving symbols in terms of them.
+
+Our goal with this is to allow Cene's evolution as a language to sometimes result in a *simpler* language that implements the previous design as a library. Many languages accumulate complexity over time, but sufficiently macro-capable and modular languages can reverse the process.
+
+Cene's macro calls are capable of cooperating using concurrent access to monotonic state resources. This is a deterministic concurrency model that's similar to [LVar](https://github.com/lkuper/lvar-examples)s, and we expect to implement various things like multimethod systems and static type systems in terms of this infrastructure.
+
+
+### Nested string quasiquotation
+
+Cene has a string syntax with a few more bells and whistles than usual. Borrowing an idea from Scheme's `quasiquote` and Common Lisp's `backquote`, Cene's string syntax can be _nested_. This means Cene code generators can be written in Cene while only rarely requiring escape sequences. In order to support nesting, the string syntax itself looks just like an escape sequence, `\;qq[...]`.
+
+Not that it's actually advisable, but using this syntax, we can build multi-stage programs in a style where each step of the computation generates another Cene program to run the next step:
 
 ```
 (do-thing-1 /fn result-1
   \;qq[
     (do-thing-2 \;uq;ls`result-1` /fn result-2
-      \;qq[(do-thing-3 \;uq;uq;ls`result-1` \;uq;ls`result-2`)])])
+      \;qq[(do-thing-3 \;uq;uq;ls`result-1` \;uq;ls`result-2`)])
+  ])
+```
 
+And since this style of program is similar to continuation-passing style, we can take advantage of Cene's weak opening parens to make it even easier to write:
+
+```
+(do-thing-1 /fn result-1 \;qq/
+\/do-thing-2 \;uq;ls`result-1` /fn result-2 \;qq/
+\/do-thing-3 \;uq;uq;ls`result-1` \;uq;ls`result-2`)
+```
+
+Note the use of ``\;uq;ls`result-1` `` in the above code to interpolate `result-1` into the string. In the call to `do-thing-3`, we write ``\;uq;uq;ls`result-1` `` to escape from two layers of quotation at once. This is the kind of scenario that Scheme and Common Lisp programs use `,',` for, but we support it directly in the syntax.
+
+The above might still look a little annoying to write. The number of times we have to write `;uq` in our ``\;uq;uq;ls`result-1` `` varies depending on where we are in the program. It's as though we have to keep track of the de Bruijn index of `result-1` as we go along.
+
+Usually, programming languages don't require people to refer to variables by de Bruijn index. So Cene provides a way to give labels to quotation levels using the `wq` and `rq` notations:
+
+```
 (do-thing-1 /fn result-1 \;(wq r1);qq/
 \/do-thing-2 \;(rq r1);ls`result-1` /fn result-2 \;(wq r2);qq/
 \/do-thing-3 \;(rq r1);ls`result-1` \;(rq r2);ls`result-2`)
 ```
 
-Cene's quasiquotation for s-expressions will be just as full-featured.
+In most programs with halfway reasonable architectures, nested quasiquotations are exceedingly rare. Most macro-generating macros with one or two levels of nested quotation are remarkable enough to be pulled out into their own extensively documented libraries, and it's generally advisable to use a library of that sort rather than hacking together a one-off code generator that might suffer from a code injection attack. But in case you happen to have found your way into a situation where generating code is genuinely helpful, Cene is accommodating.
 
-Cene's first-class values all have the same capabilities: A value can be invoked as a function, and it can expose its contained values if the client can guess its name. Conceptually, even Cene's anonymous functions have names, but the names are just impossible to obtain (and therefore impossible to guess).
+At the moment, Cene has all this support for quasiquoting strings, but it doesn't yet have quotation for s-expressions. We could copy the approach we took for string quotation, but before diving into that, we've decided to take some time to investigate the underpinning mathematical structure of `quasiquote`-shaped operations so that we can factor out these various notational extensions into appropriate pieces. The [Punctaffy](https://github.com/lathe/punctaffy-for-racket) project has come out of this investigation.
 
-Cene has **namespace** support, which lets you make certain names impossible to obtain in certain files. Using this, you can enforce full encapsulation of your own data structures. Even the core data structures should be impossible to distinguish from ones that have been encapsulated this way, so Cene's design is consistent with a **reflective tower** of language implementations all running as part of the same program. This in turn means that if you find yourself implementing a new programming language for any reason, if it's anything like Cene, you will likely be able to continue development without sudden changes to your development flow. This support for **smooth language development** is the main driver behind Cene's design.
 
-Even Cene's **command-line tool** is designed to invoke Cene code that implements a compiler (or more generally a build system). The Cene code is given a source directory, an output directory, and command line arguments. The Cene-to-JavaScript compiler is provided not as a command-line tool of its own, but as one of the built-in functions that helps this Cene code write content to its output directory.
-
-## Effects and error handling in Cene
-
-Cene side effects were demonstrated above already, but here's the nitty-gritty:
-
-Cene code is rather pure. Any Cene expression is referentially transparent and deterministic unless it stops prematurely due to resource exhaustion. Cene computations support general recursion and can therefore diverge, but divergence is treated as resource exhaustion.
-
-When Cene needs to model side effects, it uses monads and world-passing techniques. These techniques are in full force when writing Cene macros, which have the power to read and write definitions and files as they go along. Cene code that interacts with JavaScript just uses a monad with the power to execute JavaScript code.
-
-Currently, Cene code can terminate with an error at any time. This is considered a way to cause resource exhaustion on purpose; it's just a nicer alternative to an explicit infinite loop. Other basic operators in Cene use this mechanism for their dynamic errors.
-
-Cene's approach to errors may be more flexible in the future. There's a plan for Cene code to be able to interact with its interpreter when it's having trouble, but we'll need to implement an interpreter that cares about these interactions before this will actually be useful. Once we have these, applications which make frequent use of custom interpreters and quoted/reified code will end up working a lot like dynamic scope, which will give the error handling system a flavor much like Common Lisp's condition/restart system.
-
-## Concessions
-
-As [the overall Era project](https://github.com/era-platform/era) goes along, textual syntaxes like Cene's will eventually be regarded as a relic, replaced by monotonic code databases and hypertext syntaxes. Cene makes particular concessions for modern-day tools, namely text editors, command lines, and JavaScript runtimes.
-
-## Installation and usage
+## Installation and use
 
 Install Node.js. Recent versions of Node.js come with npm.
 
@@ -132,11 +165,11 @@ A global installation lets you easily invoke cene at the command line:
 cene my-build.cene --in my-src-dir/ --out my-output-dir/ arg1 arg2
 ```
 
-For a complete example project written in Cene, check out [Cene Scaffold](https://github.com/era-platform/cene-scaffold) and follow the installation instructions in its readme.
+For a complete example project written in Cene, check out [Cene Scaffold](https://github.com/era-platform/cene-scaffold).
 
 Cene also supports being loaded as a Node.js library. It has only two exports:
 
-```
+```js
 var cene = require( "cene" );
 cene.runCeneSync( cene.preludeFiles.concat( [ "my-build.cene" ] ), {
     args: [ "arg1", "arg2" ],
@@ -146,13 +179,3 @@ cene.runCeneSync( cene.preludeFiles.concat( [ "my-build.cene" ] ), {
 ```
 
 If you use this technique to run Cene, it's a little bit more flexible than the command-line tool. You can supply more than one filename of your own to be executed in sequence, and you can choose not to include the prelude files, which the Cene command-line tool always includes.
-
-## Branding
-
-Cene is named for _-cene_, a suffix that refers to eras, since Cene is part of [the Era project](https://github.com/era-platform/era). The resemblance to "Scheme" and the potential for wordplay with "seen," "scene," "sing," "sink," "obscene," and "zine" are just side benefits. Yes, I just spoiled all those puns for you. Go on and use the puns anyway, now fully equipped with the awareness of how stale they're going to get. A stale pun is still a good pun in the right context.
-
-The brand image I imagine for Cene will have layers: In the meta layer, cartoon characters weild a mallet and a marker over a holographic void of pinks, yellows, and greens. In the marker-drawn layer, deep dark gray and pure white are punctuated by stamp symbols, gears, and dotted lines in luminescent red. When the gears hatch, cartoon vines grow out of them in a calm, neutral green. These cartoon vines are the brand image I have in mind for the Era project's eventual OS/IDE/visual programming language, so they should appear only for Cene projects that implement modular, reactive, or UI functionality as building blocks for Era.
-
-## About this project
-
-Cene is released under the MIT license. See LICENSE.txt.
