@@ -1,5 +1,6 @@
 // era-misc.js
-// Copyright 2013-2016 Ross Angle. Released under the MIT License.
+// Copyright 2013-2016, 2022 Rocketnia.
+// Released under the MIT License.
 "use strict";
 
 
@@ -164,7 +165,7 @@ function jsStr( string ) {
 // TODO: Put utilities like these in lathe.js.
 function jsJson( json ) {
     return JSON.stringify( json ).
-        replace( /\u2028/g, "\\u2028" )
+        replace( /\u2028/g, "\\u2028" ).
         replace( /\u2029/g, "\\u2029" );
 }
 function getUnicodeCodePointAtCodeUnitIndex( string, codeUnitIndex ) {
