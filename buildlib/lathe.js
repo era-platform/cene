@@ -526,7 +526,6 @@ my.arrTuple = function ( size, arr ) {
             }
         } );
     } );
-    return result;
 };
 
 my.arrPair = function ( arr ) {
@@ -735,7 +734,7 @@ my.objOwnMapConcurrent = function ( obj, asyncFunc, then ) {
     var results = {};
     my.objOwnEachConcurrent( obj, function ( k, v, then ) {
         asyncFunc( k, v, my.oncefn( function ( r ) {
-            results[ i ] = r;
+            results[ k ] = r;
             then();
         } ) );
     }, function () {
