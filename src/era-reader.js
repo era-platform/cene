@@ -1649,8 +1649,6 @@ function readSexpOrInfixOp( yoke, s,
                                 }
                             } );
                         } );
-                        return readSexp( yoke, s,
-                            !"heedCommandEnds", then );
                     } ),
                     function ( yoke, emptyStream, result ) {
                     
